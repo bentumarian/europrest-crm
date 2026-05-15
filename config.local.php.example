@@ -1,0 +1,20 @@
+<?php
+/*
+|--------------------------------------------------------------------------
+| Config local PestZone - TEMPLATE
+|--------------------------------------------------------------------------
+| ATENTIE:
+| - Acesta este DOAR un template / exemplu.
+| - Pe server, copiaza acest fisier ca "config.local.php" si completeaza
+|   datele reale.
+| - config.local.php NU se urca pe Git (e in .gitignore).
+| - Datele reale (parola DB) raman DOAR pe server.
+|--------------------------------------------------------------------------
+*/
+
+return [
+    'db_host' => 'localhost',
+    'db_name' => 'r132680pest_pestzone_app',
+    'db_user' => 'r132680pest_bentu',
+    'db_pass' => 'INLOCUIESTE_CU_PAROLA_NOUA_DIN_CPANEL',
+];
