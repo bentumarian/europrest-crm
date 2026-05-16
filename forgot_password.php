@@ -46,39 +46,222 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $error === '') {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Am uitat parola</title>
+<title>Resetare parola</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
 <style>
-:root{--brand:#4F46E5;--brand-dark:#4338CA;--text:#0F172A;--muted:#64748B;--border:#E5E7EB;--surface:#FFFFFF;--danger:#DC2626;--success:#047857;--font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:var(--font);background:linear-gradient(180deg,var(--brand),var(--brand-dark));display:flex;align-items:center;justify-content:center;padding:24px;color:var(--text)}
-.card{width:100%;max-width:430px;background:var(--surface);border:1px solid rgba(255,255,255,.25);border-radius:22px;box-shadow:0 24px 70px rgba(2,24,43,.20);padding:30px}.brand{display:flex;justify-content:center;margin-bottom:20px}.brand img{height:68px;width:auto;object-fit:contain}.fallback-logo{width:68px;height:68px;border-radius:20px;background:var(--brand);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:24px}
-h1{margin:0 0 8px;text-align:center;font-size:24px;letter-spacing:-.03em}.sub{margin:0 0 22px;text-align:center;color:var(--muted);font-size:14px;line-height:1.55}.field{margin-bottom:16px}label{display:block;margin-bottom:7px;color:var(--muted);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}input{width:100%;min-height:48px;border:1px solid var(--border);border-radius:14px;padding:0 14px;font:inherit;outline:none}input:focus{border-color:var(--brand);box-shadow:0 0 0 4px rgba(79,70,229,.18)}.btn{width:100%;min-height:48px;border:1px solid var(--brand);border-radius:14px;background:var(--brand);color:#fff;font:inherit;font-weight:800;cursor:pointer}.btn:hover{background:var(--brand-dark);border-color:var(--brand-dark)}.msg{border-radius:14px;padding:12px 14px;margin-bottom:18px;font-size:14px;line-height:1.5}.err{background:#fff1f2;border:1px solid #fecdd3;color:var(--danger)}.ok{background:#f0fdf4;border:1px solid #bbf7d0;color:var(--success)}.back{display:block;text-align:center;margin-top:18px;color:var(--brand);font-weight:700;text-decoration:none;font-size:14px}.back:hover{text-decoration:underline}
+:root {
+    --primary: #1160B7;
+    --primary-soft: #002050;
+    --primary-light: #B1D6F0;
+    --secondary: #526B82;
+    --secondary-2: #DFE2E8;
+    --background: #DFE2E8;
+    --card: #FFFFFF;
+    --border: rgba(177, 214, 240, .58);
+    --text: #002050;
+    --muted: #526B82;
+    --danger-bg: #FFF4F1;
+    --danger-border: rgba(210, 71, 38, .24);
+    --danger-text: #D24726;
+    --success-bg: #F0FDF4;
+    --success-border: #BBF7D0;
+    --success-text: #047857;
+    --shadow-3d: 0 34px 90px rgba(0, 32, 80, .20), 0 14px 34px rgba(0, 32, 80, .10);
+    --radius: 34px;
+    --font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font);
+    color: var(--text);
+    background:
+        radial-gradient(circle at 18% 10%, rgba(17, 96, 183, .18), transparent 30%),
+        radial-gradient(circle at 86% 88%, rgba(177, 214, 240, .30), transparent 36%),
+        radial-gradient(circle at 50% 110%, rgba(0, 32, 80, .13), transparent 45%),
+        linear-gradient(135deg, #FFFFFF 0%, #EEF4F8 45%, var(--background) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 34px;
+    overflow-x: hidden;
+}
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(rgba(0, 32, 80, .038) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 32, 80, .038) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,.62), transparent 82%);
+}
+body::after {
+    content: "";
+    position: fixed;
+    inset: auto 0 0 0;
+    height: 38vh;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent 0%, rgba(0, 32, 80, .10) 100%);
+}
+.login-shell {
+    position: relative;
+    width: min(420px, calc(100vw - 56px));
+    max-width: 420px;
+    z-index: 1;
+}
+.login-card {
+    width: 100%;
+    position: relative;
+    background: linear-gradient(145deg, rgba(255,255,255,.88) 0%, rgba(255,255,255,.72) 54%, rgba(177,214,240,.24) 100%);
+    border: 1px solid rgba(255,255,255,.86);
+    border-top-color: rgba(177,214,240,.78);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-3d);
+    padding: 32px 32px 28px;
+    overflow: hidden;
+    backdrop-filter: blur(22px) saturate(150%);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+}
+.login-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 7px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 52%, rgba(255,255,255,.80) 100%);
+}
+.login-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at 50% 0%, rgba(255,255,255,.92), transparent 34%), linear-gradient(135deg, rgba(255,255,255,.55) 0%, transparent 45%);
+    opacity: .78;
+    z-index: 0;
+}
+.login-card > * { position: relative; z-index: 1; }
+.brand { display: flex; align-items: center; justify-content: center; margin: 2px 0 24px; }
+.brand-badge {
+    width: 78px;
+    height: 78px;
+    border-radius: 28px;
+    background: linear-gradient(145deg, #1772D3 0%, var(--primary) 58%, #0B4E9C 100%);
+    border: 1px solid rgba(255,255,255,.42);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 20px 42px rgba(0, 32, 80, .28), inset 0 1px 0 rgba(255,255,255,.38), inset 0 -12px 22px rgba(0,32,80,.12);
+}
+.brand-badge img { display: block; width: 53px; height: 53px; object-fit: contain; filter: drop-shadow(0 5px 10px rgba(0,32,80,.18)); }
+.login-title { margin: 0; text-align: center; font-size: 25px; line-height: 1.18; letter-spacing: -.045em; font-weight: 900; color: var(--text); }
+.login-subtitle { margin: 10px 0 23px; text-align: center; font-size: 14px; line-height: 1.5; color: var(--muted); font-weight: 600; }
+.form-group { margin-bottom: 16px; }
+label { display: block; margin-bottom: 8px; color: var(--text); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .085em; }
+.input-wrap { position: relative; }
+.input-icon { position: absolute; left: 16px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); color: var(--secondary); pointer-events: none; }
+.input-icon svg { display: block; width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.95; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+input {
+    width: 100%;
+    min-height: 52px;
+    padding: 0 15px 0 46px;
+    border-radius: 18px;
+    border: 1px solid rgba(0,32,80,.13);
+    background: rgba(255,255,255,.74);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 700;
+    outline: none;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.80), 0 10px 22px rgba(0,32,80,.035);
+}
+input::placeholder { color: #7F94A8; font-weight: 600; }
+input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(17,96,183,.15), inset 0 1px 0 rgba(255,255,255,.88), 0 14px 30px rgba(0,32,80,.08); background: rgba(255,255,255,.92); }
+.login-button {
+    width: 100%;
+    min-height: 54px;
+    border: 1px solid rgba(255,255,255,.38);
+    border-radius: 18px;
+    background: linear-gradient(145deg, #1772D3 0%, var(--primary) 58%, #0B4E9C 100%);
+    color: #fff;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 20px 38px rgba(17,96,183,.25), inset 0 1px 0 rgba(255,255,255,.28), inset 0 -12px 22px rgba(0,32,80,.13);
+}
+.login-button svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.msg { border-radius: 18px; padding: 12px 14px; margin-bottom: 18px; font-size: 13px; font-weight: 800; line-height: 1.45; }
+.err { background: rgba(255,244,241,.88); border: 1px solid var(--danger-border); color: var(--danger-text); }
+.ok { background: var(--success-bg); border: 1px solid var(--success-border); color: var(--success-text); }
+.back { display: block; text-align: center; margin-top: 18px; color: var(--primary); font-weight: 900; text-decoration: none; font-size: 13px; }
+.back:hover { text-decoration: underline; }
+.security-line { margin-top: 14px; display: flex; justify-content: center; align-items: center; gap: 8px; color: var(--secondary); font-size: 12px; font-weight: 800; }
+.security-line svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 520px) {
+    body { align-items: center; padding: 22px 0; }
+    .login-shell { width: calc(100vw - 42px); max-width: 390px; }
+    .login-card { padding: 26px 20px 23px; border-radius: 28px; }
+    .brand-badge { width: 70px; height: 70px; border-radius: 24px; }
+    .brand-badge img { width: 48px; height: 48px; }
+    .login-title { font-size: 23px; }
+}
 </style>
 </head>
 <body>
-<div class="card">
-    <div class="brand">
-        <?php if (file_exists(__DIR__ . '/assets/brand-monogram.png')): ?>
-            <img src="assets/brand-monogram.png" alt="Brand">
+
+<main class="login-shell">
+    <div class="login-card">
+        <div class="brand">
+            <div class="brand-badge" aria-hidden="true">
+                <img src="assets/brand-icon.png" alt="">
+            </div>
+        </div>
+
+        <h1 class="login-title">Resetare parola</h1>
+        <p class="login-subtitle">Introdu emailul contului. Daca exista un cont activ, vei primi un link pentru setarea unei parole noi.</p>
+
+        <?php if ($error): ?><div class="msg err"><?= pr_h($error) ?></div><?php endif; ?>
+
+        <?php if ($success): ?>
+            <div class="msg ok">Daca exista un cont activ pentru acest email, am trimis instructiunile de resetare. Verifica inbox-ul si folderul Spam.</div>
         <?php else: ?>
-            <div class="fallback-logo">P</div>
+            <form method="post" autocomplete="on">
+                <?= csrf_field() ?>
+                <div class="form-group">
+                    <label for="email">Email cont</label>
+                    <div class="input-wrap">
+                        <span class="input-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"></path><path d="m4 7 8 6 8-6"></path></svg></span>
+                        <input id="email" type="email" name="email" required autocomplete="email" value="<?= pr_h($_POST['email'] ?? '') ?>" placeholder="email@domeniu.ro">
+                    </div>
+                </div>
+                <button class="login-button" type="submit">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12"></path><path d="m13 6 6 6-6 6"></path></svg>
+                    <span>Trimite link resetare</span>
+                </button>
+            </form>
         <?php endif; ?>
+
+        <a class="back" href="login.php">Inapoi la autentificare</a>
+        <div class="security-line" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 5 3.2 8.5 7 10 3.8-1.5 7-5 7-10V6l-7-3Z"></path><path d="m9.5 12 1.8 1.8 3.6-4"></path></svg>
+            <span>Link valabil 60 minute</span>
+        </div>
     </div>
-    <h1>Resetare parola</h1>
-    <p class="sub">Introdu adresa de email a contului. Daca exista un cont activ, vei primi un link pentru setarea unei parole noi.</p>
-    <?php if ($error): ?><div class="msg err"><?= pr_h($error) ?></div><?php endif; ?>
-    <?php if ($success): ?>
-        <div class="msg ok">Daca exista un cont activ pentru acest email, am trimis instructiunile de resetare. Verifica inbox-ul si folderul Spam.</div>
-    <?php else: ?>
-        <form method="post">
-            <?= csrf_field() ?>
-            <div class="field"><label>Email cont</label><input type="email" name="email" required autocomplete="email" value="<?= pr_h($_POST['email'] ?? '') ?>" placeholder="email@domeniu.ro"></div>
-            <button class="btn" type="submit">Trimite link resetare</button>
-        </form>
-    <?php endif; ?>
-    <a class="back" href="login.php">Inapoi la autentificare</a>
-</div>
+</main>
+
 </body>
 </html>
