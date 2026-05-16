@@ -2436,7 +2436,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 
                 <form method="get" id="filterForm" class="calendar-line calendar-filter-line">
                     <input type="hidden" name="date" value="<?= hcal($currentDate) ?>">
-                    <select class="select view-select" name="view" onchange="this.form.submit()">
+                    <select class="select view-select" name="view" onchange="if (this.value === 'week') { window.location.href = 'calendar_week.php?date=<?= urlencode($currentDate) ?>&team=<?= urlencode($selectedTeam) ?>'; } else { this.form.submit(); }">
                         <?php foreach ($viewLabels as $v => $label): ?>
                             <option value="<?= hcal($v) ?>" <?= $view === $v ? 'selected' : '' ?>><?= hcal($label) ?></option>
                         <?php endforeach; ?>
