@@ -68,6 +68,44 @@ function safe_view(?string $view): string {
     return in_array($view, ['day', 'week', 'month'], true) ? $view : 'day';
 }
 
+/**
+ * Citeste filtrul de echipe din request. Accepta atat `team_ids[]=1&team_ids[]=2`
+ * (form-checkbox), cat si `team=1,2,3` sau `team=all` (URL clasic). Intoarce
+ * un array de ID-uri int. Array gol = "toate echipele".
+ */
+function calendar_request_team_ids(): array {
+    $ids = [];
+    $rawIds = $_GET['team_ids'] ?? null;
+    if (is_array($rawIds)) {
+        foreach ($rawIds as $raw) {
+            $id = (int)$raw;
+            if ($id > 0) { $ids[$id] = $id; }
+        }
+        return array_values($ids);
+    }
+    $rawTeam = trim((string)($_GET['team'] ?? 'all'));
+    if ($rawTeam === '' || strcasecmp($rawTeam, 'all') === 0) { return []; }
+    foreach (explode(',', $rawTeam) as $part) {
+        $id = (int)trim($part);
+        if ($id > 0) { $ids[$id] = $id; }
+    }
+    return array_values($ids);
+}
+
+/**
+ * Transforma o lista de ID-uri intr-un CSV folosit pentru parametrul `team=`
+ * din URL-uri (sau "all" daca nu e nimic selectat).
+ */
+function calendar_team_csv(array $teamIds): string {
+    if (!$teamIds) { return 'all'; }
+    $clean = [];
+    foreach ($teamIds as $id) {
+        $id = (int)$id;
+        if ($id > 0) { $clean[$id] = $id; }
+    }
+    return $clean ? implode(',', array_values($clean)) : 'all';
+}
+
 function calendar_normalize_half_hour_time(?string $time): ?string {
     $time = trim((string)$time);
 
@@ -826,7 +864,10 @@ if (calendar_table_exists($pdo, 'tasks')) {
 $currentDate = safe_date($_GET['date'] ?? date('Y-m-d'));
 $currentDateObj = new DateTime($currentDate);
 $view = safe_view($_GET['view'] ?? 'day');
-$selectedTeam = $isTeamUser ? (string)$currentTeamId : ($_GET['team'] ?? 'all');
+// Filtru de echipe: pentru user tehnician se fixeaza pe echipa lui;
+// pentru admin acceptam team_ids[] (multi-select) sau team= (CSV sau "all").
+$selectedTeamIds = $isTeamUser ? [(int)$currentTeamId] : calendar_request_team_ids();
+$selectedTeam = calendar_team_csv($selectedTeamIds); // CSV pentru URL-uri si redirect_team
 
 /*
 |--------------------------------------------------------------------------
@@ -1856,15 +1897,17 @@ if ($isTeamUser) {
 
 $teams = $allTeams;
 
-if (!$isTeamUser && $selectedTeam !== 'all') {
-    $filtered = array_values(array_filter($allTeams, function($team) use ($selectedTeam) {
-        return (int)$team['id'] === (int)$selectedTeam;
+if (!$isTeamUser && $selectedTeamIds) {
+    $filtered = array_values(array_filter($allTeams, function($team) use ($selectedTeamIds) {
+        return in_array((int)$team['id'], $selectedTeamIds, true);
     }));
 
     if ($filtered) {
         $teams = $filtered;
     } else {
+        // ID-uri necunoscute -> revert la "toate echipele"
         $teams = $allTeams;
+        $selectedTeamIds = [];
         $selectedTeam = 'all';
     }
 }
@@ -1890,9 +1933,6 @@ if ($view === 'week') {
 } elseif ($view === 'month') {
     $rangeStartObj = new DateTime($currentDateObj->format('Y-m-01'));
     $rangeEndObj = (clone $rangeStartObj)->modify('last day of this month');
-} elseif ($view === 'year') {
-    $rangeStartObj = new DateTime($currentDateObj->format('Y-01-01'));
-    $rangeEndObj = new DateTime($currentDateObj->format('Y-12-31'));
 }
 
 $rangeStart = $rangeStartObj->format('Y-m-d');
@@ -1922,9 +1962,10 @@ $whereTeam = '';
 if ($isTeamUser) {
     $whereTeam = ' AND at.team_id = ? ';
     $params[] = (int)$currentTeamId;
-} elseif ($selectedTeam !== 'all') {
-    $whereTeam = ' AND at.team_id = ? ';
-    $params[] = (int)$selectedTeam;
+} elseif ($selectedTeamIds) {
+    $placeholders = implode(',', array_fill(0, count($selectedTeamIds), '?'));
+    $whereTeam = ' AND at.team_id IN (' . $placeholders . ') ';
+    foreach ($selectedTeamIds as $tid) { $params[] = (int)$tid; }
 }
 
 $stmt = $pdo->prepare("
@@ -2032,10 +2073,9 @@ $viewLabels = [
     'month' => 'Luna',
 ];
 
-$fullCalendarView = [
-    'week'  => 'timeGridWeek',
-    'month' => 'dayGridMonth',
-][$view] ?? 'timeGridWeek';
+// FullCalendar este folosit doar pentru view=month. View=week este randerat
+// direct cu grila operationala (week-schedule-grid), iar view=day cu schedule-grid.
+$fullCalendarView = 'dayGridMonth';
 
 $desktopMinTeamWidth = 220;
 $tabletMinTeamWidth = 112;
@@ -2391,6 +2431,22 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 
 
 
+/* Filtru multi-tehnician (folosit pe toate view-urile) */
+.cal-team-picker{position:relative;min-width:0}
+.cal-team-picker > summary{list-style:none;cursor:pointer;outline:none}
+.cal-team-picker > summary::-webkit-details-marker{display:none}
+.cal-team-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;height:42px;padding:0 12px;border-radius:12px;border:1.5px solid rgba(29,110,193,.45);background:#fff;color:#002050;font-weight:750;font-size:13px;text-align:center;box-shadow:0 10px 24px rgba(29,110,193,.08), inset 0 1px 0 rgba(255,255,255,.86)}
+.cal-team-picker[open] > summary.cal-team-summary{border-color:rgba(29,110,193,.85)}
+.cal-team-caret{font-size:11px;color:#5C6B85;flex-shrink:0}
+.cal-team-menu{position:absolute;top:calc(100% + 6px);right:0;left:0;z-index:200;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-lg);padding:10px;max-height:380px;overflow:auto;min-width:220px}
+.cal-team-all{display:block;padding:9px 10px;border-radius:10px;text-decoration:none;color:#002050;font-weight:850;background:#F8FAFC;margin-bottom:6px;text-align:center;font-size:13px}
+.cal-team-all:hover{background:#EEF2F7}
+.cal-team-option{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;font-size:13px;font-weight:700;color:#002050;cursor:pointer;user-select:none}
+.cal-team-option:hover{background:#F8FAFC}
+.cal-team-option input{width:16px;height:16px;flex-shrink:0}
+.cal-team-apply{width:100%;justify-content:center;margin-top:8px}
+@media(max-width:860px){.cal-team-menu{left:auto;right:0;min-width:210px}}
+
 .week-schedule-scroll{width:100%;max-width:100%;overflow:auto;-webkit-overflow-scrolling:touch;max-height:calc(100vh - 155px);border:1px solid rgba(0,32,80,.22);border-radius:var(--radius-lg);background:var(--surface);box-shadow:0 16px 34px rgba(0,32,80,.06)}
 .week-schedule-grid{width:max(100%,calc(62px + (var(--week-columns) * 48px)));min-width:max(100%,calc(62px + (var(--week-columns) * 48px)));display:grid;grid-template-columns:62px repeat(var(--week-columns),minmax(48px,1fr));grid-template-rows:34px 42px repeat(36,28px);position:relative}
 .week-corner{position:sticky;top:0;left:0;z-index:42;background:rgba(255,255,255,.94);border-right:1px solid rgba(0,32,80,.25);border-bottom:1px solid rgba(0,32,80,.22);backdrop-filter:blur(14px)}
@@ -2436,19 +2492,29 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 
                 <form method="get" id="filterForm" class="calendar-line calendar-filter-line">
                     <input type="hidden" name="date" value="<?= hcal($currentDate) ?>">
-                    <select class="select view-select" name="view" onchange="if (this.value === 'week') { window.location.href = 'calendar_week.php?date=<?= urlencode($currentDate) ?>&team=<?= urlencode($selectedTeam) ?>'; } else { this.form.submit(); }">
+                    <select class="select view-select" name="view" onchange="this.form.submit()">
                         <?php foreach ($viewLabels as $v => $label): ?>
                             <option value="<?= hcal($v) ?>" <?= $view === $v ? 'selected' : '' ?>><?= hcal($label) ?></option>
                         <?php endforeach; ?>
                     </select>
 
                     <?php if ($isAdmin): ?>
-                        <select class="select" name="team" onchange="this.form.submit()">
-                            <option value="all" <?= $selectedTeam === 'all' ? 'selected' : '' ?>>Toate echipele</option>
-                            <?php foreach ($allTeams as $team): ?>
-                                <option value="<?= (int)$team['id'] ?>" <?= (string)$selectedTeam === (string)$team['id'] ? 'selected' : '' ?>><?= hcal($team['name']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <details class="cal-team-picker">
+                            <summary class="cal-team-summary">
+                                <?= $selectedTeamIds ? (count($selectedTeamIds) . ' tehnicieni') : 'Toate echipele' ?>
+                                <span class="cal-team-caret" aria-hidden="true">▾</span>
+                            </summary>
+                            <div class="cal-team-menu">
+                                <a class="cal-team-all" href="calendar.php?date=<?= urlencode($currentDate) ?>&view=<?= urlencode($view) ?>&team=all">Toate echipele</a>
+                                <?php foreach ($allTeams as $team): ?>
+                                    <label class="cal-team-option">
+                                        <input type="checkbox" name="team_ids[]" value="<?= (int)$team['id'] ?>" <?= in_array((int)$team['id'], $selectedTeamIds, true) ? 'checked' : '' ?>>
+                                        <span><?= hcal($team['name']) ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                                <button class="btn accent cal-team-apply" type="submit">Aplica</button>
+                            </div>
+                        </details>
                     <?php endif; ?>
                 </form>
 
@@ -2555,6 +2621,85 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                                 <?php if ($isFinalizedEvent): ?><span class="event-done-badge">Finalizata</span><?php endif; ?>
                             </div>
                         <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php elseif ($view === 'week'): ?>
+                <?php
+                /*
+                 * Vizualizare Saptamana: grila operationala cu tehnicienii pe coloane si
+                 * 7 zile × 36 sloturi de 30 minute. Reutilizeaza modalurile, drag-drop-ul
+                 * si filtrele paginii. Inlocuieste fostul fisier separat calendar_week.php.
+                 */
+                $weekColumns = max(1, count($weekDates) * max(1, count($teams)));
+                $weekTeamIndexById = [];
+                foreach ($teams as $i => $team) { $weekTeamIndexById[(int)$team['id']] = $i; }
+                $weekSlotStartHour = 6;
+                $weekSlotRowFor = function(?string $time) use ($weekSlotStartHour) {
+                    if (!$time || strpos($time, ':') === false) { return 3; }
+                    [$h, $m] = array_map('intval', explode(':', substr($time, 0, 5)));
+                    return max(3, (int)floor((($h * 60 + $m) - ($weekSlotStartHour * 60)) / 30) + 3);
+                };
+                $weekSlotSpanFor = function(?string $start, ?string $end) {
+                    if (!$start || !$end || strpos($start, ':') === false || strpos($end, ':') === false) { return 2; }
+                    [$sh, $sm] = array_map('intval', explode(':', substr($start, 0, 5)));
+                    [$eh, $em] = array_map('intval', explode(':', substr($end, 0, 5)));
+                    return max(1, (int)ceil(max(30, ($eh * 60 + $em) - ($sh * 60 + $sm)) / 30));
+                };
+                ?>
+                <div class="week-schedule-scroll">
+                    <div class="week-schedule-grid" style="--week-columns:<?= (int)$weekColumns ?>;">
+
+                        <div class="week-corner" style="grid-column:1;grid-row:1 / span 2;"></div>
+
+                        <?php foreach ($weekDates as $dIndex => $d): $weekStartCol = 2 + $dIndex * max(1, count($teams)); ?>
+                            <div class="week-day-head" style="grid-column:<?= $weekStartCol ?> / span <?= max(1, count($teams)) ?>;grid-row:1;"><?= hcal($d['label']) ?></div>
+                            <?php foreach ($teams as $tIndex => $team):
+                                $weekTeamColor = calendar_clean_hex_color($team['color'] ?? null);
+                                $weekTeamCol = $weekStartCol + $tIndex;
+                            ?>
+                                <div class="week-team-head" style="grid-column:<?= $weekTeamCol ?>;grid-row:2;--team-color:<?= hcal($weekTeamColor) ?>;" title="<?= hcal($team['name']) ?>">
+                                    <span class="week-team-dot"><?= hcal(calendar_initials($team['name'])) ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endforeach; ?>
+
+                        <?php foreach ($slots as $slotIndex => $slot):
+                            $weekRow = $slotIndex + 3;
+                            $weekIsHour = substr($slot, -3) === ':00';
+                        ?>
+                            <div class="week-time-cell <?= $weekIsHour ? 'hour-line' : '' ?>" style="grid-column:1;grid-row:<?= $weekRow ?>;"><?= $weekIsHour ? hcal($slot) : '' ?></div>
+                            <?php foreach ($weekDates as $dIndex => $d): $weekStartCol = 2 + $dIndex * max(1, count($teams)); ?>
+                                <?php foreach ($teams as $tIndex => $team):
+                                    $weekTeamColor = calendar_clean_hex_color($team['color'] ?? null);
+                                    $weekTeamCol = $weekStartCol + $tIndex;
+                                ?>
+                                    <div class="week-slot-cell <?= $weekIsHour ? 'hour-line' : '' ?>" style="grid-column:<?= $weekTeamCol ?>;grid-row:<?= $weekRow ?>;--team-color:<?= hcal($weekTeamColor) ?>;" data-drop-date="<?= hcal($d['date']) ?>" data-drop-time="<?= hcal($slot) ?>" data-drop-team="<?= (int)$team['id'] ?>" <?php if ($isAdmin): ?>onclick="openCreateModal('<?= hcal($d['date']) ?>', '<?= hcal($slot) ?>', '<?= (int)$team['id'] ?>')" ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event)"<?php endif; ?>></div>
+                                <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        <?php endforeach; ?>
+
+                        <?php foreach ($appointments as $weekAppt):
+                            $weekApptTeamId = (int)($weekAppt['display_team_member_id'] ?? 0);
+                            if (!isset($weekTeamIndexById[$weekApptTeamId])) { continue; }
+                            $weekDayIndex = null;
+                            foreach ($weekDates as $idx => $d) {
+                                if ($d['date'] === ($weekAppt['appointment_date'] ?? '')) { $weekDayIndex = $idx; break; }
+                            }
+                            if ($weekDayIndex === null) { continue; }
+                            $weekCol = 2 + $weekDayIndex * max(1, count($teams)) + $weekTeamIndexById[$weekApptTeamId];
+                            $weekEventRow = $weekSlotRowFor($weekAppt['start_time'] ?? null);
+                            $weekEventSpan = $weekSlotSpanFor($weekAppt['start_time'] ?? null, $weekAppt['end_time'] ?? null);
+                            $weekBaseColor = calendar_clean_hex_color($weekAppt['display_team_color'] ?? $weekAppt['team_color'] ?? null);
+                            $weekIsDone = (($weekAppt['status'] ?? '') === 'finalizata');
+                            $weekIsInProgress = (($weekAppt['status'] ?? '') === 'in_lucru');
+                            $weekEventColor = $weekIsDone ? calendar_lighten_hex($weekBaseColor, 0.84) : ($weekIsInProgress ? '#64748B' : $weekBaseColor);
+                            $weekEventBorder = $weekIsDone ? calendar_lighten_hex($weekBaseColor, 0.45) : $weekEventColor;
+                            $weekIsPrimary = ((int)($weekAppt['appointment_team_is_primary'] ?? 1) === 1);
+                            $weekEventTitle = ($weekAppt['client_name'] ?: 'Client') . ' - ' . substr((string)($weekAppt['start_time'] ?? ''), 0, 5) . ' - ' . ($weekAppt['service_type'] ?: 'Lucrare') . ' - ' . ($weekAppt['display_team_name'] ?? $weekAppt['team_name'] ?? 'Tehnician');
+                        ?>
+                            <div class="week-event <?= $weekIsDone ? 'done' : '' ?>" style="grid-column:<?= $weekCol ?>;grid-row:<?= $weekEventRow ?>/span <?= $weekEventSpan ?>;background:<?= hcal($weekEventColor) ?>;border-color:<?= hcal($weekEventBorder) ?>;" title="<?= hcal($weekEventTitle) ?>" <?php if ($isAdmin && !$weekIsDone && $weekIsPrimary): ?>draggable="true" data-appointment-id="<?= (int)$weekAppt['id'] ?>" ondragstart="handleAppointmentDragStart(event)" ondragend="handleAppointmentDragEnd(event)"<?php endif; ?> onclick="event.stopPropagation(); if (!window.pzAppointmentWasDragged) loadAppointment(<?= (int)$weekAppt['id'] ?>)"></div>
+                        <?php endforeach; ?>
+
                     </div>
                 </div>
             <?php else: ?>
@@ -3557,6 +3702,13 @@ document.querySelectorAll('.modal').forEach(modal => {
 });
 document.addEventListener('keydown', event => { if (event.key === 'Escape') document.querySelectorAll('.modal.open').forEach(modal => modal.classList.remove('open')); });
 
+// Inchide picker-ul multi-tehnician cand utilizatorul da click in afara lui.
+document.addEventListener('click', event => {
+    document.querySelectorAll('.cal-team-picker[open]').forEach(d => {
+        if (!d.contains(event.target)) d.removeAttribute('open');
+    });
+});
+
 function validateBillingBeforeSubmit(prefix) {
     const notInvoiceable = !!document.getElementById(prefix + '_not_invoiceable')?.checked;
     const amount = Number(document.getElementById(prefix + '_billing_amount')?.value || 0);
@@ -3857,20 +4009,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     title.style.fontSize = '0';
                     title.setAttribute('aria-label', info.event.extendedProps.client || info.event.title || 'Programare');
                     wrap.style.minHeight = '12px';
-                } else if (currentView === 'week') {
-                    // Vizualizare saptamana: bloc compact, fara nume client.
-                    // Fisa completa ramane disponibila la click pe bloc.
-                    title.textContent = '';
-                    title.style.height = '100%';
-                    title.style.minHeight = '14px';
-                    title.style.borderRadius = '7px';
-                    title.style.fontSize = '0';
-                    title.style.lineHeight = '0';
-                    title.style.opacity = '1';
-                    title.setAttribute('aria-label', info.event.extendedProps.client || info.event.title || 'Programare');
-                    title.setAttribute('title', (info.event.extendedProps.client || 'Client') + ' - ' + (info.event.extendedProps.service || 'Lucrare') + ' - ' + (info.event.extendedProps.team || 'Tehnician'));
-                    wrap.style.height = '100%';
-                    wrap.style.minHeight = '14px';
                 } else {
                     title.textContent = info.event.title;
                 }
