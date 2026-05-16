@@ -2432,18 +2432,16 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 
 
 /* Filtru multi-tehnician (folosit pe toate view-urile) */
-/* IMPORTANT: NU folosim display:flex pe <summary> pentru ca Safari si
-   unele versiuni de Chrome trateaza summary cu display:flex ca un element
-   non-summary, ceea ce blocheaza toggle-ul nativ al <details>. Pastram
-   summary cu display-ul default si pozitionam caret-ul absolut. */
+/* Implementare cu <button>+<div> (nu <details>) pentru maxima
+   compatibilitate intre browsere. Toggle-ul este controlat din JS. */
 .cal-team-picker{position:relative;min-width:0}
-.cal-team-picker > summary{list-style:none;cursor:pointer;outline:none;-webkit-appearance:none}
-.cal-team-picker > summary::-webkit-details-marker{display:none}
-.cal-team-picker > summary::marker{display:none;content:''}
-.cal-team-summary{position:relative;height:42px;padding:0 32px 0 14px;border-radius:12px;border:1.5px solid rgba(29,110,193,.45);background:#fff;color:#002050;font-weight:750;font-size:13px;line-height:38px;text-align:center;box-shadow:0 10px 24px rgba(29,110,193,.08), inset 0 1px 0 rgba(255,255,255,.86);user-select:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cal-team-picker[open] > summary.cal-team-summary{border-color:rgba(29,110,193,.85)}
+.cal-team-summary{position:relative;display:block;width:100%;height:42px;padding:0 32px 0 14px;border-radius:12px;border:1.5px solid rgba(29,110,193,.45);background:#fff;color:#002050;font-weight:750;font-size:13px;line-height:38px;text-align:center;box-shadow:0 10px 24px rgba(29,110,193,.08), inset 0 1px 0 rgba(255,255,255,.86);user-select:none;cursor:pointer;font-family:inherit;-webkit-appearance:none;appearance:none}
+.cal-team-summary:hover{border-color:rgba(29,110,193,.65)}
+.cal-team-picker.open .cal-team-summary{border-color:rgba(29,110,193,.85);box-shadow:0 12px 28px rgba(29,110,193,.18), inset 0 1px 0 rgba(255,255,255,.86)}
+.cal-team-summary-label{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
 .cal-team-caret{position:absolute;right:12px;top:0;line-height:42px;font-size:11px;color:#5C6B85;pointer-events:none}
 .cal-team-menu{position:absolute;top:calc(100% + 6px);right:0;left:0;z-index:200;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-lg);padding:10px;max-height:380px;overflow:auto;min-width:220px}
+.cal-team-menu[hidden]{display:none}
 .cal-team-all{display:block;padding:9px 10px;border-radius:10px;text-decoration:none;color:#002050;font-weight:850;background:#F8FAFC;margin-bottom:6px;text-align:center;font-size:13px}
 .cal-team-all:hover{background:#EEF2F7}
 .cal-team-option{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;font-size:13px;font-weight:700;color:#002050;cursor:pointer;user-select:none}
@@ -2504,12 +2502,12 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                     </select>
 
                     <?php if ($isAdmin): ?>
-                        <details class="cal-team-picker">
-                            <summary class="cal-team-summary">
-                                <?= $selectedTeamIds ? (count($selectedTeamIds) . ' tehnicieni') : 'Toate echipele' ?>
+                        <div class="cal-team-picker" id="calTeamPicker">
+                            <button type="button" class="cal-team-summary" onclick="calTogglePicker(event)" aria-haspopup="true" aria-expanded="false">
+                                <span class="cal-team-summary-label"><?= $selectedTeamIds ? (count($selectedTeamIds) . ' tehnicieni') : 'Toate echipele' ?></span>
                                 <span class="cal-team-caret" aria-hidden="true">▾</span>
-                            </summary>
-                            <div class="cal-team-menu">
+                            </button>
+                            <div class="cal-team-menu" id="calTeamMenu" hidden>
                                 <a class="cal-team-all" href="calendar.php?date=<?= urlencode($currentDate) ?>&view=<?= urlencode($view) ?>&team=all">Toate echipele</a>
                                 <?php foreach ($allTeams as $team): ?>
                                     <label class="cal-team-option">
@@ -2519,7 +2517,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                                 <?php endforeach; ?>
                                 <button class="btn accent cal-team-apply" type="submit">Aplica</button>
                             </div>
-                        </details>
+                        </div>
                     <?php endif; ?>
                 </form>
 
@@ -3707,11 +3705,44 @@ document.querySelectorAll('.modal').forEach(modal => {
 });
 document.addEventListener('keydown', event => { if (event.key === 'Escape') document.querySelectorAll('.modal.open').forEach(modal => modal.classList.remove('open')); });
 
-// Inchide picker-ul multi-tehnician cand utilizatorul da click in afara lui.
+// Filtru multi-tehnician: toggle + close-on-outside-click + close-on-escape.
+function calTogglePicker(event){
+    if (event){ event.preventDefault(); event.stopPropagation(); }
+    const picker = document.getElementById('calTeamPicker');
+    if (!picker) return;
+    const menu = document.getElementById('calTeamMenu');
+    const summary = picker.querySelector('.cal-team-summary');
+    if (!menu) return;
+    const willOpen = menu.hasAttribute('hidden');
+    if (willOpen){
+        menu.removeAttribute('hidden');
+        picker.classList.add('open');
+        if (summary) summary.setAttribute('aria-expanded', 'true');
+    } else {
+        menu.setAttribute('hidden', '');
+        picker.classList.remove('open');
+        if (summary) summary.setAttribute('aria-expanded', 'false');
+    }
+}
 document.addEventListener('click', event => {
-    document.querySelectorAll('.cal-team-picker[open]').forEach(d => {
-        if (!d.contains(event.target)) d.removeAttribute('open');
-    });
+    const picker = document.getElementById('calTeamPicker');
+    if (!picker || !picker.classList.contains('open')) return;
+    if (picker.contains(event.target)) return;
+    const menu = document.getElementById('calTeamMenu');
+    if (menu) menu.setAttribute('hidden', '');
+    picker.classList.remove('open');
+    const summary = picker.querySelector('.cal-team-summary');
+    if (summary) summary.setAttribute('aria-expanded', 'false');
+});
+document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    const picker = document.getElementById('calTeamPicker');
+    if (!picker || !picker.classList.contains('open')) return;
+    const menu = document.getElementById('calTeamMenu');
+    if (menu) menu.setAttribute('hidden', '');
+    picker.classList.remove('open');
+    const summary = picker.querySelector('.cal-team-summary');
+    if (summary) summary.setAttribute('aria-expanded', 'false');
 });
 
 function validateBillingBeforeSubmit(prefix) {
