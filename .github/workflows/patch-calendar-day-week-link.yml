@@ -1,0 +1,46 @@
+name: Patch calendar day week link
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-calendar-day-week-link.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch calendar select
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('calendar.php')
+          s = p.read_text()
+          old = '<select class="select view-select" name="view" onchange="this.form.submit()">'
+          new = '<select class="select view-select" name="view" onchange="if (this.value === \'week\') { window.location.href = \'calendar_week.php?date=<?= urlencode($currentDate) ?>&team=<?= urlencode($selectedTeam) ?>\'; } else { this.form.submit(); }">'
+          if new in s:
+              print('Already patched')
+          elif old in s:
+              s = s.replace(old, new, 1)
+              p.write_text(s)
+              print('Patched calendar week select')
+          else:
+              raise SystemExit('Target select not found')
+          PY
+      - name: Commit changes and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/patch-calendar-day-week-link.yml
+          git add calendar.php
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "Link day calendar week selector to team week view"
+          git push
