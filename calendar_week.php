@@ -186,6 +186,13 @@ $pz_page_breadcrumbs = ['Tehnicieni'];
     <style>
     .cw-toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:0 0 14px;flex-wrap:wrap;background:#F5F7FB;border:1px solid var(--border);border-radius:18px;padding:12px}.cw-left,.cw-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.cw-date{min-width:165px;text-align:center}.cw-card{background:#fff;border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow-md);overflow:hidden}.cw-scroll{overflow:auto;max-height:calc(100vh - 155px);-webkit-overflow-scrolling:touch}.cw-grid{display:grid;grid-template-columns:54px repeat(var(--cw-cols),minmax(34px,1fr));grid-template-rows:32px 34px repeat(36,25px);min-width:max(100%,calc(54px + var(--cw-cols) * 34px));position:relative}.cw-corner{position:sticky;left:0;top:0;z-index:50;background:#fff;border-right:1px solid #94A3B8;border-bottom:1px solid #CBD5E1}.cw-day{position:sticky;top:0;z-index:35;display:flex;align-items:center;justify-content:center;background:#F8FAFC;border-left:3px solid rgba(15,23,42,.72);border-bottom:1px solid #CBD5E1;font-size:11px;font-weight:900;color:#002050;letter-spacing:.04em}.cw-team{position:sticky;top:32px;z-index:34;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--team-color) 18%,#fff);border-left:1px solid #E2E8F0;border-bottom:1px solid #CBD5E1;box-shadow:inset 0 3px 0 var(--team-color)}.cw-team.day-start{border-left:3px solid rgba(15,23,42,.72)}.cw-dot{width:21px;height:21px;border-radius:999px;background:var(--team-color);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:9px}.cw-time{position:sticky;left:0;z-index:20;background:#fff;border-right:1px solid #94A3B8;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-family:var(--mono);font-size:9px;font-weight:700;color:#002050}.cw-slot{background:color-mix(in srgb,var(--team-color) 5%,#fff);border-left:1px solid #EEF2F7;border-bottom:1px solid #EEF2F7;cursor:pointer}.cw-slot.day-start{border-left:3px solid rgba(15,23,42,.72)}.cw-slot:hover{background:color-mix(in srgb,var(--team-color) 16%,#fff);outline:2px solid color-mix(in srgb,var(--team-color) 55%,transparent);outline-offset:-2px}.cw-hour{border-top:1px solid #CBD5E1}.cw-event{z-index:25;margin:2px;border-radius:7px;border:1px solid rgba(0,32,80,.18);box-shadow:0 8px 18px rgba(0,32,80,.13);cursor:pointer;position:relative;overflow:hidden}.cw-event:after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.28),transparent 56%)}.cw-event.done:before{content:'✓';position:absolute;right:4px;top:3px;z-index:2;background:rgba(255,255,255,.88);color:#002050;border-radius:99px;width:14px;height:14px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900}.cw-team-filter{position:relative}.cw-team-picker{position:relative}.cw-team-picker summary{min-width:190px;min-height:40px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:#fff;font-weight:800;cursor:pointer;list-style:none}.cw-team-picker summary::-webkit-details-marker{display:none}.cw-team-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:90;width:250px;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-lg);padding:10px}.cw-team-all{display:block;padding:8px 10px;border-radius:10px;text-decoration:none;color:#002050;font-weight:850;background:#F8FAFC;margin-bottom:6px}.cw-team-option{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:9px;font-size:12px;font-weight:750;color:#002050;cursor:pointer}.cw-team-option:hover{background:#F8FAFC}.cw-team-option input{width:15px;height:15px}.cw-team-apply{width:100%;justify-content:center;margin-top:8px}.cw-modal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:400;padding:20px;overflow:auto}.cw-modal-backdrop.open{display:block}.cw-modal{background:#fff;border-radius:18px;max-width:680px;margin:30px auto;padding:18px;border:1px solid var(--border);box-shadow:var(--shadow-lg)}.cw-modal-head{display:flex;justify-content:space-between;gap:12px;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:14px}.cw-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.cw-full{grid-column:1/-1}.cw-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}@media(max-width:860px){.cw-grid{grid-template-columns:42px repeat(var(--cw-cols),minmax(30px,1fr));grid-template-rows:30px 32px repeat(36,23px);min-width:calc(42px + var(--cw-cols) * 30px)}.cw-time{font-size:8px;padding-right:4px}.cw-day{font-size:9px}.cw-dot{width:19px;height:19px;font-size:8px}.cw-toolbar{padding:8px}.cw-team-menu{right:auto;left:0}.cw-form-grid{grid-template-columns:1fr}}
     </style>
+    <style>
+        /* Drag & drop pe vizualizarea saptamana */
+        .cw-event[draggable="true"]{cursor:grab}
+        .cw-event[draggable="true"]:active{cursor:grabbing}
+        .cw-event.dragging{opacity:.55;cursor:grabbing}
+        .cw-slot.drag-over{outline:2px dashed #1160B7;outline-offset:-3px;background:rgba(17,96,183,.16) !important}
+    </style>
 </head>
 <body>
 <div class="layout">
@@ -237,7 +244,7 @@ $pz_page_breadcrumbs = ['Tehnicieni'];
                         <div class="cw-time <?= $isHour ? 'cw-hour' : '' ?>" style="grid-column:1;grid-row:<?= $row ?>;"><?= $isHour ? cw_h($slot) : '' ?></div>
                         <?php foreach ($weekDates as $dIndex => $d): $startCol = 2 + $dIndex * count($teams); ?>
                             <?php foreach ($teams as $tIndex => $team): $color = cw_color($team['color'] ?? null); $col = $startCol + $tIndex; ?>
-                                <div class="cw-slot <?= $tIndex === 0 ? 'day-start' : '' ?> <?= $isHour ? 'cw-hour' : '' ?>" style="grid-column:<?= $col ?>;grid-row:<?= $row ?>;--team-color:<?= cw_h($color) ?>;" onclick="cwOpenCreate('<?= cw_h($d['date']) ?>','<?= cw_h($slot) ?>','<?= (int)$team['id'] ?>')"></div>
+                                <div class="cw-slot <?= $tIndex === 0 ? 'day-start' : '' ?> <?= $isHour ? 'cw-hour' : '' ?>" style="grid-column:<?= $col ?>;grid-row:<?= $row ?>;--team-color:<?= cw_h($color) ?>;" data-drop-date="<?= cw_h($d['date']) ?>" data-drop-time="<?= cw_h($slot) ?>" data-drop-team="<?= (int)$team['id'] ?>" onclick="cwOpenCreate('<?= cw_h($d['date']) ?>','<?= cw_h($slot) ?>','<?= (int)$team['id'] ?>')"<?php if ($isAdmin): ?> ondragover="cwDragOver(event)" ondragleave="cwDragLeave(event)" ondrop="cwDrop(event)"<?php endif; ?>></div>
                             <?php endforeach; ?>
                         <?php endforeach; ?>
                     <?php endforeach; ?>
@@ -257,7 +264,7 @@ $pz_page_breadcrumbs = ['Tehnicieni'];
                         $color = $isDone ? cw_lighten($baseColor) : ((($a['status'] ?? '') === 'in_lucru') ? '#64748B' : $baseColor);
                         $title = ($a['client_name'] ?? 'Client') . ' - ' . substr((string)($a['start_time'] ?? ''), 0, 5) . ' - ' . ($a['service_type'] ?? 'Lucrare') . ' - ' . ($a['display_team_name'] ?? 'Tehnician');
                     ?>
-                        <div class="cw-event <?= $isDone ? 'done' : '' ?>" style="grid-column:<?= $col ?>;grid-row:<?= $row ?>/span <?= $span ?>;background:<?= cw_h($color) ?>;" title="<?= cw_h($title) ?>" onclick="window.location.href='calendar.php?date=<?= cw_h($a['appointment_date']) ?>&view=day&team=<?= (int)$teamId ?>'"></div>
+                        <div class="cw-event <?= $isDone ? 'done' : '' ?>" style="grid-column:<?= $col ?>;grid-row:<?= $row ?>/span <?= $span ?>;background:<?= cw_h($color) ?>;" title="<?= cw_h($title) ?>"<?php if ($isAdmin && !$isDone): ?> draggable="true" data-appointment-id="<?= (int)$a['id'] ?>" ondragstart="cwEventDragStart(event)" ondragend="cwEventDragEnd(event)"<?php endif; ?> onclick="if(window.cwAppointmentWasDragged){window.cwAppointmentWasDragged=false;return;} window.location.href='calendar.php?date=<?= cw_h($a['appointment_date']) ?>&view=day&team=<?= (int)$teamId ?>'"></div>
                     <?php endforeach; ?>
                 </div>
             </div></div>
@@ -369,6 +376,81 @@ document.addEventListener('keydown', function(e){ if(e.key === 'Escape') cwClose
 document.addEventListener('click', function(e){
     document.querySelectorAll('.cw-team-picker[open]').forEach(function(d){ if(!d.contains(e.target)){ d.removeAttribute('open'); } });
 });
+
+// =====================================================================
+// Drag & drop programari pe vizualizarea saptamana
+// Reutilizeaza endpoint-ul appointment_drag_update.php folosit si la
+// vizualizarea Zi din calendar.php (acelasi backend, aceleasi reguli).
+// =====================================================================
+window.cwAppointmentWasDragged = false;
+var cwDraggedId = '';
+var cwIsAdmin = <?= $isAdmin ? 'true' : 'false' ?>;
+var cwCsrfToken = '<?= cw_h(csrf_token()) ?>';
+
+function cwEventDragStart(event){
+    if (!cwIsAdmin) return;
+    var t = event.currentTarget;
+    cwDraggedId = (t && t.dataset) ? (t.dataset.appointmentId || '') : '';
+    if (!cwDraggedId) return;
+    t.classList.add('dragging');
+    if (event.dataTransfer){
+        try { event.dataTransfer.effectAllowed = 'move'; } catch(e){}
+        try { event.dataTransfer.setData('text/plain', cwDraggedId); } catch(e){}
+    }
+}
+function cwEventDragEnd(event){
+    if (event.currentTarget) event.currentTarget.classList.remove('dragging');
+    document.querySelectorAll('.cw-slot.drag-over').forEach(function(c){ c.classList.remove('drag-over'); });
+    // Suprima click-ul de navigare care apare imediat dupa drop
+    window.cwAppointmentWasDragged = true;
+    setTimeout(function(){ window.cwAppointmentWasDragged = false; }, 250);
+    cwDraggedId = '';
+}
+function cwDragOver(event){
+    if (!cwIsAdmin || !cwDraggedId) return;
+    event.preventDefault();
+    if (event.dataTransfer) { try { event.dataTransfer.dropEffect = 'move'; } catch(e){} }
+    event.currentTarget.classList.add('drag-over');
+}
+function cwDragLeave(event){
+    event.currentTarget.classList.remove('drag-over');
+}
+function cwDrop(event){
+    if (!cwIsAdmin) return;
+    event.preventDefault();
+    event.stopPropagation();
+    var slot = event.currentTarget;
+    slot.classList.remove('drag-over');
+    var id = cwDraggedId || (event.dataTransfer && event.dataTransfer.getData('text/plain')) || '';
+    if (!id) return;
+    var fd = new FormData();
+    fd.append('csrf_token', cwCsrfToken);
+    fd.append('appointment_id', id);
+    fd.append('new_team_id', slot.dataset.dropTeam || '');
+    fd.append('new_date', slot.dataset.dropDate || '');
+    fd.append('new_start_time', slot.dataset.dropTime || '');
+    fetch('appointment_drag_update.php', {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' }
+    }).then(function(res){
+        return res.json().then(function(data){ return { ok: res.ok, data: data }; })
+                         .catch(function(){ return { ok: res.ok, data: null }; });
+    }).then(function(r){
+        if (!r.ok || !r.data || !r.data.ok){
+            alert((r.data && r.data.error) ? r.data.error : 'Programarea nu a putut fi mutata.');
+            return;
+        }
+        // Reincarca saptamana pe noua data, pastrand restul query-ului (filtre echipa)
+        var p = new URLSearchParams(window.location.search);
+        p.set('date', r.data.new_date || slot.dataset.dropDate || '');
+        window.location.href = 'calendar_week.php?' + p.toString();
+    }).catch(function(err){
+        console.error('cwDrop error:', err);
+        alert('Eroare la mutarea programarii. Reincearca.');
+    });
+}
 </script>
 <?php app_toast_container(); ?>
 </body>
