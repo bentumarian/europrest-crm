@@ -278,7 +278,6 @@ $pz_page_breadcrumbs = ['Tehnicieni'];
             <input type="hidden" name="start_time" id="cw_time" value="">
             <input type="hidden" name="team_member_id" id="cw_team" value="">
             <input type="hidden" name="duration" id="cw_duration_hidden" value="60">
-            <input type="hidden" name="billing_amount" value="0.00">
             <div class="cw-form-grid">
                 <div class="cw-full"><label>Client *</label><select name="client_id" required><option value="">Alege clientul</option><?php foreach ($clients as $c): ?><option value="<?= (int)$c['id'] ?>"><?= cw_h($c['name']) ?></option><?php endforeach; ?></select></div>
                 <div><label>Serviciu *</label><select name="service_type" required onchange="cwSetDuration(this)"><option value="">Alege lucrarea</option><?php foreach ($services as $s): ?><option value="<?= cw_h($s['name']) ?>" data-duration="<?= (int)$s['default_duration'] ?>"><?= cw_h($s['name']) ?></option><?php endforeach; ?></select></div>
@@ -286,6 +285,19 @@ $pz_page_breadcrumbs = ['Tehnicieni'];
                 <div><label>Contact</label><input type="text" name="contact_person"></div>
                 <div><label>Telefon</label><input type="tel" name="contact_phone"></div>
                 <div class="cw-full"><label>Adresa</label><input type="text" name="address"></div>
+                <div><label>Suma fara TVA *</label><input type="number" min="0" step="0.01" name="billing_amount" id="cw_billing_amount" value="" placeholder="0.00" required></div>
+                <div><label>Moneda</label><input type="text" name="currency" value="RON" maxlength="3"></div>
+                <div class="cw-full" style="display:flex;align-items:center;gap:10px;background:#FFF4E5;border:1px solid #F5D5A3;border-radius:10px;padding:10px 12px;">
+                    <label style="display:flex;gap:8px;align-items:center;font-weight:800;cursor:pointer;margin:0;">
+                        <input type="checkbox" name="not_invoiceable" id="cw_not_invoiceable" value="1" onchange="cwToggleNotInvoiceable()" style="width:16px;height:16px;">
+                        Nu se factureaza
+                    </label>
+                    <span style="font-size:12px;color:#7C5E2A;">(bifeaza daca lucrarea nu se factureaza, apoi completeaza motivul)</span>
+                </div>
+                <div class="cw-full" id="cw_billing_note_wrap" style="display:none;">
+                    <label>Motiv (obligatoriu daca nu se factureaza) *</label>
+                    <textarea name="billing_note" id="cw_billing_note" rows="2" placeholder="Ex: lucrare in garantie, recheck gratuit, etc."></textarea>
+                </div>
                 <div class="cw-full"><label>Observatii pentru echipa</label><textarea name="notes" rows="3"></textarea></div>
             </div>
             <div class="cw-actions"><button class="btn" type="button" onclick="cwCloseCreate()">Renunta</button><button class="btn accent" type="submit">Salveaza programarea</button></div>
@@ -299,6 +311,14 @@ function cwOpenCreate(date, time, teamId){
     document.getElementById('cw_time').value = time;
     document.getElementById('cw_team').value = teamId;
     document.getElementById('cw_redirect_date').value = date;
+    // Reset billing state la fiecare deschidere
+    var notInv = document.getElementById('cw_not_invoiceable');
+    if (notInv) notInv.checked = false;
+    var note = document.getElementById('cw_billing_note');
+    if (note) note.value = '';
+    var amt = document.getElementById('cw_billing_amount');
+    if (amt) amt.value = '';
+    cwToggleNotInvoiceable();
     document.getElementById('cwCreateModal').classList.add('open');
 }
 function cwCloseCreate(){ document.getElementById('cwCreateModal').classList.remove('open'); }
@@ -306,6 +326,45 @@ function cwSetDuration(sel){
     var opt = sel.options[sel.selectedIndex];
     if(opt && opt.dataset.duration){ document.getElementById('cw_duration_hidden').value = opt.dataset.duration; }
 }
+function cwToggleNotInvoiceable(){
+    var check = document.getElementById('cw_not_invoiceable');
+    var amount = document.getElementById('cw_billing_amount');
+    var noteWrap = document.getElementById('cw_billing_note_wrap');
+    var note = document.getElementById('cw_billing_note');
+    var checked = !!(check && check.checked);
+    if (amount){
+        amount.required = !checked;
+        amount.disabled = checked;
+        if (checked) amount.value = '0.00';
+    }
+    if (noteWrap) noteWrap.style.display = checked ? 'block' : 'none';
+    if (note) note.required = checked;
+}
+document.addEventListener('DOMContentLoaded', function(){
+    var form = document.getElementById('cwCreateForm');
+    if (!form) return;
+    form.addEventListener('submit', function(e){
+        var notInv = !!document.getElementById('cw_not_invoiceable').checked;
+        var note = (document.getElementById('cw_billing_note').value || '').trim();
+        var amtRaw = (document.getElementById('cw_billing_amount').value || '0').replace(',', '.');
+        var amt = Number(amtRaw);
+        if (notInv){
+            if (!note){
+                e.preventDefault();
+                alert('Completeaza motivul pentru care lucrarea nu se factureaza.');
+                document.getElementById('cw_billing_note').focus();
+                return;
+            }
+        } else {
+            if (!Number.isFinite(amt) || amt <= 0){
+                e.preventDefault();
+                alert('Completeaza suma fara TVA, sau bifeaza "Nu se factureaza" si trece motivul.');
+                document.getElementById('cw_billing_amount').focus();
+                return;
+            }
+        }
+    });
+});
 document.addEventListener('keydown', function(e){ if(e.key === 'Escape') cwCloseCreate(); });
 document.addEventListener('click', function(e){
     document.querySelectorAll('.cw-team-picker[open]').forEach(function(d){ if(!d.contains(e.target)){ d.removeAttribute('open'); } });
