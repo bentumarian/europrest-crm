@@ -25,8 +25,15 @@ Options -Indexes
     RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
 
     # Calendar: view=saptamana foloseste pagina operationala pe tehnicieni
+    RewriteCond %{REQUEST_METHOD} GET
     RewriteCond %{QUERY_STRING} (^|&)view=week(&|$) [NC]
     RewriteRule ^calendar\.php$ calendar_week.php [R=302,L]
+
+    # Calendar: zi/luna folosesc wrapper vizual pentru header uniformizat.
+    # Actiunile POST raman direct in calendar.php, ca sa nu afectam salvarea/editarea.
+    RewriteCond %{REQUEST_METHOD} GET
+    RewriteCond %{QUERY_STRING} (^|&)view=(day|month)(&|$) [NC]
+    RewriteRule ^calendar\.php$ calendar_classic_view.php [L]
 </IfModule>
 
 # Security headers
