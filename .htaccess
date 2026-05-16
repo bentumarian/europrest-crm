@@ -16,12 +16,17 @@ RedirectMatch 403 /\.git
 # Dezactiveaza directory listing
 Options -Indexes
 
-# Forteaza HTTPS pe toate cererile
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Forteaza HTTPS pe toate cererile
     RewriteCond %{HTTPS} off
     RewriteCond %{HTTP:X-Forwarded-Proto} !https
     RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+    # Calendar: view=saptamana foloseste pagina operationala pe tehnicieni
+    RewriteCond %{QUERY_STRING} (^|&)view=week(&|$) [NC]
+    RewriteRule ^calendar\.php$ calendar_week.php [R=302,L]
 </IfModule>
 
 # Security headers
