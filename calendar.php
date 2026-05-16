@@ -3824,6 +3824,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     title.style.fontSize = '0';
                     title.setAttribute('aria-label', info.event.extendedProps.client || info.event.title || 'Programare');
                     wrap.style.minHeight = '12px';
+                } else if (currentView === 'week') {
+                    // Vizualizare saptamana: bloc compact, fara nume client.
+                    // Fisa completa ramane disponibila la click pe bloc.
+                    title.textContent = '';
+                    title.style.height = '100%';
+                    title.style.minHeight = '14px';
+                    title.style.borderRadius = '7px';
+                    title.style.fontSize = '0';
+                    title.style.lineHeight = '0';
+                    title.style.opacity = '1';
+                    title.setAttribute('aria-label', info.event.extendedProps.client || info.event.title || 'Programare');
+                    title.setAttribute('title', (info.event.extendedProps.client || 'Client') + ' - ' + (info.event.extendedProps.service || 'Lucrare') + ' - ' + (info.event.extendedProps.team || 'Tehnician'));
+                    wrap.style.height = '100%';
+                    wrap.style.minHeight = '14px';
                 } else {
                     title.textContent = info.event.title;
                 }
