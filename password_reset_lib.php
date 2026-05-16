@@ -107,8 +107,47 @@ if (!function_exists('pr_find_account_by_email')) {
 }
 
 if (!function_exists('pr_send_reset_email')) {
-    function pr_send_reset_email(string $to, string $name, string $link): bool {
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+function pr_send_reset_email(string $to, string $name, string $link): bool {
+    $subject = 'Resetare parola cont CRM';
+
+    $safeName = htmlspecialchars($name !== '' ? $name : 'Utilizator', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $safeLink = htmlspecialchars($link, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+    $html = '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#10243e;">'
+        . '<p>Buna ziua, ' . $safeName . ',</p>'
+        . '<p>A fost solicitata resetarea parolei pentru contul tau din platforma CRM.</p>'
+        . '<p><a href="' . $safeLink . '" style="display:inline-block;background:#1160B7;color:#ffffff;text-decoration:none;padding:11px 16px;border-radius:10px;font-weight:700;">Seteaza parola noua</a></p>'
+        . '<p>Daca butonul nu functioneaza, copiaza acest link in browser:</p>'
+        . '<p style="word-break:break-all;color:#526B82;">' . $safeLink . '</p>'
+        . '<p>Linkul este valabil 60 de minute. Daca nu ai solicitat resetarea parolei, ignora acest email.</p>'
+        . '<p>Mesaj automat.</p>'
+        . '</div>';
+
+    $text = "Buna ziua, " . ($name !== '' ? $name : 'Utilizator') . ",\n\n"
+        . "A fost solicitata resetarea parolei pentru contul tau din platforma CRM.\n\n"
+        . "Pentru a seta o parola noua, acceseaza linkul de mai jos:\n"
+        . $link . "\n\n"
+        . "Linkul este valabil 60 de minute.\n"
+        . "Daca nu ai solicitat resetarea parolei, ignora acest email.\n\n"
+        . "Mesaj automat.";
+
+    $notificationFile = __DIR__ . '/notification_lib.php';
+    if (file_exists($notificationFile)) {
+        require_once $notificationFile;
+    }
+
+    if (function_exists('pz_sendgrid_send_email')) {
+        try {
+            $result = pz_sendgrid_send_email($to, $subject, $html, $text, [], 'password_reset', null);
+            return !empty($result['ok']);
+        } catch (Throwable $e) {
+            error_log('Password reset SendGrid error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    return false;
+}        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         $from = 'noreply@' . preg_replace('/^www\./', '', $host);
         $subject = 'Resetare parola cont CRM';
         $body = "Buna ziua,\n\n";
