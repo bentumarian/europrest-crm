@@ -1898,6 +1898,19 @@ if ($view === 'week') {
 $rangeStart = $rangeStartObj->format('Y-m-d');
 $rangeEnd = $rangeEndObj->format('Y-m-d');
 
+$weekDates = [];
+if ($view === 'week') {
+    $shortWeekDays = [1 => 'LUN', 2 => 'MAR', 3 => 'MIE', 4 => 'JOI', 5 => 'VIN', 6 => 'SAM', 7 => 'DUM'];
+    for ($i = 0; $i < 7; $i++) {
+        $dayObj = (clone $rangeStartObj)->modify('+' . $i . ' days');
+        $weekDates[] = [
+            'date' => $dayObj->format('Y-m-d'),
+            'label' => ($shortWeekDays[(int)$dayObj->format('N')] ?? $dayObj->format('D')) . '. ' . $dayObj->format('d.m'),
+        ];
+    }
+}
+
+
 /*
 |--------------------------------------------------------------------------
 | Programari
@@ -2375,6 +2388,26 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
     width: 16px;
     height: 16px;
 }
+
+
+
+.week-schedule-scroll{width:100%;max-width:100%;overflow:auto;-webkit-overflow-scrolling:touch;max-height:calc(100vh - 155px);border:1px solid rgba(0,32,80,.22);border-radius:var(--radius-lg);background:var(--surface);box-shadow:0 16px 34px rgba(0,32,80,.06)}
+.week-schedule-grid{width:max(100%,calc(62px + (var(--week-columns) * 48px)));min-width:max(100%,calc(62px + (var(--week-columns) * 48px)));display:grid;grid-template-columns:62px repeat(var(--week-columns),minmax(48px,1fr));grid-template-rows:34px 42px repeat(36,28px);position:relative}
+.week-corner{position:sticky;top:0;left:0;z-index:42;background:rgba(255,255,255,.94);border-right:1px solid rgba(0,32,80,.25);border-bottom:1px solid rgba(0,32,80,.22);backdrop-filter:blur(14px)}
+.week-day-head{position:sticky;top:0;z-index:35;min-width:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#fff 0%,#F5F7FB 100%);border-left:1px solid rgba(0,32,80,.18);border-bottom:1px solid rgba(0,32,80,.22);color:#002050;font-size:11px;font-weight:850;letter-spacing:.045em}
+.week-team-head{position:sticky;top:34px;z-index:32;min-width:0;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--team-color) 18%,#fff);border-left:1px solid rgba(0,32,80,.18);border-bottom:1px solid rgba(0,32,80,.22);box-shadow:inset 0 3px 0 var(--team-color)}
+.week-team-dot{width:24px;height:24px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:var(--team-color);color:#fff;font-size:10px;font-weight:900;box-shadow:0 8px 18px color-mix(in srgb,var(--team-color) 30%,transparent),inset 0 1px 0 rgba(255,255,255,.32)}
+.week-time-cell{position:sticky;left:0;z-index:20;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;background:#fff;border-right:1px solid rgba(0,32,80,.25);border-bottom:1px solid rgba(0,32,80,.13);color:#002050;font-family:var(--mono);font-size:10px;font-weight:650}
+.week-slot-cell{min-width:0;background:color-mix(in srgb,var(--team-color) 5%,#fff);border-left:1px solid rgba(0,32,80,.11);border-bottom:1px solid rgba(0,32,80,.11);cursor:pointer;transition:background .1s ease,outline .1s ease}
+.week-slot-cell.hour-line,.week-time-cell.hour-line{border-top:1px solid rgba(0,32,80,.24)}
+.week-slot-cell:hover{background:color-mix(in srgb,var(--team-color) 15%,#fff);outline:2px solid color-mix(in srgb,var(--team-color) 55%,transparent);outline-offset:-2px}
+.week-slot-cell.drag-over{background:rgba(14,116,144,.16);outline:2px dashed var(--accent);outline-offset:-3px}
+.week-event{position:relative;z-index:25;margin:3px 4px;border-radius:9px;cursor:pointer;border:1px solid rgba(0,32,80,.16);box-shadow:0 8px 18px rgba(0,32,80,.14),inset 0 1px 0 rgba(255,255,255,.28);overflow:hidden;min-height:18px}
+.week-event:after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.25),transparent 55%);pointer-events:none}
+.week-event:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(0,32,80,.18),inset 0 1px 0 rgba(255,255,255,.32)}
+.week-event.done{box-shadow:inset 0 1px 0 rgba(255,255,255,.70),0 6px 14px rgba(0,32,80,.08)}
+.week-event.done:before{content:'✓';position:absolute;top:3px;right:4px;z-index:2;width:14px;height:14px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.85);color:#002050;font-size:9px;font-weight:900}
+@media(max-width:860px){.week-schedule-grid{width:max(100%,calc(46px + (var(--week-columns) * 38px)));min-width:max(100%,calc(46px + (var(--week-columns) * 38px)));grid-template-columns:46px repeat(var(--week-columns),minmax(38px,1fr));grid-template-rows:32px 38px repeat(36,24px)}.week-time-cell{padding:0 4px;font-size:8px;justify-content:center}.week-day-head{font-size:9px}.week-team-dot{width:22px;height:22px;font-size:9px}.week-event{margin:2px;border-radius:7px}}
 
 </style>
 </head>
