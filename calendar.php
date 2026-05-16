@@ -2432,12 +2432,17 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 
 
 /* Filtru multi-tehnician (folosit pe toate view-urile) */
+/* IMPORTANT: NU folosim display:flex pe <summary> pentru ca Safari si
+   unele versiuni de Chrome trateaza summary cu display:flex ca un element
+   non-summary, ceea ce blocheaza toggle-ul nativ al <details>. Pastram
+   summary cu display-ul default si pozitionam caret-ul absolut. */
 .cal-team-picker{position:relative;min-width:0}
-.cal-team-picker > summary{list-style:none;cursor:pointer;outline:none}
+.cal-team-picker > summary{list-style:none;cursor:pointer;outline:none;-webkit-appearance:none}
 .cal-team-picker > summary::-webkit-details-marker{display:none}
-.cal-team-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;height:42px;padding:0 12px;border-radius:12px;border:1.5px solid rgba(29,110,193,.45);background:#fff;color:#002050;font-weight:750;font-size:13px;text-align:center;box-shadow:0 10px 24px rgba(29,110,193,.08), inset 0 1px 0 rgba(255,255,255,.86)}
+.cal-team-picker > summary::marker{display:none;content:''}
+.cal-team-summary{position:relative;height:42px;padding:0 32px 0 14px;border-radius:12px;border:1.5px solid rgba(29,110,193,.45);background:#fff;color:#002050;font-weight:750;font-size:13px;line-height:38px;text-align:center;box-shadow:0 10px 24px rgba(29,110,193,.08), inset 0 1px 0 rgba(255,255,255,.86);user-select:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cal-team-picker[open] > summary.cal-team-summary{border-color:rgba(29,110,193,.85)}
-.cal-team-caret{font-size:11px;color:#5C6B85;flex-shrink:0}
+.cal-team-caret{position:absolute;right:12px;top:0;line-height:42px;font-size:11px;color:#5C6B85;pointer-events:none}
 .cal-team-menu{position:absolute;top:calc(100% + 6px);right:0;left:0;z-index:200;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-lg);padding:10px;max-height:380px;overflow:auto;min-width:220px}
 .cal-team-all{display:block;padding:9px 10px;border-radius:10px;text-decoration:none;color:#002050;font-weight:850;background:#F8FAFC;margin-bottom:6px;text-align:center;font-size:13px}
 .cal-team-all:hover{background:#EEF2F7}
