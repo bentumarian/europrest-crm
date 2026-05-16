@@ -1,0 +1,45 @@
+name: Patch compact week calendar
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-calendar-week-compact.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply compact week calendar patch
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('calendar.php')
+          s = p.read_text()
+          old = """                } else {\n                    title.textContent = info.event.title;\n                }"""
+          new = """                } else if (currentView === 'week') {\n                    // Vizualizare saptamana: bloc compact, fara nume client.\n                    // Fisa completa ramane disponibila la click pe bloc.\n                    title.textContent = '';\n                    title.style.height = '100%';\n                    title.style.minHeight = '14px';\n                    title.style.borderRadius = '7px';\n                    title.style.fontSize = '0';\n                    title.style.lineHeight = '0';\n                    title.style.opacity = '1';\n                    title.setAttribute('aria-label', info.event.extendedProps.client || info.event.title || 'Programare');\n                    title.setAttribute('title', (info.event.extendedProps.client || 'Client') + ' - ' + (info.event.extendedProps.service || 'Lucrare') + ' - ' + (info.event.extendedProps.team || 'Tehnician'));\n                    wrap.style.height = '100%';\n                    wrap.style.minHeight = '14px';\n                } else {\n                    title.textContent = info.event.title;\n                }"""
+          if new in s:
+              print('Patch already applied')
+          elif old in s:
+              s = s.replace(old, new, 1)
+              p.write_text(s)
+              print('Patch applied')
+          else:
+              raise SystemExit('Target block not found')
+          PY
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add calendar.php
+          git commit -m "Compact week calendar events"
+          git push
