@@ -338,7 +338,7 @@ function ro_short_date_dashboard(string $date): string {
                     <h1>Bun venit în PestZone</h1>
                     <p>
                         Ai o privire rapidă asupra lucrărilor de astăzi, sarcinilor de birou,
-                        echipelor active și clienților.
+                        tehnicienilor activi si clienților.
                     </p>
                 </div>
 
@@ -369,9 +369,9 @@ function ro_short_date_dashboard(string $date): string {
                 </div>
 
                 <div class="stat-card">
-                    <div class="stat-label">Clienți / echipe</div>
+                    <div class="stat-label">Clienți / tehnicieni</div>
                     <div class="stat-value"><?= (int)$totalClients ?></div>
-                    <div class="stat-note"><?= (int)$activeTeams ?> echipe active</div>
+                    <div class="stat-note"><?= (int)$activeTeams ?> tehnicieni activi</div>
                 </div>
             </section>
 

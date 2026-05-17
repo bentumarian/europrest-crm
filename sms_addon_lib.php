@@ -4,13 +4,13 @@
 | sms_addon_lib.php  - utilitare adaugatoare pentru modulul SMS
 |--------------------------------------------------------------------------
 | ATENTIE: Trimiterea efectiva a SMS-urilor este in notification_lib.php.
-| Acest fisier expune doar utilitare unice (init schema, helpere DB).
+| Acest fișier expune doar utilitare unice (init schema, helpere DB).
 |
 | Functii eliminate (erau duplicate cu notification_lib.php):
-|   - pz_send_appointment_created_sms() -> foloseste pz_send_appointment_confirmation_sms()
-|   - pz_send_task_expiring_7_sms()     -> ramane doar in notification_lib.php
-|   - pz_sms_send()                     -> foloseste direct pz_smslink_send_sms()
-|   - pz_sms_client_enabled()           -> foloseste pz_client_sms_enabled()
+|   - pz_send_appointment_created_sms() -> folosește pz_send_appointment_confirmation_sms()
+|   - pz_send_task_expiring_7_sms()     -> rămâne doar in notification_lib.php
+|   - pz_sms_send()                     -> folosește direct pz_smslink_send_sms()
+|   - pz_sms_client_enabled()           -> folosește pz_client_sms_enabled()
 |--------------------------------------------------------------------------
 */
 
@@ -138,8 +138,8 @@ if (!function_exists('pz_sms_seed')) {
                 '{brand}: Programarea pentru {service} a fost efectuata pentru data de {date}, interval {time}, la locatia {location}.'
             ],
             [
-                'task_expiring_7_sms', 'sms', 'SMS scadenta sarcina in 7 zile', null,
-                '{brand}: Buna ziua, va reamintim ca valabilitatea procesului verbal expira in 7 zile. Va rugam sa ne contactati pentru programarea urmatoarei interventii.'
+                'task_expiring_7_sms', 'sms', 'SMS scadență sarcina in 7 zile', null,
+                '{brand}: Bună ziua, va reamintim ca valabilitatea procesului verbal expira in 7 zile. Vă rugăm sa ne contactati pentru programarea urmatoarei intervenții.'
             ],
         ];
         $stmt = pz_sms_db()->prepare(

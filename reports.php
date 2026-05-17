@@ -51,7 +51,7 @@ function reports_ensure_column(PDO $pdo, string $table, string $column, string $
         try {
             $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
         } catch (Throwable $e) {
-            // Nu blocam pagina daca ALTER nu poate rula pe hosting.
+            // Nu blocam pagina dacă ALTER nu poate rula pe hosting.
         }
     }
 }
@@ -70,11 +70,11 @@ function reports_safe_date(?string $date, ?string $fallback = null): string {
 
 function reports_status_label(string $status): string {
     return [
-        'neconfirmata' => 'Neconfirmata',
-        'confirmata'   => 'Confirmata',
-        'in_lucru'     => 'In lucru',
-        'finalizata'   => 'Finalizata',
-        'anulata'      => 'Anulata',
+        'neconfirmata' => 'Neconfirmată',
+        'confirmata'   => 'Confirmată',
+        'in_lucru'     => 'În lucru',
+        'finalizata'   => 'Finalizată',
+        'anulata'      => 'Anulată',
     ][$status] ?? $status;
 }
 
@@ -152,7 +152,7 @@ $pdo->exec("
         notes TEXT NULL,
         active TINYINT(1) NOT NULL DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 reports_ensure_column($pdo, 'clients', 'client_type', "VARCHAR(20) NOT NULL DEFAULT 'company'");
 reports_ensure_column($pdo, 'clients', 'phone', "VARCHAR(60) NULL");
@@ -176,7 +176,7 @@ $pdo->exec("
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_client_locations_client_id (client_id),
         INDEX idx_client_locations_active (active)
-    )
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 reports_ensure_column($pdo, 'client_locations', 'client_id', "INT NOT NULL");
 reports_ensure_column($pdo, 'client_locations', 'location_name', "VARCHAR(180) NOT NULL DEFAULT 'Punct de lucru'");
@@ -323,7 +323,7 @@ $services = $pdo->query("
 
 /*
 |--------------------------------------------------------------------------
-| Query programari
+| Query programări
 |--------------------------------------------------------------------------
 */
 $where = "
@@ -410,13 +410,13 @@ foreach ($appointments as $appointment) {
         $uniqueClients[(int)$appointment['client_id']] = true;
     }
 
-    $teamName = $appointment['team_name'] ?: 'Fara echipa';
+    $teamName = $appointment['team_name'] ?: 'Fără tehnician';
     if (!isset($teamCounts[$teamName])) {
         $teamCounts[$teamName] = 0;
     }
     $teamCounts[$teamName]++;
 
-    $serviceName = $appointment['service_type'] ?: 'Fara serviciu';
+    $serviceName = $appointment['service_type'] ?: 'Fără serviciu';
     if (!isset($serviceCounts[$serviceName])) {
         $serviceCounts[$serviceName] = 0;
     }
@@ -477,6 +477,47 @@ $prevMonthStart = date('Y-m-01', strtotime('first day of previous month'));
 $prevMonthEnd = date('Y-m-t', strtotime('last day of previous month'));
 $currentYearStart = date('Y-01-01');
 $currentYearEnd = date('Y-12-31');
+
+$teamChoices = [['value' => 'all', 'label' => 'Toți tehnicienii']];
+foreach ($teams as $team) {
+    $teamChoices[] = ['value' => (string)$team['id'], 'label' => (string)$team['name']];
+}
+
+$serviceChoices = [['value' => 'all', 'label' => 'Toate serviciile']];
+foreach ($services as $service) {
+    $serviceChoices[] = ['value' => (string)$service['name'], 'label' => reports_short_service_label((string)$service['name'])];
+}
+
+$statusChoices = [
+    ['value' => 'all', 'label' => 'Toate statusurile'],
+    ['value' => 'confirmata', 'label' => 'Confirmată'],
+    ['value' => 'finalizata', 'label' => 'Finalizată'],
+    ['value' => 'anulata', 'label' => 'Anulată'],
+    ['value' => 'neconfirmata', 'label' => 'Neconfirmată'],
+];
+
+function reports_choice_label(array $choices, string $selected): string {
+    foreach ($choices as $choice) {
+        if ((string)$choice['value'] === $selected) {
+            return (string)$choice['label'];
+        }
+    }
+
+    return (string)($choices[0]['label'] ?? '');
+}
+
+function reports_short_service_label(string $name): string {
+    $name = trim($name);
+
+    foreach (['(', ' - ', ' – ', ':'] as $separator) {
+        $position = strpos($name, $separator);
+        if ($position !== false && $position > 0) {
+            return trim(substr($name, 0, $position));
+        }
+    }
+
+    return $name;
+}
 ?>
 <!DOCTYPE html>
 <html lang="ro">
@@ -491,10 +532,114 @@ $currentYearEnd = date('Y-12-31');
 <?php app_theme_css(); ?>
 
 <style>
-.reports-topbar { align-items: center; padding: 12px 20px; }
-.reports-toolbar { width: 100%; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
-.reports-filters { width: 100%; min-width: 0; display: grid; grid-template-columns: 140px 140px minmax(130px, 1fr) minmax(150px, 1fr) minmax(130px, 1fr) auto; gap: 8px; align-items: center; }
+.reports-topbar { align-items: center; padding: 12px 20px; position: relative; z-index: 80; overflow: visible; }
+.reports-toolbar { width: 100%; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; position: relative; z-index: 81; overflow: visible; }
+.reports-filters { width: 100%; min-width: 0; display: grid; grid-template-columns: 140px 140px minmax(130px, 1fr) minmax(150px, 1fr) minmax(130px, 1fr) auto; gap: 8px; align-items: center; position: relative; z-index: 82; overflow: visible; }
 .reports-filters input, .reports-filters select { height: 42px; min-width: 0; font-weight: 800; }
+.reports-filters select {
+    appearance: none;
+    -webkit-appearance: none;
+    color: var(--text);
+    border: 1px solid var(--border);
+    background-color: var(--surface);
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+        linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position:
+        calc(100% - 16px) 50%,
+        calc(100% - 11px) 50%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 28px;
+    box-shadow: none;
+}
+.reports-filters select option {
+    background: #FFFFFF;
+    color: var(--text);
+}
+.reports-choice {
+    position: relative;
+    min-width: 0;
+    z-index: 83;
+}
+.reports-choice.open { z-index: 100; }
+.reports-choice-input {
+    display: none;
+}
+.reports-choice-toggle {
+    width: 100%;
+    height: 42px;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 28px 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: none;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+    text-align: center;
+}
+.reports-choice-toggle::after {
+    content: "";
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--muted);
+    border-bottom: 2px solid var(--muted);
+    transform: translateY(-65%) rotate(45deg);
+    pointer-events: none;
+}
+.reports-choice.open .reports-choice-toggle {
+    border-color: var(--accent-pale);
+    box-shadow: var(--focus-ring);
+}
+.reports-choice-menu {
+    position: absolute;
+    z-index: 120;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    display: none;
+    max-height: 230px;
+    overflow-y: auto;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, .14);
+}
+.reports-choice.open .reports-choice-menu {
+    display: block;
+}
+.reports-choice-option {
+    width: 100%;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text);
+    box-shadow: none;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: left;
+}
+.reports-choice-option:hover,
+.reports-choice-option.active {
+    background: var(--surface-soft);
+    color: var(--accent);
+}
 .reports-filters .btn { height: 42px; white-space: nowrap; }
 .reports-hero { background: linear-gradient(135deg, #10243E, #163B63); color: #fff; border-radius: var(--radius-lg); padding: 22px 24px; box-shadow: var(--shadow-lg); margin-bottom: 16px; display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; align-items: center; }
 .reports-hero h1 { font-size: 24px; font-weight: 900; letter-spacing: -.03em; margin: 0; }
@@ -527,10 +672,10 @@ $currentYearEnd = date('Y-12-31');
 @media(max-width: 1100px) { .reports-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media(max-width: 860px) {
     body { overflow-x: hidden !important; }
-    .reports-topbar { width: 100% !important; max-width: 100vw !important; padding: 8px 10px 14px 10px !important; overflow-x: hidden !important; display: block !important; position: relative !important; top: auto !important; }
-    .reports-toolbar { width: 100% !important; max-width: 100% !important; min-width: 0 !important; display: block !important; overflow-x: hidden !important; }
-    form.reports-filters, .reports-filters { width: 100% !important; max-width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: 1fr !important; gap: 8px !important; align-items: stretch !important; justify-items: stretch !important; margin: 0 auto !important; padding: 0 !important; overflow-x: hidden !important; }
-    .reports-filters input, .reports-filters select, .reports-filters button, .reports-filters .btn { width: 100% !important; max-width: 100% !important; min-width: 0 !important; height: 42px !important; box-sizing: border-box !important; margin: 0 !important; text-align: center !important; justify-content: center !important; }
+    .reports-topbar { width: 100% !important; max-width: 100vw !important; padding: 8px 10px 14px 10px !important; overflow: visible !important; display: block !important; position: relative !important; top: auto !important; z-index: 80 !important; }
+    .reports-toolbar { width: 100% !important; max-width: 100% !important; min-width: 0 !important; display: block !important; overflow: visible !important; position: relative !important; z-index: 81 !important; }
+    form.reports-filters, .reports-filters { width: 100% !important; max-width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: 1fr !important; gap: 8px !important; align-items: stretch !important; justify-items: stretch !important; margin: 0 auto !important; padding: 0 !important; overflow: visible !important; position: relative !important; z-index: 82 !important; }
+    .reports-filters input, .reports-filters select, .reports-filters button, .reports-filters .btn, .reports-choice, .reports-choice-toggle { width: 100% !important; max-width: 100% !important; min-width: 0 !important; height: 42px !important; box-sizing: border-box !important; margin: 0 !important; text-align: center !important; justify-content: center !important; }
     .reports-filters input[type="date"] { display: block !important; appearance: none !important; -webkit-appearance: none !important; inline-size: 100% !important; min-inline-size: 0 !important; max-inline-size: 100% !important; padding-left: 12px !important; padding-right: 12px !important; overflow: hidden !important; text-align: center !important; background: var(--surface) !important; }
     .reports-filters input[type="date"]::-webkit-date-and-time-value { text-align: center !important; width: 100% !important; margin: 0 auto !important; }
     .reports-filters input[type="date"]::-webkit-calendar-picker-indicator { display: none !important; opacity: 0 !important; }
@@ -542,6 +687,167 @@ $currentYearEnd = date('Y-12-31');
 }
 @media(max-width: 620px) { .kpi-grid { grid-template-columns: 1fr; } .quick-range { grid-template-columns: repeat(2, minmax(0, 1fr)); } .bar-row { grid-template-columns: 110px 1fr 38px; } }
 @media(max-width: 420px) { .quick-range { grid-template-columns: 1fr 1fr; } .quick-range .btn { font-size: 13px; padding-left: 8px; padding-right: 8px; } }
+@media(max-width: 760px) {
+    .reports-topbar { padding: 8px 10px 12px !important; }
+    form.reports-filters, .reports-filters {
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+    }
+    .reports-filters input[type="date"] {
+        grid-column: span 3;
+    }
+    .reports-choice {
+        grid-column: span 2;
+    }
+    .reports-filters .btn {
+        grid-column: span 6;
+    }
+    .reports-filters input,
+    .reports-filters select,
+    .reports-filters button,
+    .reports-filters .btn,
+    .reports-choice-toggle {
+        height: 34px !important;
+        min-height: 34px !important;
+        border-radius: 4px !important;
+        font-size: 11.5px !important;
+        line-height: 1 !important;
+        padding: 0 8px !important;
+    }
+    .reports-choice {
+        height: auto !important;
+    }
+    .reports-choice-menu {
+        position: absolute !important;
+        top: calc(100% + 4px) !important;
+        left: 0 !important;
+        right: 0 !important;
+        margin-top: 4px !important;
+        max-height: 220px !important;
+        box-shadow: 0 14px 32px rgba(15, 23, 42, .14) !important;
+    }
+    .reports-choice-option {
+        height: auto !important;
+        min-height: 32px !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+    }
+    .content {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+    .reports-hero {
+        display: block !important;
+        padding: 14px !important;
+        margin-bottom: 10px !important;
+        border-radius: 8px !important;
+        background: var(--surface) !important;
+        color: var(--text) !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: none !important;
+    }
+    .reports-hero h1 {
+        font-size: 21px !important;
+        line-height: 1.1 !important;
+        letter-spacing: 0 !important;
+    }
+    .reports-hero p {
+        margin-top: 5px !important;
+        font-size: 11.5px !important;
+        line-height: 1.35 !important;
+        color: var(--muted) !important;
+    }
+    .quick-range {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+        margin-bottom: 10px !important;
+    }
+    .quick-range .btn {
+        height: 34px !important;
+        min-height: 34px !important;
+        border-radius: 4px !important;
+        font-size: 11.5px !important;
+        padding: 0 8px !important;
+    }
+    .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        margin-bottom: 10px !important;
+    }
+    .kpi-card {
+        min-height: 82px !important;
+        padding: 10px !important;
+        border-radius: 8px !important;
+        box-shadow: none !important;
+    }
+    .kpi-label {
+        font-size: 9.5px !important;
+        letter-spacing: 0 !important;
+        line-height: 1.15 !important;
+    }
+    .kpi-value {
+        margin-top: 4px !important;
+        font-size: 23px !important;
+        line-height: 1 !important;
+        letter-spacing: 0 !important;
+    }
+    .kpi-sub {
+        margin-top: 4px !important;
+        font-size: 10.5px !important;
+        line-height: 1.25 !important;
+    }
+    .report-grid {
+        gap: 10px !important;
+        margin-bottom: 10px !important;
+    }
+    .report-card {
+        padding: 12px !important;
+        border-radius: 8px !important;
+        box-shadow: none !important;
+    }
+    .report-card h2 {
+        font-size: 14px !important;
+        margin-bottom: 10px !important;
+    }
+    .bar-row {
+        grid-template-columns: 88px 1fr 28px !important;
+        gap: 7px !important;
+        margin-bottom: 7px !important;
+    }
+    .bar-label,
+    .bar-value {
+        font-size: 10.5px !important;
+    }
+    .bar-track {
+        height: 7px !important;
+    }
+    .table-card {
+        border-radius: 8px !important;
+        box-shadow: none !important;
+    }
+    .report-table {
+        min-width: 760px !important;
+    }
+    .report-table th {
+        font-size: 9.5px !important;
+        letter-spacing: 0 !important;
+        padding: 8px !important;
+    }
+    .report-table td {
+        font-size: 10.5px !important;
+        padding: 8px !important;
+    }
+    .cell-muted,
+    .note-cell {
+        font-size: 10px !important;
+        line-height: 1.25 !important;
+    }
+    .status-pill {
+        border-radius: 4px !important;
+        padding: 4px 6px !important;
+        font-size: 10px !important;
+    }
+}
 </style>
 </head>
 
@@ -555,32 +861,52 @@ $currentYearEnd = date('Y-12-31');
         <div class="topbar reports-topbar">
             <div class="reports-toolbar">
                 <form method="get" class="reports-filters">
-                    <input type="date" name="date_from" value="<?= r_h($dateFrom) ?>" aria-label="Data inceput">
+                    <input type="date" name="date_from" value="<?= r_h($dateFrom) ?>" aria-label="Data început">
                     <input type="date" name="date_to" value="<?= r_h($dateTo) ?>" aria-label="Data final">
 
-                    <select name="team" aria-label="Echipa">
-                        <option value="all" <?= $selectedTeam === 'all' ? 'selected' : '' ?>>Toate echipele</option>
-                        <?php foreach ($teams as $team): ?>
-                            <option value="<?= (int)$team['id'] ?>" <?= (string)$selectedTeam === (string)$team['id'] ? 'selected' : '' ?>><?= r_h($team['name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="reports-choice" data-choice>
+                        <input class="reports-choice-input" type="hidden" name="team" value="<?= r_h((string)$selectedTeam) ?>">
+                        <button class="reports-choice-toggle" type="button" aria-haspopup="listbox" aria-expanded="false" data-static-label="1">
+                            <span>Tehnicieni</span>
+                        </button>
+                        <div class="reports-choice-menu" role="listbox">
+                            <?php foreach ($teamChoices as $choice): ?>
+                                <button class="reports-choice-option <?= (string)$choice['value'] === (string)$selectedTeam ? 'active' : '' ?>" type="button" data-value="<?= r_h($choice['value']) ?>" data-label="<?= r_h($choice['label']) ?>">
+                                    <?= r_h($choice['label']) ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
 
-                    <select name="service" aria-label="Serviciu">
-                        <option value="all" <?= $selectedService === 'all' ? 'selected' : '' ?>>Toate serviciile</option>
-                        <?php foreach ($services as $service): ?>
-                            <option value="<?= r_h($service['name']) ?>" <?= $selectedService === $service['name'] ? 'selected' : '' ?>><?= r_h($service['name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="reports-choice" data-choice>
+                        <input class="reports-choice-input" type="hidden" name="service" value="<?= r_h((string)$selectedService) ?>">
+                        <button class="reports-choice-toggle" type="button" aria-haspopup="listbox" aria-expanded="false" data-static-label="1">
+                            <span>Servicii</span>
+                        </button>
+                        <div class="reports-choice-menu" role="listbox">
+                            <?php foreach ($serviceChoices as $choice): ?>
+                                <button class="reports-choice-option <?= (string)$choice['value'] === (string)$selectedService ? 'active' : '' ?>" type="button" data-value="<?= r_h($choice['value']) ?>" data-label="<?= r_h($choice['label']) ?>">
+                                    <?= r_h($choice['label']) ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
 
-                    <select name="status" aria-label="Status">
-                        <option value="all" <?= $selectedStatus === 'all' ? 'selected' : '' ?>>Toate statusurile</option>
-                        <option value="confirmata" <?= $selectedStatus === 'confirmata' ? 'selected' : '' ?>>Confirmata</option>
-                        <option value="finalizata" <?= $selectedStatus === 'finalizata' ? 'selected' : '' ?>>Finalizata</option>
-                        <option value="anulata" <?= $selectedStatus === 'anulata' ? 'selected' : '' ?>>Anulata</option>
-                        <option value="neconfirmata" <?= $selectedStatus === 'neconfirmata' ? 'selected' : '' ?>>Neconfirmata</option>
-                    </select>
+                    <div class="reports-choice" data-choice>
+                        <input class="reports-choice-input" type="hidden" name="status" value="<?= r_h((string)$selectedStatus) ?>">
+                        <button class="reports-choice-toggle" type="button" aria-haspopup="listbox" aria-expanded="false" data-static-label="1">
+                            <span>Status</span>
+                        </button>
+                        <div class="reports-choice-menu" role="listbox">
+                            <?php foreach ($statusChoices as $choice): ?>
+                                <button class="reports-choice-option <?= (string)$choice['value'] === (string)$selectedStatus ? 'active' : '' ?>" type="button" data-value="<?= r_h($choice['value']) ?>" data-label="<?= r_h($choice['label']) ?>">
+                                    <?= r_h($choice['label']) ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
 
-                    <button class="btn accent" type="submit">Aplica</button>
+                    <button class="btn accent" type="submit">Aplică</button>
                 </form>
             </div>
         </div>
@@ -590,22 +916,22 @@ $currentYearEnd = date('Y-12-31');
             <section class="reports-hero">
                 <div>
                     <h1>Rapoarte</h1>
-                    <p>Analiza programarilor, echipelor, serviciilor, locatiilor, instructiunilor biroului si mentiunilor de finalizare.</p>
+                    <p>Analiză rapidă pentru programări, tehnicieni, servicii și sarcini.</p>
                 </div>
             </section>
 
             <div class="quick-range">
                 <a class="btn" href="reports.php?date_from=<?= r_h($today) ?>&date_to=<?= r_h($today) ?>&team=all&service=all&status=all">Azi</a>
-                <a class="btn" href="reports.php?date_from=<?= r_h($currentMonthStart) ?>&date_to=<?= r_h($currentMonthEnd) ?>&team=all&service=all&status=all">Luna curenta</a>
-                <a class="btn" href="reports.php?date_from=<?= r_h($prevMonthStart) ?>&date_to=<?= r_h($prevMonthEnd) ?>&team=all&service=all&status=all">Luna trecuta</a>
+                <a class="btn" href="reports.php?date_from=<?= r_h($currentMonthStart) ?>&date_to=<?= r_h($currentMonthEnd) ?>&team=all&service=all&status=all">Luna curentă</a>
+                <a class="btn" href="reports.php?date_from=<?= r_h($prevMonthStart) ?>&date_to=<?= r_h($prevMonthEnd) ?>&team=all&service=all&status=all">Luna trecută</a>
                 <a class="btn" href="reports.php?date_from=<?= r_h($currentYearStart) ?>&date_to=<?= r_h($currentYearEnd) ?>&team=all&service=all&status=all">An curent</a>
             </div>
 
             <section class="kpi-grid">
                 <div class="kpi-card">
-                    <div class="kpi-label">Programari</div>
+                    <div class="kpi-label">Programări</div>
                     <div class="kpi-value"><?= (int)$totalAppointments ?></div>
-                    <div class="kpi-sub">In perioada selectata</div>
+                    <div class="kpi-sub">În perioada selectată</div>
                 </div>
 
                 <div class="kpi-card">
@@ -615,23 +941,23 @@ $currentYearEnd = date('Y-12-31');
                 </div>
 
                 <div class="kpi-card">
-                    <div class="kpi-label">Mentiuni finalizare</div>
+                    <div class="kpi-label">Mențiuni finalizare</div>
                     <div class="kpi-value"><?= (int)$withCompletionNotes ?></div>
-                    <div class="kpi-sub"><?= (int)$completionNotesRate ?>% din lucrari finalizate</div>
+                    <div class="kpi-sub"><?= (int)$completionNotesRate ?>% din lucrări finalizate</div>
                 </div>
 
                 <div class="kpi-card">
                     <div class="kpi-label">Sarcini active</div>
                     <div class="kpi-value"><?= (int)$tasksTotal ?></div>
-                    <div class="kpi-sub"><?= (int)$tasksOverdue ?> intarziate</div>
+                    <div class="kpi-sub"><?= (int)$tasksOverdue ?> întârziate</div>
                 </div>
             </section>
 
             <section class="report-grid">
                 <div class="report-card">
-                    <h2>Programari pe echipe</h2>
+                    <h2>Programări pe tehnicieni</h2>
                     <?php if (!$teamCounts): ?>
-                        <div class="empty-state">Nu exista date.</div>
+                        <div class="empty-state">Nu există date.</div>
                     <?php else: ?>
                         <?php foreach ($teamCounts as $label => $count): ?>
                             <?php $pct = reports_percent((int)$count, $totalAppointments); ?>
@@ -645,9 +971,9 @@ $currentYearEnd = date('Y-12-31');
                 </div>
 
                 <div class="report-card">
-                    <h2>Programari pe servicii</h2>
+                    <h2>Programări pe servicii</h2>
                     <?php if (!$serviceCounts): ?>
-                        <div class="empty-state">Nu exista date.</div>
+                        <div class="empty-state">Nu există date.</div>
                     <?php else: ?>
                         <?php foreach ($serviceCounts as $label => $count): ?>
                             <?php $pct = reports_percent((int)$count, $totalAppointments); ?>
@@ -661,9 +987,9 @@ $currentYearEnd = date('Y-12-31');
                 </div>
 
                 <div class="report-card">
-                    <h2>Status programari</h2>
+                    <h2>Status programări</h2>
                     <?php if (!$statusCounts): ?>
-                        <div class="empty-state">Nu exista date.</div>
+                        <div class="empty-state">Nu există date.</div>
                     <?php else: ?>
                         <?php foreach ($statusCounts as $label => $count): ?>
                             <?php $pct = reports_percent((int)$count, $totalAppointments); ?>
@@ -684,12 +1010,12 @@ $currentYearEnd = date('Y-12-31');
                         <div class="bar-value"><?= (int)$tasksTotal ?></div>
                     </div>
                     <div class="bar-row">
-                        <div class="bar-label">In perioada</div>
+                        <div class="bar-label">În perioada</div>
                         <div class="bar-track"><div class="bar-fill" style="width:<?= reports_percent($tasksThisPeriod, max(1, $tasksTotal)) ?>%"></div></div>
                         <div class="bar-value"><?= (int)$tasksThisPeriod ?></div>
                     </div>
                     <div class="bar-row">
-                        <div class="bar-label">Intarziate</div>
+                        <div class="bar-label">Întârziate</div>
                         <div class="bar-track"><div class="bar-fill" style="width:<?= reports_percent($tasksOverdue, max(1, $tasksTotal)) ?>%"></div></div>
                         <div class="bar-value"><?= (int)$tasksOverdue ?></div>
                     </div>
@@ -698,7 +1024,7 @@ $currentYearEnd = date('Y-12-31');
 
             <section class="table-card">
                 <?php if (!$appointments): ?>
-                    <div class="empty-state">Nu exista programari pentru perioada selectata.</div>
+                    <div class="empty-state">Nu există programări pentru perioada selectată.</div>
                 <?php else: ?>
                     <div class="table-scroll">
                         <table class="report-table">
@@ -707,14 +1033,14 @@ $currentYearEnd = date('Y-12-31');
                                     <th>Data</th>
                                     <th>Ora</th>
                                     <th>Client</th>
-                                    <th>Locatie</th>
+                                    <th>Locație</th>
                                     <th>Contact</th>
                                     <th>Serviciu</th>
-                                    <th>Echipa</th>
+                                    <th>Tehnician</th>
                                     <th>Status</th>
                                     <th>Adresa</th>
-                                    <th>Mentiuni birou</th>
-                                    <th>Mentiuni finalizare</th>
+                                    <th>Mențiuni birou</th>
+                                    <th>Mențiuni finalizare</th>
                                 </tr>
                             </thead>
 
@@ -778,5 +1104,57 @@ $currentYearEnd = date('Y-12-31');
         </div>
     </main>
 </div>
+<script>
+document.querySelectorAll('[data-choice]').forEach((choice) => {
+    const toggle = choice.querySelector('.reports-choice-toggle');
+    const label = toggle ? toggle.querySelector('span') : null;
+    const input = choice.querySelector('.reports-choice-input');
+    const options = choice.querySelectorAll('.reports-choice-option');
+
+    if (!toggle || !label || !input) {
+        return;
+    }
+
+    toggle.addEventListener('click', () => {
+        const isOpen = choice.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        document.querySelectorAll('[data-choice].open').forEach((other) => {
+            if (other !== choice) {
+                other.classList.remove('open');
+                const otherToggle = other.querySelector('.reports-choice-toggle');
+                if (otherToggle) {
+                    otherToggle.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+    });
+
+    options.forEach((option) => {
+        option.addEventListener('click', () => {
+            input.value = option.dataset.value || '';
+            if (!toggle.dataset.staticLabel) {
+                label.textContent = option.dataset.label || option.textContent.trim();
+            }
+            options.forEach((item) => item.classList.remove('active'));
+            option.classList.add('active');
+            choice.classList.remove('open');
+            toggle.setAttribute('aria-expanded', 'false');
+        });
+    });
+});
+
+document.addEventListener('click', (event) => {
+    if (event.target.closest('[data-choice]')) {
+        return;
+    }
+    document.querySelectorAll('[data-choice].open').forEach((choice) => {
+        choice.classList.remove('open');
+        const toggle = choice.querySelector('.reports-choice-toggle');
+        if (toggle) {
+            toggle.setAttribute('aria-expanded', 'false');
+        }
+    });
+});
+</script>
 </body>
 </html>

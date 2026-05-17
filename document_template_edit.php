@@ -13,17 +13,17 @@ if (!is_admin()) {
 
 /*
 |--------------------------------------------------------------------------
-| PestZone - editor sablon document
+| PestZone - editor șablon document
 |--------------------------------------------------------------------------
-| Editor unic pentru sabloane folosite de motorul nou:
+| Editor unic pentru șabloane folosite de motorul nou:
 | - oferta
 | - contract
 | - proces verbal
 |
 | Reguli:
-| - foloseste document_templates.is_active
-| - foloseste content_html ca sursa principala
-| - un sablon implicit trebuie sa ramana activ
+| - folosește document_templates.is_active
+| - folosește content_html ca sursa principala
+| - un șablon implicit trebuie sa ramana activ
 | - fara dependente de vechiul document_engine/document_render_lib
 |--------------------------------------------------------------------------
 */
@@ -190,7 +190,7 @@ function dte_demo_tokens(): array
         'materials_safety' => '<p>Masuri de siguranta demo: aerisire, evitarea contactului direct, respectarea recomandarilor prestatorului.</p>',
         'safety_measures' => '<p>Masuri de siguranta demo: aerisire, evitarea contactului direct, respectarea recomandarilor prestatorului.</p>',
 
-        'notes' => 'Observatii generale demo.',
+        'notes' => 'Observații generale demo.',
         'executor_notes' => 'Lucrarea a fost executata conform procedurii interne.',
         'recommendations' => 'Beneficiarul va mentine igiena spatiului si va anunta orice activitate ulterioara.',
         'client_notes' => 'Fara observatii din partea beneficiarului.',
@@ -213,7 +213,7 @@ function dte_render_preview_html(PDO $pdo, string $content, string $documentType
     $html = pzdoc_apply_tokens($content, dte_demo_tokens());
     $html = pzdoc_pdf_convert_px_to_pt($html);
 
-    // Preview-ul sablonului foloseste acelasi CSS/global wrapper ca PDF-ul final.
+    // Preview-ul șablonului folosește acelasi CSS/global wrapper ca PDF-ul final.
     return pzdoc_pdf_wrap_content_html($design, $html, false);
 }
 
@@ -237,9 +237,9 @@ if (!array_key_exists($initialType, dte_types())) {
 $form = [
     'id' => $template ? (int)$template['id'] : 0,
     'document_type' => $template ? (string)$template['document_type'] : $initialType,
-    'name' => $template ? (string)$template['name'] : ('Sablon ' . dte_type_label($initialType)),
+    'name' => $template ? (string)$template['name'] : ('Șablon ' . dte_type_label($initialType)),
     'slug' => $template ? (string)($template['slug'] ?? '') : '',
-    'description' => $template ? (string)($template['description'] ?? '') : 'Sablon creat in motorul nou de documente.',
+    'description' => $template ? (string)($template['description'] ?? '') : 'Șablon creat in motorul nou de documente.',
     'content_html' => $template ? (string)($template['content_html'] ?? '') : pzdoc_default_template_content($initialType),
     'is_active' => $template ? (int)($template['is_active'] ?? 1) : 1,
     'is_default' => $template ? (int)($template['is_default'] ?? 0) : 0,
@@ -271,11 +271,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         if ($form['name'] === '') {
-            throw new RuntimeException('Completeaza numele sablonului.');
+            throw new RuntimeException('Completează numele șablonului.');
         }
 
         if (trim($form['content_html']) === '') {
-            throw new RuntimeException('Continutul sablonului nu poate fi gol.');
+            throw new RuntimeException('Continutul șablonului nu poate fi gol.');
         }
 
         if ($form['is_default']) {
@@ -284,17 +284,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $existing = $form['id'] > 0 ? dte_get_template($pdo, $form['id']) : null;
         if ($form['id'] > 0 && !$existing) {
-            throw new RuntimeException('Sablonul nu a fost gasit.');
+            throw new RuntimeException('Șablonul nu a fost gasit.');
         }
 
         if ($existing && (int)($existing['is_default'] ?? 0) === 1) {
-            // Un sablon implicit ramane implicit pana cand alegi altul din lista sau bifezi alt sablon ca implicit.
+            // Un șablon implicit rămâne implicit până cand alegi altul din lista sau bifezi alt șablon ca implicit.
             $form['is_default'] = 1;
             $form['is_active'] = 1;
         }
 
         if (!$form['is_default'] && !dte_has_default($pdo, $form['document_type'], $form['id'])) {
-            // Daca nu exista alt implicit pentru tipul acesta, acesta devine implicit automat.
+            // Dacă nu există alt implicit pentru tipul acesta, acesta devine implicit automat.
             $form['is_default'] = 1;
             $form['is_active'] = 1;
         }
@@ -355,7 +355,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if (isset($_GET['ok']) && $_GET['ok'] === 'saved') {
-    $flash = 'Sablonul a fost salvat.';
+    $flash = 'Șablonul a fost salvat.';
 }
 
 $previewHtml = dte_render_preview_html($pdo, (string)$form['content_html'], (string)$form['document_type']);
@@ -367,7 +367,7 @@ $isNew = (int)$form['id'] <= 0;
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title><?= $isNew ? 'Sablon nou' : 'Editare sablon' ?> - PestZone</title>
+<title><?= $isNew ? 'Șablon nou' : 'Editare șablon' ?> - PestZone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -626,11 +626,11 @@ $isNew = (int)$form['id'] <= 0;
         <div class="topbar template-topbar">
             <div class="template-toolbar">
                 <div class="template-toolbar-left">
-                    <a class="btn" href="document_templates.php">Inapoi la sabloane</a>
+                    <a class="btn" href="document_templates.php">Înapoi la șabloane</a>
                 </div>
                 <div class="template-toolbar-right">
                     <?php if (!$isNew): ?>
-                        <a class="btn" href="document_template_edit.php">+ Sablon nou</a>
+                        <a class="btn" href="document_template_edit.php">+ Șablon nou</a>
                     <?php endif; ?>
                 </div>
             </div>
@@ -646,9 +646,9 @@ $isNew = (int)$form['id'] <= 0;
 
         <div class="content">
             <section class="template-hero">
-                <h1><?= $isNew ? 'Sablon nou' : 'Editare sablon' ?></h1>
+                <h1><?= $isNew ? 'Șablon nou' : 'Editare șablon' ?></h1>
                 <p>
-                    Acest editor modifica sabloanele folosite de motorul unic de documente.
+                    Acest editor modifica șabloanele folosite de motorul unic de documente.
                     Acelasi format va fi folosit la oferta, contract si proces verbal, in functie de tipul ales.
                 </p>
             </section>
@@ -672,7 +672,7 @@ $isNew = (int)$form['id'] <= 0;
                             </div>
 
                             <div class="field">
-                                <label>Nume sablon</label>
+                                <label>Nume șablon</label>
                                 <input type="text" name="name" value="<?= dte_h($form['name']) ?>" required>
                             </div>
 
@@ -683,13 +683,13 @@ $isNew = (int)$form['id'] <= 0;
                                         <input type="checkbox" name="is_active" value="1" <?= (int)$form['is_active'] === 1 ? 'checked' : '' ?>> Activ
                                     </label>
                                     <label class="check-pill">
-                                        <input type="checkbox" name="is_default" value="1" <?= (int)$form['is_default'] === 1 ? 'checked' : '' ?>> Sablon implicit
+                                        <input type="checkbox" name="is_default" value="1" <?= (int)$form['is_default'] === 1 ? 'checked' : '' ?>> Șablon implicit
                                     </label>
                                 </div>
                             </div>
 
                             <div class="field full">
-                                <label>Continut sablon</label>
+                                <label>Continut șablon</label>
                                 <div class="muted-small" style="margin-bottom:8px;">
                                     Editezi vizual, ca in Word. Variabilele din dreapta se insereaza prin click si se completeaza automat la emitere.
                                 </div>
@@ -700,9 +700,9 @@ $isNew = (int)$form['id'] <= 0;
                         </div>
 
                         <div class="editor-actions">
-                            <button class="btn" type="button" id="refreshPreview">Actualizeaza preview</button>
-                            <button class="btn" type="submit" name="action" value="save">Salveaza</button>
-                            <button class="btn accent" type="submit" name="action" value="save_back">Salveaza si inapoi</button>
+                            <button class="btn" type="button" id="refreshPreview">Actualizează preview</button>
+                            <button class="btn" type="submit" name="action" value="save">Salvează</button>
+                            <button class="btn accent" type="submit" name="action" value="save_back">Salvează si inapoi</button>
                         </div>
                     </section>
 
@@ -711,7 +711,7 @@ $isNew = (int)$form['id'] <= 0;
                             <h3 style="margin:0 0 10px;font-size:15px;">Preview cu date demo</h3>
                             <iframe class="preview-frame" id="previewFrame" srcdoc="<?= dte_h($previewHtml) ?>"></iframe>
                             <div class="muted-small" style="margin-top:8px;">
-                                Preview-ul foloseste date demonstrative. La emiterea reala, tokenii se completeaza automat din client, locatie, servicii, materiale si setarile firmei.
+                                Preview-ul folosește date demonstrative. La emiterea reala, tokenii se completeaza automat din client, locație, servicii, materiale si setarile firmei.
                             </div>
                         </section>
 
@@ -865,7 +865,7 @@ function initTiny() {
                 clearTimeout(previewTimer);
                 previewTimer = setTimeout(updatePreview, 450);
             });
-            tiny.addShortcut('meta+s', 'Salveaza sablonul', function() {
+            tiny.addShortcut('meta+s', 'Salvează șablonul', function() {
                 syncEditor();
                 templateForm.requestSubmit();
             });

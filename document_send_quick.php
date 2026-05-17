@@ -45,17 +45,17 @@ function pzquick_email_texts(array $document): array
 
     if ($type === 'oferta') {
         $subject = 'Oferta ' . $number;
-        $body = "Buna ziua,\n\nVa transmitem oferta comerciala {$number}, atasata acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
+        $body = "Bună ziua,\n\nVa transmitem oferta comerciala {$number}, atașata acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
     } elseif ($type === 'contract') {
         $subject = 'Contract ' . $number;
-        $body = "Buna ziua,\n\nVa transmitem contractul {$number}, atasat acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
+        $body = "Bună ziua,\n\nVa transmitem contractul {$number}, atașat acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
     } elseif ($type === 'proces_verbal') {
         $subject = 'Proces verbal ' . $number;
-        $body = "Buna ziua,\n\nVa transmitem procesul verbal {$number}, atasat acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
+        $body = "Bună ziua,\n\nVa transmitem procesul verbal {$number}, atașat acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
     } else {
         $label = pzdoc_document_type_label($type);
         $subject = $label . ' ' . $number;
-        $body = "Buna ziua,\n\nVa transmitem {$label} {$number}, atasat acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
+        $body = "Bună ziua,\n\nVa transmitem {$label} {$number}, atașat acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
     }
 
     if ($client !== '') {
@@ -111,7 +111,7 @@ function pzquick_email_body_to_html(string $body): string
 |--------------------------------------------------------------------------
 | Helper vechi pastrat pentru compatibilitate
 |--------------------------------------------------------------------------
-| Fluxul nou nu mai foloseste atasamente PDF generate cu mPDF.
+| Fluxul nou nu mai folosește atasamente PDF generate cu mPDF.
 |--------------------------------------------------------------------------
 */
 if (!function_exists('pzdoc_ensure_email_tmp_dir')) {
@@ -126,7 +126,7 @@ if (!function_exists('pzdoc_ensure_email_tmp_dir')) {
         }
         if (!is_writable($dir)) {
             throw new RuntimeException(
-                'Folderul ' . $dir . ' exista dar nu e writable. Setati permisiuni 775 si ownerul user-ului PHP.'
+                'Folderul ' . $dir . ' există dar nu e writable. Setati permisiuni 775 si ownerul user-ului PHP.'
             );
         }
         return $dir;
@@ -138,10 +138,10 @@ if (!function_exists('pzdoc_ensure_email_tmp_dir')) {
 | Helper: Rezolva email-ul clientului cu fallback
 |--------------------------------------------------------------------------
 | Sursa primara: client_email_snapshot (frozen la emitere)
-| Fallback:      clients.email (live, daca snapshot e gol/invalid)
+| Fallback:      clients.email (live, dacă snapshot e gol/invalid)
 |
 | Returneaza ['email'=>'X', 'source'=>'snapshot|live|none', 'updated'=>bool]
-| Daca foloseste live, actualizeaza snapshot-ul in DB pentru data viitoare.
+| Dacă folosește live, actualizeaza snapshot-ul in DB pentru data viitoare.
 |--------------------------------------------------------------------------
 */
 if (!function_exists('pzdoc_resolve_client_email')) {
@@ -217,7 +217,7 @@ try {
     }
 
     if (($document['status'] ?? '') !== 'issued') {
-        pzquick_json(['ok' => false, 'error' => 'Documentul trebuie emis inainte de trimiterea pe email.'], 400);
+        pzquick_json(['ok' => false, 'error' => 'Documentul trebuie emis înainte de trimiterea pe email.'], 400);
     }
 
     if (!function_exists('pz_sendgrid_send_email')) {
@@ -228,10 +228,10 @@ try {
     $sgKey = trim((string)pz_setting_get('sendgrid_api_key', ''));
     $sgFrom = trim((string)pz_setting_get('email_from_address', ''));
     if ($sgKey === '') {
-        pzquick_json(['ok' => false, 'error' => 'Lipseste SendGrid API key. Configureaza in Setari > Comunicare / Integrari.'], 500);
+        pzquick_json(['ok' => false, 'error' => 'Lipseste SendGrid API key. Configureaza in Setări > Comunicare / Integrări.'], 500);
     }
     if ($sgFrom === '' || !filter_var($sgFrom, FILTER_VALIDATE_EMAIL)) {
-        pzquick_json(['ok' => false, 'error' => 'Lipseste sau e invalid email-ul expeditor (email_from_address). Configureaza in Setari > Comunicare / Integrari.'], 500);
+        pzquick_json(['ok' => false, 'error' => 'Lipseste sau e invalid email-ul expeditor (email_from_address). Configureaza in Setări > Comunicare / Integrări.'], 500);
     }
 
 
@@ -240,7 +240,7 @@ try {
     $to = $emailResolved['email'];
     if ($to === '') {
         $clientName = trim((string)($document['client_name_snapshot'] ?? 'Client'));
-        pzquick_json(['ok' => false, 'error' => 'Clientul "' . $clientName . '" nu are email salvat. Adauga email-ul in fisa clientului si reincearca.'], 400);
+        pzquick_json(['ok' => false, 'error' => 'Clientul "' . $clientName . '" nu are email salvat. Adaugă email-ul in fișa clientului si reincearca.'], 400);
     }
 
     $emailTexts = pzquick_email_texts($document);
@@ -250,7 +250,7 @@ try {
     $subjectApplied = trim(strip_tags(pzdoc_apply_tokens($subject, $tokens)));
     $bodyApplied = pzdoc_apply_tokens($body, $tokens);
     $htmlBody = pzquick_email_body_to_html($bodyApplied);
-    // PDF atasat real prin engine (mPDF). Fara link public.
+    // PDF atașat real prin engine (mPDF). Fara link public.
     $tmpDir = __DIR__ . '/tmp/document_emails';
     if (!is_dir($tmpDir)) { @mkdir($tmpDir, 0755, true); }
     if (!is_writable($tmpDir)) { pzquick_json(['ok' => false, 'error' => 'Folderul tmp/document_emails nu este scriibil.'], 500); }

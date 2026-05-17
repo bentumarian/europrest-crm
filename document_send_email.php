@@ -157,19 +157,19 @@ function pzdoc_email_default_body(array $document): string
     $number = trim((string)($document['document_number'] ?? '')) ?: 'documentul emis';
 
     if ($type === 'oferta') {
-        return "Buna ziua,\n\nVa transmitem oferta comerciala {$number}, atasata acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
+        return "Bună ziua,\n\nVa transmitem oferta comerciala {$number}, atașata acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
     }
 
     if ($type === 'contract') {
-        return "Buna ziua,\n\nVa transmitem contractul {$number}, atasat acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
+        return "Bună ziua,\n\nVa transmitem contractul {$number}, atașat acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
     }
 
     if ($type === 'proces_verbal') {
-        return "Buna ziua,\n\nVa transmitem procesul verbal {$number}, atasat acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
+        return "Bună ziua,\n\nVa transmitem procesul verbal {$number}, atașat acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
     }
 
     $label = pzdoc_document_type_label($type);
-    return "Buna ziua,\n\nVa transmitem {$label} {$number}, atasat acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
+    return "Bună ziua,\n\nVa transmitem {$label} {$number}, atașat acestui email.\n\nPentru orice detalii sau clarificari, va stam la dispozitie.\n\nCu stima,\n{{company_name}}\n{{company_phone}}\n{{company_email}}";
 }
 
 function pzdoc_email_body_to_html(string $body): string
@@ -234,12 +234,12 @@ function pzdoc_email_relative_path(string $path): string
 function pzdoc_email_send_one(string $email, string $subject, string $html, string $text, array $attachments, int $documentId): array
 {
     if (!function_exists('pz_sendgrid_send_email')) {
-        return ['ok' => false, 'error' => 'Functia pz_sendgrid_send_email nu exista. Verifica notification_lib.php.'];
+        return ['ok' => false, 'error' => 'Functia pz_sendgrid_send_email nu există. Verifica notification_lib.php.'];
     }
     return pz_sendgrid_send_email($email, $subject, $html, $text, $attachments, 'document', $documentId);
 }
 
-/* Helper: asigura folderul tmp/document_emails (creeaza daca lipseste) */
+/* Helper: asigura folderul tmp/document_emails (creeaza dacă lipseste) */
 if (!function_exists('pzdoc_ensure_email_tmp_dir')) {
     function pzdoc_ensure_email_tmp_dir(): string {
         $dir = __DIR__ . '/tmp/document_emails';
@@ -308,12 +308,12 @@ if (!$document && $documentId > 0 && $errorMessage === '') {
 
 $sg = pzdoc_email_sendgrid_status();
 $tokens = $document ? pzdoc_build_tokens($pdo, $document) : [];
-// Default destinatar: snapshot, dar fallback live din clients.email daca snapshot e gol
+// Default destinatar: snapshot, dar fallback live din clients.email dacă snapshot e gol
 $defaultTo = '';
 if ($document) {
     $resolved = pzdoc_resolve_client_email($pdo, $document);
     $defaultTo = $resolved['email'];
-    // Reincarcam document-ul daca s-a actualizat snapshot-ul
+    // Reincarcam document-ul dacă s-a actualizat snapshot-ul
     if ($resolved['updated']) {
         $document = pzdoc_get_document($pdo, $documentId, true) ?: $document;
     }
@@ -327,10 +327,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $document) {
         csrf_require();
 
         if (($document['status'] ?? '') !== 'issued') {
-            throw new RuntimeException('Documentul trebuie emis inainte de trimiterea pe email.');
+            throw new RuntimeException('Documentul trebuie emis înainte de trimiterea pe email.');
         }
         if (!$sg['ready']) {
-            throw new RuntimeException('SendGrid nu este configurat complet. Verifica Setari > Comunicare / Integrari.');
+            throw new RuntimeException('SendGrid nu este configurat complet. Verifica Setări > Comunicare / Integrări.');
         }
 
         $toRaw = pzdoc_email_str($_POST['to_email'] ?? '', 255);
@@ -342,16 +342,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $document) {
         $ccEmails = pzdoc_email_parse_list($ccRaw);
         $bad = array_merge(pzdoc_email_invalid_list($toRaw), pzdoc_email_invalid_list($ccRaw));
         if (!$toEmails) {
-            throw new RuntimeException('Completeaza cel putin un destinatar valid.');
+            throw new RuntimeException('Completează cel puțin un destinatar valid.');
         }
         if ($bad) {
             throw new RuntimeException('Adrese email invalide: ' . implode(', ', $bad));
         }
         if ($subjectRaw === '') {
-            throw new RuntimeException('Completeaza subiectul emailului.');
+            throw new RuntimeException('Completează subiectul emailului.');
         }
         if ($bodyRaw === '') {
-            throw new RuntimeException('Completeaza mesajul emailului.');
+            throw new RuntimeException('Completează mesajul emailului.');
         }
 
         $tokens = pzdoc_build_tokens($pdo, $document);
@@ -366,7 +366,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $document) {
         $pdfFilename = pzdoc_engine_pdf_to_file($pdo, $documentId, $pdfTmpPath);
         $textBody = trim(html_entity_decode(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "
 ", $htmlBody)), ENT_QUOTES, 'UTF-8'));
-        // (PDF-ul e atasat direct la email, nu mai trimitem link public)
+        // (PDF-ul e atașat direct la email, nu mai trimitem link public)
 
         $attachments = [[
             'path' => $pdfTmpPath,
@@ -493,7 +493,7 @@ $bodyValue = $_POST['body'] ?? $defaultBodyRendered;
                 <a class="btn" href="<?= pzdoc_email_h($listUrl) ?>">Lista documente</a>
                 <?php if ($document): ?>
                     <a class="btn" href="document_view.php?id=<?= (int)$documentId ?>">Vezi document</a>
-                    <a class="btn" target="_blank" href="document_pdf.php?id=<?= (int)$documentId ?>&mode=download">Descarca PDF</a>
+                    <a class="btn" target="_blank" href="document_pdf.php?id=<?= (int)$documentId ?>&mode=download">Descarcă PDF</a>
                 <?php endif; ?>
             </div>
         </header>
@@ -502,7 +502,7 @@ $bodyValue = $_POST['body'] ?? $defaultBodyRendered;
             <section class="email-hero">
                 <div>
                     <h1>Trimite document pe email</h1>
-                    <p>Trimitere prin SendGrid cu PDF-ul documentului atasat automat.</p>
+                    <p>Trimitere prin SendGrid cu PDF-ul documentului atașat automat.</p>
                 </div>
             </section>
 
@@ -520,10 +520,10 @@ $bodyValue = $_POST['body'] ?? $defaultBodyRendered;
                 </section>
 
                 <?php if (($document['status'] ?? '') !== 'issued'): ?>
-                    <div class="alert warn">Documentul trebuie emis inainte de trimiterea pe email. Intra in vizualizare si apasa Emite document.</div>
+                    <div class="alert warn">Documentul trebuie emis înainte de trimiterea pe email. Intra in vizualizare si apasa Emite document.</div>
                 <?php endif; ?>
                 <?php if (!$sg['ready']): ?>
-                    <div class="alert warn">SendGrid nu este complet pregatit. Cheie: <?= $sg['has_key'] ? 'OK' : 'lipsa' ?> | Expeditor: <?= pzdoc_email_h($sg['from_email'] ?: 'lipsa') ?> | cURL: <?= $sg['curl'] ? 'OK' : 'lipsa' ?> | librarie: <?= $sg['lib'] ? 'OK' : 'lipsa' ?>. Verifica Setari &gt; Comunicare / Integrari.</div>
+                    <div class="alert warn">SendGrid nu este complet pregătit. Cheie: <?= $sg['has_key'] ? 'OK' : 'lipsa' ?> | Expeditor: <?= pzdoc_email_h($sg['from_email'] ?: 'lipsa') ?> | cURL: <?= $sg['curl'] ? 'OK' : 'lipsa' ?> | librarie: <?= $sg['lib'] ? 'OK' : 'lipsa' ?>. Verifica Setări &gt; Comunicare / Integrări.</div>
                 <?php endif; ?>
 
                 <section class="panel">
@@ -554,15 +554,15 @@ $bodyValue = $_POST['body'] ?? $defaultBodyRendered;
                                 <div class="field full">
                                     <label>Mesaj</label>
                                     <textarea name="body"><?= pzdoc_email_h($bodyValue) ?></textarea>
-                                    <div class="help">Emailul va contine PDF-ul documentului atasat automat. Textul poate fi editat inainte de trimitere.</div>
+                                    <div class="help">Emailul va contine PDF-ul documentului atașat automat. Textul poate fi editat înainte de trimitere.</div>
                                 </div>
                             </div>
 
                             <div class="form-actions">
-                                <a class="btn" href="document_view.php?id=<?= (int)$documentId ?>">Inapoi</a>
+                                <a class="btn" href="document_view.php?id=<?= (int)$documentId ?>">Înapoi</a>
                                 <div class="right">
                                     <a class="btn" target="_blank" href="document_pdf.php?id=<?= (int)$documentId ?>">Verifica PDF</a>
-                                    <button class="btn primary" type="submit" <?= (($document['status'] ?? '') !== 'issued' || !$sg['ready']) ? 'disabled' : '' ?> onclick="return confirm('Trimiti emailul cu PDF atasat catre destinatar?');">Trimite email</button>
+                                    <button class="btn primary" type="submit" <?= (($document['status'] ?? '') !== 'issued' || !$sg['ready']) ? 'disabled' : '' ?> onclick="return confirm('Trimiti emailul cu PDF atașat catre destinatar?');">Trimite email</button>
                                 </div>
                             </div>
                         </form>
@@ -578,7 +578,7 @@ $bodyValue = $_POST['body'] ?? $defaultBodyRendered;
                     </div>
                     <div class="panel-body">
                         <?php if (!$logs): ?>
-                            <div class="empty-state">Nu exista trimiteri inregistrate pentru acest document.</div>
+                            <div class="empty-state">Nu există trimiteri inregistrate pentru acest document.</div>
                         <?php else: ?>
                             <div class="logs">
                                 <?php foreach ($logs as $log): ?>

@@ -14,7 +14,7 @@
  *   'super_admin_email' => 'emailul-tau@domeniu.ro',
  * ];
  *
- * Daca nu setezi nimic, contul cu users.id = 1 este super admin implicit.
+ * Dacă nu setezi nimic, contul cu users.id = 1 este super admin implicit.
  */
 
 if (!function_exists('pz_current_user_id_safe')) {
@@ -71,7 +71,7 @@ if (!function_exists('pz_require_super_admin')) {
             http_response_code(403);
             echo '<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Acces restrictionat</title>';
             echo '<style>body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f6f8fb;color:#14213d;margin:0;padding:32px}.box{max-width:620px;margin:8vh auto;background:#fff;border:1px solid #dbe3ea;border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(15,23,42,.06)}h1{margin:0 0 10px;font-size:22px}.muted{color:#64748b;line-height:1.55}.btn{display:inline-flex;margin-top:18px;background:#0071A3;color:#fff;text-decoration:none;padding:10px 14px;border-radius:12px;font-weight:700}</style></head><body>';
-            echo '<div class="box"><h1>Acces permis doar super administratorului</h1><p class="muted">Aceasta zona poate fi accesata doar de contul principal al platformei. Utilizatorii administratori normali nu pot modifica datele companiei si nu pot reseta platforma.</p><a class="btn" href="settings.php">Inapoi la setari</a></div>';
+            echo '<div class="box"><h1>Acces permis doar super administratorului</h1><p class="muted">Aceasta zona poate fi accesata doar de contul principal al platformei. Utilizatorii administratori normali nu pot modifica datele companiei si nu pot reseta platforma.</p><a class="btn" href="settings.php">Înapoi la setari</a></div>';
             echo '</body></html>';
             exit;
         }

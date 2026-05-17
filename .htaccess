@@ -10,6 +10,12 @@
     Require all denied
 </FilesMatch>
 
+# Blocheaza scripturi de mentenanta / diagnostic pe productie.
+# Se ruleaza doar local sau temporar, apoi se dezactiveaza din server.
+<FilesMatch "^(install_.*|fix_.*|diag_.*|force_sms_off)\.php$">
+    Require all denied
+</FilesMatch>
+
 # Blocheaza folderul .git daca exista
 RedirectMatch 403 /\.git
 

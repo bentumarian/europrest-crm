@@ -15,7 +15,7 @@ if (file_exists(__DIR__ . '/settings_lib.php')) {
 | - contract
 | - proces verbal
 |
-| Acest fisier nu contine formulare si nu decide continutul documentului.
+| Acest fișier nu contine formulare si nu decide continutul documentului.
 | Continutul vine din document_tokens.php, iar aici se aplica designul A4,
 | header, footer si randarea prin mPDF.
 |--------------------------------------------------------------------------
@@ -25,6 +25,40 @@ if (!function_exists('pzdoc_pdf_h')) {
     function pzdoc_pdf_h($value): string
     {
         return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
+    }
+}
+
+if (!function_exists('pzdoc_pdf_repair_romanian_text')) {
+    function pzdoc_pdf_repair_romanian_text(string $html): string
+    {
+        $pairs = [
+            '?os.' => '&#536;os.', '?oseaua' => '&#536;oseaua', '?OSEAUA' => '&#536;OSEAUA',
+            'Bucure?ti' => 'Bucure&#537;ti', 'BUCURE?TI' => 'BUCURE&#536;TI',
+            'Constan?a' => 'Constan&#539;a', 'CONSTAN?A' => 'CONSTAN&#538;A',
+            'Timi?oara' => 'Timi&#537;oara', 'TIMI?OARA' => 'TIMI&#536;OARA',
+            'Bra?ov' => 'Bra&#537;ov', 'BRA?OV' => 'BRA&#536;OV',
+            'Ploie?ti' => 'Ploie&#537;ti', 'PLOIE?TI' => 'PLOIE&#536;TI',
+            'Ia?i' => 'Ia&#537;i', 'IA?I' => 'IA&#536;I',
+            'Bistri?a' => 'Bistri&#539;a', 'BISTRI?A' => 'BISTRI&#538;A',
+            'Gala?i' => 'Gala&#539;i', 'GALA?I' => 'GALA&#538;I',
+            'Dambovi?a' => 'Dambovi&#539;a', 'DAMBOVI?A' => 'DAMBOVI&#538;A',
+            'Ialomi?a' => 'Ialomi&#539;a', 'IALOMI?A' => 'IALOMI&#538;A',
+        ];
+
+        return strtr($html, $pairs);
+    }
+}
+
+if (!function_exists('pzdoc_pdf_prepare_html')) {
+    function pzdoc_pdf_prepare_html(string $html): string
+    {
+        $html = pzdoc_pdf_repair_romanian_text($html);
+
+        // Șablonul poate contine font-family inline din editor. In mPDF, fonturi
+        // precum Arial pot pierde diacriticele romanesti; DejaVu Sans le suporta.
+        $html = preg_replace('/font-family\s*:\s*[^;"\']+;?/i', 'font-family: dejavusans, DejaVu Sans, sans-serif;', $html) ?? $html;
+
+        return $html;
     }
 }
 
@@ -83,9 +117,9 @@ if (!function_exists('pzdoc_pdf_convert_px_to_pt')) {
 
 if (!function_exists('pzdoc_pdf_extract_content_font_size_pt')) {
     /**
-     * Extrage o marime de font dominanta din HTML-ul sablonului/documentului.
+     * Extrage o marime de font dominanta din HTML-ul șablonului/documentului.
      * Motiv: editorul si preview-ul pot salva font-size in template, iar modul compact PV
-     * nu trebuie sa forteze PDF-ul la 9.2pt daca sablonul are 11pt.
+     * nu trebuie sa forteze PDF-ul la 9.2pt dacă șablonul are 11pt.
      */
     function pzdoc_pdf_extract_content_font_size_pt(string $html): ?float
     {
@@ -271,7 +305,7 @@ if (!function_exists('pzdoc_pdf_design')) {
             $design['page_margin_bottom_mm'] = pzdoc_pdf_float($settings['document.pv_page_margin_bottom_mm'] ?? 7, 7, 0, 25);
             // Pentru PV, fontul de baza trebuie sa ramana predictibil si egal cu preview-ul.
             // Nu preluam automat 11pt din design global/wrapper HTML; implicit folosim 10pt.
-            // Daca vrei alt font pentru PV, se poate seta explicit document.pv_body_font_size_pt.
+            // Dacă vrei alt font pentru PV, se poate seta explicit document.pv_body_font_size_pt.
             $design['body_font_size_pt'] = pzdoc_pdf_float(
                 (array_key_exists('document.pv_body_font_size_pt', $settings) && trim((string)$settings['document.pv_body_font_size_pt']) !== '')
                     ? $settings['document.pv_body_font_size_pt']
@@ -304,8 +338,8 @@ if (!function_exists('pzdoc_pdf_design')) {
 
 if (!function_exists('pzdoc_pdf_no_cache_headers')) {
     /**
-     * Evita afisarea unui PDF vechi din cache-ul browserului.
-     * PDF-ul trebuie regenerat live din aceeasi sursa ca preview-ul.
+     * Evita afișarea unui PDF vechi din cache-ul browserului.
+     * PDF-ul trebuie regenerat live din aceeași sursa ca preview-ul.
      */
     function pzdoc_pdf_no_cache_headers(): void
     {
@@ -488,7 +522,7 @@ if (!function_exists('pzdoc_pdf_global_css')) {
 if (!function_exists('pzdoc_pdf_wrap_content_html')) {
     /**
      * Invelis unic pentru continutul documentului.
-     * Aceeasi functie este folosita pentru PDF, preview real si preview sablon,
+     * Aceeasi functie este folosita pentru PDF, preview real si preview șablon,
      * ca stilurile din editor sa nu fie interpretate diferit intre ecran si PDF.
      */
     function pzdoc_pdf_wrap_content_html(array $design, string $content, bool $forPdf = true): string
@@ -519,7 +553,7 @@ if (!function_exists('pzdoc_pdf_full_html')) {
 
         // Sursa unica: continutul final al documentului, fara CSS alternativ.
         // CSS-ul PDF/preview este aplicat o singura data prin pzdoc_pdf_wrap_content_html().
-        $content = pzdoc_pdf_convert_px_to_pt(pzdoc_render_document_html($pdo, $documentId, $templateId, false));
+        $content = pzdoc_pdf_prepare_html(pzdoc_pdf_convert_px_to_pt(pzdoc_render_document_html($pdo, $documentId, $templateId, false)));
         $design = pzdoc_pdf_apply_content_font_to_design($design, $content);
 
         return pzdoc_pdf_wrap_content_html($design, $content, $forPdf);
@@ -571,7 +605,9 @@ if (!function_exists('pzdoc_pdf_create_mpdf')) {
         $mpdf->shrink_tables_to_fit = 1;
         $mpdf->keep_table_proportions = false;
         $mpdf->simpleTables = true;
-        $mpdf->useSubstitutions = false;
+        $mpdf->useSubstitutions = true;
+        $mpdf->autoScriptToLang = true;
+        $mpdf->autoLangToFont = true;
         $mpdf->SetTitle(pzdoc_document_type_label((string)($document['document_type'] ?? 'document')));
         $mpdf->SetAuthor('PestZone CRM');
 
@@ -596,7 +632,7 @@ if (!function_exists('pzdoc_pdf_string')) {
         }
 
         $design = pzdoc_pdf_design($pdo, $document);
-        $html = pzdoc_pdf_convert_px_to_pt(pzdoc_pdf_full_html($pdo, $documentId, $templateId, true));
+        $html = pzdoc_pdf_prepare_html(pzdoc_pdf_convert_px_to_pt(pzdoc_pdf_full_html($pdo, $documentId, $templateId, true)));
         $filename = pzdoc_pdf_filename($document);
         $mpdf = pzdoc_pdf_create_mpdf($pdo, $document, $design);
         $mpdf->WriteHTML($html);
@@ -622,7 +658,7 @@ if (!function_exists('pzdoc_pdf_stream_document')) {
         }
 
         $design = pzdoc_pdf_design($pdo, $document);
-        $html = pzdoc_pdf_convert_px_to_pt(pzdoc_pdf_full_html($pdo, $documentId, $templateId, true));
+        $html = pzdoc_pdf_prepare_html(pzdoc_pdf_convert_px_to_pt(pzdoc_pdf_full_html($pdo, $documentId, $templateId, true)));
         $filename = pzdoc_pdf_filename($document);
         $mpdf = pzdoc_pdf_create_mpdf($pdo, $document, $design);
         $mpdf->WriteHTML($html);
@@ -672,9 +708,9 @@ if (!function_exists('pzdoc_pdf_browser_preview_html')) {
 
         $design = pzdoc_pdf_design($pdo, $document);
 
-        // Preview-ul foloseste exact aceeasi sursa de continut ca PDF-ul:
-        // sablon -> tokeni -> semnatura/stampila -> CSS PDF. Nu mai injectam CSS separat.
-        $content = pzdoc_pdf_convert_px_to_pt(pzdoc_render_document_html($pdo, $documentId, $templateId, false));
+        // Preview-ul folosește exact aceeași sursa de continut ca PDF-ul:
+        // șablon -> tokeni -> semnătura/ștampila -> CSS PDF. Nu mai injectam CSS separat.
+        $content = pzdoc_pdf_prepare_html(pzdoc_pdf_convert_px_to_pt(pzdoc_render_document_html($pdo, $documentId, $templateId, false)));
         $design = pzdoc_pdf_apply_content_font_to_design($design, $content);
         $header = pzdoc_pdf_header_html($pdo, $design);
         $footer = pzdoc_pdf_footer_html($pdo, $document, $design);

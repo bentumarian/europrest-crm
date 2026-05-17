@@ -5,13 +5,13 @@ require_once 'config.php';
 |--------------------------------------------------------------------------
 | Login
 |--------------------------------------------------------------------------
-| Login pentru administrator / birou si echipe teren.
-| Texte fara diacritice, compatibil cu editorul PHP/cPanel.
-| Redirect dupa autentificare: dashboard.php
+| Login pentru administrator / birou si tehnicieni.
+| Texte UTF-8, cu diacritice pastrate.
+| Redirect după autentificare: dashboard.php
 |
 | SECURITY:
 | - CSRF token verificat la POST
-| - session_regenerate_id dupa login (anti session fixation)
+| - session_regenerate_id după login (anti session fixation)
 | - Verificare parola sigura: hash bcrypt sau plaintext legacy (rehashed)
 | - Rate limiting: maxim 5 esecuri / 15 min per email sau per IP
 |--------------------------------------------------------------------------
@@ -63,7 +63,7 @@ function login_column_exists(PDO $pdo, string $table, string $column): bool
 
 /**
  * Verifica parola in mod sigur:
- * - Daca stored password incepe cu '$' este hash bcrypt/argon -> password_verify
+ * - Dacă stored password incepe cu '$' este hash bcrypt/argon -> password_verify
  * - Altfel se considera plaintext legacy (compat invers) si va fi rehash-uit
  */
 function login_verify_password(?string $storedPassword, string $inputPassword): bool
@@ -205,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ip = login_get_client_ip();
 
         if ($email === '' || $password === '') {
-            $error = 'Completeaza emailul si parola.';
+            $error = 'Completează emailul si parola.';
         } else {
 
             /*
@@ -276,7 +276,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 /*
                 |--------------------------------------------------------------
-                | 2. Login echipa teren
+                | 2. Login tehnician
                 |--------------------------------------------------------------
                 */
                 if (!$loggedIn && login_table_exists($pdo, 'team_members')) {
@@ -319,7 +319,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             session_regenerate_id(true);
 
                             $_SESSION['team_member_id'] = $team['id'];
-                            $_SESSION['team_member_name'] = $team['name'] ?? 'Echipa teren';
+                            $_SESSION['team_member_name'] = $team['name'] ?? 'Tehnician';
                             $_SESSION['user_email'] = $team['email'] ?? $email;
                             $_SESSION['user_role'] = 'team';
 
@@ -349,7 +349,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         error_log('Login: login_record_attempt failure failed: ' . $e->getMessage());
                     }
 
-                    // Mesaj generic - nu spunem daca emailul exista sau nu (anti enumerare)
+                    // Mesaj generic - nu spunem dacă emailul există sau nu (anti enumerare)
                     $error = 'Email sau parola gresita.';
                 }
             }
@@ -371,24 +371,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <style>
 :root {
-    /* Tema global CRM - fara diacritice */
-    --primary: #1160B7;
-    --primary-soft: #002050;
-    --primary-light: #B1D6F0;
-    --secondary: #526B82;
-    --secondary-2: #DFE2E8;
-    --background: #DFE2E8;
+    --primary: #2563EB;
+    --primary-hover: #1D4ED8;
+    --background: #F8FAFC;
     --card: #FFFFFF;
-    --border: rgba(177, 214, 240, .58);
-    --text: #002050;
-    --muted: #526B82;
-    --muted-light: #7F94A8;
+    --border: #E2E8F0;
+    --text: #0F172A;
+    --muted: #64748B;
+    --muted-light: #94A3B8;
     --danger-bg: #FFF4F1;
-    --danger-border: rgba(210, 71, 38, .24);
-    --danger-text: #D24726;
-    --shadow-3d: 0 34px 90px rgba(0, 32, 80, .20), 0 14px 34px rgba(0, 32, 80, .10);
-    --shadow-soft: 0 18px 40px rgba(0, 32, 80, .13);
-    --radius: 34px;
+    --danger-border: #FED7AA;
+    --danger-text: #C2410C;
+    --radius: 8px;
     --font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -400,15 +394,11 @@ body {
     min-height: 100vh;
     font-family: var(--font);
     color: var(--text);
-    background:
-        radial-gradient(circle at 18% 10%, rgba(17, 96, 183, .18), transparent 30%),
-        radial-gradient(circle at 86% 88%, rgba(177, 214, 240, .30), transparent 36%),
-        radial-gradient(circle at 50% 110%, rgba(0, 32, 80, .13), transparent 45%),
-        linear-gradient(135deg, #FFFFFF 0%, #EEF4F8 45%, var(--background) 100%);
+    background: var(--background);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 34px;
+    padding: 32px;
     overflow-x: hidden;
 }
 
@@ -418,43 +408,28 @@ body::before {
     inset: 0;
     pointer-events: none;
     background-image:
-        linear-gradient(rgba(0, 32, 80, .038) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 32, 80, .038) 1px, transparent 1px);
-    background-size: 44px 44px;
-    mask-image: linear-gradient(to bottom, rgba(0,0,0,.62), transparent 82%);
-}
-
-body::after {
-    content: "";
-    position: fixed;
-    inset: auto 0 0 0;
-    height: 38vh;
-    pointer-events: none;
-    background: linear-gradient(180deg, transparent 0%, rgba(0, 32, 80, .10) 100%);
+        linear-gradient(rgba(15, 23, 42, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 23, 42, .035) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,.55), transparent 80%);
 }
 
 .login-shell {
     position: relative;
-    width: min(420px, calc(100vw - 56px));
-    max-width: 420px;
+    width: min(380px, calc(100vw - 40px));
+    max-width: 380px;
     z-index: 1;
-    perspective: 1200px;
 }
 
 .login-card {
     width: 100%;
     position: relative;
-    background:
-        linear-gradient(145deg, rgba(255,255,255,.88) 0%, rgba(255,255,255,.72) 54%, rgba(177,214,240,.24) 100%);
-    border: 1px solid rgba(255,255,255,.86);
-    border-top-color: rgba(177,214,240,.78);
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
-    box-shadow: var(--shadow-3d);
-    padding: 32px 32px 28px;
+    box-shadow: none;
+    padding: 28px;
     overflow: hidden;
-    backdrop-filter: blur(22px) saturate(150%);
-    -webkit-backdrop-filter: blur(22px) saturate(150%);
-    transform: translateZ(0);
 }
 
 .login-card::before {
@@ -463,89 +438,66 @@ body::after {
     left: 0;
     right: 0;
     top: 0;
-    height: 7px;
-    background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 52%, rgba(255,255,255,.80) 100%);
-    box-shadow: 0 1px 0 rgba(255,255,255,.86) inset;
-}
-
-.login-card::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background:
-        radial-gradient(circle at 50% 0%, rgba(255,255,255,.92), transparent 34%),
-        linear-gradient(135deg, rgba(255,255,255,.55) 0%, transparent 45%),
-        linear-gradient(315deg, rgba(177,214,240,.22) 0%, transparent 40%);
-    opacity: .78;
-    z-index: 0;
-}
-
-.login-card > * {
-    position: relative;
-    z-index: 1;
+    height: 3px;
+    background: var(--primary);
 }
 
 .brand {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 2px 0 24px;
+    margin: 0 0 22px;
 }
 
 .brand-badge {
-    width: 78px;
-    height: 78px;
-    border-radius: 28px;
-    background:
-        linear-gradient(145deg, #1772D3 0%, var(--primary) 58%, #0B4E9C 100%);
-    border: 1px solid rgba(255,255,255,.42);
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    background: #17375E;
+    border: 1px solid #0E2A49;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow:
-        0 20px 42px rgba(0, 32, 80, .28),
-        inset 0 1px 0 rgba(255,255,255,.38),
-        inset 0 -12px 22px rgba(0,32,80,.12);
+    box-shadow: none;
 }
 
 .brand-badge img {
     display: block;
-    width: 53px;
-    height: 53px;
+    width: 40px;
+    height: 40px;
     object-fit: contain;
-    filter: drop-shadow(0 5px 10px rgba(0,32,80,.18));
+    filter: none;
 }
 
 .login-title {
     margin: 0;
     text-align: center;
-    font-size: 25px;
-    line-height: 1.18;
-    letter-spacing: -.045em;
-    font-weight: 900;
+    font-size: 24px;
+    line-height: 1.2;
+    letter-spacing: 0;
+    font-weight: 750;
     color: var(--text);
 }
 
 .login-subtitle {
-    margin: 10px 0 23px;
+    margin: 8px 0 22px;
     text-align: center;
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 13px;
+    line-height: 1.45;
     color: var(--muted);
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .form-group { margin-bottom: 14px; }
 
 label {
     display: block;
-    margin-bottom: 8px;
-    color: var(--text);
+    margin-bottom: 6px;
+    color: var(--muted);
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: .085em;
+    letter-spacing: .04em;
 }
 
 .input-wrap {
@@ -554,21 +506,21 @@ label {
 
 .input-icon {
     position: absolute;
-    left: 16px;
+    left: 12px;
     top: 50%;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     transform: translateY(-50%);
-    color: var(--secondary);
+    color: var(--muted);
     pointer-events: none;
 }
 
 .input-icon svg {
     display: block;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     stroke: currentColor;
-    stroke-width: 1.95;
+    stroke-width: 1.8;
     fill: none;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -576,73 +528,64 @@ label {
 
 input {
     width: 100%;
-    min-height: 52px;
-    padding: 0 15px 0 46px;
-    border-radius: 18px;
-    border: 1px solid rgba(0,32,80,.13);
-    background: rgba(255,255,255,.74);
+    min-height: 36px;
+    padding: 0 12px 0 38px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: #FFFFFF;
     color: var(--text);
     font-family: var(--font);
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
     outline: none;
-    box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.80),
-        0 10px 22px rgba(0,32,80,.035);
-    transition: border-color .16s ease, box-shadow .16s ease, background .16s ease, transform .12s ease;
+    box-shadow: none;
+    transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
 }
 
-input::placeholder { color: #7F94A8; font-weight: 600; }
+input::placeholder { color: var(--muted-light); font-weight: 500; }
 
 input:focus {
     border-color: var(--primary);
-    box-shadow:
-        0 0 0 4px rgba(17,96,183,.15),
-        inset 0 1px 0 rgba(255,255,255,.88),
-        0 14px 30px rgba(0,32,80,.08);
-    background: rgba(255,255,255,.92);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+    background: #FFFFFF;
 }
 
 .forgot-row {
-    margin: 2px 0 15px;
+    margin: 0 0 14px;
     text-align: right;
 }
 
 .forgot-row a {
     color: var(--primary);
-    font-weight: 900;
+    font-weight: 700;
     text-decoration: none;
-    font-size: 13px;
+    font-size: 12px;
 }
 
 .forgot-row a:hover { text-decoration: underline; }
 
 .login-button {
     width: 100%;
-    min-height: 54px;
-    border: 1px solid rgba(255,255,255,.38);
-    border-radius: 18px;
-    background:
-        linear-gradient(145deg, #1772D3 0%, var(--primary) 58%, #0B4E9C 100%);
+    min-height: 36px;
+    border: 1px solid var(--primary);
+    border-radius: 4px;
+    background: var(--primary);
     color: #fff;
     font-family: var(--font);
-    font-size: 14px;
-    font-weight: 900;
+    font-size: 13px;
+    font-weight: 750;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    box-shadow:
-        0 20px 38px rgba(17,96,183,.25),
-        inset 0 1px 0 rgba(255,255,255,.28),
-        inset 0 -12px 22px rgba(0,32,80,.13);
-    transition: transform .12s ease, box-shadow .16s ease, filter .16s ease;
+    gap: 8px;
+    box-shadow: none;
+    transition: background .16s ease, border-color .16s ease, transform .12s ease;
 }
 
 .login-button svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     stroke: currentColor;
     stroke-width: 2.2;
     fill: none;
@@ -651,52 +594,39 @@ input:focus {
 }
 
 .login-button:hover {
-    filter: brightness(1.03);
-    box-shadow:
-        0 24px 46px rgba(17,96,183,.30),
-        inset 0 1px 0 rgba(255,255,255,.34),
-        inset 0 -12px 22px rgba(0,32,80,.13);
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
 }
 
-.login-button:active { transform: translateY(1px) scale(.997); }
+.login-button:active { transform: translateY(1px); }
 
 .error {
     border: 1px solid var(--danger-border);
-    background: rgba(255,244,241,.88);
+    background: var(--danger-bg);
     color: var(--danger-text);
-    border-radius: 18px;
+    border-radius: 6px;
     padding: 12px 14px;
     margin-bottom: 18px;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 650;
     line-height: 1.45;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.65);
-}
-
-.login-meta {
-    margin-top: 19px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(0,32,80,.08);
-    color: var(--muted);
-    text-align: center;
-    font-size: 12px;
-    line-height: 1.45;
+    box-shadow: none;
 }
 
 .security-line {
-    margin-top: 14px;
+    margin-top: 16px;
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px;
-    color: var(--secondary);
+    gap: 6px;
+    color: var(--muted);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 600;
 }
 
 .security-line svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     stroke: currentColor;
     stroke-width: 1.9;
     fill: none;
@@ -707,56 +637,40 @@ input:focus {
 @media (max-width: 520px) {
     body {
         align-items: center;
-        padding: 22px 0;
-        background:
-            radial-gradient(circle at 50% 0%, rgba(17,96,183,.16), transparent 34%),
-            radial-gradient(circle at 50% 100%, rgba(0,32,80,.13), transparent 42%),
-            linear-gradient(180deg, #FFFFFF 0%, #EEF4F8 52%, var(--background) 100%);
+        padding: 20px 0;
     }
 
-    body::before { background-size: 36px 36px; }
+    body::before { background-size: 34px 34px; }
 
     .login-shell {
-        width: calc(100vw - 42px);
-        max-width: 390px;
+        width: calc(100vw - 32px);
+        max-width: 360px;
         margin: 0 auto;
     }
 
     .login-card {
-        padding: 26px 20px 23px;
-        border-radius: 28px;
+        padding: 24px 18px 22px;
     }
 
     .brand {
-        margin-bottom: 20px;
+        margin-bottom: 18px;
     }
 
     .brand-badge {
-        width: 70px;
-        height: 70px;
-        border-radius: 24px;
+        width: 52px;
+        height: 52px;
     }
 
     .brand-badge img {
-        width: 48px;
-        height: 48px;
+        width: 37px;
+        height: 37px;
     }
 
-    .login-title { font-size: 23px; }
+    .login-title { font-size: 22px; }
 
     .login-subtitle {
-        margin-bottom: 20px;
+        margin-bottom: 18px;
         font-size: 13px;
-    }
-
-    input {
-        min-height: 50px;
-        border-radius: 17px;
-    }
-
-    .login-button {
-        min-height: 52px;
-        border-radius: 17px;
     }
 }
 
@@ -764,27 +678,25 @@ input:focus {
     body { padding: 18px 0; }
 
     .login-shell {
-        width: calc(100vw - 34px);
-        max-width: 350px;
+        width: calc(100vw - 28px);
+        max-width: 340px;
     }
 
     .login-card {
-        padding: 23px 17px 21px;
-        border-radius: 24px;
+        padding: 22px 16px 20px;
     }
 
     .brand-badge {
-        width: 64px;
-        height: 64px;
-        border-radius: 22px;
+        width: 50px;
+        height: 50px;
     }
 
     .brand-badge img {
-        width: 44px;
-        height: 44px;
+        width: 35px;
+        height: 35px;
     }
 
-    .login-title { font-size: 22px; }
+    .login-title { font-size: 21px; }
     .forgot-row a { font-size: 12px; }
 }
 </style>
@@ -803,7 +715,7 @@ input:focus {
         </div>
 
         <h1 class="login-title">Autentificare</h1>
-        <p class="login-subtitle">Introdu datele contului pentru a continua.</p>
+        <p class="login-subtitle">Acces CRM</p>
 
         <?php if ($error): ?>
             <div class="error"><?= login_h($error) ?></div>
@@ -850,7 +762,7 @@ input:focus {
 
         <button class="login-button" type="submit">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12"></path><path d="m13 6 6 6-6 6"></path></svg>
-            <span>Intra in aplicatie</span>
+            <span>Intră în aplicație</span>
         </button>
 
         <div class="security-line" aria-hidden="true">

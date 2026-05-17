@@ -4,8 +4,8 @@
 |--------------------------------------------------------------------------
 | Contract -> Task -> Calendar flow helpers
 |--------------------------------------------------------------------------
-| Contractul emis ramane document juridic, iar aceste functii creeaza partea
-| operationala: contract_services si tasks. Cod nou fara diacritice.
+| Contractul emis rămâne document juridic, iar aceste functii creeaza partea
+| operationala: contract_services si tasks. Cod UTF-8, cu diacritice pastrate.
 */
 
 if (!function_exists('pz_flow_column_exists')) {
@@ -525,7 +525,7 @@ if (!function_exists('pz_flow_ensure_task_for_contract_service')) {
         $recurrenceType = pz_flow_str($data['recurrence_type'] ?? 'none', 40) ?: 'none';
         $recurrenceDays = !empty($data['recurrence_days']) ? (int)$data['recurrence_days'] : null;
         $recurrenceTotal = max(1, (int)($data['recurrence_total'] ?? 1));
-        $notes = pz_flow_str('Generata din contract. Frecventa: ' . (($data['frequency'] ?? '') ?: '-'));
+        $notes = pz_flow_str('Generata din contract. Frecvență: ' . (($data['frequency'] ?? '') ?: '-'));
 
         if ($existing) {
             $taskId = (int)$existing['id'];

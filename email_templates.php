@@ -28,42 +28,42 @@ function et_seed_email_templates_ascii(PDO $pdo): void
             'email',
             'Trimitere contract',
             'Contract {contract_number} - PestZone',
-            '<p>Buna ziua,</p><p>Va transmitem contractul <strong>{contract_number}</strong>.</p><p>Va rugam sa verificati documentul si sa ne transmiteti eventualele observatii.</p><p>Cu stima,<br>PestZone</p>'
+            '<p>Bună ziua,</p><p>Va transmitem contractul <strong>{contract_number}</strong>.</p><p>Vă rugăm sa verificati documentul si sa ne transmiteti eventualele observatii.</p><p>Cu stima,<br>PestZone</p>'
         ],
         [
             'password_reset_email',
             'email',
             'Resetare parola',
             'Resetare parola PestZone',
-            '<p>Buna ziua,</p><p>Ati solicitat resetarea parolei pentru PestZone.</p><p><a href="{reset_link}">Apasa aici pentru resetarea parolei</a></p><p>Linkul este valabil 60 de minute.</p>'
+            '<p>Bună ziua,</p><p>Ati solicitat resetarea parolei pentru PestZone.</p><p><a href="{reset_link}">Apasa aici pentru resetarea parolei</a></p><p>Linkul este valabil 60 de minute.</p>'
         ],
         [
             'appointment_email',
             'email',
             'Notificare programare',
             'Programare {date} - PestZone',
-            '<p>Buna ziua,</p><p>Programarea pentru <strong>{service}</strong> a fost stabilita pentru data de <strong>{date}</strong>, interval <strong>{time}</strong>, la locatia <strong>{location}</strong>.</p><p>Cu stima,<br>PestZone</p>'
+            '<p>Bună ziua,</p><p>Programarea pentru <strong>{service}</strong> a fost stabilita pentru data de <strong>{date}</strong>, interval <strong>{time}</strong>, la locatia <strong>{location}</strong>.</p><p>Cu stima,<br>PestZone</p>'
         ],
         [
             'process_verbal_email',
             'email',
             'Trimitere proces-verbal',
             'Proces-verbal {document_number} - PestZone',
-            '<p>Buna ziua,</p><p>Va transmitem procesul-verbal <strong>{document_number}</strong> aferent lucrarii efectuate in data de <strong>{date}</strong>.</p><p>Cu stima,<br>PestZone</p>'
+            '<p>Bună ziua,</p><p>Va transmitem procesul-verbal <strong>{document_number}</strong> aferent lucrării efectuate in data de <strong>{date}</strong>.</p><p>Cu stima,<br>PestZone</p>'
         ],
         [
             'invoice_email',
             'email',
             'Trimitere factura / link factura',
             'Factura {invoice_number} - PestZone',
-            '<p>Buna ziua,</p><p>Va transmitem factura <strong>{invoice_number}</strong>.</p><p>{invoice_link}</p><p>Cu stima,<br>PestZone</p>'
+            '<p>Bună ziua,</p><p>Va transmitem factura <strong>{invoice_number}</strong>.</p><p>{invoice_link}</p><p>Cu stima,<br>PestZone</p>'
         ],
         [
             'task_expiring_email',
             'email',
-            'Reminder scadenta',
-            'Reminder scadenta - PestZone',
-            '<p>Buna ziua,</p><p>Va reamintim ca valabilitatea documentului / procesului-verbal expira in curand. Va rugam sa ne contactati pentru programarea urmatoarei interventii.</p><p>Cu stima,<br>PestZone</p>'
+            'Reminder scadență',
+            'Reminder scadență - PestZone',
+            '<p>Bună ziua,</p><p>Va reamintim ca valabilitatea documentului / procesului-verbal expira in curand. Vă rugăm sa ne contactati pentru programarea urmatoarei intervenții.</p><p>Cu stima,<br>PestZone</p>'
         ],
     ];
 
@@ -110,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$subject, $body, $isActive, (string)$key]);
         }
 
-        $success[] = 'Sabloanele email au fost salvate.';
+        $success[] = 'Șabloanele email au fost salvate.';
     } catch (Throwable $e) {
         $errors[] = 'Eroare salvare: ' . $e->getMessage();
     }
@@ -157,7 +157,7 @@ try {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Sabloane email - PestZone</title>
+<title>Șabloane email - PestZone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <?php app_theme_css(); ?>
 <style>
@@ -190,16 +190,12 @@ th{font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.04
 <div class="layout">
     <?php render_sidebar('settings', true); ?>
     <main class="main">
-        <div class="topbar" style="padding:12px 20px;"><strong>Setari</strong></div>
+        <div class="topbar" style="padding:12px 20px;"><a class="btn ghost" href="settings.php">Înapoi la Setări</a></div>
         <div class="content email-template-page">
             <div class="page-head">
                 <div>
-                    <h1>Sabloane email</h1>
+                    <h1>Șabloane email</h1>
                     <p class="muted" style="margin:6px 0 0">Texte editabile pentru emailurile trimise prin SendGrid.</p>
-                </div>
-                <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap">
-                    <a class="btn ghost" href="communication_settings.php">Comunicare / Integrari</a>
-                    <a class="btn ghost" href="settings.php">Setari</a>
                 </div>
             </div>
 
@@ -248,7 +244,7 @@ th{font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.04
                 <?php endforeach; ?>
 
                 <div style="margin-top:18px">
-                    <button class="btn accent" type="submit">Salveaza sabloanele email</button>
+                    <button class="btn accent" type="submit">Salvează șabloanele email</button>
                 </div>
             </form>
 
@@ -258,7 +254,7 @@ th{font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.04
                     <thead><tr><th>Data</th><th>Destinatar</th><th>Status</th><th>Subiect</th><th>Tip</th></tr></thead>
                     <tbody>
                     <?php if (!$logs): ?>
-                        <tr><td colspan="5" class="muted">Nu exista emailuri trimise inca.</td></tr>
+                        <tr><td colspan="5" class="muted">Nu există emailuri trimise inca.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($logs as $log): ?>
                         <tr>

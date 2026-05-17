@@ -99,7 +99,7 @@ function pz_contract_fetch_clients(PDO $pdo): array {
         return [];
     }
 
-    $stmt = $pdo->query("\n        SELECT id, name, fiscal_code, registry_number, registered_address, address,\n               legal_representative_name, legal_representative_role, email, phone, active\n        FROM clients\n        WHERE COALESCE(active, 1) = 1\n        ORDER BY name ASC\n        LIMIT 1500\n    ");
+    $stmt = $pdo->query("\n        SELECT *\n        FROM clients\n        WHERE COALESCE(active, 1) = 1\n        ORDER BY name ASC\n        LIMIT 1500\n    ");
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
@@ -146,7 +146,30 @@ function pz_contract_clients_by_id(array $clients): array {
     return $map;
 }
 
+function pz_contract_build_client_address(array $client): string {
+    $line = pz_contract_str($client['billing_address_line'] ?? '');
+    $county = pz_contract_str($client['billing_county'] ?? '');
+    $city = pz_contract_str($client['billing_city'] ?? '');
+    $sector = pz_contract_str($client['billing_sector'] ?? '');
+    $country = pz_contract_str($client['billing_country'] ?? '');
+    $postal = pz_contract_str($client['billing_postal_code'] ?? '');
+
+    $location = trim(implode(', ', array_filter([$county, $city, $sector], static fn($value) => $value !== '')));
+    $address = trim(implode(', ', array_filter([$line, $location, $country], static fn($value) => $value !== '')));
+
+    if ($postal !== '') {
+        $address .= ($address !== '' ? ', ' : '') . 'CP ' . $postal;
+    }
+
+    return $address;
+}
+
 function pz_contract_client_address(array $client): string {
+    $billingAddress = pz_contract_build_client_address($client);
+    if ($billingAddress !== '') {
+        return $billingAddress;
+    }
+
     return pz_contract_str(($client['registered_address'] ?? '') ?: ($client['address'] ?? ''));
 }
 
@@ -230,8 +253,8 @@ function pz_contract_build_items_from_post(array $postItems, array $locationsByI
         $surface = max(0, pz_contract_decimal($row['quantity'] ?? 0, 0));
         $unit = pz_contract_str($row['unit'] ?? 'mp', 30) ?: 'mp';
 
-        // In contract, cantitatea reprezinta suprafata (mp), iar pretul este pret / interventie.
-        // De aceea valoarea randului pentru totalizare este pretul interventiei, nu suprafata x pret.
+        // In contract, cantitatea reprezinta suprafata (mp), iar pretul este pret / intervenție.
+        // De aceea valoarea randului pentru totalizare este pretul intervenției, nu suprafata x pret.
         $totalPrice = $unitPrice;
 
         $items[] = [
@@ -278,7 +301,7 @@ function pz_contract_build_payload_from_post(array $post, string $currency): arr
         'contract_value' => $contractValueRaw > 0 ? pz_contract_money($contractValueRaw, $currency) : '',
         'contract_value_raw' => $contractValueRaw,
         'auto_renewal' => $autoRenewal ? '1' : '0',
-        'auto_renewal_text' => $autoRenewal ? 'Contractul se reinnoieste automat, daca niciuna dintre parti nu notifica incetarea conform termenilor contractuali.' : 'Contract cu durata fixa, fara reinnoire automata.',
+        'auto_renewal_text' => $autoRenewal ? 'Contractul se reinnoieste automat, dacă niciuna dintre parti nu notifica incetarea conform termenilor contractuali.' : 'Contract cu durata fixa, fara reinnoire automata.',
         'renewal_notice_days' => $noticeDays,
         'payment_due_days' => $paymentDueDays,
         'termen_plata_zile' => $paymentDueDays,
@@ -326,19 +349,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $items = pz_contract_build_items_from_post($_POST['items'] ?? [], $locationsById, $clientsById, $clientId, $vatPercent, $currency);
 
         if ($clientId <= 0) {
-            pz_contract_redirect_with_error('Selecteaza clientul pentru contract.', $documentId);
+            pz_contract_redirect_with_error('Selectează clientul pentru contract.', $documentId);
         }
 
         if (!$items) {
-            pz_contract_redirect_with_error('Adauga cel putin un serviciu / locatie in contract.', $documentId);
+            pz_contract_redirect_with_error('Adaugă cel puțin un serviciu / locație in contract.', $documentId);
         }
 
         foreach ($items as $item) {
             if (empty($item['client_location_id'])) {
-                pz_contract_redirect_with_error('Selecteaza locatia pentru fiecare serviciu contractat. Daca serviciul se face la sediu, adauga sediul ca locatie in fisa clientului.', $documentId);
+                pz_contract_redirect_with_error('Selectează locatia pentru fiecare serviciu contractat. Dacă serviciul se face la sediu, adauga sediul ca locație in fișa clientului.', $documentId);
             }
             if (trim((string)($item['frequency_text'] ?? '')) === '') {
-                pz_contract_redirect_with_error('Selecteaza frecventa pentru fiecare serviciu contractat.', $documentId);
+                pz_contract_redirect_with_error('Selectează frecventa pentru fiecare serviciu contractat.', $documentId);
             }
         }
         if (!$locationId && !empty($items[0]['client_location_id'])) {
@@ -348,14 +371,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $startDate = pz_contract_str($_POST['contract_start_date'] ?? '', 40);
         $endDate = pz_contract_str($_POST['contract_end_date'] ?? '', 40);
         if ($startDate === '') {
-            pz_contract_redirect_with_error('Completeaza data de inceput a contractului.', $documentId);
+            pz_contract_redirect_with_error('Completează data de inceput a contractului.', $documentId);
         }
         if ($endDate !== '' && strtotime($endDate) && strtotime($startDate) && strtotime($endDate) < strtotime($startDate)) {
-            pz_contract_redirect_with_error('Data de sfarsit nu poate fi inainte de data de inceput.', $documentId);
+            pz_contract_redirect_with_error('Data de sfarsit nu poate fi înainte de data de inceput.', $documentId);
         }
 
         $payload = pz_contract_build_payload_from_post($_POST, $currency);
-        $defaultObject = 'Prestari servicii DDD conform locatiilor, serviciilor si frecventelor agreate de parti.';
+        $defaultObject = 'Prestari servicii DDD conform locațiilor, serviciilor si frecventelor agreate de parti.';
         $data = [
             'template_id' => !empty($_POST['template_id']) ? (int)$_POST['template_id'] : null,
             'document_date' => $_POST['document_date'] ?? date('Y-m-d'),
@@ -416,7 +439,7 @@ $editingPayload = [];
 if ($editId > 0) {
     $editingDocument = pzdoc_get_document($pdo, $editId, true);
     if (!$editingDocument || ($editingDocument['document_type'] ?? '') !== 'contract') {
-        $errorMessage = 'Contractul solicitat nu exista.';
+        $errorMessage = 'Contractul solicitat nu există.';
         $editingDocument = null;
     } elseif (($editingDocument['status'] ?? '') !== 'draft') {
         header('Location: document_view.php?id=' . $editId);
@@ -430,6 +453,7 @@ if ($editId > 0) {
 $filters = [
     'q' => trim((string)($_GET['q'] ?? '')),
     'status' => trim((string)($_GET['status'] ?? '')),
+    'client_id' => max(0, (int)($_GET['client_id'] ?? 0)),
 ];
 $perPage = (int)($_GET['per_page'] ?? 20);
 $perPage = in_array($perPage, [20, 50, 100], true) ? $perPage : 20;
@@ -453,6 +477,10 @@ $formDocument = $editingDocument ?: [
     'internal_notes' => '',
 ];
 
+if (!$editingDocument && !empty($_GET['client_id'])) {
+    $formDocument['client_id'] = max(0, (int)$_GET['client_id']);
+}
+
 if (!$formPayload) {
     $formPayload = [
         'contract_start_date' => date('Y-m-d'),
@@ -462,7 +490,7 @@ if (!$formPayload) {
         'renewal_notice_days' => 30,
         'payment_due_days' => 5,
         'payment_terms' => 'Plata se efectueaza in termen de 5 zile calendaristice de la data emiterii facturii.',
-        'contract_object' => 'Prestari servicii DDD conform locatiilor, serviciilor si frecventelor agreate de parti.',
+        'contract_object' => 'Prestari servicii DDD conform locațiilor, serviciilor si frecventelor agreate de parti.',
         'execution_terms' => '',
         'special_clauses' => '',
     ];
@@ -492,7 +520,13 @@ foreach ($clients as $client) {
         'representative' => (string)($client['legal_representative_name'] ?? ''),
         'representative_role' => (string)($client['legal_representative_role'] ?? ''),
         'registry_number' => (string)($client['registry_number'] ?? ''),
-        'address' => (string)(($client['registered_address'] ?? '') ?: ($client['address'] ?? '')),
+        'address' => pz_contract_client_address($client),
+        'billing_country' => (string)($client['billing_country'] ?? ''),
+        'billing_county' => (string)($client['billing_county'] ?? ''),
+        'billing_city' => (string)($client['billing_city'] ?? ''),
+        'billing_sector' => (string)($client['billing_sector'] ?? ''),
+        'billing_address_line' => (string)($client['billing_address_line'] ?? ''),
+        'billing_postal_code' => (string)($client['billing_postal_code'] ?? ''),
         'email' => (string)($client['email'] ?? ''),
         'phone' => (string)($client['phone'] ?? ''),
     ];
@@ -553,7 +587,7 @@ foreach ($services as $service) {
 .field input, .field select, .field textarea { width:100%; border:1px solid var(--accent-soft-2); border-radius:12px; background:#fff; color:var(--text); padding:10px 11px; font-size:13px; outline:none; transition:border-color .14s ease, box-shadow .14s ease; }
 .field input:hover:not(:focus), .field select:hover:not(:focus), .field textarea:hover:not(:focus) { border-color:var(--accent); }
 
-/* === AUTOCOMPLETE client + locatie smart === */
+/* === AUTOCOMPLETE client + locație smart === */
 .pz-autocomplete { position:relative; }
 .pz-autocomplete-input { width:100%; padding:10px 38px 10px 38px; border:1px solid var(--accent-soft-2); border-radius:12px; background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") no-repeat 12px center; font-size:13px; color:var(--text); outline:none; transition:border-color .14s ease, box-shadow .14s ease; }
 .pz-autocomplete-input:hover { border-color:var(--accent); }
@@ -647,8 +681,8 @@ foreach ($services as $service) {
                 <section class="panel" id="contractFormPanel">
                     <div class="panel-head">
                         <div>
-                            <div class="panel-title"><?= $editingDocument ? 'Editeaza contract draft' : 'Contract nou' ?></div>
-                            <div class="panel-subtitle">Completeaza clientul, perioada, locatiile si serviciile contractate.</div>
+                            <div class="panel-title"><?= $editingDocument ? 'Editează contract draft' : 'Contract nou' ?></div>
+                            <div class="panel-subtitle">Completează clientul, perioada, locațiile si serviciile contractate.</div>
                         </div>
                         <a class="btn small" href="contracts.php">Inchide formularul</a>
                     </div>
@@ -665,20 +699,20 @@ foreach ($services as $service) {
                             <input type="hidden" name="payment_terms" id="paymentTermsHidden" value="<?= pz_contract_h($formPayload['payment_terms'] ?? '') ?>">
                             <input type="hidden" name="title" value="<?= pz_contract_h($formDocument['title'] ?? '') ?>">
                             <input type="hidden" name="client_location_id" id="mainLocationId" value="<?= (int)($formDocument['client_location_id'] ?? 0) ?>">
-                            <input type="hidden" name="contract_object" value="<?= pz_contract_h($formPayload['contract_object'] ?? 'Prestari servicii DDD conform locatiilor, serviciilor si frecventelor agreate de parti.') ?>">
+                            <input type="hidden" name="contract_object" value="<?= pz_contract_h($formPayload['contract_object'] ?? 'Prestari servicii DDD conform locațiilor, serviciilor si frecventelor agreate de parti.') ?>">
                             <input type="hidden" name="execution_terms" value="<?= pz_contract_h($formPayload['execution_terms'] ?? '') ?>">
                             <input type="hidden" name="special_clauses" value="<?= pz_contract_h($formPayload['special_clauses'] ?? '') ?>">
                             <input type="hidden" name="notes" value="<?= pz_contract_h($formDocument['notes'] ?? '') ?>">
                             <input type="hidden" name="internal_notes" value="<?= pz_contract_h($formDocument['internal_notes'] ?? '') ?>">
 
                             <div class="quick-note">
-                                Completeaza doar datele care intra efectiv in contract: client, perioada, termen plata si tabelul cu locatii/servicii. Restul textului este controlat din sablon.
+                                Completează doar datele care intra efectiv in contract: client, perioada, termen plata si tabelul cu locații/servicii. Restul textului este controlat din șablon.
                             </div>
 
                             <div class="contract-steps">
-                                <div class="contract-step"><b>1. Client</b><span>Datele beneficiarului se preiau automat din fisa clientului.</span></div>
+                                <div class="contract-step"><b>1. Client</b><span>Datele beneficiarului se preiau automat din fișa clientului.</span></div>
                                 <div class="contract-step"><b>2. Perioada</b><span>Data contract, inceput, sfarsit si termen plata.</span></div>
-                                <div class="contract-step"><b>3. Tabel servicii</b><span>Locatie din fisa clientului, serviciu, mp, frecventa si pret/interventie.</span></div>
+                                <div class="contract-step"><b>3. Tabel servicii</b><span>Locație din fișa clientului, serviciu, mp, frecventa si pret/intervenție.</span></div>
                                 <div class="contract-step"><b>4. Emitere</b><span>Salvezi draft sau emiti contractul cu numar.</span></div>
                             </div>
 
@@ -687,8 +721,8 @@ foreach ($services as $service) {
                                     <label>Client *</label>
                                     <input type="hidden" name="client_id" id="clientSelect" value="<?= (int)($formDocument['client_id'] ?? 0) ?>" data-selected="<?= (int)($formDocument['client_id'] ?? 0) ?>">
                                     <div class="pz-autocomplete" id="clientAutocomplete">
-                                        <input type="text" class="pz-autocomplete-input" id="clientSearchInput" placeholder="Cauta dupa nume client, CUI, telefon, reprezentant..." autocomplete="off" autofocus>
-                                        <button type="button" class="pz-autocomplete-clear" id="clientClearBtn" title="Sterge">&times;</button>
+                                        <input type="text" class="pz-autocomplete-input" id="clientSearchInput" placeholder="Caută după nume client, CUI, telefon, reprezentant..." autocomplete="off" autofocus>
+                                        <button type="button" class="pz-autocomplete-clear" id="clientClearBtn" title="Șterge">&times;</button>
                                         <div class="pz-autocomplete-selected" id="clientSelectedBox">
                                             <div>
                                                 <div class="ps-name"></div>
@@ -707,7 +741,7 @@ foreach ($services as $service) {
                                 </div>
 
                                 <div class="field">
-                                    <label>Sablon</label>
+                                    <label>Șablon</label>
                                     <select name="template_id">
                                         <?php foreach ($templates as $template): ?>
                                             <option value="<?= (int)$template['id'] ?>" <?= (int)($formDocument['template_id'] ?? 0) === (int)$template['id'] ? 'selected' : '' ?>>
@@ -737,10 +771,10 @@ foreach ($services as $service) {
                             <div class="panel" style="margin-top:14px; box-shadow:none;">
                                 <div class="panel-head">
                                     <div>
-                                        <div class="panel-title">Locatii si servicii contractate</div>
-                                        <div class="panel-subtitle">Acest tabel alimenteaza variabila {{contract_services_table}} din contract. Folosim doar locatii/puncte de lucru salvate in fisa clientului.</div>
+                                        <div class="panel-title">Locații si servicii contractate</div>
+                                        <div class="panel-subtitle">Acest tabel alimenteaza variabila {{contract_services_table}} din contract. Folosim doar locații/puncte de lucru salvate in fișa clientului.</div>
                                     </div>
-                                    <button type="button" class="btn small" onclick="addItemRow()">+ Adauga rand</button>
+                                    <button type="button" class="btn small" onclick="addItemRow()">+ Adaugă rand</button>
                                 </div>
                                 <div class="panel-body">
                                     <div class="items-wrap">
@@ -748,11 +782,11 @@ foreach ($services as $service) {
                                             <thead>
                                             <tr>
                                                 <th style="width:46px;">Nr.</th>
-                                                <th style="width:230px;">Locatie</th>
+                                                <th style="width:230px;">Locație</th>
                                                 <th style="width:260px;">Serviciu contractat</th>
                                                 <th style="width:100px;">m.p.</th>
-                                                <th style="width:160px;">Frecventa</th>
-                                                <th style="width:150px;">Pret / interventie</th>
+                                                <th style="width:160px;">Frecvență</th>
+                                                <th style="width:150px;">Pret / intervenție</th>
                                                 <th style="width:80px;"></th>
                                             </tr>
                                             </thead>
@@ -789,17 +823,17 @@ foreach ($services as $service) {
                                                         </select>
                                                     </td>
                                                     <td>
-                                                        <input type="number" step="0.01" min="0" name="items[<?= (int)$idx ?>][unit_price]" class="price" value="<?= pz_contract_h((string)($item['unit_price'] ?? 0)) ?>" placeholder="lei fara TVA" oninput="recalculateRows()">
+                                                        <input type="number" step="0.01" min="0" name="items[<?= (int)$idx ?>][unit_price]" class="price" value="<?= pz_contract_h((string)($item['unit_price'] ?? 0)) ?>" placeholder="lei fără TVA" oninput="recalculateRows()">
                                                         <input type="hidden" name="items[<?= (int)$idx ?>][total_price]" class="line-total-input" value="<?= pz_contract_h((string)($item['total_price'] ?? ($item['unit_price'] ?? 0))) ?>">
                                                         <input type="hidden" name="items[<?= (int)$idx ?>][planned_date]" value="<?= pz_contract_h($item['planned_date'] ?? '') ?>">
                                                     </td>
-                                                    <td><button type="button" class="btn small danger" onclick="removeItemRow(this)">Sterge</button></td>
+                                                    <td><button type="button" class="btn small danger" onclick="removeItemRow(this)">Șterge</button></td>
                                                 </tr>
                                             <?php endforeach; ?>
                                             </tbody>
                                         </table>
                                     </div>
-                                    <div class="client-help">Preturile sunt fara TVA. In contract, coloana de pret apare ca pret / interventie.</div>
+                                    <div class="client-help">Preturile sunt fără TVA. In contract, coloana de pret apare ca pret / intervenție.</div>
                                 </div>
                             </div>
 
@@ -810,8 +844,8 @@ foreach ($services as $service) {
                                     <?php endif; ?>
                                 </div>
                                 <div class="right">
-                                    <button type="submit" name="action" value="save_draft" class="btn">Salveaza draft</button>
-                                    <button type="submit" name="action" value="issue" class="btn primary" onclick="return confirm('Emiti contractul si aloci numar? Dupa emitere documentul se blocheaza.')">Emite contract</button>
+                                    <button type="submit" name="action" value="save_draft" class="btn">Salvează draft</button>
+                                    <button type="submit" name="action" value="issue" class="btn primary" onclick="return confirm('Emiti contractul si aloci numar? După emitere documentul se blocheaza.')">Emite contract</button>
                                 </div>
                             </div>
                         </form>
@@ -823,15 +857,18 @@ foreach ($services as $service) {
                 <div class="panel-head">
                     <div>
                         <div class="panel-title">Lista contracte</div>
-                        <div class="panel-subtitle">Cauta dupa numar, client, CUI sau titlu.</div>
+                        <div class="panel-subtitle">Caută după numar, client, CUI sau titlu.</div>
                     </div>
                 
-                    <a class="btn primary" href="contracts.php?new=1">+ Contract nou</a>
+                    <a class="btn primary" href="contracts.php?new=1<?= !empty($filters['client_id']) ? '&client_id=' . (int)$filters['client_id'] : '' ?>">+ Contract nou</a>
                 </div>
                 <div class="panel-body">
                     <form method="get" class="filter-form">
+                        <?php if (!empty($filters['client_id'])): ?>
+                            <input type="hidden" name="client_id" value="<?= (int)$filters['client_id'] ?>">
+                        <?php endif; ?>
                         <div class="field">
-                            <label>Cautare</label>
+                            <label>Căutare</label>
                             <input type="text" name="q" value="<?= pz_contract_h($filters['q']) ?>" placeholder="client, CUI, numar contract...">
                         </div>
                         <div class="field">
@@ -856,7 +893,7 @@ foreach ($services as $service) {
 
                     <div class="docs-list" style="margin-top:12px;">
                         <?php if (!$documents): ?>
-                            <div class="empty-state">Nu exista contracte inca.</div>
+                            <div class="empty-state">Nu există contracte inca.</div>
                         <?php else: ?>
                             <?php foreach ($documents as $doc): ?>
                                 <?php $payload = pzdoc_json_decode($doc['payload_json'] ?? null); ?>
@@ -879,7 +916,7 @@ foreach ($services as $service) {
                                         <span class="badge <?= pz_contract_h(pz_contract_status_class($doc['status'])) ?>"><?= pz_contract_h(pz_contract_status_label($doc['status'])) ?></span>
                                     </div>
                                     <div class="doc-meta">
-                                        <?= pz_contract_h($doc['location_name_snapshot'] ?: 'Locatii in contract') ?><br>
+                                        <?= pz_contract_h($doc['location_name_snapshot'] ?: 'Locații in contract') ?><br>
                                         <?= pz_contract_h($doc['location_address_snapshot'] ?: 'Vezi tabelul din contract') ?>
                                     </div>
                                     <div style="font-weight:950; text-align:right;">
@@ -888,7 +925,7 @@ foreach ($services as $service) {
                                     <div class="doc-actions">
                                         <a class="btn small" href="document_view.php?id=<?= (int)$doc['id'] ?>">Vezi</a>
                                         <?php if (($doc['status'] ?? '') === 'draft'): ?>
-                                            <a class="btn small" href="contracts.php?edit=<?= (int)$doc['id'] ?>">Editeaza</a>
+                                            <a class="btn small" href="contracts.php?edit=<?= (int)$doc['id'] ?>">Editează</a>
                                         <?php endif; ?>
                                         <a class="btn small" target="_blank" href="document_pdf.php?id=<?= (int)$doc['id'] ?>&mode=inline">PDF</a>
                                     </div>
@@ -1051,7 +1088,7 @@ function pzHighlightActive() {
 /* === LOCATII PE RANDURI === */
 function populateLocationsSmart() {
     // Compatibilitate cu codul vechi. Locatia nu mai este camp separat in formular;
-    // fiecare rand din tabel are propria locatie.
+    // fiecare rand din tabel are propria locație.
     populateRowLocations();
 }
 
@@ -1062,7 +1099,7 @@ function updateClientHelp(client) {
     const help = document.getElementById('clientHelp');
     if (!help) return;
     if (!client) {
-        help.textContent = 'Selecteaza clientul din lista de mai jos.';
+        help.textContent = 'Selectează clientul din lista de mai jos.';
         return;
     }
     const parts = [];
@@ -1085,7 +1122,7 @@ function rowLocationOptions(selectedValue) {
     if (!client) return '<option value="">Alege clientul mai intai</option>';
     const locations = locationsData.filter(loc => Number(loc.client_id) === Number(client.id));
     if (!locations.length) {
-        return '<option value="">Clientul nu are locatii salvate</option>';
+        return '<option value="">Clientul nu are locații salvate</option>';
     }
     let html = '<option value="">Alege locatia</option>';
     locations.forEach(loc => {
@@ -1179,11 +1216,11 @@ function addItemRow() {
             </select>
         </td>
         <td>
-            <input type="number" step="0.01" min="0" name="items[${i}][unit_price]" class="price" value="0" placeholder="lei fara TVA" oninput="recalculateRows()">
+            <input type="number" step="0.01" min="0" name="items[${i}][unit_price]" class="price" value="0" placeholder="lei fără TVA" oninput="recalculateRows()">
             <input type="hidden" name="items[${i}][total_price]" class="line-total-input" value="0">
             <input type="hidden" name="items[${i}][planned_date]" value="">
         </td>
-        <td><button type="button" class="btn small danger" onclick="removeItemRow(this)">Sterge</button></td>
+        <td><button type="button" class="btn small danger" onclick="removeItemRow(this)">Șterge</button></td>
     `;
     body.appendChild(tr);
     populateRowLocations();

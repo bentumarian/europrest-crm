@@ -10,8 +10,8 @@
 | V4:
 | - pastreaza client_location_id la sarcinile recurente
 | - pastreaza address, contact_person si contact_phone
-| - urmatoarea sarcina generata ramane pe aceeasi locatie / punct de lucru
-| - daca sarcina este pe sediu social / domiciliu, client_location_id ramane NULL
+| - urmatoarea sarcina generata rămâne pe aceeași locație / punct de lucru
+| - dacă sarcina este pe sediu social / domiciliu, client_location_id rămâne NULL
 |--------------------------------------------------------------------------
 */
 
@@ -122,7 +122,7 @@ if (!function_exists('ensure_task_recurrence_schema')) {
                 try {
                     $pdo->exec("ALTER TABLE tasks ADD COLUMN {$column} {$definition}");
                 } catch (Throwable $e) {
-                    // Nu blocam aplicatia daca o coloana exista deja sau hostingul refuza comanda.
+                    // Nu blocam aplicatia dacă o coloana există deja sau hostingul refuza comanda.
                 }
             }
         }
@@ -143,7 +143,7 @@ if (!function_exists('ensure_task_recurrence_schema')) {
                 try {
                     $pdo->exec($sql);
                 } catch (Throwable $e) {
-                    // Nu blocam aplicatia daca indexul exista deja sau nu poate fi creat.
+                    // Nu blocam aplicatia dacă indexul există deja sau nu poate fi creat.
                 }
             }
         }

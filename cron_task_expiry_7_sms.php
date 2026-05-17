@@ -1,6 +1,6 @@
 <?php
 /**
- * Cron pentru SMS scadenta sarcina la 7 zile.
+ * Cron pentru SMS scadență sarcina la 7 zile.
  *
  * Rulare cPanel:
  *   php /home/USER/public_html/cron_task_expiry_7_sms.php SECRET

@@ -12,9 +12,9 @@ require_once 'config.php';
 |
 | Reguli:
 | - nu sterge date vechi
-| - nu foloseste SHOW ... LIKE, pentru compatibilitate cu MariaDB/cPanel
+| - nu folosește SHOW ... LIKE, pentru compatibilitate cu MariaDB/cPanel
 | - adauga doar tabele/coloane/indexuri lipsa
-| - foloseste is_active pentru sabloane
+| - folosește is_active pentru șabloane
 |--------------------------------------------------------------------------
 */
 
@@ -153,7 +153,7 @@ if (!function_exists('pzdoc_default_template_content')) {
                 . '<p><strong>Total oferta:</strong> {{total_without_vat}}</p>\n'
                 . '<p><em>{{prices_without_vat_note}}</em></p>\n'
                 . '<p><strong>Conditii de plata:</strong><br>{{payment_terms}}</p>\n'
-                . '<p><strong>Observatii:</strong><br>{{notes}}</p>\n'
+                . '<p><strong>Observații:</strong><br>{{notes}}</p>\n'
                 . '<p>{{offer_footer}}</p>\n'
                 . '<table width="100%" cellspacing="0" cellpadding="0" style="margin-top:25px;"><tr>'
                 . '<td width="50%"><strong>Prestator,</strong><br>{{company_name}}<br>{{company_representative}}<br>{{company_stamp}}</td>'
@@ -169,11 +169,11 @@ if (!function_exists('pzdoc_default_template_content')) {
                 . '<p><strong>Beneficiar:</strong> {{client_block}}</p>\n'
                 . '<h2>Obiectul contractului</h2>\n'
                 . '<p>Prestatorul se obliga sa execute servicii de dezinsectie, dezinfectie, deratizare, monitorizare si alte servicii conexe, prin mijloace tehnice, chimice sau fizice alese de prestator, conform cerintelor beneficiarului si legislatiei aplicabile.</p>\n'
-                . '<h2>Locatii si servicii</h2>\n'
+                . '<h2>Locații si servicii</h2>\n'
                 . '{{items_table}}\n'
                 . '<h2>Valoare contract</h2>\n'
                 . '<p>{{document_total}} {{currency}}</p>\n'
-                . '<h2>Observatii</h2>\n'
+                . '<h2>Observații</h2>\n'
                 . '<p>{{notes}}</p>\n'
                 . '<table width="100%" cellspacing="0" cellpadding="0" style="margin-top:25px;"><tr>'
                 . '<td width="50%"><strong>Prestator,</strong><br>{{company_name}}<br>{{company_representative}}<br>{{company_stamp}}</td>'
@@ -185,16 +185,16 @@ if (!function_exists('pzdoc_default_template_content')) {
             . '<p><strong>Nr. PV:</strong> {{document_number}} din {{document_date}}, ora {{document_time}}</p>\n'
             . '<p><strong>Prestator:</strong> {{company_block}}</p>\n'
             . '<p><strong>Beneficiar:</strong> {{client_block}}</p>\n'
-            . '<p><strong>Locatie interventie:</strong> {{location_block}}</p>\n'
+            . '<p><strong>Locație intervenție:</strong> {{location_block}}</p>\n'
             . '<h2>Servicii prestate</h2>\n'
             . '{{items_table}}\n'
             . '<h2>Biocide / materiale utilizate</h2>\n'
             . '{{materials_table}}\n'
-            . '<h2>Observatii executant</h2>\n'
+            . '<h2>Observații executant</h2>\n'
             . '<p>{{executor_notes}}</p>\n'
             . '<h2>Recomandari beneficiar</h2>\n'
             . '<p>{{recommendations}}</p>\n'
-            . '<h2>Observatii beneficiar</h2>\n'
+            . '<h2>Observații beneficiar</h2>\n'
             . '<p>{{client_notes}}</p>';
     }
 }
@@ -204,7 +204,7 @@ if (!function_exists('pzdoc_ensure_document_schema')) {
     {
         $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
 
-        /* Sabloane */
+        /* Șabloane */
         $pdo->exec("\n            CREATE TABLE IF NOT EXISTS document_templates (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                document_type VARCHAR(50) NOT NULL,\n                name VARCHAR(180) NOT NULL,\n                slug VARCHAR(180) NULL,\n                description TEXT NULL,\n                content_html LONGTEXT NULL,\n                is_default TINYINT(1) NOT NULL DEFAULT 0,\n                is_active TINYINT(1) NOT NULL DEFAULT 1,\n                created_by INT NULL,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,\n                INDEX idx_document_templates_type_active (document_type, is_active, is_default),\n                INDEX idx_document_templates_slug (slug)\n            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci\n        ");
 
         $templateColumns = [
@@ -479,9 +479,9 @@ if (!function_exists('pzdoc_seed_document_defaults')) {
             if (!$templateExists) {
                 $insert = $pdo->prepare("\n                    INSERT INTO document_templates\n                        (document_type, name, slug, description, content_html, is_default, is_active, created_by)\n                    VALUES\n                        (?, ?, ?, ?, ?, 1, 1, NULL)\n                ");
 
-                $name = 'Sablon ' . pzdoc_default_series_name($type);
+                $name = 'Șablon ' . pzdoc_default_series_name($type);
                 $slug = 'default_' . $type;
-                $description = 'Sablon implicit generat automat de motorul nou de documente.';
+                $description = 'Șablon implicit generat automat de motorul nou de documente.';
                 $content = pzdoc_default_template_content($type);
 
                 $insert->execute([$type, $name, $slug, $description, $content]);
@@ -502,8 +502,8 @@ if (!function_exists('pzdoc_install_document_schema')) {
 |--------------------------------------------------------------------------
 | Rulare directa optionala
 |--------------------------------------------------------------------------
-| Daca intri in browser pe document_schema.php ca admin, verifica schema.
-| In restul aplicatiei, fisierul va fi inclus si se va apela functia din cod.
+| Dacă intri in browser pe document_schema.php ca admin, verifica schema.
+| In restul aplicatiei, fișierul va fi inclus si se va apela functia din cod.
 |--------------------------------------------------------------------------
 */
 if (basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === basename(__FILE__)) {

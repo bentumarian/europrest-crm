@@ -232,12 +232,12 @@ input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(17,96,183
         </div>
 
         <h1 class="login-title">Resetare parola</h1>
-        <p class="login-subtitle">Introdu emailul contului. Daca exista un cont activ, vei primi un link pentru setarea unei parole noi.</p>
+        <p class="login-subtitle">Introdu emailul contului. Dacă există un cont activ, vei primi un link pentru setarea unei parole noi.</p>
 
         <?php if ($error): ?><div class="msg err"><?= pr_h($error) ?></div><?php endif; ?>
 
         <?php if ($success): ?>
-            <div class="msg ok">Daca exista un cont activ pentru acest email, am trimis instructiunile de resetare. Verifica inbox-ul si folderul Spam.</div>
+            <div class="msg ok">Dacă există un cont activ pentru acest email, am trimis instructiunile de resetare. Verifica inbox-ul si folderul Spam.</div>
         <?php else: ?>
             <form method="post" autocomplete="on">
                 <?= csrf_field() ?>
@@ -255,7 +255,7 @@ input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(17,96,183
             </form>
         <?php endif; ?>
 
-        <a class="back" href="login.php">Inapoi la autentificare</a>
+        <a class="back" href="login.php">Înapoi la autentificare</a>
         <div class="security-line" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 5 3.2 8.5 7 10 3.8-1.5 7-5 7-10V6l-7-3Z"></path><path d="m9.5 12 1.8 1.8 3.6-4"></path></svg>
             <span>Link valabil 60 minute</span>

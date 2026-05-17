@@ -120,9 +120,26 @@ function pz_offer_fetch_clients(PDO $pdo): array {
         return [];
     }
 
-    $stmt = $pdo->query("\n        SELECT id, name, fiscal_code, registry_number, registered_address, address,\n               legal_representative_name, legal_representative_role, email, phone, active\n        FROM clients\n        WHERE COALESCE(active, 1) = 1\n        ORDER BY name ASC\n        LIMIT 1500\n    ");
+    $stmt = $pdo->query("\n        SELECT *\n        FROM clients\n        WHERE COALESCE(active, 1) = 1\n        ORDER BY name ASC\n        LIMIT 1500\n    ");
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+function pz_offer_client_address(array $client): string {
+    $line = trim((string)($client['billing_address_line'] ?? ''));
+    $county = trim((string)($client['billing_county'] ?? ''));
+    $city = trim((string)($client['billing_city'] ?? ''));
+    $country = trim((string)($client['billing_country'] ?? ''));
+    $postal = trim((string)($client['billing_postal_code'] ?? ''));
+    $address = trim(implode(', ', array_filter([$line, $county, $city, $country], static fn($value) => $value !== '')));
+    if ($postal !== '') {
+        $address .= ($address !== '' ? ', ' : '') . 'CP ' . $postal;
+    }
+    if ($address !== '') {
+        return $address;
+    }
+
+    return trim((string)(($client['registered_address'] ?? '') ?: ($client['address'] ?? '')));
 }
 
 function pz_offer_fetch_locations(PDO $pdo): array {
@@ -184,7 +201,7 @@ function pz_offer_build_items_from_post(array $postItems, array $locationsById, 
             $quantity = 1;
         }
         $unitPrice = max(0, round(pz_offer_decimal($row['unit_price'] ?? 0, 0), 2));
-        // Ofertele lucreaza cu preturi nete fixe, fara TVA. Valoarea liniei se recalculeaza pe server
+        // Ofertele lucreaza cu preturi nete fixe, fără TVA. Valoarea liniei se recalculeaza pe server
         // din cantitate x pret unitar, ca sa nu depindem de un camp hidden sau de calcule vechi din browser.
         $totalPrice = round($quantity * $unitPrice, 2);
 
@@ -264,7 +281,7 @@ function pz_offer_default_template_html(): string {
 '
         . '<p><strong>Conditii de plata:</strong><br>{{payment_terms}}</p>
 '
-        . '<p><strong>Observatii:</strong><br>{{notes}}</p>
+        . '<p><strong>Observații:</strong><br>{{notes}}</p>
 '
         . '<p>Acceptarea prezentei oferte se poate face prin semnare, comanda ferma sau confirmare scrisa transmisa pe email.</p>
 '
@@ -295,7 +312,7 @@ function pz_offer_ensure_default_template(PDO $pdo): void {
         $insert->execute([
             'Oferta comerciala simplificata',
             $slug,
-            'Sablon oferta B2B fara TVA, cu servicii, descrieri si discount.',
+            'Șablon oferta B2B fără TVA, cu servicii, descrieri si discount.',
             pz_offer_default_template_html(),
         ]);
         return;
@@ -365,16 +382,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $documentId = (int)($_POST['document_id'] ?? 0);
         $clientId = (int)($_POST['client_id'] ?? 0);
         $locationId = !empty($_POST['client_location_id']) ? (int)$_POST['client_location_id'] : null;
-        $vatPercent = 0.0; // Ofertele B2B se lucreaza fara TVA in document
+        $vatPercent = 0.0; // Ofertele B2B se lucreaza fără TVA in document
         $currency = pz_offer_str($_POST['currency'] ?? 'RON', 10) ?: 'RON';
         $items = pz_offer_build_items_from_post($_POST['items'] ?? [], $locationsById, $locationId, $vatPercent, $currency);
 
         if ($clientId <= 0) {
-            pz_offer_redirect_with_error('Selecteaza clientul pentru oferta.', $documentId);
+            pz_offer_redirect_with_error('Selectează clientul pentru oferta.', $documentId);
         }
 
         if (!$items) {
-            pz_offer_redirect_with_error('Adauga cel putin un serviciu in oferta.', $documentId);
+            pz_offer_redirect_with_error('Adaugă cel puțin un serviciu in oferta.', $documentId);
         }
 
         $payload = pz_offer_build_payload_from_post($_POST);
@@ -435,7 +452,7 @@ $editingPayload = [];
 if ($editId > 0) {
     $editingDocument = pzdoc_get_document($pdo, $editId, true);
     if (!$editingDocument || ($editingDocument['document_type'] ?? '') !== 'oferta') {
-        $errorMessage = 'Oferta solicitata nu exista.';
+        $errorMessage = 'Oferta solicitata nu există.';
         $editingDocument = null;
     } elseif (($editingDocument['status'] ?? '') !== 'draft') {
         header('Location: document_view.php?id=' . $editId);
@@ -449,6 +466,7 @@ if ($editId > 0) {
 $filters = [
     'q' => trim((string)($_GET['q'] ?? '')),
     'status' => trim((string)($_GET['status'] ?? '')),
+    'client_id' => max(0, (int)($_GET['client_id'] ?? 0)),
 ];
 $perPage = (int)($_GET['per_page'] ?? 20);
 $perPage = in_array($perPage, [20, 50, 100], true) ? $perPage : 20;
@@ -470,6 +488,10 @@ $formDocument = $editingDocument ?: [
     'notes' => '',
     'internal_notes' => '',
 ];
+
+if (!$editingDocument && !empty($_GET['client_id'])) {
+    $formDocument['client_id'] = max(0, (int)$_GET['client_id']);
+}
 
 $formValidDays = (int)($editingPayload['valid_days'] ?? 15);
 if ($formValidDays <= 0 && !empty($editingPayload['valid_until']) && !empty($formDocument['document_date'])) {
@@ -527,7 +549,7 @@ foreach ($clients as $client) {
         'name' => (string)($client['name'] ?? ''),
         'fiscal_code' => (string)($client['fiscal_code'] ?? ''),
         'representative' => (string)($client['legal_representative_name'] ?? ''),
-        'address' => (string)(($client['registered_address'] ?? '') ?: ($client['address'] ?? '')),
+        'address' => pz_offer_client_address($client),
         'email' => (string)($client['email'] ?? ''),
         'phone' => (string)($client['phone'] ?? ''),
     ];
@@ -588,7 +610,7 @@ foreach ($services as $service) {
 .field textarea { min-height:82px; resize:vertical; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--accent); box-shadow:var(--focus-ring); }
 
-/* === AUTOCOMPLETE client + locatie smart (acelasi pattern ca PV) === */
+/* === AUTOCOMPLETE client + locație smart (acelasi pattern ca PV) === */
 .pz-autocomplete { position:relative; }
 .pz-autocomplete-input { width:100%; padding:10px 38px 10px 38px; border:1px solid var(--accent-soft-2); border-radius:12px; background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") no-repeat 12px center; font-size:13px; color:var(--text); outline:none; transition:border-color .14s ease, box-shadow .14s ease; }
 .pz-autocomplete-input:hover { border-color:var(--accent); }
@@ -694,8 +716,8 @@ foreach ($services as $service) {
                 <section class="panel" id="offerFormPanel">
                     <div class="panel-head">
                         <div>
-                            <div class="panel-title"><?= $editingDocument ? 'Editeaza oferta draft' : 'Oferta noua' ?></div>
-                            <div class="panel-subtitle">Completeaza oferta in ordinea sablonului: date, client, servicii, discount si conditii de plata.</div>
+                            <div class="panel-title"><?= $editingDocument ? 'Editează oferta draft' : 'Ofertă nouă' ?></div>
+                            <div class="panel-subtitle">Completează oferta in ordinea șablonului: date, client, servicii, discount si conditii de plata.</div>
                         </div>
                         <a class="btn small" href="oferte.php">Inchide formularul</a>
                     </div>
@@ -708,7 +730,7 @@ foreach ($services as $service) {
                         <input type="hidden" name="offer_footer" value="<?= pz_offer_h($formOfferFooter) ?>">
 
                             <div class="offer-mini-note">
-                                Completeaza oferta in aceeasi ordine in care apare in sablon: denumire, data/numar/valabilitate, client, servicii cu descriere, discount, total fara TVA, conditii de plata si semnaturi.
+                                Completează oferta in aceeași ordine in care apare in șablon: denumire, data/numar/valabilitate, client, servicii cu descriere, discount, total fără TVA, conditii de plata si semnaturi.
                                 <div class="offer-template-vars">
                                     <code>{{document_title}}</code><code>{{client_block}}</code><code>{{items_table}}</code><code>{{discount_block}}</code><code>{{total_without_vat}}</code>
                                 </div>
@@ -718,7 +740,7 @@ foreach ($services as $service) {
                                 <div class="offer-fill-step"><strong>1</strong><div>Date oferta</div><span>Denumire, data, valabilitate, moneda</span></div>
                                 <div class="offer-fill-step"><strong>2</strong><div>Client</div><span>Beneficiar</span></div>
                                 <div class="offer-fill-step"><strong>3</strong><div>Servicii</div><span>Nomenclator, descriere, pret, cantitate</span></div>
-                                <div class="offer-fill-step"><strong>4</strong><div>Discount si total</div><span>Subtotal, discount, total fara TVA</span></div>
+                                <div class="offer-fill-step"><strong>4</strong><div>Discount si total</div><span>Subtotal, discount, total fără TVA</span></div>
                             </div>
 
                             <div class="offer-section-title">1. Date oferta si beneficiar</div>
@@ -727,8 +749,8 @@ foreach ($services as $service) {
                                     <label>Client *</label>
                                     <input type="hidden" name="client_id" id="clientSelect" required value="<?= (int)($formDocument['client_id'] ?? 0) ?>" data-selected="<?= (int)($formDocument['client_id'] ?? 0) ?>">
                                     <div class="pz-autocomplete" id="clientAutocomplete">
-                                        <input type="text" class="pz-autocomplete-input" id="clientSearchInput" placeholder="Cauta dupa nume client, CUI, telefon, reprezentant…" autocomplete="off" autofocus>
-                                        <button type="button" class="pz-autocomplete-clear" id="clientClearBtn" title="Sterge">&times;</button>
+                                        <input type="text" class="pz-autocomplete-input" id="clientSearchInput" placeholder="Caută după nume client, CUI, telefon, reprezentant…" autocomplete="off" autofocus>
+                                        <button type="button" class="pz-autocomplete-clear" id="clientClearBtn" title="Șterge">&times;</button>
                                         <div class="pz-autocomplete-selected" id="clientSelectedBox">
                                             <div>
                                                 <div class="ps-name"></div>
@@ -742,7 +764,7 @@ foreach ($services as $service) {
                                 </div>
 
                                 <div class="field">
-                                    <label>Sablon</label>
+                                    <label>Șablon</label>
                                     <select name="template_id">
                                         <?php foreach ($templates as $template): ?>
                                             <option value="<?= (int)$template['id'] ?>" <?= (int)($formDocument['template_id'] ?? 0) === (int)$template['id'] ? 'selected' : '' ?>>
@@ -783,9 +805,9 @@ foreach ($services as $service) {
                                 <div class="panel-head">
                                     <div>
                                         <div class="panel-title">Servicii ofertate</div>
-                                        <div class="panel-subtitle">Alege din nomenclator sau scrie manual. Descrierea se precompleteaza din serviciu si ramane editabila.</div>
+                                        <div class="panel-subtitle">Alege din nomenclator sau scrie manual. Descrierea se precompleteaza din serviciu si rămâne editabila.</div>
                                     </div>
-                                    <button class="btn small primary" type="button" onclick="addItemRow()">+ Adauga serviciu</button>
+                                    <button class="btn small primary" type="button" onclick="addItemRow()">+ Adaugă serviciu</button>
                                 </div>
                                 <div class="panel-body">
                                     <div class="items-wrap">
@@ -824,13 +846,13 @@ foreach ($services as $service) {
                                                             <input type="hidden" name="items[<?= (int)$index ?>][total_price]" class="line-total-input" value="<?= pz_offer_h($item['total_price'] ?? 0) ?>">
                                                             <div class="row-total">0.00</div>
                                                         </td>
-                                                        <td><button type="button" class="btn small danger" onclick="removeItemRow(this)">Sterge</button></td>
+                                                        <td><button type="button" class="btn small danger" onclick="removeItemRow(this)">Șterge</button></td>
                                                     </tr>
                                                 <?php endforeach; ?>
                                             </tbody>
                                         </table>
                                     </div>
-                                    <div class="offer-section-title">3. Discount si total fara TVA</div>
+                                    <div class="offer-section-title">3. Discount si total fără TVA</div>
                                     <div class="offer-discount-box">
                                         <div class="offer-discount-controls">
                                             <div class="field">
@@ -849,8 +871,8 @@ foreach ($services as $service) {
                                         <div class="offer-total-box">
                                             <div>Subtotal servicii: <strong id="subtotalTotal">0.00 RON</strong></div>
                                             <div>Discount: <strong id="discountAmount">0.00 RON</strong></div>
-                                            <div class="final-total">Total oferta: <strong id="grandTotal">0.00 RON</strong> <span>fara TVA</span></div>
-                                            <div class="tax-note">Toate preturile sunt exprimate fara TVA.</div>
+                                            <div class="final-total">Total oferta: <strong id="grandTotal">0.00 RON</strong> <span>fără TVA</span></div>
+                                            <div class="tax-note">Toate preturile sunt exprimate fără TVA.</div>
                                         </div>
                                     </div>
                                 </div>
@@ -861,15 +883,15 @@ foreach ($services as $service) {
                                 <div class="field span2">
                                     <label>Conditii de plata</label>
                                     <input type="text" name="payment_terms" value="<?= pz_offer_h($formPaymentTerms) ?>" placeholder="ex: 5 zile de la emiterea facturii">
-                                    <div class="client-help">Apare in sablon prin {{payment_terms}}.</div>
+                                    <div class="client-help">Apare in șablon prin {{payment_terms}}.</div>
                                 </div>
                                 <div class="field span2">
-                                    <label>Observatii oferta</label>
-                                    <textarea name="notes" placeholder="Observatii vizibile in document prin {{notes}}"><?= pz_offer_h($formNotes) ?></textarea>
+                                    <label>Observații oferta</label>
+                                    <textarea name="notes" placeholder="Observații vizibile in document prin {{notes}}"><?= pz_offer_h($formNotes) ?></textarea>
                                 </div>
                                 <div class="field full">
                                     <label>Note interne</label>
-                                    <textarea name="internal_notes" placeholder="Nu apar in document daca sablonul nu foloseste {{internal_notes}}."><?= pz_offer_h($formDocument['internal_notes'] ?? '') ?></textarea>
+                                    <textarea name="internal_notes" placeholder="Nu apar in document dacă șablonul nu folosește {{internal_notes}}."><?= pz_offer_h($formDocument['internal_notes'] ?? '') ?></textarea>
                                 </div>
                             </div>
 
@@ -880,8 +902,8 @@ foreach ($services as $service) {
                                     <?php endif; ?>
                                 </div>
                                 <div class="right">
-                                    <button class="btn" type="submit" name="action" value="save_draft">Salveaza draft</button>
-                                    <button class="btn primary" type="submit" name="action" value="issue" onclick="return confirm('Emiti oferta si aloci numar? Dupa emitere documentul se blocheaza.');">Emite oferta</button>
+                                    <button class="btn" type="submit" name="action" value="save_draft">Salvează draft</button>
+                                    <button class="btn primary" type="submit" name="action" value="issue" onclick="return confirm('Emiti oferta si aloci numar? După emitere documentul se blocheaza.');">Emite oferta</button>
                                 </div>
                             </div>
                         </form>
@@ -893,15 +915,18 @@ foreach ($services as $service) {
                 <div class="panel-head">
                     <div>
                         <div class="panel-title">Lista oferte</div>
-                        <div class="panel-subtitle">Cauta dupa numar, client, CUI sau titlu.</div>
+                        <div class="panel-subtitle">Caută după numar, client, CUI sau titlu.</div>
                     </div>
                 
-                    <a class="btn primary" href="oferte.php?new=1">+ Oferta noua</a>
+                    <a class="btn primary" href="oferte.php?new=1<?= !empty($filters['client_id']) ? '&client_id=' . (int)$filters['client_id'] : '' ?>">+ Ofertă nouă</a>
                 </div>
                 <div class="panel-body">
                     <form class="filter-form" method="get">
+                        <?php if (!empty($filters['client_id'])): ?>
+                            <input type="hidden" name="client_id" value="<?= (int)$filters['client_id'] ?>">
+                        <?php endif; ?>
                         <div class="field">
-                            <label>Cautare</label>
+                            <label>Căutare</label>
                             <input type="text" name="q" value="<?= pz_offer_h($filters['q']) ?>" placeholder="Client, CUI, numar oferta">
                         </div>
                         <div class="field">
@@ -929,7 +954,7 @@ foreach ($services as $service) {
             </section>
 
             <?php if (!$documents): ?>
-                <div class="empty-state">Nu exista oferte pentru filtrele selectate.</div>
+                <div class="empty-state">Nu există oferte pentru filtrele selectate.</div>
             <?php else: ?>
                 <div class="docs-list">
                     <?php foreach ($documents as $doc): ?>
@@ -951,13 +976,13 @@ foreach ($services as $service) {
                                 ID: <?= (int)$doc['id'] ?>
                             </div>
                             <div class="doc-meta">
-                                Total fara TVA<br>
+                                Total fără TVA<br>
                                 <strong><?= pz_offer_h(pz_offer_money($doc['total_amount'] ?? 0, $doc['currency'] ?? 'RON')) ?></strong>
                             </div>
                             <div class="doc-actions">
                                 <a class="btn small" href="document_view.php?id=<?= (int)$doc['id'] ?>">Vezi</a>
                                 <?php if (($doc['status'] ?? '') === 'draft'): ?>
-                                    <a class="btn small" href="oferte.php?edit=<?= (int)$doc['id'] ?>">Editeaza</a>
+                                    <a class="btn small" href="oferte.php?edit=<?= (int)$doc['id'] ?>">Editează</a>
                                 <?php endif; ?>
                                 <a class="btn small" href="document_pdf.php?id=<?= (int)$doc['id'] ?>&mode=inline" target="_blank">PDF</a>
                             </div>
@@ -967,11 +992,11 @@ foreach ($services as $service) {
 
                 <div class="pagination">
                     <?php if ($page > 1): ?>
-                        <a class="btn small" href="<?= pz_offer_h(pz_offer_current_url(['page' => $page - 1])) ?>">Inapoi</a>
+                        <a class="btn small" href="<?= pz_offer_h(pz_offer_current_url(['page' => $page - 1])) ?>">Înapoi</a>
                     <?php endif; ?>
                     <span class="badge">Pagina <?= (int)$page ?> / <?= (int)$totalPages ?></span>
                     <?php if ($page < $totalPages): ?>
-                        <a class="btn small" href="<?= pz_offer_h(pz_offer_current_url(['page' => $page + 1])) ?>">Inainte</a>
+                        <a class="btn small" href="<?= pz_offer_h(pz_offer_current_url(['page' => $page + 1])) ?>">Înainte</a>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
@@ -1110,7 +1135,7 @@ function pzHighlightActive() {
     if (target) { target.classList.add('is-active'); target.scrollIntoView({block: 'nearest'}); }
 }
 
-/* === LOCATIE smart - 0/1/2+ locatii === */
+/* === LOCATIE smart - 0/1/2+ locații === */
 function populateLocationsSmart() {
     const clientSelect = document.getElementById('clientSelect');
     const locationSelect = document.getElementById('locationSelect');
@@ -1123,7 +1148,7 @@ function populateLocationsSmart() {
     if (!clientId) {
         locationSelect.style.display = 'none';
         if (locationInfo) locationInfo.style.display = 'none';
-        if (help) help.textContent = 'Selecteaza un client mai intai.';
+        if (help) help.textContent = 'Selectează un client mai intai.';
         return;
     }
     const client = clientsData.find(item => Number(item.id) === clientId);
@@ -1137,7 +1162,7 @@ function populateLocationsSmart() {
             locationInfoText.textContent = 'Sediu social / domiciliu' + (client && client.address ? ' - ' + client.address : '');
         }
         locationSelect.value = '';
-        if (help) help.textContent = 'Clientul are doar sediul social. Oferta foloseste aceasta adresa.';
+        if (help) help.textContent = 'Clientul are doar sediul social. Oferta folosește aceasta adresa.';
     } else if (locations.length === 1 && !selectedId) {
         const loc = locations[0];
         locationSelect.style.display = 'none';
@@ -1147,7 +1172,7 @@ function populateLocationsSmart() {
             locationInfo.style.display = 'flex';
             locationInfoText.textContent = (loc.location_name || 'Punct de lucru') + (loc.address ? ' - ' + loc.address : '');
         }
-        if (help) help.textContent = 'Singura locatie a clientului. Click aici pentru a folosi sediul social in schimb.';
+        if (help) help.textContent = 'Singura locație a clientului. Click aici pentru a folosi sediul social in schimb.';
     } else {
         const options = [{value: '', text: client && client.address ? 'Sediu social / domiciliu - ' + client.address : 'Sediu social / domiciliu'}];
         locations.forEach(loc => options.push({value: String(loc.id), text: (loc.location_name || 'Punct de lucru') + (loc.address ? ' - ' + loc.address : '')}));
@@ -1160,7 +1185,7 @@ function populateLocationsSmart() {
             if (String(opt.value) === selectedId) o.selected = true;
             locationSelect.appendChild(o);
         });
-        if (help) help.textContent = 'Clientul are ' + locations.length + ' locatii. Alege una sau lasa pe sediul social.';
+        if (help) help.textContent = 'Clientul are ' + locations.length + ' locații. Alege una sau lasa pe sediul social.';
     }
 }
 
@@ -1172,7 +1197,7 @@ function updateClientHelp(client) {
     const help = document.getElementById('clientHelp');
     if (!help) return;
     if (!client) {
-        help.textContent = 'Selecteaza clientul din lista de mai jos.';
+        help.textContent = 'Selectează clientul din lista de mai jos.';
         return;
     }
     const parts = [];
@@ -1241,7 +1266,7 @@ function addItemRow() {
         <td><select name="items[${i}][unit]" class="unit-select"><option value="buc" selected>Bucata</option><option value="mp">Metru patrat</option></select></td>
         <td><input type="number" step="0.01" min="0" name="items[${i}][unit_price]" class="price" value="0" oninput="recalculateRows()"></td>
         <td><input type="hidden" name="items[${i}][total_price]" class="line-total-input" value="0"><div class="row-total">0.00</div></td>
-        <td><button type="button" class="btn small danger" onclick="removeItemRow(this)">Sterge</button></td>
+        <td><button type="button" class="btn small danger" onclick="removeItemRow(this)">Șterge</button></td>
     `;
     body.appendChild(tr);
     recalculateRows();

@@ -3,6 +3,7 @@ ini_set('display_errors', '0');
 error_reporting(E_ALL);
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/app_ui.php';
 require_once __DIR__ . '/notification_lib.php';
 
 if (function_exists('require_login')) {
@@ -27,7 +28,7 @@ $errors = [];
 try {
     pz_notify_init();
 } catch (Throwable $e) {
-    $errors[] = 'Eroare inițializare SMS: '.$e->getMessage();
+    $errors[] = 'Eroare initializare SMS: '.$e->getMessage();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -40,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($action === 'save_sms_settings') {
             pz_setting_set('sms_brand_name', trim($_POST['sms_brand_name'] ?? 'PestZone') ?: 'PestZone');
-            // smslink_enabled NU mai e gestionat aici - se face in Comunicare / Integrari
+            // smslink_enabled NU mai e gestionat aici - se face in Comunicare / Integrări
             // (era duplicat in 2 locuri si crea confuzie)
             $success[] = 'Setările SMS au fost salvate.';
         }
@@ -109,39 +110,43 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
     <meta charset="utf-8">
     <title>Șabloane SMS - PestZone</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <?php app_theme_css(); ?>
     <style>
-        :root{--brand:#0071A3;--bg:#f5f7fa;--border:#dbe3ea;--text:#132238;--muted:#64748b;--ok:#027a48;--err:#b42318}
-        body{margin:0;background:var(--bg);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text);font-size:14px}
-        .wrap{max-width:1120px;margin:0 auto;padding:24px}
-        .top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px}
-        h1{font-size:22px;margin:0} h2{font-size:16px;margin:0 0 12px}
+        .sms-page{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+        .module-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);padding:20px 22px}
+        .module-head h1{font-size:24px;letter-spacing:-.035em;margin:0}
+        .module-head p{margin:6px 0 0;color:var(--muted);font-weight:700}
+        h2{font-size:16px;margin:0 0 12px}
         .muted{color:var(--muted)}
         .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-        .card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:0 1px 2px rgba(16,24,40,.03)}
-        label{display:block;font-size:12px;font-weight:700;color:#334155;margin:12px 0 6px}
-        input,select,textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font:inherit;background:#fff}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px;box-shadow:var(--shadow)}
+        label{display:block;font-size:12px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:12px 0 6px}
+        input,select,textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:12px;min-height:42px;padding:10px 12px;font:inherit;font-weight:700;background:#fff;color:var(--text)}
         textarea{min-height:118px;resize:vertical}
-        .btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:12px;padding:10px 14px;background:#fff;color:var(--text);text-decoration:none;font-weight:700;cursor:pointer}
-        .btn-primary{background:var(--brand);border-color:var(--brand);color:#fff}
-        .alert{padding:12px 14px;border-radius:12px;margin-bottom:10px}
-        .ok{background:#ecfdf3;color:var(--ok);border:1px solid #abefc6}.err{background:#fff1f3;color:var(--err);border:1px solid #fecdd3}
+        .alert{padding:12px 14px;border-radius:14px;font-weight:850}
+        .ok{background:var(--success-soft);color:var(--success);border:1px solid rgba(4,120,87,.18)}
+        .err{background:var(--danger-soft);color:var(--danger);border:1px solid rgba(220,38,38,.18)}
         .varlist{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.pill{font-size:12px;background:#f1f5f9;border:1px solid var(--border);border-radius:999px;padding:4px 8px;color:#475569}
         .preview{white-space:pre-wrap;background:#f8fafc;border:1px dashed var(--border);border-radius:12px;padding:12px;color:#334155;margin-top:10px}
         table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid var(--border);padding:9px;text-align:left;vertical-align:top}
         th{font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.04em}.full{grid-column:1/-1}
-        @media(max-width:860px){.grid{grid-template-columns:1fr}.wrap{padding:16px}.top{align-items:flex-start;flex-direction:column}}
+        @media(max-width:860px){.grid{grid-template-columns:1fr}.module-head{padding:16px}}
     </style>
 </head>
 <body>
-<div class="wrap">
-    <div class="top">
+<div class="layout">
+    <?php
+    $pz_page_title = 'Setări';
+    $pz_page_breadcrumbs = ['Șabloane SMS'];
+    render_sidebar('sms_templates', true);
+    ?>
+    <main class="main">
+        <div class="topbar" style="padding:12px 20px;"><a href="settings.php" class="btn ghost">Înapoi la Setări</a></div>
+        <div class="content sms-page">
+    <div class="module-head">
         <div>
             <h1>Șabloane SMS</h1>
-            <div class="muted">Personalizează mesajele trimise prin SMSLink. SMS-urile nu creează programări fără apel.</div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <a href="communication_settings.php" class="btn">Comunicare</a>
-            <a href="settings.php" class="btn">Setări</a>
+            <p>Personalizeaza mesajele trimise prin SMSLink. SMS-urile nu creeaza programări fara apel.</p>
         </div>
     </div>
 
@@ -157,19 +162,19 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
             <label>Brand / prefix mesaj</label>
             <input type="text" name="sms_brand_name" maxlength="30" value="<?= sms_h(pz_setting_get('sms_brand_name', 'PestZone')) ?>">
 
-            <p class="muted">Expeditorul afișat în telefon se setează în SMSLink ca Sender ID. Aici controlăm textul mesajului.</p>
-            <p class="muted"><strong>Status trimitere SMS</strong> (activat / dezactivat global) se gestionează în <a href="communication_settings.php">Setări → Comunicare / Integrări</a>.</p>
-            <button class="btn btn-primary" type="submit">Salvează setările SMS</button>
+            <p class="muted">Expeditorul afișat in telefon se seteaza in SMSLink ca Sender ID. Aici controlam textul mesajului.</p>
+            <p class="muted"><strong>Status trimitere SMS</strong> (activat / dezactivat global) se gestioneaza in <a href="communication_settings.php">Setări -> Comunicare / Integrări</a>.</p>
+            <button class="btn accent" type="submit">Salvează setarile SMS</button>
         </form>
 
         <div class="card">
             <h2>Variabile disponibile</h2>
-            <p class="muted">Le poți folosi în mesajele SMS. Se înlocuiesc automat.</p>
+            <p class="muted">Le poți folosi in mesajele SMS. Se inlocuiesc automat.</p>
             <div class="varlist">
                 <span class="pill">{brand}</span><span class="pill">{client}</span><span class="pill">{service}</span><span class="pill">{date}</span>
                 <span class="pill">{time}</span><span class="pill">{location}</span><span class="pill">{address}</span><span class="pill">{company_phone}</span>
             </div>
-            <p class="muted" style="margin-top:14px">Recomandare: păstrează mesajele scurte, fără diacritice, pentru costuri și livrare mai predictibile.</p>
+            <p class="muted" style="margin-top:14px">Recomandare: pastreaza mesajele scurte, fara diacritice, pentru costuri si livrare mai predictibile.</p>
         </div>
 
         <form method="post" class="card full">
@@ -178,7 +183,7 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
             <h2>Mesaje SMS automate</h2>
 
             <?php if (!$templates): ?>
-                <div class="alert err">Nu s-au găsit șabloane SMS. Reîncarcă pagina sau accesează sms_migrations.php.</div>
+                <div class="alert err">Nu s-au gasit șabloane SMS. Reincarca pagina sau acceseaza sms_migrations.php.</div>
             <?php endif; ?>
 
             <?php foreach ($templates as $tpl): ?>
@@ -194,16 +199,16 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
             <?php endforeach; ?>
 
             <div style="margin-top:16px">
-                <button class="btn btn-primary" type="submit">Salvează șabloanele</button>
+            <button class="btn accent" type="submit">Salvează șabloanele</button>
             </div>
         </form>
 
         <div class="card full">
             <h2>Ultimele SMS-uri</h2>
             <table>
-                <thead><tr><th>Data</th><th>Destinatar</th><th>Status</th><th>Mesaj / răspuns</th></tr></thead>
+                <thead><tr><th>Data</th><th>Destinatar</th><th>Status</th><th>Mesaj / raspuns</th></tr></thead>
                 <tbody>
-                <?php if (!$logs): ?><tr><td colspan="4" class="muted">Nu există SMS-uri trimise încă.</td></tr><?php endif; ?>
+                <?php if (!$logs): ?><tr><td colspan="4" class="muted">Nu există SMS-uri trimise inca.</td></tr><?php endif; ?>
                 <?php foreach ($logs as $log): ?>
                     <tr>
                         <td><?= sms_h($log['created_at'] ?? '') ?></td>
@@ -219,6 +224,8 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
             </table>
         </div>
     </div>
+        </div>
+    </main>
 </div>
 <script>
 (function(){

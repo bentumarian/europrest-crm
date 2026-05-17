@@ -8,7 +8,7 @@ require_login();
 |--------------------------------------------------------------------------
 | PestZone - document edit router
 |--------------------------------------------------------------------------
-| Acest fisier nu editeaza direct documentul.
+| Acest fișier nu editeaza direct documentul.
 | El citeste tipul documentului si trimite utilizatorul catre pagina corecta:
 | - oferta          -> oferte.php?edit=ID
 | - contract        -> contracts.php?edit=ID
@@ -86,7 +86,7 @@ if ($id <= 0) {
             <div class="card">
                 <h1>Document invalid</h1>
                 <p>Lipseste ID-ul documentului.</p>
-                <a class="btn" href="dashboard.php">Inapoi la dashboard</a>
+                <a class="btn" href="dashboard.php">Înapoi la dashboard</a>
             </div>
         </div>
     </body>
@@ -117,8 +117,8 @@ if (!$document) {
         <div class="wrap">
             <div class="card">
                 <h1>Document negasit</h1>
-                <p>Documentul solicitat nu exista sau a fost sters.</p>
-                <a class="btn" href="dashboard.php">Inapoi la dashboard</a>
+                <p>Documentul solicitat nu există sau a fost șters.</p>
+                <a class="btn" href="dashboard.php">Înapoi la dashboard</a>
             </div>
         </div>
     </body>

@@ -251,16 +251,16 @@ textarea:focus,select:focus{border-color:#93C5FD;box-shadow:0 0 0 4px rgba(29,78
                 <div class="badge"><span class="badge-dot"></span> Formular securizat</div>
             </div>
             <h1>Cum a fost experienta?</h1>
-            <p class="subtitle">Raspunsul dvs. ne ajuta sa verificam calitatea interventiilor si sa imbunatatim serviciile oferite.</p>
+            <p class="subtitle">Raspunsul dvs. ne ajuta sa verificam calitatea intervențiilor si sa imbunatatim serviciile oferite.</p>
         </div>
 
         <div class="body">
             <?php if ($invalid): ?>
                 <div class="notice error">Linkul de feedback este invalid sau a expirat.</div>
-                <p class="section-text">Va rugam sa ne contactati direct daca doriti sa ne transmiteti o observatie despre interventie.</p>
+                <p class="section-text">Vă rugăm sa ne contactati direct dacă doriti sa ne transmiteti o observatie despre intervenție.</p>
             <?php else: ?>
                 <div class="client-box">
-                    <div><strong><?= pz_review_h($clientLabel) ?></strong><br><span>Solicitare feedback dupa interventie</span></div>
+                    <div><strong><?= pz_review_h($clientLabel) ?></strong><br><span>Solicitare feedback după intervenție</span></div>
                     <div class="mini">Durata estimata: 1 minut</div>
                 </div>
 
@@ -271,7 +271,7 @@ textarea:focus,select:focus{border-color:#93C5FD;box-shadow:0 0 0 4px rgba(29,78
                     <form method="post">
                         <input type="hidden" name="t" value="<?= pz_review_h($token) ?>">
                         <input type="hidden" name="action" value="rating">
-                        <p class="section-title">Alegeti o nota de la 1 la 5</p>
+                        <p class="section-title">Alegeți o nota de la 1 la 5</p>
                         <p class="section-text">5 inseamna ca experienta a fost foarte buna.</p>
                         <div class="stars" aria-label="Rating">
                             <?php for ($i=1; $i<=5; $i++): ?>
@@ -291,23 +291,23 @@ textarea:focus,select:focus{border-color:#93C5FD;box-shadow:0 0 0 4px rgba(29,78
                     <div class="notice ok">Va multumim pentru apreciere!</div>
                     <div class="google-box">
                         <p class="google-title">Ne bucuram ca experienta a fost foarte buna.</p>
-                        <p>Ne-ar ajuta mult daca ati lasa aceeasi apreciere si pe Google. Publicarea reviewului se face doar de catre dvs., in contul Google.</p>
+                        <p>Ne-ar ajuta mult dacă ati lasa aceeași apreciere si pe Google. Publicarea reviewului se face doar de catre dvs., in contul Google.</p>
                         <?php if ($googleUrl !== '' && $allowGoogleReview): ?>
                             <div class="actions"><a class="btn" href="feedback.php?t=<?= urlencode($token) ?>&google=1">Lasa review pe Google</a></div>
                         <?php else: ?>
                             <div class="notice warn">Linkul Google Review nu este configurat in platforma.</div>
                         <?php endif; ?>
                     </div>
-                    <p class="fine">Multumim ca ati ales <?= pz_review_h($brand) ?>.</p>
+                    <p class="fine">Mulțumim ca ati ales <?= pz_review_h($brand) ?>.</p>
 
                 <?php elseif ($step === 'done_high_internal'): ?>
                     <div class="notice ok">Va multumim pentru feedback. Raspunsul dumneavoastra a fost inregistrat.</div>
                     <p class="section-text">Acest formular este folosit pentru controlul intern al calitatii serviciilor. Va multumim pentru timpul acordat.</p>
 
                 <?php elseif ($step === 'questions'): ?>
-                    <div class="notice warn">Multumim. Ne pare rau ca experienta nu a fost perfecta.</div>
+                    <div class="notice warn">Mulțumim. Ne pare rau ca experienta nu a fost perfecta.</div>
                     <p class="section-title">Spuneti-ne ce putem imbunatati</p>
-                    <p class="section-text">Acest formular este intern, nu se publica pe Google si ajunge la echipa de management pentru verificare si contactare, daca este cazul.</p>
+                    <p class="section-text">Acest formular este intern, nu se publica pe Google si ajunge la echipa de management pentru verificare si contactare, dacă este cazul.</p>
                     <form method="post">
                         <input type="hidden" name="t" value="<?= pz_review_h($token) ?>">
                         <?php if ($isDemoLow): ?><input type="hidden" name="demo" value="low"><?php endif; ?>
@@ -323,7 +323,7 @@ textarea:focus,select:focus{border-color:#93C5FD;box-shadow:0 0 0 4px rgba(29,78
                                     </div>
                                 <?php elseif ($q['type'] === 'yesno'): ?>
                                     <select name="answers[<?= pz_review_h($key) ?>]">
-                                        <option value="">Alegeti</option>
+                                        <option value="">Alegeți</option>
                                         <option value="Da">Da</option>
                                         <option value="Nu">Nu</option>
                                     </select>
@@ -333,12 +333,12 @@ textarea:focus,select:focus{border-color:#93C5FD;box-shadow:0 0 0 4px rgba(29,78
                             </div>
                         <?php endforeach; ?>
                         <div class="actions"><button class="btn" type="submit">Trimite formularul</button></div>
-                        <div class="fine">Pentru note sub 5 stele, mesajul ramane intern si este folosit pentru rezolvarea situatiei.</div>
+                        <div class="fine">Pentru note sub 5 stele, mesajul rămâne intern si este folosit pentru rezolvarea situatiei.</div>
                     </form>
 
                 <?php elseif ($step === 'done_low'): ?>
                     <div class="notice ok">Va multumim. Formularul a fost trimis.</div>
-                    <p class="section-text">Feedbackul dvs. va fi analizat intern. Daca ati solicitat contactarea, un reprezentant va reveni catre dvs.</p>
+                    <p class="section-text">Feedbackul dvs. va fi analizat intern. Dacă ati solicitat contactarea, un reprezentant va reveni catre dvs.</p>
                 <?php endif; ?>
             <?php endif; ?>
         </div>

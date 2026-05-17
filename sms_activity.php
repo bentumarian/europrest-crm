@@ -3,11 +3,11 @@
 |--------------------------------------------------------------------------
 | Activitate SMS - vizualizator log-uri din notification_logs
 |--------------------------------------------------------------------------
-| Arata ultimele 100 SMS-uri (sau dupa filtrul ales) cu:
+| Arata ultimele 100 SMS-uri (sau după filtrul ales) cu:
 |  - Data si ora
 |  - Destinatar (telefon)
 |  - Status: sent / skipped / failed
-|  - Motivul (daca skipped sau failed)
+|  - Motivul (dacă skipped sau failed)
 |  - Mesajul (preview)
 |  - Linkul catre programare/sarcina asociata
 |--------------------------------------------------------------------------
@@ -127,6 +127,7 @@ try {
 <div class="layout">
     <?php render_sidebar('sms_activity', $isAdmin); ?>
     <main class="main">
+        <div class="topbar" style="padding:12px 20px;"><a class="btn ghost" href="settings.php">Înapoi la Setări</a></div>
         <div class="content">
 
             <div style="margin-bottom: 18px;">

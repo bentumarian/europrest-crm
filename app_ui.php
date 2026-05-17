@@ -5,8 +5,8 @@
 | UI global
 |--------------------------------------------------------------------------
 | Fisier global pentru design, meniu si stiluri comune.
-| Texte fara diacritice, compatibil cu editorul PHP/cPanel.
-| Iconuri SVG line, fara biblioteci externe.
+| Texte UTF-8, cu diacritice pastrate.
+| Iconuri SVG line, fără biblioteci externe.
 |--------------------------------------------------------------------------
 */
 
@@ -17,9 +17,73 @@ if (!function_exists('app_h')) {
     }
 }
 
+if (!function_exists('render_billing_module_nav')) {
+    function render_billing_module_nav(string $active = ''): void
+    {
+        $items = [
+            'facturi' => ['label' => 'Facturare', 'href' => 'facturi.php'],
+            'incasari' => ['label' => 'Încasare', 'href' => 'incasari.php'],
+            'efactura' => ['label' => 'E-Factura', 'href' => 'efactura.php'],
+            'interventii_facturare' => ['label' => 'Lista lucrări', 'href' => 'interventii_facturare.php'],
+        ];
+        ?>
+        <style>
+        .billing-module-nav{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 14px}
+        .billing-module-nav a{min-height:34px;padding:7px 11px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:12.5px;font-weight:700;box-shadow:none;text-decoration:none}
+        .billing-module-nav a:hover{color:var(--text);border-color:var(--accent-pale)}
+        .billing-module-nav a.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:none}
+        @media(max-width:720px){.billing-module-nav{display:grid;grid-template-columns:1fr 1fr}.billing-module-nav a{text-align:center}}
+        </style>
+        <nav class="billing-module-nav" aria-label="Navigare facturare">
+            <?php foreach ($items as $key => $item): ?>
+                <a class="<?= $active === $key ? 'active' : '' ?>" href="<?= app_h($item['href']) ?>"><?= app_h($item['label']) ?></a>
+            <?php endforeach; ?>
+        </nav>
+        <?php
+    }
+}
+
+if (!function_exists('render_stock_module_nav')) {
+    function render_stock_module_nav(string $active = ''): void
+    {
+        $items = [
+            'dashboard' => ['label' => 'Dashboard', 'href' => 'stock.php'],
+            'products' => ['label' => 'Produse', 'href' => 'stock_products.php'],
+            'receipts' => ['label' => 'Intrări', 'href' => 'stock_receipts.php'],
+            'movements' => ['label' => 'Ieșiri', 'href' => 'stock_movements.php'],
+            'notifications' => ['label' => 'Notificări', 'href' => 'stock_notifications.php'],
+            'card' => ['label' => 'Fișa magazie', 'href' => 'stock_card.php'],
+            'registry' => ['label' => 'Registru lucrări', 'href' => 'stock_work_registry.php'],
+        ];
+        ?>
+        <nav class="stock-tabs" aria-label="Navigare gestiune">
+            <?php foreach ($items as $key => $item): ?>
+                <a class="<?= $active === $key ? 'active' : '' ?>" href="<?= app_h($item['href']) ?>"><?= app_h($item['label']) ?></a>
+            <?php endforeach; ?>
+        </nav>
+        <?php
+    }
+}
+
 if (!function_exists('app_icon_svg')) {
     function app_icon_svg(string $name): string
     {
+        $aliases = [
+            'task' => 'tasks',
+            'appointment' => 'calendar',
+            'appointments' => 'calendar',
+            'client' => 'clients',
+            'document' => 'documents',
+            'contract' => 'contracts',
+            'process' => 'processes',
+            'report' => 'reports',
+            'billing' => 'invoice',
+            'invoice_paid' => 'invoice',
+            'notification' => 'alert',
+            'notifications' => 'alert',
+        ];
+        $name = $aliases[$name] ?? $name;
+
         $icons = [
             'dashboard' => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"></rect><rect x="13" y="3" width="8" height="5" rx="2"></rect><rect x="13" y="10" width="8" height="11" rx="2"></rect><rect x="3" y="13" width="8" height="8" rx="2"></rect></svg>',
             'calendar'  => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="4"></rect><path d="M8 2v4"></path><path d="M16 2v4"></path><path d="M3 10h18"></path><path d="M8 14h3"></path><path d="M13 14h3"></path><path d="M8 18h3"></path></svg>',
@@ -49,6 +113,7 @@ if (!function_exists('app_icon_svg')) {
             'search'    => '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>',
             'more'      => '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>',
             'check'     => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>',
+            'alert'     => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3L12 4Z"></path><path d="M12 9v5"></path><path d="M12 17h.01"></path></svg>',
             'clipboard' => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="3"></rect><path d="M9 4.5A3 3 0 0 1 12 2a3 3 0 0 1 3 2.5"></path><path d="M9 9h6"></path><path d="M9 13h6"></path><path d="M9 17h3"></path></svg>',
             'logout'    => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H6.5A2.5 2.5 0 0 0 4 6.5v11A2.5 2.5 0 0 0 6.5 20H10"></path><path d="M14 8l4 4-4 4"></path><path d="M18 12H9"></path></svg>',
         ];
@@ -64,46 +129,47 @@ if (!function_exists('app_theme_css')) {
     {
         ?>
         <style>
-        @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+        @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
 
         :root {
-            /* === Suprafete (background si mai inchis - mai mult contrast cu carduri albe) === */
-            --bg: #DFE2E8;
+            /* === Suprafete === */
+            --bg: #F8FAFC;
             --surface: #FFFFFF;
             --surface-soft: #F8FAFC;
-            --surface-strong: #DFE2E8;
+            --surface-strong: #E2E8F0;
             --surface-muted: #F1F5F9;
 
             /* === Text === */
             --text: #0F172A;
+            --text-body: #334155;
             --muted: #64748B;
             --muted-2: #94A3B8;
 
-            /* === Brand: Microsoft Dynamics palette === */
-            --accent:        #1160B7;
-            --accent-strong: #002050;
-            --accent-deep:   #002050;  /* sidebar bg */
-            --accent-orange: #D24726;
-            --accent-pale:   #B1D6F0;
-            --accent-soft:   rgba(17, 96, 183, .08);
-            --accent-soft-2: rgba(17, 96, 183, .18);
+            /* === Brand PestZone === */
+            --accent:        #2563EB;
+            --accent-strong: #1E3A8A;
+            --accent-deep:   #12345A;
+            --accent-orange: #9A3412;
+            --accent-pale:   #BFDBFE;
+            --accent-soft:   rgba(37, 99, 235, .08);
+            --accent-soft-2: rgba(37, 99, 235, .18);
 
             /* === Borduri === */
-            --border: #E5E7EB;
-            --border2: #EEF0F3;
+            --border: #E2E8F0;
+            --border2: #F1F5F9;
 
-            /* === Tone semantice (FIX: inainte erau monocrome/sparte) === */
+            /* === Tone semantice (FIX: înainte erau monocrome/sparte) === */
             --tone-danger:        #DC2626;
             --tone-danger-soft:   #FEE2E2;
             --tone-danger-bg:     #FEF2F2;
-            --tone-warning:       #B45309;
-            --tone-warning-soft:  #FEF3C7;
-            --tone-warning-bg:    #FFFBEB;
-            --tone-success:       #047857;
-            --tone-success-soft:  #D1FAE5;
-            --tone-success-bg:    #ECFDF5;
-            --tone-info:          #1D4ED8;
-            --tone-info-soft:     #DBEAFE;
+            --tone-warning:       #9A3412;
+            --tone-warning-soft:  #FFF7ED;
+            --tone-warning-bg:    #FFF7ED;
+            --tone-success:       #166534;
+            --tone-success-soft:  #F0FDF4;
+            --tone-success-bg:    #F0FDF4;
+            --tone-info:          #2563EB;
+            --tone-info-soft:     #EFF6FF;
             --tone-info-bg:       #EFF6FF;
             --tone-neutral-bg:    #F8FAFC;
 
@@ -116,22 +182,22 @@ if (!function_exists('app_theme_css')) {
             --warning-soft: var(--tone-warning-bg);
 
             /* === Geometrie === */
-            --radius-sm: 8px;
-            --radius: 12px;
-            --radius-lg: 16px;
-            --radius-xl: 20px;
+            --radius-sm: 4px;
+            --radius: 6px;
+            --radius-lg: 8px;
+            --radius-xl: 8px;
 
-            /* === Shadows (shadow-accent cu tenta indigo) === */
-            --shadow:        0 1px 2px rgba(15, 23, 42, .04), 0 1px 1px rgba(15, 23, 42, .03);
-            --shadow-md:     0 4px 12px -4px rgba(15, 23, 42, .08), 0 2px 4px rgba(15, 23, 42, .04);
-            --shadow-lg:     0 12px 28px -8px rgba(15, 23, 42, .14), 0 4px 10px rgba(15, 23, 42, .06);
-            --shadow-accent: 0 4px 14px -4px rgba(17, 96, 183, .34);
+            /* === Shadows dezactivate pentru UI plat === */
+            --shadow: none;
+            --shadow-md: none;
+            --shadow-lg: none;
+            --shadow-accent: none;
 
             /* === Focus ring (matched la indigo accent) === */
             --focus-ring: 0 0 0 4px rgba(17, 96, 183, .18);
 
             /* === Tipografie === */
-            --font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            --font: "IBM Plex Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             --mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
             /* === Layout === */
@@ -170,6 +236,10 @@ if (!function_exists('app_theme_css')) {
         a {
             color: inherit;
             text-decoration: none;
+        }
+
+        .is-hidden {
+            display: none !important;
         }
 
         button,
@@ -699,22 +769,22 @@ if (!function_exists('app_theme_css')) {
         /* Buttons / forms */
 
         .btn {
-            min-height: 40px;
+            min-height: 34px;
             border: 1px solid var(--border);
             background: var(--surface);
             color: var(--text);
-            border-radius: 12px;
-            padding: 0 14px;
+            border-radius: 4px;
+            padding: 0 11px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            font-size: 13.5px;
+            font-size: 12.5px;
             font-weight: 700;
             line-height: 1;
             white-space: nowrap;
             box-shadow: none;
-            transition: background .14s ease, border-color .14s ease, transform .12s ease, box-shadow .14s ease;
+            transition: background .14s ease, border-color .14s ease, transform .12s ease;
         }
 
         .btn:hover {
@@ -724,7 +794,7 @@ if (!function_exists('app_theme_css')) {
 
         .btn:focus-visible {
             outline: none;
-            box-shadow: var(--focus-ring);
+            box-shadow: none;
         }
 
         .btn:active {
@@ -737,7 +807,7 @@ if (!function_exists('app_theme_css')) {
             background: var(--accent);
             border-color: var(--accent);
             color: #fff;
-            box-shadow: var(--shadow-accent);
+            box-shadow: none;
         }
 
         .btn.accent:hover,
@@ -751,7 +821,7 @@ if (!function_exists('app_theme_css')) {
         .btn.small {
             min-height: 32px;
             padding: 0 10px;
-            border-radius: 9px;
+            border-radius: 4px;
             font-size: 12px;
         }
 
@@ -769,10 +839,10 @@ if (!function_exists('app_theme_css')) {
         }
 
         .icon-btn {
-            width: 36px;
-            height: 36px;
-            min-height: 36px;
-            border-radius: 10px;
+            width: 34px;
+            height: 34px;
+            min-height: 34px;
+            border-radius: 4px;
             padding: 0;
             border: 1px solid var(--border);
             background: #fff;
@@ -795,10 +865,10 @@ if (!function_exists('app_theme_css')) {
 
         /* Buton circular - pentru actiuni icon-only (ex: + adauga) */
         .btn-circle {
-            width: 38px;
-            height: 38px;
-            min-height: 38px;
-            border-radius: 50%;
+            width: 34px;
+            height: 34px;
+            min-height: 34px;
+            border-radius: 4px;
             padding: 0;
             border: 1px solid var(--accent);
             background: var(--accent);
@@ -807,13 +877,13 @@ if (!function_exists('app_theme_css')) {
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: var(--shadow-accent);
-            transition: filter .14s ease, transform .14s ease, box-shadow .14s ease;
+            box-shadow: none;
+            transition: filter .14s ease, transform .14s ease;
         }
 
         .btn-circle:hover {
             filter: brightness(1.08);
-            box-shadow: 0 6px 18px -4px rgba(79, 70, 229, .5);
+            box-shadow: none;
         }
 
         .btn-circle:active {
@@ -868,13 +938,13 @@ if (!function_exists('app_theme_css')) {
             border: 1px solid var(--border);
             background: var(--surface);
             color: var(--text);
-            border-radius: 12px;
-            min-height: 40px;
-            padding: 0 13px;
-            font-size: 13.5px;
+            border-radius: 4px;
+            min-height: 34px;
+            padding: 0 9px;
+            font-size: 12.5px;
             font-weight: 500;
             outline: none;
-            transition: border-color .14s ease, box-shadow .14s ease, background .14s ease;
+            transition: border-color .14s ease, background .14s ease;
         }
 
         input::placeholder,
@@ -901,7 +971,7 @@ if (!function_exists('app_theme_css')) {
         select:focus,
         textarea:focus {
             border-color: var(--tone-info);
-            box-shadow: var(--focus-ring);
+            box-shadow: none;
         }
 
         input[disabled],
@@ -1004,7 +1074,7 @@ if (!function_exists('app_theme_css')) {
         }
         .notice-info::before { background: var(--tone-info); }
 
-        /* Toasts (notificari mici, animate, jos-dreapta) */
+        /* Toasts (notificări mici, animate, jos-dreapta) */
         .toast-stack {
             position: fixed;
             bottom: 20px;
@@ -1050,14 +1120,14 @@ if (!function_exists('app_theme_css')) {
         .status-pill {
             display: inline-flex;
             align-items: center;
-            min-height: 24px;
-            padding: 3px 10px;
-            border-radius: 999px;
+            min-height: 21px;
+            padding: 3px 7px;
+            border-radius: 4px;
             background: var(--surface-soft);
             border: 1px solid var(--border2);
             color: var(--text);
-            font-size: 11.5px;
-            font-weight: 700;
+            font-size: 11px;
+            font-weight: 800;
             white-space: nowrap;
         }
         .status-pill.tone-danger  { background: var(--tone-danger-soft);  color: var(--tone-danger);  border-color: rgba(220,38,38,.22); }
@@ -1518,220 +1588,6 @@ if (!function_exists('app_theme_css')) {
                 margin: 7px auto !important;
             }
         }
-
-
-        /* ==========================================================
-           PestZone global liquid glass components
-           Folosit pentru uniformizarea headerelor si butoanelor.
-           ========================================================== */
-        .pz-liquid-header,
-        .dashboard-hero, .clients-hero, .contracts-hero, .contract-hero, .tasks-hero,
-        .services-hero, .team-hero, .reports-hero, .settings-head, .hero, .page-hero,
-        .stock-hero, .ib-hero, .docs-hero, .document-hero, .email-hero, .pv-hero {
-            position: relative;
-            overflow: hidden;
-            border-radius: 24px !important;
-            border: 1px solid rgba(177, 214, 240, .74) !important;
-            background:
-                radial-gradient(circle at 90% 10%, rgba(177, 214, 240, .62), transparent 30%),
-                radial-gradient(circle at 36% 115%, rgba(17, 96, 183, .12), transparent 42%),
-                linear-gradient(135deg, rgba(255, 255, 255, .90), rgba(177, 214, 240, .24)) !important;
-            box-shadow:
-                0 20px 46px rgba(0, 32, 80, .11),
-                inset 0 1px 0 rgba(255, 255, 255, .84) !important;
-            backdrop-filter: blur(18px) saturate(135%);
-            -webkit-backdrop-filter: blur(18px) saturate(135%);
-        }
-
-        .pz-liquid-header::after,
-        .dashboard-hero::after, .clients-hero::after, .contracts-hero::after, .contract-hero::after,
-        .tasks-hero::after, .services-hero::after, .team-hero::after, .reports-hero::after,
-        .settings-head::after, .hero::after, .page-hero::after, .stock-hero::after,
-        .ib-hero::after, .docs-hero::after, .document-hero::after, .email-hero::after, .pv-hero::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            background:
-                linear-gradient(120deg, rgba(255,255,255,.68), rgba(255,255,255,0) 38%),
-                linear-gradient(140deg, transparent 58%, rgba(255,255,255,.40) 59%, transparent 74%);
-            opacity: .78;
-        }
-
-        .pz-liquid-header > *,
-        .dashboard-hero > *, .clients-hero > *, .contracts-hero > *, .contract-hero > *, .tasks-hero > *,
-        .services-hero > *, .team-hero > *, .reports-hero > *, .settings-head > *, .hero > *, .page-hero > *,
-        .stock-hero > *, .ib-hero > *, .docs-hero > *, .document-hero > *, .email-hero > *, .pv-hero > * {
-            position: relative;
-            z-index: 1;
-        }
-
-        .pz-liquid-chip,
-        .hero-pill,
-        .stat-pill {
-            min-height: 52px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 9px;
-            border-radius: 999px !important;
-            border: 1px solid rgba(17, 96, 183, .22) !important;
-            background: rgba(255, 255, 255, .60) !important;
-            color: #002050 !important;
-            box-shadow:
-                0 10px 24px rgba(0, 32, 80, .08),
-                inset 0 1px 0 rgba(255,255,255,.86) !important;
-            backdrop-filter: blur(14px) saturate(130%);
-            -webkit-backdrop-filter: blur(14px) saturate(130%);
-            font-weight: 850;
-        }
-
-
-
-        .pz-liquid-chip svg,
-        .hero-pill svg,
-        .stat-pill svg {
-            width: 18px;
-            height: 18px;
-            display: block;
-            stroke: currentColor;
-        }
-
-        .btn,
-        .pz-btn {
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 8px;
-            border-radius: 999px !important;
-            min-height: 42px;
-            padding: 0 17px;
-            line-height: 1 !important;
-            text-align: center !important;
-            white-space: nowrap;
-            text-decoration: none !important;
-            vertical-align: middle;
-            border: 1px solid rgba(177, 214, 240, .70) !important;
-            background: rgba(255,255,255,.66) !important;
-            color: #002050 !important;
-            font-weight: 900;
-            box-shadow:
-                0 10px 22px rgba(0, 32, 80, .07),
-                inset 0 1px 0 rgba(255,255,255,.85) !important;
-            backdrop-filter: blur(12px) saturate(130%);
-            -webkit-backdrop-filter: blur(12px) saturate(130%);
-            transition: transform .14s ease, box-shadow .14s ease, filter .14s ease, background .14s ease, border-color .14s ease;
-        }
-
-        .btn svg,
-        .pz-btn svg {
-            width: 18px;
-            height: 18px;
-            display: block;
-            stroke: currentColor;
-        }
-
-        .btn:hover,
-        .pz-btn:hover {
-            transform: translateY(-1px);
-            border-color: rgba(17, 96, 183, .34) !important;
-            box-shadow:
-                0 14px 26px rgba(0, 32, 80, .10),
-                inset 0 1px 0 rgba(255,255,255,.90) !important;
-            filter: brightness(1.02);
-        }
-
-        .btn:active,
-        .pz-btn:active {
-            transform: translateY(0);
-        }
-
-        .btn.accent,
-        .btn.primary,
-        .btn.btn-primary,
-        .pz-btn-blue {
-            background: linear-gradient(135deg, #1160B7, #0D4F98) !important;
-            border-color: rgba(17, 96, 183, .92) !important;
-            color: #ffffff !important;
-            box-shadow:
-                0 13px 24px rgba(17, 96, 183, .28),
-                inset 0 1px 0 rgba(255,255,255,.28) !important;
-        }
-
-        .pz-btn-navy,
-        .btn.navy {
-            background: linear-gradient(135deg, #002050, #063879) !important;
-            border-color: rgba(0, 32, 80, .92) !important;
-            color: #ffffff !important;
-            box-shadow:
-                0 13px 24px rgba(0, 32, 80, .30),
-                inset 0 1px 0 rgba(255,255,255,.24) !important;
-        }
-
-        .pz-btn-orange,
-        .btn.orange {
-            background: linear-gradient(135deg, #D24726, #B93618) !important;
-            border-color: rgba(210, 71, 38, .92) !important;
-            color: #ffffff !important;
-            box-shadow:
-                0 13px 24px rgba(210, 71, 38, .25),
-                inset 0 1px 0 rgba(255,255,255,.24) !important;
-        }
-
-        .pz-btn-glass,
-        .btn.glass {
-            background: rgba(255,255,255,.62) !important;
-            color: #002050 !important;
-            border-color: rgba(177, 214, 240, .74) !important;
-        }
-
-        .btn.danger,
-        .pz-btn-danger {
-            background: rgba(254, 242, 242, .86) !important;
-            color: #DC2626 !important;
-            border-color: rgba(220, 38, 38, .26) !important;
-            box-shadow: 0 10px 22px rgba(220, 38, 38, .08), inset 0 1px 0 rgba(255,255,255,.82) !important;
-        }
-
-        .btn.small {
-            min-height: 34px;
-            padding: 0 12px;
-            border-radius: 999px !important;
-        }
-
-        .icon-btn,
-        .btn-circle,
-        .tb-iconbtn,
-        .tb-bell {
-            border-radius: 14px !important;
-            background: rgba(255,255,255,.68) !important;
-            border: 1px solid rgba(177, 214, 240, .66) !important;
-            color: #002050 !important;
-            box-shadow: 0 10px 22px rgba(0, 32, 80, .07), inset 0 1px 0 rgba(255,255,255,.85) !important;
-            backdrop-filter: blur(12px) saturate(130%);
-            -webkit-backdrop-filter: blur(12px) saturate(130%);
-        }
-
-        .btn-circle {
-            background: linear-gradient(135deg, #1160B7, #0D4F98) !important;
-            border-color: rgba(17, 96, 183, .92) !important;
-            color: #ffffff !important;
-        }
-
-        @media(max-width: 860px) {
-            .pz-liquid-header,
-            .dashboard-hero, .clients-hero, .contracts-hero, .contract-hero, .tasks-hero,
-            .services-hero, .team-hero, .reports-hero, .settings-head, .hero, .page-hero,
-            .stock-hero, .ib-hero, .docs-hero, .document-hero, .email-hero, .pv-hero {
-                border-radius: 18px !important;
-            }
-
-            .pz-liquid-chip,
-            .stat-pill {
-                min-height: 40px;
-            }
-        }
-
         </style>
         <?php
     }
@@ -1845,48 +1701,47 @@ if (!function_exists('app_professional_identity_css')) {
             font-size: 13.5px;
             font-weight: 600;
         }
+        /* === PestZone UI standard: compact, plat, fără texte grele === */
+        body {
+            background: var(--bg);
+            color: var(--text-body);
+            font-size: 13px;
+            letter-spacing: 0;
+        }
 
-
-
-        /* === Premium page header / hero global === */
         .dashboard-hero, .clients-hero, .contracts-hero, .contract-hero, .tasks-hero,
         .services-hero, .team-hero, .reports-hero, .settings-head, .hero, .page-hero,
         .stock-hero, .ib-hero, .docs-hero, .document-hero, .email-hero, .pv-hero {
-            position: relative;
-            overflow: hidden;
-            background: rgba(255,255,255,.96) !important;
-            background-image:
-                radial-gradient(circle at top left, rgba(79,70,229,.09), transparent 32%),
-                linear-gradient(135deg, rgba(255,255,255,.98), rgba(248,250,252,.96)) !important;
-            color: var(--text) !important;
-            border: 1px solid rgba(203,213,225,.72) !important;
-            border-radius: 22px !important;
-            box-shadow: 0 18px 45px rgba(15,23,42,.07), 0 2px 8px rgba(15,23,42,.04) !important;
-            padding: 22px 24px !important;
-            margin-bottom: 16px !important;
+            background: var(--surface) !important;
+            background-image: none !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+            padding: 16px 18px !important;
+            margin-bottom: 14px !important;
         }
 
         .dashboard-hero::before, .clients-hero::before, .contracts-hero::before, .contract-hero::before,
         .tasks-hero::before, .services-hero::before, .team-hero::before, .reports-hero::before,
         .settings-head::before, .hero::before, .page-hero::before, .stock-hero::before,
-        .ib-hero::before, .docs-hero::before, .document-hero::before, .email-hero::before, .pv-hero::before {
-            content: "";
-            position: absolute;
-            inset: 0 auto 0 0;
-            width: 4px;
-            background: linear-gradient(180deg, var(--accent), rgba(79,70,229,.25));
+        .ib-hero::before, .docs-hero::before, .document-hero::before, .email-hero::before, .pv-hero::before,
+        .dashboard-hero::after, .clients-hero::after, .contracts-hero::after, .contract-hero::after,
+        .tasks-hero::after, .services-hero::after, .team-hero::after, .reports-hero::after,
+        .settings-head::after, .hero::after, .page-hero::after, .stock-hero::after,
+        .ib-hero::after, .docs-hero::after, .document-hero::after, .email-hero::after, .pv-hero::after {
+            display: none !important;
         }
 
         .dashboard-hero h1, .clients-hero h1, .contracts-hero h1, .contract-hero h1,
         .tasks-hero h1, .services-hero h1, .team-hero h1, .reports-hero h1,
         .settings-head h1, .hero h1, .page-hero h1, .stock-hero h1,
-        .ib-hero h1, .docs-hero h1, .document-hero h1, .email-hero h1, .pv-hero h1 {
-            margin: 0 !important;
+        .ib-hero h1, .docs-hero h1, .document-hero h1, .email-hero h1, .pv-hero h1,
+        .page-title h1 {
             color: var(--text) !important;
-            font-size: 25px !important;
-            line-height: 1.12 !important;
-            font-weight: 850 !important;
-            letter-spacing: -.04em !important;
+            font-size: 24px !important;
+            line-height: 1.15 !important;
+            font-weight: 700 !important;
+            letter-spacing: 0 !important;
         }
 
         .dashboard-hero p, .clients-hero p, .contracts-hero p, .contract-hero p,
@@ -1894,34 +1749,1220 @@ if (!function_exists('app_professional_identity_css')) {
         .settings-head p, .hero p, .page-hero p, .stock-hero p,
         .ib-hero p, .docs-hero p, .document-hero p, .email-hero p, .pv-hero p {
             color: var(--muted) !important;
-            font-size: 13.5px !important;
-            font-weight: 500 !important;
+            font-size: 12.5px !important;
             line-height: 1.45 !important;
-            margin: 6px 0 0 !important;
-            max-width: 840px;
+            font-weight: 500 !important;
         }
 
-        .hero-pill {
+        .card, .table-card, .clients-card, .tasks-calendar-card,
+        .kpi-card, .stat-card, .report-card, .settings-list,
+        .company-card, .panel, .side-card, .doc-page, .readonly-box,
+        .service-card, .team-card, .client-card, .mobile-contract-card,
+        .clients-list-card, .client-profile-card {
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+        }
+
+        input, select, textarea,
+        .btn, button,
+        .page-btn, .icon-action, .row-menu-trigger {
+            border-radius: 4px !important;
+            box-shadow: none !important;
+        }
+
+        input, select {
+            min-height: 34px;
+            font-size: 12.5px;
+        }
+
+        textarea {
+            font-size: 12.5px;
+        }
+
+        select,
+        .field select,
+        .filter-grid select,
+        .form-grid select,
+        .amount-form select,
+        .clients-toolbar select,
+        #clientModal select,
+        .tasks-filter-line select,
+        .stock-field select,
+        .settings-module-page select,
+        .docs-page select,
+        body.calendar-page .calendar-filter-line .select,
+        body.calendar-page .support-team-select {
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            color-scheme: light !important;
+            width: 100% !important;
+            min-height: 34px !important;
+            height: 34px !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 4px !important;
+            background-color: var(--surface) !important;
+            background-image:
+                linear-gradient(45deg, transparent 50%, #64748B 50%),
+                linear-gradient(135deg, #64748B 50%, transparent 50%) !important;
+            background-position:
+                calc(100% - 14px) 50%,
+                calc(100% - 9px) 50% !important;
+            background-size: 5px 5px, 5px 5px !important;
+            background-repeat: no-repeat !important;
+            color: var(--text-body) !important;
+            padding: 0 28px 0 9px !important;
+            font-size: 12.5px !important;
+            font-weight: 600 !important;
+            line-height: 1.2 !important;
+            box-shadow: none !important;
+            outline: none !important;
+        }
+
+        select:hover,
+        .field select:hover,
+        .filter-grid select:hover,
+        .form-grid select:hover,
+        .amount-form select:hover,
+        .clients-toolbar select:hover,
+        #clientModal select:hover,
+        .tasks-filter-line select:hover,
+        .stock-field select:hover,
+        body.calendar-page .calendar-filter-line .select:hover,
+        body.calendar-page .support-team-select:hover {
+            border-color: var(--accent-pale) !important;
+            background-color: var(--surface) !important;
+        }
+
+        select:focus,
+        select:focus-visible,
+        .field select:focus,
+        .field select:focus-visible,
+        .filter-grid select:focus,
+        .filter-grid select:focus-visible,
+        .form-grid select:focus,
+        .form-grid select:focus-visible,
+        .amount-form select:focus,
+        .amount-form select:focus-visible,
+        .clients-toolbar select:focus,
+        .clients-toolbar select:focus-visible,
+        #clientModal select:focus,
+        #clientModal select:focus-visible,
+        .tasks-filter-line select:focus,
+        .tasks-filter-line select:focus-visible,
+        .stock-field select:focus,
+        .stock-field select:focus-visible,
+        body.calendar-page .calendar-filter-line .select:focus,
+        body.calendar-page .calendar-filter-line .select:focus-visible,
+        body.calendar-page .support-team-select:focus,
+        body.calendar-page .support-team-select:focus-visible {
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, .12) !important;
+            outline: none !important;
+        }
+
+        select:disabled,
+        .field select:disabled,
+        .filter-grid select:disabled,
+        .form-grid select:disabled,
+        .amount-form select:disabled,
+        .clients-toolbar select:disabled,
+        #clientModal select:disabled,
+        .tasks-filter-line select:disabled,
+        .stock-field select:disabled,
+        body.calendar-page .support-team-select:disabled {
+            background-color: var(--surface-soft) !important;
+            color: var(--muted-2) !important;
+            cursor: not-allowed !important;
+        }
+
+        select option {
+            background: #FFFFFF !important;
+            color: #334155 !important;
+            font-weight: 500 !important;
+        }
+
+        select[multiple],
+        select[size]:not([size="1"]) {
+            height: auto !important;
+            min-height: 82px !important;
+            background-image: none !important;
+            padding-right: 9px !important;
+        }
+
+        body.calendar-page .cal-team-summary,
+        body.calendar-page .cal-view-summary {
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            color-scheme: light !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 100% !important;
+            min-height: 34px !important;
+            height: 34px !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 4px !important;
+            background: var(--surface) !important;
+            color: var(--text-body) !important;
+            padding: 0 28px !important;
+            font-size: 12.5px !important;
+            font-weight: 600 !important;
+            line-height: 1.2 !important;
+            box-shadow: none !important;
+            outline: none !important;
+        }
+
+        body.calendar-page .cal-team-summary-label,
+        body.calendar-page .cal-view-summary-label {
+            display: block !important;
+            max-width: 100% !important;
+            text-align: center !important;
+            line-height: 1.2 !important;
+        }
+
+        body.calendar-page .cal-team-summary:hover,
+        body.calendar-page .cal-view-summary:hover {
+            border-color: var(--accent-pale) !important;
+        }
+
+        body.calendar-page .cal-team-summary:focus,
+        body.calendar-page .cal-team-summary:focus-visible,
+        body.calendar-page .cal-view-summary:focus,
+        body.calendar-page .cal-view-summary:focus-visible,
+        body.calendar-page .cal-team-picker.open .cal-team-summary,
+        body.calendar-page .cal-view-picker.open .cal-view-summary {
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, .12) !important;
+            outline: none !important;
+        }
+
+        body.calendar-page .cal-team-caret,
+        body.calendar-page .cal-view-caret {
+            line-height: 34px !important;
+            color: var(--muted) !important;
+        }
+
+        .btn {
+            min-height: 34px;
+            padding: 7px 11px;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
+        table th {
+            color: var(--muted) !important;
+            font-size: 10.5px !important;
+            font-weight: 800 !important;
+            letter-spacing: 0 !important;
+        }
+
+        table td {
+            color: var(--text-body);
+            font-size: 12.5px !important;
+            font-weight: 600;
+        }
+
+        .badge, .status-badge, .chip, .stat-pill, .hero-pill,
+        .type-pill, .status-pill, .client-status-badge, .pill,
+        .trend-chip, .eff-grade-pill, .badge-count {
+            border-radius: 4px !important;
+            box-shadow: none !important;
+            font-size: 11px !important;
+            font-weight: 800 !important;
+        }
+
+        .dash-greeting, .dash-kpi-card, .panel, .exec-hero, .exec-card,
+        .fin-card, .fin-row, .agenda-row, .eff-summary-card, .eff-row,
+        .docs-page .doc-row, .docs-page .quick-card, .invoice-item, .payment-box, .summary-card,
+        .metric, .location-item, .history-item, .info-box, .form-section,
+        .stock-hero, .stock-card, .stock-kpi, .stock-note,
+        .tasks-hero, .tasks-calendar-card {
+            background: var(--surface) !important;
+            background-image: none !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+
+        .dash-greeting::before, .dash-greeting::after,
+        .dash-kpi-card::before, .dash-kpi-card::after,
+        .panel::before, .panel::after,
+        .exec-hero::before, .exec-hero::after,
+        .exec-card::before, .exec-card::after,
+        .eff-summary-card::before, .eff-summary-card::after,
+        .tasks-hero::before, .tasks-hero::after,
+        .stock-hero::before, .stock-hero::after {
+            display: none !important;
+        }
+
+        .dash-hero-action, .exec-card-link, .ib-small-btn,
+        .amount-form input, .amount-form select, .no-bill-box input,
+        .field select, .filter-grid input, .filter-grid select,
+        .tasks-action-line .btn, .tasks-filter-line .btn,
+        .tasks-filter-line select, .tasks-filter-line input,
+        .stock-tabs a, .stock-actions .btn, .stock-actions a.btn {
+            min-height: 34px !important;
+            border-radius: 4px !important;
+            box-shadow: none !important;
+            font-size: 12.5px !important;
+        }
+
+        .eff-tabs, .team-tile .tile-bar, .eff-row-bar,
+        .stock-tabs a, .stock-badge {
+            border-radius: 4px !important;
+            box-shadow: none !important;
+        }
+
+        .stock-badge {
+            min-height: 21px !important;
+            padding: 3px 7px !important;
+            font-size: 11px !important;
+            font-weight: 800 !important;
+        }
+
+        .stock-hero h1, .tasks-hero h1 {
             color: var(--text) !important;
-            border: 1px solid rgba(203,213,225,.85) !important;
-            background: rgba(248,250,252,.92) !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
+            font-size: 24px !important;
+            line-height: 1.15 !important;
+            letter-spacing: 0 !important;
+            font-weight: 700 !important;
         }
 
-        @media(max-width: 860px) {
-            .dashboard-hero, .clients-hero, .contracts-hero, .contract-hero, .tasks-hero,
-            .services-hero, .team-hero, .reports-hero, .settings-head, .hero, .page-hero,
-            .stock-hero, .ib-hero, .docs-hero, .document-hero, .email-hero, .pv-hero {
-                border-radius: 18px !important;
-                padding: 18px 16px !important;
-            }
+        .stock-hero p, .tasks-hero p {
+            color: var(--muted) !important;
+            font-size: 12.5px !important;
+            line-height: 1.45 !important;
+            font-weight: 500 !important;
+        }
 
-            .dashboard-hero h1, .clients-hero h1, .contracts-hero h1, .contract-hero h1,
-            .tasks-hero h1, .services-hero h1, .team-hero h1, .reports-hero h1,
-            .settings-head h1, .hero h1, .page-hero h1, .stock-hero h1,
-            .ib-hero h1, .docs-hero h1, .document-hero h1, .email-hero h1, .pv-hero h1 {
-                font-size: 21px !important;
-            }
+        .stock-kpi .label,
+        .stock-field label {
+            color: var(--muted) !important;
+            font-size: 10.5px !important;
+            letter-spacing: 0 !important;
+            font-weight: 800 !important;
+        }
+
+        .stock-kpi .value {
+            color: var(--text) !important;
+            font-size: 24px !important;
+            letter-spacing: 0 !important;
+            font-weight: 750 !important;
+        }
+
+        .stock-hero {
+            display: flex !important;
+            align-items: flex-start !important;
+            justify-content: space-between !important;
+            gap: 12px !important;
+            flex-wrap: wrap !important;
+        }
+
+        .stock-card {
+            padding: 14px !important;
+            margin-bottom: 14px !important;
+        }
+
+        .stock-grid,
+        .stock-grid-3,
+        .stock-grid-4 {
+            display: grid !important;
+            gap: 12px !important;
+        }
+
+        .stock-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+        .stock-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+        .stock-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+
+        .stock-kpis {
+            display: grid !important;
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: 12px !important;
+            margin-bottom: 14px !important;
+        }
+
+        .stock-field label {
+            display: block !important;
+            margin-bottom: 5px !important;
+            text-transform: uppercase !important;
+        }
+
+        .stock-field small {
+            display: block !important;
+            color: var(--muted) !important;
+            font-size: 11.5px !important;
+            margin-top: 4px !important;
+        }
+
+        .stock-tabs {
+            display: flex !important;
+            gap: 6px !important;
+            flex-wrap: wrap !important;
+            margin: 0 0 14px !important;
+        }
+
+        .stock-tabs a {
+            min-height: 34px !important;
+            padding: 7px 11px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            border: 1px solid var(--border) !important;
+            background: var(--surface) !important;
+            color: var(--muted) !important;
+            text-decoration: none !important;
+            font-weight: 700 !important;
+        }
+
+        .stock-tabs a.active {
+            background: var(--accent) !important;
+            border-color: var(--accent) !important;
+            color: #fff !important;
+        }
+
+        .stock-table-wrap {
+            width: 100% !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+        }
+
+        .stock-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 12.5px !important;
+        }
+
+        .stock-table th,
+        .stock-table td {
+            padding: 8px 9px !important;
+            border-bottom: 1px solid var(--border2) !important;
+            text-align: left !important;
+            vertical-align: top !important;
+        }
+
+        .stock-table th {
+            background: var(--surface-soft) !important;
+            white-space: nowrap !important;
+        }
+
+        .stock-actions {
+            display: flex !important;
+            gap: 7px !important;
+            align-items: center !important;
+            flex-wrap: wrap !important;
+        }
+
+        .stock-alert-row {
+            background: var(--tone-danger-bg) !important;
+        }
+
+        .stock-note {
+            padding: 11px 12px !important;
+            color: var(--muted) !important;
+            font-size: 12.5px !important;
+            margin-bottom: 12px !important;
+        }
+
+        body.calendar-page .calendar-topbar,
+        body.calendar-page .calendar-toolbar,
+        body.calendar-page .calendar-date-line,
+        body.calendar-page .calendar-filter-line,
+        body.calendar-page .calendar-action-line {
+            box-shadow: none !important;
+        }
+
+        body.calendar-page .calendar-date-line .btn,
+        body.calendar-page .calendar-action-line .btn,
+        body.calendar-page .calendar-date-form .date-input,
+        body.calendar-page .calendar-filter-line .select,
+        body.calendar-page .cal-team-summary,
+        body.calendar-page .cal-view-summary,
+        body.calendar-page .support-add-btn,
+        body.calendar-page .support-remove-btn,
+        body.calendar-page .support-team-select,
+        body.calendar-page .pz-autocomplete-input,
+        body.calendar-page .pz-autocomplete-selected,
+        body.calendar-page .pz-autocomplete-results,
+        body.calendar-page .mini-check {
+            border-radius: 4px !important;
+            box-shadow: none !important;
+        }
+
+        body.calendar-page .calendar-date-line .nav-arrow,
+        body.calendar-page .calendar-date-line .nav-today-btn,
+        body.calendar-page .calendar-date-form .date-input,
+        body.calendar-page .calendar-filter-line .select,
+        body.calendar-page .cal-team-summary,
+        body.calendar-page .cal-view-summary,
+        body.calendar-page .calendar-action-line .btn {
+            height: 34px !important;
+            min-height: 34px !important;
+            font-size: 12.5px !important;
+            font-weight: 700 !important;
+        }
+
+        body.calendar-page .calendar-date-line .nav-today-btn,
+        body.calendar-page .calendar-date-form .date-input {
+            background: var(--accent) !important;
+            border-color: var(--accent) !important;
+            color: #fff !important;
+        }
+
+        body.calendar-page .calendar-filter-line .view-select,
+        body.calendar-page .cal-team-summary,
+        body.calendar-page .cal-view-summary {
+            border: 1px solid var(--border) !important;
+            background: var(--surface) !important;
+            color: var(--text-body) !important;
+        }
+
+        body.calendar-page .calendar-team-chip,
+        body.calendar-page .event-done-badge,
+        body.calendar-page .team-greeting-count,
+        body.calendar-page .month-mini-team-bar,
+        body.calendar-page .month-mini-dot {
+            border-radius: 4px !important;
+            box-shadow: none !important;
+        }
+
+        body.calendar-page .team-greeting,
+        body.calendar-page .schedule-scroll,
+        body.calendar-page .fc-card,
+        body.calendar-page .readonly-box,
+        body.calendar-page .office-note-box,
+        body.calendar-page .pz-autocomplete-results {
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+
+        body.calendar-page .time-head,
+        body.calendar-page .team-head,
+        body.calendar-page .team-dot,
+        body.calendar-page .event,
+        body.calendar-page .event.done,
+        body.calendar-page .fc-event,
+        body.calendar-page .fc-event-finalizata {
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+
+        body.calendar-page .team-head,
+        body.calendar-page .time-head,
+        body.calendar-page .time-cell,
+        body.calendar-page .slot-cell {
+            border-color: var(--border) !important;
+        }
+
+        body.calendar-page .slot-cell.off-hours,
+        body.calendar-page .time-cell.off-hours {
+            background: var(--surface-muted) !important;
+            color: var(--muted) !important;
+        }
+
+        body.calendar-page .fc .fc-daygrid-day-frame {
+            background: var(--surface) !important;
+            box-shadow: none !important;
+        }
+
+        body.calendar-page .fc .fc-day-today .fc-daygrid-day-frame {
+            background: var(--tone-info-bg) !important;
+            box-shadow: inset 0 0 0 1px var(--accent-pale) !important;
+        }
+
+        body.calendar-page .fc-event-month-box {
+            border-radius: 4px !important;
+            box-shadow: none !important;
+        }
+
+        /* Icon standard: outline, monocrom, fără fundaluri colorate decorative. */
+        .nav-icon,
+        .btn .nav-icon,
+        .icon-btn .nav-icon,
+        .btn-circle .nav-icon,
+        .tb-iconbtn .nav-icon,
+        .tb-bell .nav-icon,
+        .tdi-icon,
+        .stat-icon,
+        .setting-icon {
+            color: currentColor !important;
+            background: transparent !important;
+            border-color: var(--border) !important;
+            box-shadow: none !important;
+        }
+
+        .nav-icon svg,
+        .btn svg,
+        .icon-btn svg,
+        .btn-circle svg,
+        .tb-iconbtn svg,
+        .tb-bell svg,
+        .tdi-icon svg,
+        .tdi-icon .nav-icon svg,
+        .setting-icon svg {
+            fill: none !important;
+            stroke: currentColor !important;
+            stroke-width: 1.8 !important;
+            stroke-linecap: round !important;
+            stroke-linejoin: round !important;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .tdi-icon {
+            width: 30px !important;
+            height: 30px !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 4px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            color: var(--muted) !important;
+        }
+
+        .tb-dropdown-item.tone-info .tdi-icon,
+        .tb-dropdown-item.tone-success .tdi-icon,
+        .tb-dropdown-item.tone-warning .tdi-icon,
+        .tb-dropdown-item.tone-danger .tdi-icon {
+            background: transparent !important;
+            color: var(--muted) !important;
+            border-color: var(--border) !important;
+        }
+
+        .stat-icon {
+            width: 24px !important;
+            min-width: 24px !important;
+            height: 24px !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 4px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 !important;
+            color: var(--muted) !important;
+            line-height: 1 !important;
+        }
+
+        .stat-icon .nav-icon,
+        .stat-icon .nav-icon svg,
+        .stat-icon > svg {
+            width: 14px !important;
+            height: 14px !important;
+            display: block !important;
+            stroke-width: 1.9 !important;
+        }
+
+        .stat-pill.stat-active .stat-icon,
+        .stat-pill.stat-today .stat-icon,
+        .stat-pill.stat-overdue .stat-icon {
+            background: transparent !important;
+            color: var(--muted) !important;
+            border-color: var(--border) !important;
+        }
+
+        .tasks-topbar,
+        .tasks-toolbar,
+        .tasks-view-switcher,
+        .tasks-filter-line,
+        .tasks-action-line {
+            box-shadow: none !important;
+        }
+
+        .tasks-view-switcher .task-view-btn,
+        .tasks-action-line .btn,
+        .tasks-filter-line .btn,
+        .tasks-filter-line select,
+        .tasks-filter-line input,
+        .tasks-status-legend span,
+        .tasks-calendar-card .fc-button,
+        .fc-event.fc-task-event {
+            border-radius: 4px !important;
+            box-shadow: none !important;
+        }
+
+        .tasks-view-switcher .task-view-btn,
+        .tasks-action-line .btn,
+        .tasks-filter-line .btn,
+        .tasks-filter-line select,
+        .tasks-filter-line input {
+            min-height: 34px !important;
+            height: 34px !important;
+            font-size: 12.5px !important;
+            font-weight: 700 !important;
+        }
+
+        .tasks-view-switcher .task-view-btn.active,
+        .tasks-action-line .btn.accent {
+            background: var(--accent) !important;
+            border-color: var(--accent) !important;
+            color: #fff !important;
+        }
+
+        .tasks-calendar-card .fc .fc-scrollgrid,
+        .tasks-calendar-card .fc-theme-standard td,
+        .tasks-calendar-card .fc-theme-standard th {
+            border-color: var(--border) !important;
+        }
+
+        .tasks-calendar-card .fc .fc-daygrid-day-frame {
+            background: var(--surface) !important;
+            box-shadow: none !important;
+        }
+
+        .tasks-calendar-card .fc .fc-day-today .fc-daygrid-day-frame {
+            background: var(--tone-info-bg) !important;
+            box-shadow: inset 0 0 0 1px var(--accent-pale) !important;
+        }
+
+        .task-details-grid,
+        .task-details-row {
+            border-color: var(--border) !important;
+        }
+
+        .settings-page {
+            max-width: 1120px !important;
+            margin: 0 auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 14px !important;
+        }
+
+        .settings-module-page {
+            max-width: 1180px !important;
+            margin: 0 auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 12px !important;
+        }
+
+        .module-head {
+            display: flex !important;
+            justify-content: space-between !important;
+            gap: 14px !important;
+            align-items: flex-start !important;
+            flex-wrap: wrap !important;
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+            padding: 14px 16px !important;
+        }
+
+        .module-head h1 {
+            margin: 0 !important;
+            color: var(--text) !important;
+            font-size: 20px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0 !important;
+        }
+
+        .module-head p {
+            margin: 3px 0 0 !important;
+            color: var(--muted) !important;
+            font-size: 12px !important;
+            font-weight: 500 !important;
+        }
+
+        .settings-module-page .grid {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 12px !important;
+        }
+
+        .settings-module-page .row {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 8px !important;
+        }
+
+        .settings-module-page .full {
+            grid-column: 1 / -1 !important;
+        }
+
+        .settings-eyebrow,
+        .section-label,
+        .details-label {
+            color: var(--muted) !important;
+            font-size: 10.5px !important;
+            font-weight: 800 !important;
+            letter-spacing: 0 !important;
+            text-transform: uppercase !important;
+        }
+
+        .settings-eyebrow::before,
+        .settings-head::before,
+        .section-label::after {
+            display: none !important;
+        }
+
+        .setting-row {
+            display: grid !important;
+            grid-template-columns: 40px minmax(0, 1fr) 34px !important;
+            gap: 12px !important;
+            align-items: center !important;
+            padding: 13px 14px !important;
+            border-bottom: 1px solid var(--border2) !important;
+            color: inherit !important;
+            text-decoration: none !important;
+            transform: none !important;
+        }
+
+        .setting-row:hover {
+            background: var(--surface-soft) !important;
+            transform: none !important;
+        }
+
+        .setting-icon,
+        .setting-arrow,
+        .company-logo,
+        .team-dot {
+            border-radius: 4px !important;
+            box-shadow: none !important;
+        }
+
+        .setting-icon,
+        .setting-arrow {
+            background: var(--surface-soft) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--accent) !important;
+        }
+
+        .setting-icon {
+            width: 34px !important;
+            height: 34px !important;
+        }
+
+        .setting-arrow {
+            width: 32px !important;
+            height: 32px !important;
+            font-size: 18px !important;
+        }
+
+        .setting-title,
+        .service-title,
+        .team-title,
+        .panel-title,
+        .doc-title {
+            color: var(--text) !important;
+            font-size: 14px !important;
+            font-weight: 750 !important;
+            letter-spacing: 0 !important;
+        }
+
+        .setting-desc,
+        .service-desc,
+        .team-sub,
+        .panel-subtitle,
+        .doc-meta {
+            color: var(--muted) !important;
+            font-size: 12px !important;
+            font-weight: 500 !important;
+            line-height: 1.4 !important;
+        }
+
+        .company-card,
+        .reset-card,
+        .services-hero,
+        .team-hero,
+        .service-card,
+        .team-card,
+        .empty-state,
+        .details-row,
+        .alert,
+        .docs-page .doc-row,
+        .docs-page .quick-card {
+            background: var(--surface) !important;
+            background-image: none !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+        }
+
+        .company-card {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 12px !important;
+            padding: 14px !important;
+        }
+
+        .company-logo {
+            width: 64px !important;
+            height: 44px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border: 1px solid var(--border) !important;
+            background: var(--surface-soft) !important;
+            color: var(--accent) !important;
+            font-size: 12px !important;
+            font-weight: 750 !important;
+            text-align: center !important;
+        }
+
+        .company-name {
+            color: var(--text) !important;
+            font-size: 15px !important;
+            font-weight: 750 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+
+        .company-sub {
+            color: var(--muted) !important;
+            font-size: 12px !important;
+            font-weight: 500 !important;
+            margin-top: 3px !important;
+        }
+
+        .admin-note {
+            background: var(--tone-warning-bg) !important;
+            color: var(--tone-warning) !important;
+            border: 1px solid rgba(154, 52, 18, .18) !important;
+            border-radius: 8px !important;
+            padding: 11px 12px !important;
+            font-size: 12.5px !important;
+            font-weight: 600 !important;
+            line-height: 1.45 !important;
+        }
+
+        .settings-module-page .card,
+        .settings-module-page .panel,
+        .settings-module-page .alert,
+        .settings-module-page .notice {
+            border-radius: 8px !important;
+            box-shadow: none !important;
+        }
+
+        .settings-module-page .card,
+        .settings-module-page .panel {
+            padding: 14px !important;
+        }
+
+        .settings-module-page h2 {
+            margin-top: 0 !important;
+            font-size: 15px !important;
+            letter-spacing: 0 !important;
+        }
+
+        .settings-module-page label {
+            font-size: 10.5px !important;
+            letter-spacing: 0 !important;
+        }
+
+        .settings-module-page input,
+        .settings-module-page select,
+        .settings-module-page textarea {
+            min-height: 36px !important;
+            border-radius: 4px !important;
+            padding-top: 7px !important;
+            padding-bottom: 7px !important;
+            font-size: 12.5px !important;
+            box-shadow: none !important;
+        }
+
+        .settings-module-page .btn {
+            min-height: 34px !important;
+            border-radius: 4px !important;
+            padding-top: 7px !important;
+            padding-bottom: 7px !important;
+            font-size: 12px !important;
+        }
+
+        .settings-action-toolbar {
+            justify-content: flex-start !important;
+        }
+
+        .reset-card .setting-title {
+            color: var(--tone-danger) !important;
+        }
+
+        .reset-card .setting-desc {
+            color: #7f1d1d !important;
+        }
+
+        .services-hero,
+        .team-hero {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 14px !important;
+            flex-wrap: wrap !important;
+            color: var(--text) !important;
+        }
+
+        .services-topbar,
+        .team-topbar,
+        .docs-topbar,
+        .offer-topbar {
+            align-items: center !important;
+            padding: 12px 20px !important;
+        }
+
+        .services-toolbar,
+        .team-toolbar,
+        .docs-toolbar,
+        .offer-toolbar {
+            width: 100% !important;
+            min-width: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: flex-end !important;
+            gap: 8px !important;
+            flex-wrap: wrap !important;
+        }
+
+        .services-grid,
+        .team-grid {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 12px !important;
+        }
+
+        .service-card,
+        .team-card {
+            min-width: 0 !important;
+            padding: 14px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 12px !important;
+        }
+
+        .service-title-row,
+        .team-headline,
+        .team-main,
+        .company-left {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            min-width: 0 !important;
+        }
+
+        .service-title-row,
+        .team-headline {
+            justify-content: space-between !important;
+            align-items: flex-start !important;
+        }
+
+        .service-meta,
+        .team-meta,
+        .stats,
+        .hero-actions,
+        .doc-actions {
+            display: flex !important;
+            gap: 6px !important;
+            flex-wrap: wrap !important;
+        }
+
+        .service-pill,
+        .team-pill {
+            background: var(--surface-soft) !important;
+            border: 1px solid var(--border2) !important;
+            border-radius: 4px !important;
+            color: var(--muted) !important;
+            font-size: 11px !important;
+            font-weight: 800 !important;
+            padding: 4px 7px !important;
+        }
+
+        .service-actions,
+        .team-actions {
+            margin-top: auto !important;
+            display: flex !important;
+            gap: 7px !important;
+            flex-wrap: wrap !important;
+        }
+
+        .service-actions .btn,
+        .service-actions button,
+        .team-actions .btn {
+            min-width: 0 !important;
+            flex: 1 1 auto !important;
+        }
+
+        .details-grid {
+            display: grid !important;
+            gap: 8px !important;
+        }
+
+        .details-row {
+            display: grid !important;
+            grid-template-columns: 135px 1fr !important;
+            gap: 10px !important;
+            padding: 9px 0 !important;
+            border-width: 0 0 1px !important;
+            border-radius: 0 !important;
+        }
+
+        .service-checkbox {
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            font-weight: 800 !important;
+            text-transform: none !important;
+            letter-spacing: 0 !important;
+            margin: 0 !important;
+        }
+
+        .service-checkbox input[type="checkbox"] {
+            width: 16px !important;
+            height: 16px !important;
+            min-height: 16px !important;
+            flex: 0 0 auto !important;
+        }
+
+        .docs-hero,
+        .offer-hero {
+            display: flex !important;
+            justify-content: space-between !important;
+            gap: 14px !important;
+            align-items: flex-start !important;
+            flex-wrap: wrap !important;
+        }
+
+        .hero-actions {
+            display: flex !important;
+            gap: 7px !important;
+            flex-wrap: wrap !important;
+            justify-content: flex-end !important;
+        }
+
+        .docs-page .stats-grid,
+        .docs-page .quick-grid {
+            display: grid !important;
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: 12px !important;
+            margin-bottom: 14px !important;
+        }
+
+        .docs-page .quick-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        }
+
+        .panel {
+            overflow: hidden !important;
+            margin-bottom: 14px !important;
+        }
+
+        .panel-head {
+            padding: 13px 14px !important;
+            border-bottom: 1px solid var(--border2) !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            gap: 10px !important;
+            align-items: center !important;
+            flex-wrap: wrap !important;
+        }
+
+        .panel-body {
+            padding: 14px !important;
+        }
+
+        .docs-page .filter-form {
+            display: grid !important;
+            grid-template-columns: minmax(220px, 1.2fr) 160px 160px 145px 145px 110px auto !important;
+            gap: 10px !important;
+            align-items: end !important;
+        }
+
+        .field label {
+            display: block !important;
+            color: var(--muted) !important;
+            font-size: 10.5px !important;
+            font-weight: 800 !important;
+            margin: 0 0 5px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0 !important;
+        }
+
+        .field input,
+        .field select,
+        .field textarea {
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        .docs-page .docs-list {
+            display: grid !important;
+            gap: 10px !important;
+        }
+
+        .docs-page .doc-row {
+            padding: 12px !important;
+            display: grid !important;
+            grid-template-columns: minmax(250px, 1.2fr) minmax(135px, .45fr) minmax(170px, .55fr) minmax(120px, .35fr) minmax(115px, .3fr) auto !important;
+            gap: 10px !important;
+            align-items: center !important;
+        }
+
+        .docs-page .doc-number {
+            color: var(--text) !important;
+            font-weight: 750 !important;
+        }
+
+        .docs-page .email-state {
+            color: var(--muted) !important;
+            font-size: 12px !important;
+            font-weight: 700 !important;
+        }
+
+        .docs-page .email-state.sent {
+            color: var(--tone-success) !important;
+        }
+
+        .pagination {
+            display: flex !important;
+            gap: 6px !important;
+            justify-content: flex-end !important;
+            align-items: center !important;
+            flex-wrap: wrap !important;
+            margin-top: 12px !important;
+        }
+
+        .docs-page .quick-card {
+            padding: 12px !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            gap: 10px !important;
+            align-items: center !important;
+        }
+
+        .docs-page .quick-card strong {
+            display: block !important;
+            color: var(--text) !important;
+            font-size: 13px !important;
+            font-weight: 750 !important;
+        }
+
+        .docs-page .quick-card span {
+            display: block !important;
+            margin-top: 3px !important;
+            color: var(--muted) !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+        }
+
+        .setting-icon,
+        .stat-icon,
+        .tdi-icon {
+            background: transparent !important;
+            color: var(--muted) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 4px !important;
+            box-shadow: none !important;
+        }
+
+        .team-tile .tile-bar > span,
+        .eff-row-bar > span,
+        .mini-bar {
+            border-radius: 4px !important;
         }
 
         @media(max-width: 860px) {
@@ -1929,6 +2970,173 @@ if (!function_exists('app_professional_identity_css')) {
             .page-title h1, .dashboard-hero h1, .clients-hero h1, .contracts-hero h1,
             .tasks-hero h1, .services-hero h1, .team-hero h1, .reports-hero h1 {
                 font-size: 19px;
+            }
+
+            .stock-grid,
+            .stock-grid-3,
+            .stock-grid-4,
+            .stock-kpis {
+                grid-template-columns: 1fr !important;
+            }
+
+            .services-grid,
+            .team-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            .setting-row {
+                grid-template-columns: 34px minmax(0, 1fr) 32px !important;
+                padding: 12px !important;
+            }
+
+            .details-row {
+                grid-template-columns: 1fr !important;
+                gap: 3px !important;
+            }
+
+            .settings-module-page .grid,
+            .settings-module-page .row {
+                grid-template-columns: 1fr !important;
+            }
+
+            .company-card {
+                align-items: stretch !important;
+                flex-direction: column !important;
+            }
+
+            .company-card .btn {
+                width: 100% !important;
+                justify-content: center !important;
+            }
+
+            .docs-page .stats-grid,
+            .docs-page .quick-grid,
+            .docs-page .filter-form,
+            .docs-page .doc-row {
+                grid-template-columns: 1fr !important;
+            }
+
+            .docs-page .doc-actions,
+            .hero-actions {
+                justify-content: flex-start !important;
+            }
+        }
+
+        @media(max-width: 760px) {
+            .stock-hero {
+                display: block !important;
+                padding: 14px !important;
+                margin-bottom: 10px !important;
+            }
+
+            .stock-hero h1 {
+                font-size: 21px !important;
+                line-height: 1.1 !important;
+                margin: 0 !important;
+            }
+
+            .stock-hero p {
+                max-width: 100% !important;
+                margin: 6px 0 0 !important;
+                font-size: 11.5px !important;
+                line-height: 1.35 !important;
+            }
+
+            .stock-actions {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 6px !important;
+                margin-top: 12px !important;
+            }
+
+            .stock-actions .btn,
+            .stock-actions a.btn,
+            .stock-tabs a {
+                width: 100% !important;
+                min-height: 34px !important;
+                justify-content: center !important;
+                padding: 7px 8px !important;
+                font-size: 11.5px !important;
+                line-height: 1.1 !important;
+                text-align: center !important;
+            }
+
+            .stock-tabs {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                gap: 6px !important;
+                margin-bottom: 10px !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                scrollbar-width: none !important;
+            }
+
+            .stock-tabs::-webkit-scrollbar {
+                display: none !important;
+            }
+
+            .stock-tabs a {
+                width: auto !important;
+                min-width: max-content !important;
+                flex: 0 0 auto !important;
+                white-space: nowrap !important;
+            }
+
+            .stock-kpis {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 8px !important;
+                margin-bottom: 10px !important;
+            }
+
+            .stock-kpi {
+                min-height: 76px !important;
+                padding: 10px !important;
+            }
+
+            .stock-kpi .label {
+                font-size: 9.5px !important;
+                line-height: 1.15 !important;
+            }
+
+            .stock-kpi .value {
+                margin-top: 5px !important;
+                font-size: 24px !important;
+                line-height: 1 !important;
+            }
+
+            .stock-card {
+                padding: 12px !important;
+                margin-bottom: 10px !important;
+            }
+
+            .stock-card h2 {
+                margin-bottom: 10px !important;
+                font-size: 18px !important;
+                line-height: 1.15 !important;
+            }
+
+            .stock-table {
+                min-width: 640px !important;
+                font-size: 11px !important;
+            }
+
+            .stock-table th,
+            .stock-table td {
+                padding: 7px 8px !important;
+                line-height: 1.25 !important;
+            }
+
+            .stock-badge {
+                min-height: 20px !important;
+                padding: 3px 6px !important;
+                font-size: 10px !important;
+            }
+
+            .notice {
+                padding: 10px 12px !important;
+                margin-bottom: 10px !important;
+                font-size: 12px !important;
+                line-height: 1.35 !important;
             }
         }
         </style>
@@ -1939,8 +3147,8 @@ if (!function_exists('app_professional_identity_css')) {
 if (!function_exists('app_brand_logo')) {
     function app_brand_logo(string $class = 'brand-logo'): string
     {
-        // Foloseste iconul/logo-ul existent al clientului, daca este incarcat in /assets.
-        // Ordinea permite sa pui pe server oricare dintre fisierele de mai jos fara sa modifici codul.
+        // Foloseste iconul/logo-ul existent al clientului, dacă este incarcat in /assets.
+        // Ordinea permite să pui pe server oricare dintre fișierele de mai jos fără să modifici codul.
         $logoCandidates = [
             'assets/brand-icon.png',
             'assets/brand-icon.svg',
@@ -1980,7 +3188,7 @@ if (!function_exists('render_mobile_app_header')) {
 |--------------------------------------------------------------------------
 | app_topbar() - Header global, opt-in pe fiecare pagina
 |--------------------------------------------------------------------------
-| Apel: app_topbar('Dashboard', ['Astazi']);
+| Apel: app_topbar('Dashboard', ['Astăzi']);
 | Pune-l imediat sub <main class="main"> in fiecare pagina cand esti gata.
 | Nu modifica nimic in paginile care nu il apeleaza.
 |--------------------------------------------------------------------------
@@ -1997,18 +3205,18 @@ if (!function_exists('app_topbar')) {
         .app-topbar {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             min-height: var(--topbar-height);
             padding: 10px 18px;
-            background: rgba(255,255,255,.92);
+            background: #FFFFFF;
             border-bottom: 1px solid var(--border);
             position: fixed;
             top: 0;
             left: var(--sidebar-width);
             right: 0;
             z-index: 50;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
         }
         /* Compensam pentru topbar-ul fixed - continutul incepe sub el */
         body:has(.app-topbar) .main { padding-top: var(--topbar-height); }
@@ -2036,10 +3244,10 @@ if (!function_exists('app_topbar')) {
             flex: 1;
             min-width: 0;
             max-width: 380px;
-            height: 36px;
+            height: 34px;
             background: var(--surface-soft);
             border: 1px solid var(--border);
-            border-radius: 10px;
+            border-radius: 4px;
             display: flex;
             align-items: center;
             gap: 9px;
@@ -2056,7 +3264,7 @@ if (!function_exists('app_topbar')) {
         .app-topbar .tb-search:focus-within {
             background: var(--surface);
             border-color: var(--tone-info);
-            box-shadow: var(--focus-ring);
+            box-shadow: none;
         }
         .app-topbar .tb-search .nav-icon, .app-topbar .tb-search > svg {
             width: 14px;
@@ -2107,9 +3315,9 @@ if (!function_exists('app_topbar')) {
         .app-topbar .tb-iconbtn,
         .app-topbar .tb-bell {
             position: relative;
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
+            width: 34px;
+            height: 34px;
+            border-radius: 4px;
             border: 1px solid var(--border);
             background: var(--surface);
             color: var(--muted);
@@ -2138,7 +3346,10 @@ if (!function_exists('app_topbar')) {
             fill: none;
             stroke: currentColor;
         }
-        /* Cand un dropdown e deschis, butonul lui ramane evidentiat */
+        .app-topbar .tb-search-mobile {
+            display: none !important;
+        }
+        /* Cand un dropdown e deschis, butonul lui rămâne evidentiat */
         .tb-menu.is-open .tb-iconbtn,
         .tb-menu.is-open .tb-bell {
             background: var(--surface-soft);
@@ -2168,8 +3379,8 @@ if (!function_exists('app_topbar')) {
             min-width: 250px;
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            box-shadow: var(--shadow-lg);
+            border-radius: 8px;
+            box-shadow: none;
             padding: 6px;
             display: none;
             flex-direction: column;
@@ -2220,10 +3431,15 @@ if (!function_exists('app_topbar')) {
         .tb-dropdown-item .tdi-icon .nav-icon svg {
             width: 16px; height: 16px; stroke-width: 2;
         }
-        .tb-dropdown-item.tone-info    .tdi-icon { background: var(--tone-info-soft);    color: var(--tone-info); }
-        .tb-dropdown-item.tone-success .tdi-icon { background: var(--tone-success-soft); color: var(--tone-success); }
-        .tb-dropdown-item.tone-warning .tdi-icon { background: var(--tone-warning-soft); color: var(--tone-warning); }
-        .tb-dropdown-item.tone-danger  .tdi-icon { background: var(--tone-danger-soft);  color: var(--tone-danger); }
+        .tb-dropdown-item.tone-info .tdi-icon,
+        .tb-dropdown-item.tone-success .tdi-icon,
+        .tb-dropdown-item.tone-warning .tdi-icon,
+        .tb-dropdown-item.tone-danger .tdi-icon {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
 
         .tb-dropdown-item .tdi-label { line-height: 1.2; }
         .tb-dropdown-item .tdi-sub {
@@ -2252,6 +3468,9 @@ if (!function_exists('app_topbar')) {
                 padding-right: 12px;
             }
             .app-topbar .tb-search { display: none; }
+            .app-topbar .tb-search-mobile {
+                display: inline-flex !important;
+            }
             .app-topbar .tb-breadcrumb { font-size: 12px; }
             body:has(.app-topbar) .main { padding-top: var(--topbar-height); }
         }
@@ -2270,7 +3489,7 @@ if (!function_exists('app_topbar')) {
             <?php if ($showSearch): ?>
                 <form class="tb-search" action="clients.php" method="get" role="search" id="tbSearchForm">
                     <?= app_icon_svg('search') ?>
-                    <input type="search" name="q" id="tbSearchInput" placeholder="Cauta clienti dupa nume, CUI, telefon…" autocomplete="off" value="<?= app_h($_GET['q'] ?? '') ?>">
+                    <input type="search" name="q" id="tbSearchInput" placeholder="Caută client" autocomplete="off" value="<?= app_h($_GET['q'] ?? '') ?>">
                     <span class="tb-kbd">Cmd K</span>
                 </form>
             <?php else: ?>
@@ -2278,6 +3497,19 @@ if (!function_exists('app_topbar')) {
             <?php endif; ?>
 
             <div class="tb-actions">
+                <?php if ($showSearch): ?>
+                    <a class="tb-iconbtn tb-search-mobile" href="clients.php" aria-label="Caută" title="Caută">
+                        <?= app_icon_svg('search') ?>
+                    </a>
+                <?php endif; ?>
+
+                <a class="tb-iconbtn" href="calendar.php" aria-label="Calendar" title="Calendar">
+                    <?= app_icon_svg('calendar') ?>
+                </a>
+
+                <a class="tb-iconbtn" href="tasks.php" aria-label="Sarcini" title="Sarcini">
+                    <?= app_icon_svg('tasks') ?>
+                </a>
 
                 <?php if ($showNotifications): ?>
                     <div class="tb-menu" data-tb-menu="bell">
@@ -2293,7 +3525,7 @@ if (!function_exists('app_topbar')) {
                             <a class="tb-dropdown-item tone-danger" role="menuitem" href="tasks.php">
                                 <span class="tdi-icon"><?= app_icon_svg('tasks') ?></span>
                                 <span>
-                                    <span class="tdi-label">Sarcini intarziate</span>
+                                    <span class="tdi-label">Sarcini întârziate</span>
                                     <span class="tdi-sub">Vezi backlog-ul</span>
                                 </span>
                             </a>
@@ -2301,13 +3533,13 @@ if (!function_exists('app_topbar')) {
                                 <span class="tdi-icon"><?= app_icon_svg('processes') ?></span>
                                 <span>
                                     <span class="tdi-label">PV-uri neemise</span>
-                                    <span class="tdi-sub">Lucrari finalizate fara PV</span>
+                                    <span class="tdi-sub">Lucrări finalizate fără PV</span>
                                 </span>
                             </a>
                             <a class="tb-dropdown-item" role="menuitem" href="interventii_facturare.php">
                                 <span class="tdi-icon"><?= app_icon_svg('invoice') ?></span>
                                 <span>
-                                    <span class="tdi-label">Interventii de facturat</span>
+                                    <span class="tdi-label">Lucrări de transmis</span>
                                     <span class="tdi-sub">Checklist birou</span>
                                 </span>
                             </a>
@@ -2317,17 +3549,17 @@ if (!function_exists('app_topbar')) {
 
                 <?php if ($showAdd): ?>
                     <div class="tb-menu" data-tb-menu="add">
-                        <button type="button" class="tb-iconbtn" aria-label="Adauga nou" title="Adauga nou" onclick="tbToggleMenu(this)">
+                        <button type="button" class="tb-iconbtn" aria-label="Adaugă nou" title="Adaugă nou" onclick="tbToggleMenu(this)">
                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                 <path d="M12 5v14M5 12h14" stroke-linecap="round"></path>
                             </svg>
                         </button>
                         <div class="tb-dropdown" role="menu">
-                            <div class="tb-dropdown-header">Adauga rapid</div>
+                            <div class="tb-dropdown-header">Adaugă rapid</div>
                             <a class="tb-dropdown-item tone-info" role="menuitem" href="calendar.php?date=<?= date('Y-m-d') ?>&view=day&open_create=1">
                                 <span class="tdi-icon"><?= app_icon_svg('calendar') ?></span>
                                 <span>
-                                    <span class="tdi-label">Programare noua</span>
+                                    <span class="tdi-label">Programare nouă</span>
                                     <span class="tdi-sub">Lucrare in calendar</span>
                                 </span>
                             </a>
@@ -2335,13 +3567,13 @@ if (!function_exists('app_topbar')) {
                                 <span class="tdi-icon"><?= app_icon_svg('clients') ?></span>
                                 <span>
                                     <span class="tdi-label">Client nou</span>
-                                    <span class="tdi-sub">Adauga firma sau persoana</span>
+                                    <span class="tdi-sub">Adaugă firmă sau persoană</span>
                                 </span>
                             </a>
                             <a class="tb-dropdown-item tone-warning" role="menuitem" href="tasks.php?open_create=1">
                                 <span class="tdi-icon"><?= app_icon_svg('tasks') ?></span>
                                 <span>
-                                    <span class="tdi-label">Sarcina noua</span>
+                                    <span class="tdi-label">Sarcină noua</span>
                                     <span class="tdi-sub">In backlog</span>
                                 </span>
                             </a>
@@ -2462,6 +3694,7 @@ if (!function_exists('render_sidebar')) {
     function render_sidebar(string $active = '', bool $isAdmin = true): void
 {
     $userName = function_exists('current_user_name') ? current_user_name() : 'Utilizator';
+    $originalActive = $active;
 
     $settingsActiveKeys = [
         'settings',
@@ -2470,12 +3703,14 @@ if (!function_exists('render_sidebar')) {
         'services',
         'team',
         'communication_settings',
+        'smartbill_settings',
         'email_templates',
         'sms_templates',
         'sms_activity',
         'email_activity',
         'data_import',
         'review_settings',
+        'ui_template',
         // Mutate aici din sidebar (configurare documente):
         'document_templates',
         'document_series',
@@ -2491,7 +3726,7 @@ if (!function_exists('render_sidebar')) {
         $active = 'stock';
     }
 
-    // Doar paginile operationale, nu si configurarea (mutata in Setari):
+    // Doar paginile operaționale, nu și configurarea (mutată în Setări):
     $documentsKeys = [
         'documente',
         'oferte',
@@ -2499,6 +3734,18 @@ if (!function_exists('render_sidebar')) {
         'procese_verbale',
     ];
     $documentsOpen = in_array($active, $documentsKeys, true);
+
+    $billingKeys = [
+        'facturi',
+        'incasari',
+        'efactura',
+        'interventii_facturare',
+        'facturi_recurente',
+    ];
+    $billingOpen = in_array($active, $billingKeys, true);
+    if ($billingOpen) {
+        $active = 'facturare';
+    }
 
     if ($isAdmin) {
         $mainBeforeDocuments = [
@@ -2513,15 +3760,21 @@ if (!function_exists('render_sidebar')) {
             'oferte' => ['label' => 'Oferte', 'href' => 'oferte.php', 'icon' => 'offers'],
             'contracts' => ['label' => 'Contracte', 'href' => 'contracts.php', 'icon' => 'contracts'],
             'procese_verbale' => ['label' => 'Procese verbale', 'href' => 'procese_verbale.php', 'icon' => 'processes'],
-            // Sabloane/Serii/Design PDF s-au mutat in Setari (erau dublate)
+            // Șabloane/Serii/Design PDF s-au mutat în Setări (erau dublate)
+        ];
+
+        $billingItems = [
+            'facturi' => ['label' => 'Facturare', 'href' => 'facturi.php', 'icon' => 'invoice'],
+            'incasari' => ['label' => 'Încasare', 'href' => 'incasari.php', 'icon' => 'invoice'],
+            'efactura' => ['label' => 'E-Factura', 'href' => 'efactura.php', 'icon' => 'documents'],
+            'interventii_facturare' => ['label' => 'Lista lucrări', 'href' => 'interventii_facturare.php', 'icon' => 'processes'],
         ];
 
         $mainAfterDocuments = [
             'stock'     => ['label' => 'Gestiune', 'href' => 'stock.php', 'icon' => 'stock'],
-            'interventii_facturare' => ['label' => 'Facturare', 'href' => 'interventii_facturare.php', 'icon' => 'invoice'],
             'reports'   => ['label' => 'Rapoarte', 'href' => 'reports.php', 'icon' => 'reports'],
             'review_feedback' => ['label' => 'Feedback', 'href' => 'review_feedback.php', 'icon' => 'star'],
-            'settings'  => ['label' => 'Setari', 'href' => 'settings.php', 'icon' => 'settings'],
+            'settings'  => ['label' => 'Setări', 'href' => 'settings.php', 'icon' => 'settings'],
         ];
     } else {
         $mainBeforeDocuments = [
@@ -2530,6 +3783,7 @@ if (!function_exists('render_sidebar')) {
         ];
 
         $documentItems = [];
+        $billingItems = [];
         $mainAfterDocuments = [];
     }
     ?>
@@ -2768,6 +4022,133 @@ if (!function_exists('render_sidebar')) {
         border-color: rgba(177,214,240,.34);
     }
 
+    /* PestZone sidebar standard */
+    .sidebar {
+        background: var(--accent-deep) !important;
+        border-right: 1px solid #0E2A49 !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    .sidebar::before,
+    .sidebar::after {
+        display: none !important;
+    }
+
+    .sidebar-brand {
+        background: var(--accent-deep) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, .10) !important;
+    }
+
+    .sidebar-nav {
+        gap: 2px !important;
+        padding: 12px 10px !important;
+    }
+
+    .nav-item,
+    .sidebar .nav-group-button,
+    .sidebar .nav-group-button.nav-item,
+    .nav-subitem {
+        min-height: 36px !important;
+        border: 1px solid transparent !important;
+        border-radius: 6px !important;
+        background: transparent !important;
+        color: rgba(255, 255, 255, .78) !important;
+        box-shadow: none !important;
+        font-size: 13px !important;
+        font-weight: 650 !important;
+    }
+
+    .nav-item:hover,
+    .sidebar .nav-group-button:hover,
+    .nav-subitem:hover {
+        background: rgba(255, 255, 255, .08) !important;
+        border-color: rgba(255, 255, 255, .08) !important;
+        color: #FFFFFF !important;
+        box-shadow: none !important;
+    }
+
+    .nav-item.active,
+    .sidebar .nav-group-button.active,
+    .sidebar .nav-group-button.open,
+    .sidebar .nav-group-button.active.open,
+    .nav-subitem.active {
+        background: rgba(255, 255, 255, .13) !important;
+        border-color: rgba(255, 255, 255, .16) !important;
+        color: #FFFFFF !important;
+        box-shadow: none !important;
+    }
+
+    .nav-item.active::before {
+        width: 2px !important;
+        background: #60A5FA !important;
+        box-shadow: none !important;
+    }
+
+    .nav-item svg,
+    .sidebar .nav-group-button svg,
+    .nav-subitem svg,
+    .logout-btn svg {
+        stroke: currentColor !important;
+    }
+
+    .nav-icon {
+        color: inherit !important;
+    }
+
+    .nav-submenu {
+        gap: 2px !important;
+        margin: 2px 0 4px !important;
+    }
+
+    .nav-subitem {
+        padding-left: 40px !important;
+        font-size: 12.5px !important;
+        color: rgba(255, 255, 255, .68) !important;
+    }
+
+    .nav-chevron {
+        color: rgba(255, 255, 255, .58) !important;
+    }
+
+    .sidebar-footer {
+        border-top: 1px solid rgba(255, 255, 255, .10) !important;
+        background: var(--accent-deep) !important;
+    }
+
+    .sidebar-user {
+        color: rgba(255, 255, 255, .68) !important;
+        font-size: 12px !important;
+        font-weight: 650 !important;
+    }
+
+    .sidebar-user-label {
+        color: rgba(255, 255, 255, .58) !important;
+        font-size: 11px !important;
+    }
+
+    .sidebar-user-name {
+        color: #FFFFFF !important;
+        font-size: 13px !important;
+        font-weight: 750 !important;
+    }
+
+    .logout-btn {
+        min-height: 34px !important;
+        border: 1px solid rgba(255, 255, 255, .14) !important;
+        border-radius: 6px !important;
+        background: rgba(255, 255, 255, .06) !important;
+        color: rgba(255, 255, 255, .84) !important;
+        box-shadow: none !important;
+    }
+
+    .logout-btn:hover {
+        background: rgba(255, 255, 255, .10) !important;
+        border-color: rgba(255, 255, 255, .18) !important;
+        color: #FFFFFF !important;
+    }
+
 </style>
 
     <button class="mobile-menu-button" id="mobileMenuButton" type="button" aria-label="Meniu" aria-expanded="false" onclick="toggleAppSidebar()">
@@ -2816,6 +4197,31 @@ if (!function_exists('render_sidebar')) {
                 </div>
             <?php endif; ?>
 
+            <?php if ($isAdmin): ?>
+                <div class="nav-group">
+                    <button
+                        class="nav-item nav-group-button <?= $billingOpen ? 'active open' : '' ?>"
+                        type="button"
+                        onclick="toggleBillingMenu()"
+                        aria-expanded="<?= $billingOpen ? 'true' : 'false' ?>"
+                        id="billingMenuButton"
+                    >
+                        <?= app_icon_svg('invoice') ?>
+                        <span class="nav-label">Facturare</span>
+                        <span class="nav-chevron">›</span>
+                    </button>
+
+                    <div class="nav-submenu <?= $billingOpen ? 'open' : '' ?>" id="billingSubmenu">
+                        <?php foreach ($billingItems as $key => $item): ?>
+                            <a class="nav-subitem <?= $originalActive === $key ? 'active' : '' ?>" href="<?= app_h($item['href']) ?>">
+                                <?= app_icon_svg($item['icon']) ?>
+                                <span class="nav-label"><?= app_h($item['label']) ?></span>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <?php foreach ($mainAfterDocuments as $key => $item): ?>
                 <a class="nav-item <?= $active === $key ? 'active' : '' ?>" href="<?= app_h($item['href']) ?>">
                     <?= app_icon_svg($item['icon']) ?>
@@ -2832,7 +4238,7 @@ if (!function_exists('render_sidebar')) {
 
             <a class="logout-btn" href="logout.php">
                 <?= app_icon_svg('logout') ?>
-                <span>Exit</span>
+                <span>Ieșire</span>
             </a>
         </div>
     </aside>
@@ -2842,17 +4248,17 @@ if (!function_exists('render_sidebar')) {
     <?php
     // ============================================================
     // TOPBAR GLOBAL - se afiseaza automat pe orice pagina care
-    // foloseste render_sidebar(). Titlul se deriva din $active.
+    // folosește render_sidebar(). Titlul se deriva din $active.
     // Pentru a-l dezactiva pe o pagina anume:
-    //   $pz_skip_topbar = true;  (inainte de render_sidebar)
+    //   $pz_skip_topbar = true;  (înainte de render_sidebar)
     // Pentru a suprascrie titlul:
     //   $pz_page_title = 'Titlu custom';
     //   $pz_page_breadcrumbs = ['Crumb 1'];
     // ============================================================
     global $pz_skip_topbar, $pz_page_title, $pz_page_breadcrumbs, $pz_topbar_opts;
 
-    // Topbar (search, notificari, +) e doar pentru admin.
-    // Echipele de teren vad doar sidebar + continut, fara toolbar global.
+    // Topbar (search, notificări, +) e doar pentru admin.
+    // Tehnicienii văd doar sidebar + conținut, fără toolbar global.
     if (empty($pz_skip_topbar) && $isAdmin) {
         $pz_title_map = [
             // pagini principale
@@ -2861,10 +4267,15 @@ if (!function_exists('render_sidebar')) {
             'tasks'                  => ['Sarcini',    []],
             'clients'                => ['Contacte',   []],
             'stock'                  => ['Gestiune',   []],
-            'interventii_facturare'  => ['Facturare',  []],
+            'facturare'              => ['Facturare',  []],
+            'interventii_facturare'  => ['Facturare',  ['Lista lucrări']],
+            'facturi'                => ['Facturare',  ['Facturare']],
+            'incasari'               => ['Facturare',  ['Încasare']],
+            'efactura'               => ['Facturare',  ['E-Factura']],
+            'facturi_recurente'      => ['Recurente',  ['Facturi automate']],
             'reports'                => ['Rapoarte',   []],
-            'review_feedback'        => ['Feedback',   ['Review & satisfactie']],
-            'settings'               => ['Setari',     []],
+            'review_feedback'        => ['Feedback',   []],
+            'settings'               => ['Setări',     []],
 
             // submeniu Documente
             'documente'              => ['Documente',  ['Toate']],
@@ -2872,24 +4283,26 @@ if (!function_exists('render_sidebar')) {
             'contracts'              => ['Documente',  ['Contracte']],
             'procese_verbale'        => ['Documente',  ['Procese verbale']],
 
-            // sub-pagini Setari
-            'users'                  => ['Setari',     ['Utilizatori']],
-            'services'               => ['Setari',     ['Servicii']],
-            'team'                   => ['Setari',     ['Echipe teren']],
-            'company_settings'       => ['Setari',     ['Compania mea']],
-            'document_templates'     => ['Setari',     ['Sabloane documente']],
-            'document_series'        => ['Setari',     ['Serii documente']],
-            'document_design'        => ['Setari',     ['Design documente']],
-            'communication_settings' => ['Setari',     ['Comunicare / Integrari']],
-            'email_templates'        => ['Setari',     ['Sabloane email']],
-            'sms_templates'          => ['Setari',     ['Sabloane SMS']],
-            'sms_activity'           => ['Setari',     ['Activitate SMS']],
-            'email_activity'         => ['Setari',     ['Activitate Email']],
-            'data_import'            => ['Setari',     ['Import date']],
+            // sub-pagini Setări
+            'users'                  => ['Setări',     ['Utilizatori']],
+            'services'               => ['Setări',     ['Servicii']],
+            'team'                   => ['Setări',     ['Tehnicieni']],
+            'company_settings'       => ['Setări',     ['Compania mea']],
+            'document_templates'     => ['Setări',     ['Șabloane documente']],
+            'document_series'        => ['Setări',     ['Serii documente']],
+            'document_design'        => ['Setări',     ['Design documente']],
+            'communication_settings' => ['Setări',     ['Comunicare / Integrări']],
+            'smartbill_settings'     => ['Setări',     ['SmartBill']],
+            'email_templates'        => ['Setări',     ['Șabloane email']],
+            'sms_templates'          => ['Setări',     ['Șabloane SMS']],
+            'sms_activity'           => ['Setări',     ['Activitate SMS']],
+            'email_activity'         => ['Setări',     ['Activitate Email']],
+            'data_import'            => ['Setări',     ['Import date']],
+            'ui_template'            => ['Template UI', ['Identitate interna']],
         ];
 
-        // Cauta in titluri folosind $active sau valoarea originala (inainte de redirect spre 'settings')
-        $pz_active_lookup = isset($pz_title_map[$active]) ? $active : 'dashboard';
+        // Caută în titluri folosind cheia originală, înainte de gruparea vizuală în sidebar.
+        $pz_active_lookup = isset($pz_title_map[$originalActive]) ? $originalActive : (isset($pz_title_map[$active]) ? $active : 'dashboard');
         list($pz_t, $pz_b) = $pz_title_map[$pz_active_lookup];
 
         // Permite override din pagina
@@ -2952,6 +4365,19 @@ if (!function_exists('render_sidebar')) {
 
     }
 
+    function toggleBillingMenu() {
+        const submenu = document.getElementById('billingSubmenu');
+        const button = document.getElementById('billingMenuButton');
+
+        if (!submenu || !button) {
+            return;
+        }
+
+        const isOpen = submenu.classList.toggle('open');
+        button.classList.toggle('open', isOpen);
+        button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const submenu = document.getElementById('documentsSubmenu');
         const button = document.getElementById('documentsMenuButton');
@@ -2975,6 +4401,27 @@ if (!function_exists('render_sidebar')) {
         try {
             localStorage.removeItem('pz_documents_menu_open');
         } catch (e) {}
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const submenu = document.getElementById('billingSubmenu');
+        const button = document.getElementById('billingMenuButton');
+
+        if (!submenu || !button) {
+            return;
+        }
+
+        const hasActiveChild = submenu.querySelector('.nav-subitem.active');
+
+        if (hasActiveChild) {
+            submenu.classList.add('open');
+            button.classList.add('open');
+            button.setAttribute('aria-expanded', 'true');
+        } else {
+            submenu.classList.remove('open');
+            button.classList.remove('open');
+            button.setAttribute('aria-expanded', 'false');
+        }
     });
 
     document.addEventListener('keydown', function(event) {

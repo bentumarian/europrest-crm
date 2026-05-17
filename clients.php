@@ -3,7 +3,7 @@ require_once 'config.php';
 require_login();
 require_once 'app_ui.php';
 
-// Fortam afisarea paginii si conexiunea la baza de date pe UTF-8.
+// Fortam afișarea paginii si conexiunea la baza de date pe UTF-8.
 // Ajuta la textele romanesti si reduce problemele de tip mojibake.
 if (!headers_sent()) {
     header('Content-Type: text/html; charset=utf-8');
@@ -14,7 +14,7 @@ try {
         $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
     }
 } catch (Throwable $e) {
-    // Nu blocam pagina daca serverul MySQL nu accepta explicit collation-ul.
+    // Nu blocam pagina dacă serverul MySQL nu accepta explicit collation-ul.
 }
 
 $isAdmin = is_admin();
@@ -36,52 +36,38 @@ function c_fix_encoding_issues($value): string {
         return '';
     }
 
-    // Reparatie doar la afisare pentru cele mai comune texte romanesti salvate gresit in DB:
-    // a/A, a/A, i/I, s/S, t/T + spatii non-breaking afisate ca A.
+    // Reparatie doar la afișare pentru cele mai comune texte romanesti salvate gresit in DB.
     $map = [
-        'Äƒ' => 'a', 'Ä‚' => 'A',
-        'Ã¢' => 'a', 'Ã‚' => 'A',
-        'Ã®' => 'i', 'ÃŽ' => 'I',
-        'È™' => 's', 'È˜' => 'S',
-        'È›' => 't', 'Èš' => 'T',
-        'ÅŸ' => 's', 'Åž' => 'S',
-        'Å£' => 't', 'Å¢' => 'T',
-        'A ' => ' ', 'A ' => ' ',
+        'Äƒ' => 'ă', 'Ä‚' => 'Ă',
+        'Ã¢' => 'â', 'Ã‚' => 'Â',
+        'Ã®' => 'î', 'ÃŽ' => 'Î',
+        'È™' => 'ș', 'È˜' => 'Ș',
+        'È›' => 'ț', 'Èš' => 'Ț',
+        'ÅŸ' => 'ș', 'Åž' => 'Ș',
+        'Å£' => 'ț', 'Å¢' => 'Ț',
     ];
 
     $value = strtr($value, $map);
+    $value = str_replace("\xC2\xA0", ' ', $value);
     $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
 
     return trim($value);
 }
 
-function c_no_ro_diacritics($value): string {
+function c_normalize_ro_text($value): string {
     $value = c_fix_encoding_issues($value);
 
     if ($value === '') {
         return '';
     }
 
-    // Pentru coloana Adresa / localitate afisam fara diacritice.
-    // Astfel evitam complet problemele vizuale generate de encoding diferit in datele importate.
-    $map = [
-        'a' => 'a', 'A' => 'A',
-        'a' => 'a', 'A' => 'A',
-        'i' => 'i', 'I' => 'I',
-        's' => 's', 'S' => 'S',
-        's' => 's', 'S' => 'S',
-        't' => 't', 'T' => 'T',
-        't' => 't', 'T' => 'T',
-    ];
-
-    $value = strtr($value, $map);
     $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
 
     return trim($value);
 }
 
 function c_clean_address_display($value): string {
-    $value = c_no_ro_diacritics($value);
+    $value = c_normalize_ro_text($value);
 
     if ($value === '' || $value === '-') {
         return $value;
@@ -93,35 +79,35 @@ function c_clean_address_display($value): string {
     $value = str_replace(["�", "□", "¤"], "?", $value);
 
     $exactMap = [
-        'CONSTAN?A' => 'CONSTANTA',
-        'Constan?a' => 'Constanta',
-        'constan?a' => 'constanta',
-        'N?VODARI' => 'NAVODARI',
-        'N?vodari' => 'Navodari',
-        'n?vodari' => 'navodari',
-        'VOD?' => 'VODA',
-        'Vod?' => 'Voda',
-        'vod?' => 'voda',
-        '?TEFAN' => 'STEFAN',
-        '?tefan' => 'Stefan',
-        '?OS.' => 'SOS.',
-        '?os.' => 'Sos.',
-        '?OSEAUA' => 'SOSEAUA',
-        '?oseaua' => 'Soseaua',
+        'CONSTAN?A' => 'CONSTANȚA',
+        'Constan?a' => 'Constanța',
+        'constan?a' => 'constanța',
+        'N?VODARI' => 'NĂVODARI',
+        'N?vodari' => 'Năvodari',
+        'n?vodari' => 'năvodari',
+        'VOD?' => 'VODĂ',
+        'Vod?' => 'Vodă',
+        'vod?' => 'vodă',
+        '?TEFAN' => 'ȘTEFAN',
+        '?tefan' => 'Ștefan',
+        '?OS.' => 'ȘOS.',
+        '?os.' => 'Șos.',
+        '?OSEAUA' => 'ȘOSEAUA',
+        '?oseaua' => 'Șoseaua',
     ];
 
     $value = strtr($value, $exactMap);
 
     $regexMap = [
-        '/\bCONSTAN\?A\b/ui' => 'CONSTANTA',
-        '/\bN\?VODARI\b/ui' => 'NAVODARI',
-        '/\bVOD\?\b/ui' => 'VODA',
-        '/\bM\?R\?+E\?TI\b/ui' => 'MARASESTI',
-        '/\bM\?R\?+S\?TI\b/ui' => 'MARASESTI',
-        '/\bM\?R\?SE\?TI\b/ui' => 'MARASESTI',
-        '/\bM\?R\?\?E\?TI\b/ui' => 'MARASESTI',
-        '/\bD\?MBOVI\?A\b/ui' => 'DAMBOVITA',
-        '/\bIALOMI\?A\b/ui' => 'IALOMITA',
+        '/\bCONSTAN\?A\b/ui' => 'CONSTANȚA',
+        '/\bN\?VODARI\b/ui' => 'NĂVODARI',
+        '/\bVOD\?\b/ui' => 'VODĂ',
+        '/\bM\?R\?+E\?TI\b/ui' => 'MĂRĂȘEȘTI',
+        '/\bM\?R\?+S\?TI\b/ui' => 'MĂRĂȘEȘTI',
+        '/\bM\?R\?SE\?TI\b/ui' => 'MĂRĂȘEȘTI',
+        '/\bM\?R\?\?E\?TI\b/ui' => 'MĂRĂȘEȘTI',
+        '/\bD\?MBOVI\?A\b/ui' => 'DÂMBOVIȚA',
+        '/\bIALOMI\?A\b/ui' => 'IALOMIȚA',
         '/\bTULCEA\b/ui' => 'TULCEA',
     ];
 
@@ -129,7 +115,7 @@ function c_clean_address_display($value): string {
         $value = preg_replace($pattern, $replacement, $value) ?? $value;
     }
 
-    // Ultima protectie: nu mai afisam niciun ? ramas in coloana adresa.
+    // Ultima protectie: nu mai afișam niciun ? ramas in coloana adresa.
     // Este mai curat vizual decat sa apara "CONSTAN?A" / "VOD?" in lista.
     $value = str_replace('?', '', $value);
     $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
@@ -145,6 +131,10 @@ function c_h_address($value): string {
 
 function c_h($value): string {
     return htmlspecialchars(c_fix_encoding_issues($value), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+function c_h_raw($value): string {
+    return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
 function c_fix_encoding_issues_recursive($value) {
@@ -194,24 +184,13 @@ function c_ensure_column(PDO $pdo, string $table, string $column, string $defini
         try {
             $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
         } catch (Throwable $e) {
-            // Nu blocam pagina daca ALTER nu poate rula.
+            // Nu blocam pagina dacă ALTER nu poate rula.
         }
     }
 }
 
 function c_clean_text(?string $value): string {
-    $value = trim((string)$value);
-    $map = [
-        'a' => 'a', 'A' => 'A',
-        'a' => 'a', 'A' => 'A',
-        'i' => 'i', 'I' => 'I',
-        's' => 's', 'S' => 'S',
-        's' => 's', 'S' => 'S',
-        't' => 't', 'T' => 'T',
-        't' => 't', 'T' => 'T',
-    ];
-
-    $value = strtr($value, $map);
+    $value = c_fix_encoding_issues(trim((string)$value));
     $value = preg_replace('/\s+/', ' ', $value);
 
     return trim((string)$value);
@@ -227,6 +206,158 @@ function c_clean_fiscal_code(?string $value): string {
     $value = preg_replace('/^RO/', '', (string)$value);
 
     return trim((string)$value);
+}
+
+function c_first_anaf_value(array $sources, array $keys): string {
+    foreach ($sources as $source) {
+        if (!is_array($source)) {
+            continue;
+        }
+
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $source)) {
+                $value = c_clean_text((string)($source[$key] ?? ''));
+                if ($value !== '') {
+                    return $value;
+                }
+            }
+        }
+    }
+
+    return '';
+}
+
+function c_anaf_address_line_from_full(string $fullAddress): string {
+    $parts = array_map('trim', explode(',', $fullAddress));
+    $kept = [];
+
+    foreach ($parts as $part) {
+        $part = c_clean_text($part);
+        if ($part === '') {
+            continue;
+        }
+
+        if (preg_match('/^(JUD\.?|JUDETUL)\b/i', $part)) {
+            continue;
+        }
+        if (preg_match('/^(MUN\.?|MUNICIPIUL|ORAS(?:UL)?|COM\.?|COMUNA|SAT(?:UL)?)\b/i', $part)) {
+            continue;
+        }
+        if (preg_match('/^SECTOR(?:UL)?\s*[1-6]\b/i', $part)) {
+            continue;
+        }
+        if (preg_match('/^(TARA\s*)?ROMANIA$/i', $part)) {
+            continue;
+        }
+
+        $kept[] = $part;
+    }
+
+    return c_clean_text(implode(', ', $kept));
+}
+
+function c_normalize_anaf_county(string $county): string {
+    $county = c_clean_text($county);
+    $county = preg_replace('/^(JUDETUL|JUD\.?)\s+/i', '', $county) ?? $county;
+    $county = preg_replace('/^MUNICIPIUL\s+/i', '', $county) ?? $county;
+    $county = trim($county);
+
+    if (preg_match('/BUCURE[ȘS]TI/i', $county)) {
+        return 'Bucuresti';
+    }
+
+    return $county;
+}
+
+function c_normalize_anaf_city(string $city): string {
+    $city = c_clean_text($city);
+    $city = preg_replace('/^(MUN\.?|MUNICIPIUL|ORAS(?:UL)?|ORAȘ(?:UL)?|COM\.?|COMUNA|SAT(?:UL)?)\s+/iu', '', $city) ?? $city;
+    $city = trim($city, " \t\n\r\0\x0B,.-");
+
+    if (preg_match('/^SECTOR(?:UL)?\s*([1-6])$/iu', $city, $m)) {
+        return 'Sector ' . c_clean_text($m[1] ?? '');
+    }
+
+    return $city;
+}
+
+function c_anaf_address_parts(array $item): array {
+    $general = is_array($item['date_generale'] ?? null) ? $item['date_generale'] : [];
+    $sediu = is_array($item['adresa_sediu_social'] ?? null) ? $item['adresa_sediu_social'] : [];
+    $domiciliu = is_array($item['adresa_domiciliu_fiscal'] ?? null) ? $item['adresa_domiciliu_fiscal'] : [];
+    $sources = [$sediu, $domiciliu, $general];
+    $fullAddress = c_clean_text((string)($general['adresa'] ?? ''));
+
+    $street = c_first_anaf_value($sources, [
+        'sdenumire_Strada', 'ddenumire_Strada', 'denumire_Strada',
+        'strada', 'street',
+    ]);
+    $number = c_first_anaf_value($sources, [
+        'snumar_Strada', 'dnumar_Strada', 'numar_Strada',
+        'numar', 'street_number',
+    ]);
+    $details = c_first_anaf_value($sources, [
+        'sdetalii_Adresa', 'ddetalii_Adresa', 'detalii_Adresa',
+        'detalii', 'address_details',
+    ]);
+
+    $lineParts = [];
+    if ($street !== '') {
+        $lineParts[] = trim($street . ($number !== '' ? ' nr. ' . $number : ''));
+    }
+    if ($details !== '') {
+        $lineParts[] = $details;
+    }
+
+    $addressLine = c_clean_text(implode(', ', array_filter($lineParts)));
+
+    $county = c_first_anaf_value($sources, [
+        'sdenumire_Județ', 'ddenumire_Județ', 'denumire_Județ',
+        'județ', 'county',
+    ]);
+    $city = c_first_anaf_value($sources, [
+        'sdenumire_Localitate', 'ddenumire_Localitate', 'denumire_Localitate',
+        'localitate', 'oraș', 'city',
+    ]);
+    $country = c_first_anaf_value($sources, [
+        'sțară', 'dțară', 'țară', 'country',
+    ]);
+    $postal = c_first_anaf_value($sources, [
+        'scod_Postal', 'dcod_Postal', 'cod_Postal', 'codPostal',
+        'cod_postal', 'postal_code', 'zip',
+    ]);
+
+    if ($county === '' && preg_match('/\bJUD\.?\s*([^,]+)/i', $fullAddress, $m)) {
+        $county = c_clean_text($m[1] ?? '');
+    }
+    $county = c_normalize_anaf_county($county);
+
+    if (preg_match('/\bSECTOR(?:UL)?\s*([1-6])\b/i', $fullAddress, $m)) {
+        $city = 'Sector ' . c_clean_text($m[1] ?? '');
+        if ($county === '' || preg_match('/BUCURESTI/i', $county . ' ' . $fullAddress)) {
+            $county = 'Bucuresti';
+        }
+    } elseif ($city === '' && preg_match('/\b(?:MUN\.?|MUNICIPIUL|ORAS(?:UL)?|COM\.?|COMUNA|SAT(?:UL)?)\s*([^,]+)/i', $fullAddress, $m)) {
+        $city = c_clean_text($m[1] ?? '');
+    }
+    $city = c_normalize_anaf_city($city);
+
+    if ($postal === '' && preg_match('/\b(?:CP|COD\s*POSTAL)\s*[:\-]?\s*([0-9]{4,10})\b/i', $fullAddress, $m)) {
+        $postal = c_clean_text($m[1] ?? '');
+    }
+
+    if ($addressLine === '') {
+        $addressLine = c_anaf_address_line_from_full($fullAddress);
+    }
+
+    return [
+        'billing_country' => $country !== '' ? $country : 'Romania',
+        'billing_county' => $county,
+        'billing_city' => $city,
+        'billing_sector' => '',
+        'billing_address_line' => $addressLine,
+        'billing_postal_code' => $postal,
+    ];
 }
 
 function c_decimal_nullable($value): ?float {
@@ -248,7 +379,29 @@ function c_client_type_label(string $type): string {
 }
 
 function c_client_address(array $client): string {
+    $billingAddress = c_build_billing_address($client);
+    if ($billingAddress !== '') {
+        return $billingAddress;
+    }
+
     return trim((string)($client['registered_address'] ?? '')) ?: trim((string)($client['address'] ?? ''));
+}
+
+function c_build_billing_address(array $parts): string {
+    $country = trim((string)($parts['billing_country'] ?? ''));
+    $county = trim((string)($parts['billing_county'] ?? ''));
+    $city = trim((string)($parts['billing_city'] ?? ''));
+    $sector = trim((string)($parts['billing_sector'] ?? ''));
+    $line = trim((string)($parts['billing_address_line'] ?? ''));
+    $postal = trim((string)($parts['billing_postal_code'] ?? ''));
+
+    $location = trim(implode(', ', array_filter([$county, $city, $sector], static fn($v) => $v !== '')));
+    $address = trim(implode(', ', array_filter([$line, $location, $country], static fn($v) => $v !== '')));
+    if ($postal !== '') {
+        $address .= ($address !== '' ? ', ' : '') . 'CP ' . $postal;
+    }
+
+    return $address;
 }
 
 function c_client_contact_person(array $client): string {
@@ -292,14 +445,21 @@ function c_client_status_label($status, int $active): string {
 }
 
 function c_normalize_anaf_item(array $item): array {
-    $general = $item['date_generale'] ?? [];
+    $general = is_array($item['date_generale'] ?? null) ? $item['date_generale'] : [];
+    $addressParts = c_anaf_address_parts($item);
 
     return [
         'client_type' => 'company',
         'name' => c_clean_text($general['denumire'] ?? ''),
         'fiscal_code' => c_clean_fiscal_code((string)($general['cui'] ?? '')),
         'registry_number' => c_clean_text($general['nrRegCom'] ?? ''),
-        'registered_address' => c_clean_text($general['adresa'] ?? ''),
+        'registered_address' => c_clean_text($general['adresa'] ?? '') ?: c_build_billing_address($addressParts),
+        'billing_country' => $addressParts['billing_country'],
+        'billing_county' => $addressParts['billing_county'],
+        'billing_city' => $addressParts['billing_city'],
+        'billing_sector' => $addressParts['billing_sector'],
+        'billing_address_line' => $addressParts['billing_address_line'],
+        'billing_postal_code' => $addressParts['billing_postal_code'],
         'phone' => '', // Nu preluam telefonul de la ANAF.
         'email' => '',
         'bank_name' => '',
@@ -349,7 +509,7 @@ function c_anaf_lookup(string $cui): array {
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
+                'Content-Type: application/json; charset=utf-8',
                 'Accept: application/json',
                 'Content-Length: ' . strlen((string)$payload),
             ],
@@ -379,7 +539,7 @@ function c_anaf_lookup(string $cui): array {
         $context = stream_context_create([
             'http' => [
                 'method' => 'POST',
-                'header' => "Content-Type: application/json\r\nAccept: application/json\r\n",
+                'header' => "Content-Type: application/json; charset=utf-8\r\nAccept: application/json\r\n",
                 'content' => $payload,
                 'timeout' => 25,
             ]
@@ -401,6 +561,9 @@ function c_anaf_lookup(string $cui): array {
     }
 
     $json = json_decode($raw, true);
+    if (!is_array($json) && function_exists('mb_convert_encoding')) {
+        $json = json_decode(mb_convert_encoding($raw, 'UTF-8', 'UTF-8'), true);
+    }
 
     if (!is_array($json)) {
         return [
@@ -471,6 +634,12 @@ $pdo->exec("
         fiscal_code VARCHAR(30) NULL,
         registry_number VARCHAR(100) NULL,
         registered_address VARCHAR(255) NULL,
+        billing_country VARCHAR(80) NULL,
+        billing_county VARCHAR(120) NULL,
+        billing_city VARCHAR(120) NULL,
+        billing_sector VARCHAR(80) NULL,
+        billing_address_line VARCHAR(255) NULL,
+        billing_postal_code VARCHAR(20) NULL,
         bank_name VARCHAR(160) NULL,
         bank_account VARCHAR(80) NULL,
         phone VARCHAR(60) NULL,
@@ -483,7 +652,7 @@ $pdo->exec("
         notes TEXT NULL,
         active TINYINT(1) NOT NULL DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 
 $clientColumns = [
@@ -492,6 +661,12 @@ $clientColumns = [
     'fiscal_code' => "VARCHAR(30) NULL",
     'registry_number' => "VARCHAR(100) NULL",
     'registered_address' => "VARCHAR(255) NULL",
+    'billing_country' => "VARCHAR(80) NULL",
+    'billing_county' => "VARCHAR(120) NULL",
+    'billing_city' => "VARCHAR(120) NULL",
+    'billing_sector' => "VARCHAR(80) NULL",
+    'billing_address_line' => "VARCHAR(255) NULL",
+    'billing_postal_code' => "VARCHAR(20) NULL",
     'registered_surface_value' => "DECIMAL(12,2) NULL",
     'registered_surface_unit' => "VARCHAR(20) NOT NULL DEFAULT 'mp'",
     'bank_name' => "VARCHAR(160) NULL",
@@ -531,7 +706,7 @@ $pdo->exec("
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_client_locations_client_id (client_id),
         INDEX idx_client_locations_active (active)
-    )
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 
 $locationColumns = [
@@ -587,7 +762,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = c_clean_text($_POST['name'] ?? '');
         $fiscalCode = c_clean_fiscal_code($_POST['fiscal_code'] ?? '');
         $registryNumber = c_clean_text($_POST['registry_number'] ?? '');
+        $billingCountry = c_clean_text($_POST['billing_country'] ?? 'Romania') ?: 'Romania';
+        $billingCounty = c_clean_text($_POST['billing_county'] ?? '');
+        $billingCity = c_clean_text($_POST['billing_city'] ?? '');
+        $billingSector = c_clean_text($_POST['billing_sector'] ?? '');
+        $billingAddressLine = c_clean_text($_POST['billing_address_line'] ?? '');
+        $billingPostalCode = c_clean_text($_POST['billing_postal_code'] ?? '');
         $registeredAddress = c_clean_text($_POST['registered_address'] ?? '');
+        $builtBillingAddress = c_build_billing_address([
+            'billing_country' => $billingCountry,
+            'billing_county' => $billingCounty,
+            'billing_city' => $billingCity,
+            'billing_sector' => $billingSector,
+            'billing_address_line' => $billingAddressLine,
+            'billing_postal_code' => $billingPostalCode,
+        ]);
+        if ($registeredAddress === '') {
+            $registeredAddress = $builtBillingAddress;
+        }
         $registeredSurfaceValue = null;
         $registeredSurfaceUnit = 'mp';
         $bankName = c_clean_text($_POST['bank_name'] ?? '');
@@ -599,9 +791,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $notes = trim((string)($_POST['notes'] ?? ''));
         $anafRawResponse = trim((string)($_POST['anaf_raw_response'] ?? ''));
         $anafLastLookupAt = trim((string)($_POST['anaf_last_lookup_at'] ?? ''));
-        // Status activ/inactiv din toggle (default 1 = activ pentru clientii noi)
+        // Status activ/inactiv din toggle (default 1 = activ pentru clienții noi)
         $clientActive = isset($_POST['active']) && (string)$_POST['active'] === '1' ? 1 : 0;
-        // SMS activ/inactiv din toggle (default 1 = SMS activate pentru clientii noi)
+        // SMS activ/inactiv din toggle (default 1 = SMS activate pentru clienții noi)
         $smsEnabledFromForm = isset($_POST['sms_enabled']) && (string)$_POST['sms_enabled'] === '1' ? 1 : 0;
 
         if ($clientType === 'individual') {
@@ -611,126 +803,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($clientType === 'company' && $legalRepresentativeRole === '') {
             $legalRepresentativeRole = 'Administrator';
-        }
-
-        if ($name === '') {
-            header('Location: clients.php?error=missing_name');
-            exit;
-        }
-
-        if ($clientType === 'company' && $legalRepresentativeName === '') {
-            header('Location: clients.php?error=missing_rep');
-            exit;
-        }
-
-        if ($action === 'create') {
-            $stmt = $pdo->prepare("
-                INSERT INTO clients
-                (
-                    client_type,
-                    name,
-                    fiscal_code,
-                    registry_number,
-                    registered_address,
-                    registered_surface_value,
-                    registered_surface_unit,
-                    bank_name,
-                    bank_account,
-                    phone,
-                    email,
-                    address,
-                    legal_representative_name,
-                    legal_representative_role,
-                    anaf_last_lookup_at,
-                    anaf_raw_response,
-                    notes,
-                    active,
-                    sms_enabled
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-
-            $stmt->execute([
-                $clientType,
-                $name,
-                $fiscalCode ?: null,
-                $registryNumber ?: null,
-                $registeredAddress ?: null,
-                $registeredSurfaceValue,
-                $registeredSurfaceUnit,
-                $bankName ?: null,
-                $bankAccount ?: null,
-                $phone ?: null,
-                $email ?: null,
-                $registeredAddress ?: null,
-                $legalRepresentativeName ?: null,
-                $legalRepresentativeRole ?: null,
-                $anafLastLookupAt ?: null,
-                $anafRawResponse ?: null,
-                $notes ?: null,
-                $clientActive,
-                $smsEnabledFromForm,
-            ]);
-
-            $clientId = (int)$pdo->lastInsertId();
-            $redirectParam = 'created=1';
-        } else {
-            if ($clientId <= 0) {
-                header('Location: clients.php?error=invalid_client');
-                exit;
-            }
-
-            $stmt = $pdo->prepare("
-                UPDATE clients
-                SET client_type = ?,
-                    name = ?,
-                    fiscal_code = ?,
-                    registry_number = ?,
-                    registered_address = ?,
-                    registered_surface_value = ?,
-                    registered_surface_unit = ?,
-                    bank_name = ?,
-                    bank_account = ?,
-                    phone = ?,
-                    email = ?,
-                    address = ?,
-                    legal_representative_name = ?,
-                    legal_representative_role = ?,
-                    anaf_last_lookup_at = ?,
-                    anaf_raw_response = ?,
-                    notes = ?,
-                    active = ?,
-                    sms_enabled = ?,
-                    sms_opt_out_reason = NULL,
-                    sms_opt_out_at = CASE WHEN ? = 0 THEN NOW() ELSE NULL END
-                WHERE id = ?
-            ");
-
-            $stmt->execute([
-                $clientType,
-                $name,
-                $fiscalCode ?: null,
-                $registryNumber ?: null,
-                $registeredAddress ?: null,
-                $registeredSurfaceValue,
-                $registeredSurfaceUnit,
-                $bankName ?: null,
-                $bankAccount ?: null,
-                $phone ?: null,
-                $email ?: null,
-                $registeredAddress ?: null,
-                $legalRepresentativeName ?: null,
-                $legalRepresentativeRole ?: null,
-                $anafLastLookupAt ?: null,
-                $anafRawResponse ?: null,
-                $notes ?: null,
-                $clientActive,
-                $smsEnabledFromForm,
-                $smsEnabledFromForm,
-                $clientId,
-            ]);
-
-            $redirectParam = 'updated=1';
         }
 
         $locationIds = $_POST['location_id'] ?? [];
@@ -765,6 +837,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             count($locationActive)
         );
 
+        $locationsToSave = [];
+        $activeLocationCount = 0;
+
         for ($i = 0; $i < $maxRows; $i++) {
             $locId = (int)($locationIds[$i] ?? 0);
             $locActive = (int)($locationActive[$i] ?? 1) === 1 ? 1 : 0;
@@ -776,7 +851,203 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $locPhone = c_clean_phone($locationPhones[$i] ?? '');
             $locNotes = trim((string)($locationNotes[$i] ?? ''));
 
-            if ($locId > 0) {
+            if ($locId <= 0 && $locActive === 0) {
+                continue;
+            }
+
+            if ($locActive === 1) {
+                $activeLocationCount++;
+
+                if ($locName === '' || $locAddress === '' || $locContact === '' || $locPhone === '' || $locSurfaceValue === null) {
+                    header('Location: clients.php?error=missing_location_required');
+                    exit;
+                }
+            }
+
+            $locationsToSave[] = [
+                'id' => $locId,
+                'active' => $locActive,
+                'name' => $locName,
+                'address' => $locAddress,
+                'surface_value' => $locSurfaceValue,
+                'surface_unit' => $locSurfaceUnit ?: 'mp',
+                'contact' => $locContact,
+                'phone' => $locPhone,
+                'notes' => $locNotes,
+            ];
+        }
+
+        if ($name === '') {
+            header('Location: clients.php?error=missing_name');
+            exit;
+        }
+
+        if ($fiscalCode === '') {
+            header('Location: clients.php?error=missing_fiscal_code');
+            exit;
+        }
+
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            header('Location: clients.php?error=missing_email');
+            exit;
+        }
+
+        if ($phone === '') {
+            header('Location: clients.php?error=missing_phone');
+            exit;
+        }
+
+        if ($billingCountry === '' || $billingCounty === '' || $billingCity === '' || $billingAddressLine === '' || $registeredAddress === '') {
+            header('Location: clients.php?error=missing_registered_address');
+            exit;
+        }
+
+        if ($clientType === 'company' && ($legalRepresentativeName === '' || $legalRepresentativeRole === '')) {
+            header('Location: clients.php?error=missing_rep');
+            exit;
+        }
+
+        if ($activeLocationCount < 1) {
+            header('Location: clients.php?error=missing_location');
+            exit;
+        }
+
+        if ($action === 'create') {
+            $stmt = $pdo->prepare("
+                INSERT INTO clients
+                (
+                    client_type,
+                    name,
+                    fiscal_code,
+                    registry_number,
+                    registered_address,
+                    billing_country,
+                    billing_county,
+                    billing_city,
+                    billing_sector,
+                    billing_address_line,
+                    billing_postal_code,
+                    registered_surface_value,
+                    registered_surface_unit,
+                    bank_name,
+                    bank_account,
+                    phone,
+                    email,
+                    address,
+                    legal_representative_name,
+                    legal_representative_role,
+                    anaf_last_lookup_at,
+                    anaf_raw_response,
+                    notes,
+                    active,
+                    sms_enabled
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+
+            $stmt->execute([
+                $clientType,
+                $name,
+                $fiscalCode ?: null,
+                $registryNumber ?: null,
+                $registeredAddress ?: null,
+                $billingCountry ?: null,
+                $billingCounty ?: null,
+                $billingCity ?: null,
+                $billingSector ?: null,
+                $billingAddressLine ?: null,
+                $billingPostalCode ?: null,
+                $registeredSurfaceValue,
+                $registeredSurfaceUnit,
+                $bankName ?: null,
+                $bankAccount ?: null,
+                $phone ?: null,
+                $email ?: null,
+                $registeredAddress ?: null,
+                $legalRepresentativeName ?: null,
+                $legalRepresentativeRole ?: null,
+                $anafLastLookupAt ?: null,
+                $anafRawResponse ?: null,
+                $notes ?: null,
+                $clientActive,
+                $smsEnabledFromForm,
+            ]);
+
+            $clientId = (int)$pdo->lastInsertId();
+            $redirectParam = 'created=1';
+        } else {
+            if ($clientId <= 0) {
+                header('Location: clients.php?error=invalid_client');
+                exit;
+            }
+
+            $stmt = $pdo->prepare("
+                UPDATE clients
+                SET client_type = ?,
+                    name = ?,
+                    fiscal_code = ?,
+                    registry_number = ?,
+                    registered_address = ?,
+                    billing_country = ?,
+                    billing_county = ?,
+                    billing_city = ?,
+                    billing_sector = ?,
+                    billing_address_line = ?,
+                    billing_postal_code = ?,
+                    registered_surface_value = ?,
+                    registered_surface_unit = ?,
+                    bank_name = ?,
+                    bank_account = ?,
+                    phone = ?,
+                    email = ?,
+                    address = ?,
+                    legal_representative_name = ?,
+                    legal_representative_role = ?,
+                    anaf_last_lookup_at = ?,
+                    anaf_raw_response = ?,
+                    notes = ?,
+                    active = ?,
+                    sms_enabled = ?,
+                    sms_opt_out_reason = NULL,
+                    sms_opt_out_at = CASE WHEN ? = 0 THEN NOW() ELSE NULL END
+                WHERE id = ?
+            ");
+
+            $stmt->execute([
+                $clientType,
+                $name,
+                $fiscalCode ?: null,
+                $registryNumber ?: null,
+                $registeredAddress ?: null,
+                $billingCountry ?: null,
+                $billingCounty ?: null,
+                $billingCity ?: null,
+                $billingSector ?: null,
+                $billingAddressLine ?: null,
+                $billingPostalCode ?: null,
+                $registeredSurfaceValue,
+                $registeredSurfaceUnit,
+                $bankName ?: null,
+                $bankAccount ?: null,
+                $phone ?: null,
+                $email ?: null,
+                $registeredAddress ?: null,
+                $legalRepresentativeName ?: null,
+                $legalRepresentativeRole ?: null,
+                $anafLastLookupAt ?: null,
+                $anafRawResponse ?: null,
+                $notes ?: null,
+                $clientActive,
+                $smsEnabledFromForm,
+                $smsEnabledFromForm,
+                $clientId,
+            ]);
+
+            $redirectParam = 'updated=1';
+        }
+
+        foreach ($locationsToSave as $i => $locationToSave) {
+            if ((int)$locationToSave['id'] > 0) {
                 $stmt = $pdo->prepare("
                     UPDATE client_locations
                     SET location_name = ?,
@@ -792,24 +1063,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       AND client_id = ?
                 ");
                 $stmt->execute([
-                    $locName !== '' ? $locName : 'Punct de lucru',
-                    $locAddress ?: null,
-                    $locSurfaceValue,
-                    $locSurfaceUnit,
-                    $locContact ?: null,
-                    $locPhone ?: null,
-                    $locNotes ?: null,
-                    $locActive,
+                    $locationToSave['name'] !== '' ? $locationToSave['name'] : 'Punct de lucru',
+                    $locationToSave['address'] ?: null,
+                    $locationToSave['surface_value'],
+                    $locationToSave['surface_unit'],
+                    $locationToSave['contact'] ?: null,
+                    $locationToSave['phone'] ?: null,
+                    $locationToSave['notes'] ?: null,
+                    $locationToSave['active'],
                     $i,
-                    $locId,
+                    $locationToSave['id'],
                     $clientId,
                 ]);
             } else {
-                if ($locActive === 0) {
-                    continue;
-                }
-
-                if ($locName === '' && $locAddress === '' && $locSurfaceValue === null && $locContact === '' && $locPhone === '' && $locNotes === '') {
+                if ((int)$locationToSave['active'] === 0) {
                     continue;
                 }
 
@@ -831,13 +1098,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
                 $stmt->execute([
                     $clientId,
-                    $locName !== '' ? $locName : 'Punct de lucru',
-                    $locAddress ?: null,
-                    $locSurfaceValue,
-                    $locSurfaceUnit,
-                    $locContact ?: null,
-                    $locPhone ?: null,
-                    $locNotes ?: null,
+                    $locationToSave['name'] !== '' ? $locationToSave['name'] : 'Punct de lucru',
+                    $locationToSave['address'] ?: null,
+                    $locationToSave['surface_value'],
+                    $locationToSave['surface_unit'],
+                    $locationToSave['contact'] ?: null,
+                    $locationToSave['phone'] ?: null,
+                    $locationToSave['notes'] ?: null,
                     $i,
                 ]);
             }
@@ -1107,7 +1374,13 @@ foreach ($clients as $client) {
         'name' => $client['name'] ?? '',
         'fiscal_code' => $client['fiscal_code'] ?? '',
         'registry_number' => $client['registry_number'] ?? '',
-        'registered_address' => $client['registered_address'] ?? '',
+        'registered_address' => c_client_address($client),
+        'billing_country' => $client['billing_country'] ?? 'Romania',
+        'billing_county' => $client['billing_county'] ?? '',
+        'billing_city' => $client['billing_city'] ?? '',
+        'billing_sector' => $client['billing_sector'] ?? '',
+        'billing_address_line' => $client['billing_address_line'] ?? '',
+        'billing_postal_code' => $client['billing_postal_code'] ?? '',
         'registered_surface_value' => $client['registered_surface_value'] ?? '',
         'registered_surface_unit' => $client['registered_surface_unit'] ?? 'mp',
         'bank_name' => $client['bank_name'] ?? '',
@@ -1144,6 +1417,7 @@ foreach ($clients as $client) {
 }
 
 $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
+$shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '1' && $selectedClientId > 0) ? $selectedClientId : 0;
 ?>
 <!DOCTYPE html>
 <html lang="ro">
@@ -1159,14 +1433,13 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
 
 <style>
 .clients-topbar { align-items: center; padding: 12px 20px; }
-.clients-toolbar { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+.clients-toolbar { width: 100%; display: grid; grid-template-columns: 96px 132px 132px auto minmax(220px, 1fr) auto auto; gap: 8px; align-items: center; }
 .clients-search { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .clients-search input { height: 42px; min-width: 0; }
 .clients-search .btn, .clients-toolbar > .btn { height: 42px; justify-content: center; white-space: nowrap; }
-.clients-hero { background: linear-gradient(135deg, #10243E, #163B63); color: #fff; border-radius: var(--radius-lg); padding: 22px 24px; box-shadow: var(--shadow-lg); margin-bottom: 16px; display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; align-items: center; }
-.clients-hero h1 { font-size: 24px; font-weight: 900; letter-spacing: -.03em; margin: 0; }
-.clients-hero p { color: rgba(255,255,255,.72); margin: 4px 0 0; max-width: 760px; }
-.hero-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 8px 13px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.10); color: #fff; font-weight: 900; font-size: 13px; }
+.clients-page-title { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.clients-page-title h1 { margin: 0; font-size: 20px; line-height: 1.2; font-weight: 800; color: var(--text); letter-spacing: 0; }
+.clients-count-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 30px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 13px; font-weight: 800; }
 .clients-layout { display: grid; grid-template-columns: <?= $selectedClient ? 'minmax(280px, .75fr) minmax(0, 1.25fr)' : '1fr' ?>; gap: 14px; align-items: start; }
 .clients-list-card, .client-profile-card, .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); overflow: hidden; }
 .card-head { padding: 15px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -1342,42 +1615,40 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
     .type-switch { grid-template-columns: 1fr; }
 }
 
-/* Lista contacte in stil Contracte - responsive */
+/* Lista contacte - tabel compact */
 .clients-layout { grid-template-columns: 1fr !important; }
 .clients-topbar { align-items: center; padding: 12px 20px; }
-.clients-toolbar { width: 100%; display: grid; grid-template-columns: minmax(220px, 1fr) 145px 145px 140px auto auto; gap: 8px; align-items: center; }
-.clients-toolbar input, .clients-toolbar select { height: 42px; min-width: 0; }
-.clients-toolbar .btn { height: 42px; justify-content: center; white-space: nowrap; }
-.clients-hero { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border); box-shadow: var(--shadow); }
-.clients-hero p { color: var(--muted) !important; }
-.hero-pill { color: var(--text) !important; border: 1px solid var(--border2) !important; background: var(--surface-soft) !important; }
+.clients-toolbar { width: 100%; display: grid; grid-template-columns: 96px 132px 132px auto minmax(220px, 1fr) auto auto; gap: 8px; align-items: center; }
+.clients-toolbar input, .clients-toolbar select { height: 34px; min-height: 34px; min-width: 0; border-radius: 4px; font-size: 12.5px; }
+.clients-toolbar .btn { min-height: 34px; height: 34px; border-radius: 4px; justify-content: center; white-space: nowrap; font-size: 12.5px; padding: 0 12px; }
 .clients-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.clients-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 1060px; }
-.clients-table th, .clients-table td { padding: 9px 6px; border-bottom: 1px solid var(--border2); vertical-align: middle; text-align: left; }
-.clients-table th { background: var(--surface-soft); color: var(--muted); font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .035em; white-space: nowrap; }
-.clients-table td { color: var(--text); font-size: 12px; font-weight: 650; line-height: 1.28; overflow-wrap: anywhere; word-break: break-word; }
-.clients-table tr:hover td { background: rgba(15, 118, 110, .035); }
-.clients-table th:nth-child(1), .clients-table td:nth-child(1) { width: 23%; }
-.clients-table th:nth-child(2), .clients-table td:nth-child(2) { width: 5%; }
-.clients-table th:nth-child(3), .clients-table td:nth-child(3) { width: 8%; }
-.clients-table th:nth-child(4), .clients-table td:nth-child(4) { width: 12%; }
-.clients-table th:nth-child(5), .clients-table td:nth-child(5) { width: 9%; }
-.clients-table th:nth-child(6), .clients-table td:nth-child(6) { width: 13%; }
-.clients-table th:nth-child(7), .clients-table td:nth-child(7) { width: 14%; }
-.clients-table th:nth-child(8), .clients-table td:nth-child(8) { width: 7%; }
-.clients-table th:nth-child(9), .clients-table td:nth-child(9) { width: 195px; }
-.client-cell-title { font-weight: 900; color: var(--text); font-size: 12.3px; line-height: 1.25; overflow-wrap: anywhere; word-break: break-word; }
-.client-cell-sub { margin-top: 3px; font-size: 11px; color: var(--muted); font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; word-break: break-word; }
+.clients-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 1120px; }
+.clients-table th, .clients-table td { padding: 8px 9px; border-bottom: 1px solid var(--border2); vertical-align: middle; text-align: left; }
+.clients-table th { background: #F8FAFC; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: none; letter-spacing: 0; white-space: nowrap; }
+.clients-table td { color: var(--text); font-size: 12.5px; font-weight: 600; line-height: 1.28; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clients-table tbody tr { cursor: default; }
+.clients-table tbody tr:hover td { background: rgba(37, 99, 235, .035); }
+.clients-table th:nth-child(1), .clients-table td:nth-child(1) { width: 74px; text-align: right; color: var(--muted); }
+.clients-table th:nth-child(2), .clients-table td:nth-child(2) { width: 25%; }
+.clients-table th:nth-child(3), .clients-table td:nth-child(3) { width: 62px; text-align: center; }
+.clients-table th:nth-child(4), .clients-table td:nth-child(4) { width: 118px; }
+.clients-table th:nth-child(5), .clients-table td:nth-child(5) { width: 15%; }
+.clients-table th:nth-child(6), .clients-table td:nth-child(6) { width: 116px; }
+.clients-table th:nth-child(7), .clients-table td:nth-child(7) { width: 18%; }
+.clients-table th:nth-child(8), .clients-table td:nth-child(8) { width: 120px; }
+.clients-table th:nth-child(9), .clients-table td:nth-child(9) { width: 70px; text-align: center; }
+.client-cell-title { font-weight: 750; color: var(--text); font-size: 12.8px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.client-id-cell { font-family: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; color: var(--muted); }
 .type-pill, .status-pill { font-size: 10px; padding: 3px 7px; }
 .client-status-badge { display: inline-flex; align-items: center; justify-content: center; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 900; border: 1px solid #bbf7d0; background: #ecfdf5; color: #047857; white-space: nowrap; }
 .client-status-badge.inactive { border-color: #e5e7eb; background: #f8fafc; color: #64748b; }
 .client-status-badge.season { border-color: #fde68a; background: #fffbeb; color: #92400e; }
-.client-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 5px; flex-wrap: nowrap; white-space: nowrap; }
-.icon-action { flex: 0 0 30px; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border2); border-radius: 9px; background: #fff; color: #64748b; text-decoration: none; cursor: pointer; transition: .18s ease; padding: 0; }
+.client-row-actions { display: flex; align-items: center; justify-content: center; gap: 5px; flex-wrap: nowrap; white-space: nowrap; }
+.icon-action { flex: 0 0 28px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border2); border-radius: 4px; background: #fff; color: #64748b; text-decoration: none; cursor: pointer; transition: .18s ease; padding: 0; }
 .icon-action:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-.icon-action.is-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.icon-action.is-primary:hover { filter: brightness(1.08); background: var(--accent); color: #fff; }
-.icon-action svg { width: 14.5px; height: 14.5px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.icon-action.is-primary { background: var(--accent-soft); border-color: rgba(37, 99, 235, .28); color: var(--accent); }
+.icon-action.is-primary:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.icon-action svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .icon-action:focus { outline: none; box-shadow: var(--focus-ring); }
 
 /* === Kebab menu (...) - meniu cu actiunile secundare === */
@@ -1400,14 +1671,12 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
 .page-btn.disabled { pointer-events: none; opacity: .45; }
 
 @media(max-width: 1220px) {
-    .clients-table { min-width: 1000px; }
-    .clients-table th, .clients-table td { padding: 8px 5px; }
+    .clients-table { min-width: 1040px; }
+    .clients-table th, .clients-table td { padding: 8px 7px; }
     .clients-table td { font-size: 11.5px; }
     .client-cell-title { font-size: 11.8px; }
-    .client-cell-sub { font-size: 10.5px; }
     .icon-action { flex-basis: 28px; width: 28px; height: 28px; }
     .icon-action svg { width: 13.5px; height: 13.5px; }
-    .clients-table th:nth-child(9), .clients-table td:nth-child(9) { width: 178px; }
 }
 
 @media(max-width: 980px) {
@@ -1416,29 +1685,55 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
 }
 
 @media(max-width: 760px) {
-    .clients-toolbar { grid-template-columns: 1fr !important; }
+    .clients-topbar { padding: 10px 12px !important; }
+    .clients-toolbar { grid-template-columns: 1fr 1fr !important; gap: 8px; }
+    .clients-toolbar .search-input,
+    .clients-toolbar .add-client-btn { grid-column: 1 / -1; }
+    .clients-toolbar input, .clients-toolbar select,
+    .clients-toolbar .btn { height: 40px; min-height: 40px; font-size: 13px; }
+    .clients-page-title { padding: 18px 16px 10px; }
+    .clients-page-title h1 { font-size: 28px; }
+    .clients-list-card { border-radius: 8px; margin: 0 12px; }
+    .clients-list-card .card-head { padding: 14px 16px; }
+    .clients-list-card .card-title { font-size: 22px; }
     .clients-table-wrap { overflow-x: visible; }
-    .clients-table { min-width: 0; width: 100%; border-collapse: separate; border-spacing: 0 10px; table-layout: auto; }
+    .clients-table { min-width: 0; width: 100%; border-collapse: separate; border-spacing: 0 8px; table-layout: auto; }
     .clients-table thead { display: none; }
-    .clients-table tbody, .clients-table tr, .clients-table td { display: block; width: 100% !important; }
-    .clients-table tr { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); padding: 10px 12px; }
-    .clients-table td { border-bottom: 0; padding: 6px 0; font-size: 12px; line-height: 1.35; }
-    .clients-table td::before { content: attr(data-label); display: block; margin-bottom: 2px; color: var(--muted); font-size: 9.5px; font-weight: 900; text-transform: uppercase; letter-spacing: .045em; }
-    .clients-table td:first-child { padding-top: 0; }
-    .clients-table td:first-child::before { display: none; }
-    .clients-table td:last-child { padding-top: 10px; }
-    .clients-table td:last-child::before { margin-bottom: 7px; }
-    .client-cell-title { font-size: 14px; line-height: 1.25; }
-    .client-cell-sub { font-size: 11.5px; }
-    .client-row-actions { justify-content: flex-start; gap: 7px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
-    .icon-action { flex: 0 0 34px; width: 34px; height: 34px; border-radius: 10px; }
-    .icon-action svg { width: 15.5px; height: 15.5px; }
+    .clients-table tbody { display: grid; gap: 8px; padding: 10px; }
+    .clients-table tr {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: none;
+        padding: 12px 12px 54px;
+    }
+    .clients-table td { display: block; width: auto !important; border-bottom: 0; padding: 0; font-size: 12.5px; line-height: 1.22; white-space: normal; overflow: visible; text-overflow: clip; text-align: left !important; font-weight: 800; }
+    .clients-table td::before { content: attr(data-label); display: block; margin-bottom: 2px; color: var(--muted); font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+    .clients-table td:nth-child(1) { position: absolute; top: 11px; right: 12px; width: auto !important; text-align: right; }
+    .clients-table td:nth-child(1)::before { display: none; }
+    .clients-table td:nth-child(2) { grid-column: 1 / -1; padding-right: 46px; margin-bottom: 1px; }
+    .clients-table td:nth-child(3), .clients-table td:nth-child(4),
+    .clients-table td:nth-child(5), .clients-table td:nth-child(6),
+    .clients-table td:nth-child(8) { min-width: 0; }
+    .clients-table td:nth-child(7) { grid-column: 1 / -1; }
+    .clients-table td:nth-child(9) { position: absolute; right: 12px; bottom: 12px; width: auto !important; padding: 0; }
+    .clients-table td:nth-child(9)::before { display: none; }
+    .client-cell-title { font-size: 15px; line-height: 1.16; font-weight: 900; white-space: normal; overflow-wrap: anywhere; }
+    .client-id-cell { display: inline-flex; min-width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; background: var(--surface-soft); color: var(--muted); font-size: 11px; }
+    .type-pill { border-radius: 6px; }
+    .client-row-actions { justify-content: flex-end; gap: 7px; overflow: visible; padding-bottom: 0; }
+    .icon-action { flex: 0 0 38px; width: 38px; height: 38px; border-radius: 8px; }
+    .icon-action svg { width: 16px; height: 16px; }
 }
 
 
 
 
-/* === Fisa rapida client - pop-up / panou rapid === */
+/* === Fișa rapida client - pop-up / panou rapid === */
 .client-quick-modal { z-index: 1200; }
 .client-quick-box { width: min(980px, calc(100vw - 32px)); max-height: calc(100vh - 44px); overflow: hidden; display: flex; flex-direction: column; }
 .client-quick-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--border); background: linear-gradient(135deg, #ffffff, #f8fafc); }
@@ -1640,149 +1935,109 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
 </head>
 
 <body>
-<div class="layout">
+        <div class="layout">
     <?php render_sidebar('clients', $isAdmin); ?>
 
     <main class="main">
         <div class="topbar clients-topbar">
             <form method="get" class="clients-toolbar">
-                <input class="search-input" type="text" name="q" value="<?= c_h($search) ?>" placeholder="Cauta dupa nume client sau persoana de contact...">
+                <select name="per_page" aria-label="Rânduri pe pagină">
+                    <?php foreach ([20, 50, 100] as $pp): ?>
+                        <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?></option>
+                    <?php endforeach; ?>
+                </select>
 
-                <select name="status">
+                <select name="status" aria-label="Status client">
                     <option value="active" <?= $statusFilter === 'active' ? 'selected' : '' ?>>Activ</option>
                     <option value="inactive" <?= $statusFilter === 'inactive' ? 'selected' : '' ?>>Inactiv</option>
                     <option value="all" <?= $statusFilter === 'all' ? 'selected' : '' ?>>Toate</option>
                 </select>
 
-                <select name="type">
+                <select name="type" aria-label="Tip client">
                     <option value="all" <?= $typeFilter === 'all' ? 'selected' : '' ?>>PJ + PF</option>
                     <option value="company" <?= $typeFilter === 'company' ? 'selected' : '' ?>>Doar PJ</option>
                     <option value="individual" <?= $typeFilter === 'individual' ? 'selected' : '' ?>>Doar PF</option>
                 </select>
 
-                <select name="per_page">
-                    <?php foreach ([20, 50, 100] as $pp): ?>
-                        <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?> / pagina</option>
-                    <?php endforeach; ?>
-                </select>
-
-                <button class="btn" type="submit">Filtreaza</button>
-                <button class="btn accent" type="button" onclick="openClientModal()">+ Client nou</button>
+                <button class="btn" type="submit">Filtrează</button>
+                <input class="search-input" type="text" name="q" value="<?= c_h($search) ?>" placeholder="Caută client">
+                <a class="btn" href="clients.php" title="Resetare filtre" aria-label="Resetare filtre">↻</a>
+                <button class="btn accent add-client-btn" type="button" onclick="openClientModal()">+ Client nou</button>
             </form>
         </div>
 
         <?php if (isset($_GET['created'])): ?><div class="notice notice-success">Clientul a fost adaugat.</div><?php endif; ?>
-        <?php if (isset($_GET['updated'])): ?><div class="notice notice-success">Fisa clientului a fost actualizata.</div><?php endif; ?>
-        <?php if (isset($_GET['task_added'])): ?><div class="notice notice-success">Sarcina a fost adaugata clientului.</div><?php endif; ?>
-        <?php if (isset($_GET['sms_updated'])): ?><div class="notice notice-success">Setarea pentru notificari SMS a fost actualizata.</div><?php endif; ?>
+        <?php if (isset($_GET['updated'])): ?><div class="notice notice-success">Fișa clientului a fost actualizată.</div><?php endif; ?>
+        <?php if (isset($_GET['task_added'])): ?><div class="notice notice-success">Sarcină a fost adăugată clientului.</div><?php endif; ?>
+        <?php if (isset($_GET['sms_updated'])): ?><div class="notice notice-success">Setarea pentru notificări SMS a fost actualizată.</div><?php endif; ?>
         <?php if (isset($_GET['deactivated'])): ?><div class="notice notice-warning">Clientul a fost dezactivat.</div><?php endif; ?>
-        <?php if (isset($_GET['deleted'])): ?><div class="notice notice-warning">Clientul a fost sters definitiv.</div><?php endif; ?>
-        <?php if (isset($_GET['delete_blocked'])): ?><div class="notice notice-danger">Clientul nu poate fi sters definitiv deoarece are programari sau sarcini. Il poti dezactiva pentru a pastra istoricul.</div><?php endif; ?>
-        <?php if (isset($_GET['delete_error'])): ?><div class="notice notice-danger">Clientul nu a putut fi sters. Verifica baza de date sau incearca dezactivarea.</div><?php endif; ?>
-        <?php if (($_GET['error'] ?? '') === 'missing_name'): ?><div class="notice notice-danger">Completeaza denumirea / numele clientului.</div><?php endif; ?>
-        <?php if (($_GET['error'] ?? '') === 'missing_rep'): ?><div class="notice notice-danger">Pentru persoana juridica trebuie completat reprezentantul legal.</div><?php endif; ?>
+        <?php if (isset($_GET['deleted'])): ?><div class="notice notice-warning">Clientul a fost șters definitiv.</div><?php endif; ?>
+        <?php if (isset($_GET['delete_blocked'])): ?><div class="notice notice-danger">Clientul nu poate fi șters definitiv deoarece are programări sau sarcini. Il poți dezactiva pentru a pastra istoricul.</div><?php endif; ?>
+        <?php if (isset($_GET['delete_error'])): ?><div class="notice notice-danger">Clientul nu a putut fi șters. Verifica baza de date sau incearca dezactivarea.</div><?php endif; ?>
+        <?php if (($_GET['error'] ?? '') === 'missing_name'): ?><div class="notice notice-danger">Completează denumirea / numele clientului.</div><?php endif; ?>
+        <?php if (($_GET['error'] ?? '') === 'missing_rep'): ?><div class="notice notice-danger">Pentru persoană juridică trebuie completat reprezentantul legal.</div><?php endif; ?>
+        <?php if (($_GET['error'] ?? '') === 'missing_fiscal_code'): ?><div class="notice notice-danger">Completează CUI / CNP.</div><?php endif; ?>
+        <?php if (($_GET['error'] ?? '') === 'missing_email'): ?><div class="notice notice-danger">Completează o adresa de email valida.</div><?php endif; ?>
+        <?php if (($_GET['error'] ?? '') === 'missing_phone'): ?><div class="notice notice-danger">Completează telefonul general.</div><?php endif; ?>
+        <?php if (($_GET['error'] ?? '') === 'missing_registered_address'): ?><div class="notice notice-danger">Completează adresa fiscală: țară, județ, oraș/localitate si adresa.</div><?php endif; ?>
+        <?php if (($_GET['error'] ?? '') === 'missing_location'): ?><div class="notice notice-danger">Adaugă cel puțin un punct de lucru activ.</div><?php endif; ?>
+        <?php if (($_GET['error'] ?? '') === 'missing_location_required'): ?><div class="notice notice-danger">Fiecare locație activa trebuie sa aiba nume, adresa, persoană de contact, telefon si suprafata.</div><?php endif; ?>
 
         <div class="content">
-            <section class="clients-hero">
-                <div>
-                    <h1>Contacte</h1>
-                    <p>Lista compacta de clienti, in acelasi stil cu modulul Contracte.</p>
-                </div>
-                <span class="hero-pill">Rezultate: <?= (int)$totalClients ?></span>
+            <section class="clients-page-title">
+                <h1>Clienți</h1>
+                <span class="clients-count-pill"><?= (int)$totalClients ?></span>
             </section>
 
             <section class="clients-layout">
                 <div class="clients-list-card">
                     <div class="card-head">
                         <div>
-                            <div class="card-title">Lista contacte</div>
-                            <div class="card-subtitle">Afisare <?= (int)$fromResult ?>-<?= (int)$toResult ?> din <?= (int)$totalClients ?></div>
+                            <div class="card-title">Listă contacte</div>
+                            <div class="card-subtitle">Afișare <?= (int)$fromResult ?>-<?= (int)$toResult ?> din <?= (int)$totalClients ?></div>
                         </div>
-                        <a class="btn" href="clients.php">Reseteaza filtrele</a>
                     </div>
 
                     <?php if (!$clients): ?>
-                        <div class="empty-state">Nu exista contacte pentru filtrul selectat.</div>
+                        <div class="empty-state">Nu există contacte pentru filtrul selectat.</div>
                     <?php else: ?>
                         <div class="clients-table-wrap">
                             <table class="clients-table">
                                 <thead>
                                     <tr>
-                                        <th style="width:26%;">Client</th>
+                                        <th>ID client</th>
+                                        <th>Denumire</th>
                                         <th>Tip</th>
                                         <th>CUI / CNP</th>
-                                        <th>Persoana contact</th>
+                                        <th>Reprezentant</th>
                                         <th>Telefon</th>
                                         <th>Email</th>
-                                        <th>Adresa / localitate</th>
-                                        <th>Status</th>
-                                        <th class="actions-col" style="text-align:right;">Actiuni</th>
+                                        <th>Oraș</th>
+                                        <th>Vezi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php foreach ($clients as $client): ?>
                                         <?php
                                             $cid = (int)$client['id'];
-                                            $address = c_client_address($client);
                                             $contactPerson = c_client_contact_person($client);
-                                            $preserve = $listBaseQuery;
-                                            $preserve['client_id'] = $cid;
-                                            $viewUrl = 'clients.php?' . http_build_query($preserve);
-                                            $statusClass = c_client_status_class($client['client_status'] ?? null, (int)($client['active'] ?? 1));
-                                            $statusLabel = c_client_status_label($client['client_status'] ?? null, (int)($client['active'] ?? 1));
                                         ?>
                                         <tr>
-                                            <td data-label="Client">
-                                                <div class="client-cell-title"><?= c_h($client['name']) ?></div>
-                                                <div class="client-cell-sub">
-                                                    <?= (int)($client['locations_count'] ?? 0) ?> locatii ·
-                                                    <?= (int)($client['contracts_count'] ?? 0) ?> contracte ·
-                                                    <?= (int)($client['appointments_count'] ?? 0) ?> programari
-                                                </div>
+                                            <td data-label="ID client"><span class="client-id-cell"><?= $cid ?></span></td>
+                                            <td data-label="Denumire">
+                                                <div class="client-cell-title"><?= c_h_raw($client['name']) ?></div>
                                             </td>
                                             <td data-label="Tip"><span class="type-pill"><?= c_h(c_client_type_label($client['client_type'] ?? 'company')) ?></span></td>
                                             <td data-label="CUI / CNP"><?= c_h($client['fiscal_code'] ?: '-') ?></td>
-                                            <td data-label="Persoana contact"><?= c_h($contactPerson ?: '-') ?></td>
+                                            <td data-label="Reprezentant"><?= c_h($contactPerson ?: '-') ?></td>
                                             <td data-label="Telefon"><?= c_h($client['phone'] ?: '-') ?></td>
                                             <td data-label="Email"><?= c_h($client['email'] ?: '-') ?></td>
-                                            <td data-label="Adresa / localitate">
-                                                <div class="client-cell-sub"><?= c_h_address($address ?: '-') ?></div>
-                                            </td>
-                                            <td data-label="Status"><span class="client-status-badge <?= c_h($statusClass) ?>"><?= c_h($statusLabel) ?></span></td>
-                                            <td data-label="Actiuni">
+                                            <td data-label="Oraș"><?= c_h($client['billing_city'] ?: '-') ?></td>
+                                            <td data-label="Vezi">
                                                 <div class="client-row-actions">
-                                                    <!-- Actiunea principala: Vezi clientul -->
-                                                    <a class="icon-action is-primary" href="<?= c_h($viewUrl) ?>" title="Vezi client" aria-label="Vezi client" onclick="event.preventDefault(); openClientQuickView(<?= $cid ?>);">
+                                                    <a class="icon-action is-primary" href="client.php?id=<?= $cid ?>" title="Vezi client" aria-label="Vezi client">
                                                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                                     </a>
-                                                    <!-- Restul de actiuni in meniu kebab -->
-                                                    <div class="row-menu" data-row-menu>
-                                                        <button class="row-menu-trigger" type="button" onclick="rowMenuToggle(this)" title="Mai multe actiuni" aria-label="Mai multe actiuni" aria-haspopup="menu">
-                                                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                                <circle cx="12" cy="5" r="1.6"></circle>
-                                                                <circle cx="12" cy="12" r="1.6"></circle>
-                                                                <circle cx="12" cy="19" r="1.6"></circle>
-                                                            </svg>
-                                                        </button>
-                                                        <div class="row-menu-dropdown" role="menu">
-                                                            <button class="row-menu-item" type="button" onclick="openClientModal(<?= $cid ?>); rowMenuCloseAll();" role="menuitem">
-                                                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"></path></svg>
-                                                                <span>Editeaza client</span>
-                                                            </button>
-                                                            <a class="row-menu-item" href="contracts.php?client_id=<?= $cid ?>" role="menuitem">
-                                                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M8 13h8"></path><path d="M8 17h8"></path></svg>
-                                                                <span>Vezi contracte</span>
-                                                            </a>
-                                                            <a class="row-menu-item" href="tasks.php?client_id=<?= $cid ?>" role="menuitem">
-                                                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
-                                                                <span>Vezi sarcini</span>
-                                                            </a>
-                                                            <a class="row-menu-item" href="calendar.php?client_id=<?= $cid ?>" role="menuitem">
-                                                                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path></svg>
-                                                                <span>Vezi programari</span>
-                                                            </a>
-                                                        </div>
-                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
@@ -1821,7 +2076,7 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                         <div class="profile-header">
                             <div class="profile-title-row">
                                 <div>
-                                    <h2 class="profile-title"><?= c_h($selectedClient['name']) ?></h2>
+                                    <h2 class="profile-title"><?= c_h_raw($selectedClient['name']) ?></h2>
                                     <div class="profile-sub">
                                         <?= c_h(c_client_type_label($selectedClient['client_type'] ?? 'company')) ?>
                                         <?php if (!empty($selectedClient['fiscal_code'])): ?> · <?= c_h($selectedClient['fiscal_code']) ?><?php endif; ?>
@@ -1830,9 +2085,9 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                                     </div>
                                 </div>
                                 <div class="profile-actions">
-                                    <button class="btn" type="button" onclick="openClientModal(<?= (int)$selectedClient['id'] ?>)">Editeaza fisa</button>
+                                    <button class="btn" type="button" onclick="openClientModal(<?= (int)$selectedClient['id'] ?>)">Editează fișa</button>
                                     <a class="btn" href="contract_create.php?client_id=<?= (int)$selectedClient['id'] ?>">Emite contract</a>
-                                    <a class="btn" href="tasks.php?client_id=<?= (int)$selectedClient['id'] ?>&open_create=1&return_to=client">Adauga sarcina</a>
+                                    <a class="btn" href="tasks.php?client_id=<?= (int)$selectedClient['id'] ?>&open_create=1&return_to=client">Adaugă sarcina</a>
                                     <a class="btn accent" href="calendar.php?client_id=<?= (int)$selectedClient['id'] ?>&open_create=1">Programare</a>
                                     <form method="post" action="clients.php" class="sms-toggle-form">
                                         <?= csrf_field() ?>
@@ -1840,10 +2095,10 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                                         <input type="hidden" name="client_id" value="<?= (int)$selectedClient['id'] ?>">
                                         <?php if ((int)($selectedClient['sms_enabled'] ?? 1) === 1): ?>
                                             <input type="hidden" name="sms_enabled" value="0">
-                                            <button class="btn" type="submit" onclick="return confirm('Opresti notificarile SMS pentru acest client?')">Opreste notificari SMS</button>
+                                            <button class="btn" type="submit" onclick="return confirm('Opresti notificările SMS pentru acest client?')">Opreste notificări SMS</button>
                                         <?php else: ?>
                                             <input type="hidden" name="sms_enabled" value="1">
-                                            <button class="btn accent" type="submit">Porneste notificari SMS</button>
+                                            <button class="btn accent" type="submit">Porneste notificări SMS</button>
                                         <?php endif; ?>
                                     </form>
                                 </div>
@@ -1860,7 +2115,7 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                                 </div>
                                 <div style="padding:16px;">
                                     <div class="info-grid">
-                                        <div class="info-box"><div class="info-label">Denumire / nume</div><div class="info-value"><?= c_h($selectedClient['name'] ?? '-') ?></div></div>
+                                        <div class="info-box"><div class="info-label">Denumire / nume</div><div class="info-value"><?= c_h_raw($selectedClient['name'] ?? '-') ?></div></div>
                                         <div class="info-box"><div class="info-label">CUI / CNP</div><div class="info-value"><?= c_h($selectedClient['fiscal_code'] ?: '-') ?></div></div>
                                         <div class="info-box"><div class="info-label">Reg. Com. / Serie CI</div><div class="info-value"><?= c_h($selectedClient['registry_number'] ?: '-') ?></div></div>
                                         <div class="info-box"><div class="info-label">Telefon</div><div class="info-value"><?= c_h($selectedClient['phone'] ?: '-') ?></div></div>
@@ -1868,7 +2123,11 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                                         <div class="info-box"><div class="info-label">Reprezentant</div><div class="info-value"><?= c_h(c_client_contact_person($selectedClient) ?: '-') ?></div></div>
                                         <div class="info-box"><div class="info-label">Banca</div><div class="info-value"><?= c_h($selectedClient['bank_name'] ?: '-') ?></div></div>
                                         <div class="info-box"><div class="info-label">Cont bancar</div><div class="info-value"><?= c_h($selectedClient['bank_account'] ?: '-') ?></div></div>
-                                        <div class="info-box" style="grid-column:1/-1;"><div class="info-label">Sediu social / domiciliu</div><div class="info-value"><?= c_h(c_client_address($selectedClient) ?: '-') ?></div></div>
+                                        <div class="info-box"><div class="info-label">Țară facturare</div><div class="info-value"><?= c_h($selectedClient['billing_country'] ?: 'Romania') ?></div></div>
+                                        <div class="info-box"><div class="info-label">Județ facturare</div><div class="info-value"><?= c_h($selectedClient['billing_county'] ?: '-') ?></div></div>
+                                        <div class="info-box"><div class="info-label">Oraș / sector</div><div class="info-value"><?= c_h($selectedClient['billing_city'] ?: '-') ?></div></div>
+                                        <div class="info-box"><div class="info-label">Cod postal</div><div class="info-value"><?= c_h($selectedClient['billing_postal_code'] ?: '-') ?></div></div>
+                                        <div class="info-box" style="grid-column:1/-1;"><div class="info-label">Adresa fiscală</div><div class="info-value"><?= c_h(c_client_address($selectedClient) ?: '-') ?></div></div>
                                         <?php if (!empty($selectedClient['anaf_last_lookup_at'])): ?>
                                             <div class="info-box" style="grid-column:1/-1;"><div class="info-label">Ultima interogare ANAF</div><div class="info-value"><?= c_h($selectedClient['anaf_last_lookup_at']) ?></div></div>
                                         <?php endif; ?>
@@ -1879,13 +2138,13 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                             <div class="panel">
                                 <div class="card-head">
                                     <div>
-                                        <div class="card-title">Locatii / puncte de lucru</div>
-                                        <div class="card-subtitle">Daca nu exista punct de lucru, prestarea se face pe sediu / domiciliu</div>
+                                        <div class="card-title">Locații / puncte de lucru</div>
+                                        <div class="card-subtitle">Dacă nu există punct de lucru, prestarea se face pe sediu / domiciliu</div>
                                     </div>
                                 </div>
                                 <div style="padding:16px;">
                                     <?php if (!$selectedLocations): ?>
-                                        <div class="empty-state">Nu exista puncte de lucru adaugate.</div>
+                                        <div class="empty-state">Nu există puncte de lucru adaugate.</div>
                                     <?php else: ?>
                                         <div class="location-list">
                                             <?php foreach ($selectedLocations as $location): ?>
@@ -1894,7 +2153,7 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                                                         <div>
                                                             <div class="location-name"><?= c_h($location['location_name'] ?: 'Punct de lucru') ?></div>
                                                             <div class="location-meta">
-                                                                <?= c_h($location['address'] ?: '-') ?><?php if (!empty($location['surface_value'])): ?><br>Suprafata: <?= c_h(rtrim(rtrim(number_format((float)$location['surface_value'], 2, '.', ''), '0'), '.')) ?> <?= c_h($location['surface_unit'] ?: 'mp') ?><?php endif; ?><br>
+                                                                <?= c_h($location['address'] ?: '-') ?><?php if (!empty($location['surface_value'])): ?><br>Suprafață: <?= c_h(rtrim(rtrim(number_format((float)$location['surface_value'], 2, '.', ''), '0'), '.')) ?> <?= c_h($location['surface_unit'] ?: 'mp') ?><?php endif; ?><br>
                                                                 Contact: <?= c_h($location['contact_person'] ?: '-') ?><?= !empty($location['phone']) ? ' / ' . c_h($location['phone']) : '' ?>
                                                                 <?php if (!empty($location['notes'])): ?><br><?= nl2br(c_h($location['notes'])) ?><?php endif; ?>
                                                             </div>
@@ -1914,18 +2173,18 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                                         <div class="card-title">Sarcini active</div>
                                         <div class="card-subtitle">Sarcini neprogramate pentru acest client</div>
                                     </div>
-                                    <a class="btn" href="tasks.php?client_id=<?= (int)$selectedClient['id'] ?>&open_create=1&return_to=client">Adauga sarcina</a>
+                                    <a class="btn" href="tasks.php?client_id=<?= (int)$selectedClient['id'] ?>&open_create=1&return_to=client">Adaugă sarcina</a>
                                 </div>
                                 <div style="padding:16px;">
                                     <?php if (!$selectedTasks): ?>
-                                        <div class="empty-state">Nu exista sarcini active pentru acest client. Apasa „Adauga sarcina” pentru a crea una.</div>
+                                        <div class="empty-state">Nu există sarcini active pentru acest client. Apasa „Adaugă sarcina” pentru a crea una.</div>
                                     <?php else: ?>
                                         <div class="history-list">
                                             <?php foreach ($selectedTasks as $task): ?>
                                                 <div class="history-item">
                                                     <div class="history-top">
                                                         <div>
-                                                            <div class="history-title"><?= c_h($task['service_type'] ?: 'Sarcina') ?></div>
+                                                            <div class="history-title"><?= c_h($task['service_type'] ?: 'Sarcină') ?></div>
                                                             <div class="history-meta">
                                                                 Scadenta: <?= c_h($task['due_date']) ?> · <?= c_h($task['location_name'] ?: 'Sediu / domiciliu') ?>
                                                             </div>
@@ -1942,13 +2201,13 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                             <div class="panel">
                                 <div class="card-head">
                                     <div>
-                                        <div class="card-title">Istoric programari</div>
-                                        <div class="card-subtitle">Ultimele programari ale clientului</div>
+                                        <div class="card-title">Istoric programări</div>
+                                        <div class="card-subtitle">Ultimele programări ale clientului</div>
                                     </div>
                                 </div>
                                 <div style="padding:16px;">
                                     <?php if (!$selectedAppointments): ?>
-                                        <div class="empty-state">Nu exista programari.</div>
+                                        <div class="empty-state">Nu există programări.</div>
                                     <?php else: ?>
                                         <div class="history-list">
                                             <?php foreach ($selectedAppointments as $appointment): ?>
@@ -1986,11 +2245,11 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                                     </form>
                                 <?php endif; ?>
 
-                                <form method="post" onsubmit="return confirm('Stergerea definitiva este permisa doar daca acest client nu are programari sau sarcini. Daca are istoric, sistemul va bloca stergerea. Continui?');">
+                                <form method="post" onsubmit="return confirm('Ștergerea definitiva este permisa doar dacă acest client nu are programări sau sarcini. Dacă are istoric, sistemul va bloca stergerea. Continui?');">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="action" value="permanent_delete">
                                     <input type="hidden" name="client_id" value="<?= (int)$selectedClient['id'] ?>">
-                                    <button class="btn danger" type="submit">Sterge definitiv</button>
+                                    <button class="btn danger" type="submit">Șterge definitiv</button>
                                 </form>
                             </div>
                         </div>
@@ -2019,8 +2278,8 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                 <div class="form-section-title">Tip client</div>
                 <input type="hidden" name="client_type" id="client_type" value="company">
                 <div class="type-switch">
-                    <button type="button" class="type-option active" id="type_company" onclick="setClientType('company')">Persoana juridica</button>
-                    <button type="button" class="type-option" id="type_individual" onclick="setClientType('individual')">Persoana fizica</button>
+                    <button type="button" class="type-option active" id="type_company" onclick="setClientType('company')">Persoană juridică</button>
+                    <button type="button" class="type-option" id="type_individual" onclick="setClientType('individual')">Persoană fizică</button>
                 </div>
             </div>
 
@@ -2031,52 +2290,42 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                         <label>CUI firma</label>
                         <input type="text" id="anaf_cui" placeholder="Ex: 14837428">
                     </div>
-                    <button class="btn accent" type="button" onclick="lookupAnaf()">Cauta ANAF</button>
+                    <button class="btn accent" type="button" onclick="lookupAnaf()">Caută ANAF</button>
                 </div>
-                <div class="anaf-message" id="anaf_message">Telefonul nu se preia de la ANAF. Completeaza manual telefonul dorit.</div>
+                <div class="anaf-message" id="anaf_message"></div>
             </div>
 
             <div class="form-section">
-                <div class="form-section-title">Zona 1 - Identificare</div>
+                <div class="form-section-title">Zona 1 - Date client</div>
                 <div class="form-grid">
                     <div>
                         <label>Denumire / nume *</label>
                         <input type="text" name="name" id="name" required>
                     </div>
                     <div>
-                        <label>CUI / CNP</label>
-                        <input type="text" name="fiscal_code" id="fiscal_code">
+                        <label>CUI / CNP *</label>
+                        <input type="text" name="fiscal_code" id="fiscal_code" required>
                     </div>
                     <div>
                         <label>Nr. Reg. Com. / Serie CI</label>
                         <input type="text" name="registry_number" id="registry_number">
                     </div>
                     <div>
-                        <label>Email</label>
-                        <input type="email" name="email" id="email">
+                        <label>Email *</label>
+                        <input type="email" name="email" id="email" required>
                     </div>
                     <div>
-                        <label>Telefon general</label>
-                        <input type="tel" name="phone" id="phone">
+                        <label>Telefon general *</label>
+                        <input type="tel" name="phone" id="phone" required>
                     </div>
                     <div id="rep_name_wrap">
                         <label>Reprezentant legal *</label>
                         <input type="text" name="legal_representative_name" id="legal_representative_name">
                     </div>
                     <div id="rep_role_wrap">
-                        <label>Calitate reprezentant</label>
+                        <label>Calitate reprezentant *</label>
                         <input type="text" name="legal_representative_role" id="legal_representative_role" value="Administrator">
                     </div>
-                    <div class="form-group full">
-                        <label>Sediu social / adresa domiciliu</label>
-                        <input type="text" name="registered_address" id="registered_address">
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <div class="form-section-title">Zona 2 - Date bancare</div>
-                <div class="form-grid">
                     <div>
                         <label>Banca</label>
                         <input type="text" name="bank_name" id="bank_name">
@@ -2089,16 +2338,44 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
             </div>
 
             <div class="form-section">
-                <div class="form-section-title">Zona 3 - Locatii / puncte de lucru</div>
-                <div class="location-form-list" id="locationsFormList"></div>
-                <div class="client-add-location-action">
-                    <button class="btn" type="button" onclick="addLocationRow()">+ Adauga punct de lucru</button>
+                <div class="form-section-title">Adresa e-Factura</div>
+                <input type="hidden" name="registered_address" id="registered_address" value="">
+                <input type="hidden" name="billing_sector" id="billing_sector" value="">
+                <div class="form-grid">
+                    <div>
+                        <label>Țară *</label>
+                        <input type="text" name="billing_country" id="billing_country" value="Romania" required>
+                    </div>
+                    <div>
+                        <label>Județ *</label>
+                        <input type="text" name="billing_county" id="billing_county" placeholder="Constanta / Bucuresti" required>
+                    </div>
+                    <div>
+                        <label>Oraș / sector *</label>
+                        <input type="text" name="billing_city" id="billing_city" placeholder="Constanta / Sector 3" required>
+                    </div>
+                    <div>
+                        <label>Cod postal</label>
+                        <input type="text" name="billing_postal_code" id="billing_postal_code">
+                    </div>
+                    <div class="form-group full">
+                        <label>Strada / adresa *</label>
+                        <input type="text" name="billing_address_line" id="billing_address_line" placeholder="Strada, numar, bloc, scara, etaj, apartament" required>
+                    </div>
                 </div>
             </div>
 
             <div class="form-section">
-                <div class="form-section-title">Observatii client</div>
-                <textarea name="notes" id="notes" placeholder="Observatii generale despre client..."></textarea>
+                <div class="form-section-title">Zona 2 - Locații</div>
+                <div class="location-form-list" id="locationsFormList"></div>
+                <div class="client-add-location-action">
+                    <button class="btn" type="button" onclick="addLocationRow()">+ Adaugă punct de lucru</button>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Observații client</div>
+                <textarea name="notes" id="notes" placeholder="Observații generale despre client..."></textarea>
             </div>
 
             <div class="form-section">
@@ -2110,7 +2387,7 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                     </label>
                     <div>
                         <div class="status-toggle-label">Client activ</div>
-                        <div class="status-toggle-meta">Clientii inactivi nu apar in cautari si nu primesc programari.</div>
+                        <div class="status-toggle-meta">Clienții inactivi nu apar in cautari si nu primesc programări.</div>
                     </div>
                     <span class="status-toggle-state" id="status_state">Activ</span>
                 </div>
@@ -2122,7 +2399,7 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
                     </label>
                     <div>
                         <div class="status-toggle-label">Trimite SMS-uri catre client</div>
-                        <div class="status-toggle-meta">Cand e oprit, NU se trimit SMS-uri automate (programari, scadente) sau manuale catre acest client.</div>
+                        <div class="status-toggle-meta">Cand e oprit, NU se trimit SMS-uri automate (programări, scadente) sau manuale catre acest client.</div>
                     </div>
                     <span class="status-toggle-state" id="sms_state">Pornit</span>
                 </div>
@@ -2131,8 +2408,8 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
             <div class="actions-row">
                 <div></div>
                 <div class="actions-right">
-                    <button class="btn" type="button" onclick="closeClientModal()">Renunta</button>
-                    <button class="btn accent" type="submit">Salveaza clientul</button>
+                    <button class="btn" type="button" onclick="closeClientModal()">Renunță</button>
+                    <button class="btn accent" type="submit">Salvează clientul</button>
                 </div>
             </div>
         </form>
@@ -2144,8 +2421,8 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
     <div class="modal-box client-quick-box">
         <div class="client-quick-header">
             <div>
-                <h2 class="client-quick-title" id="quickClientTitle">Fisa rapida client</h2>
-                <div class="client-quick-subtitle" id="quickClientSubtitle">Date client, locatii si activitate.</div>
+                <h2 class="client-quick-title" id="quickClientTitle">Fișa rapida client</h2>
+                <div class="client-quick-subtitle" id="quickClientSubtitle">Date client, locații si activitate.</div>
             </div>
             <button class="modal-close" type="button" onclick="closeClientQuickView()">&times;</button>
         </div>
@@ -2156,6 +2433,7 @@ $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
 <script>
 const clientsData = <?= json_encode(c_fix_encoding_issues_recursive($clientsForJs), JSON_UNESCAPED_UNICODE) ?>;
 const shouldOpenCreate = <?= $shouldOpenCreate ? 'true' : 'false' ?>;
+const shouldOpenEditClientId = <?= (int)$shouldOpenEditClientId ?>;
 let locationIndex = 0;
 
 function escHtml(str) {
@@ -2213,13 +2491,13 @@ function quickKpi(value, label) {
 function formatLocationSurface(location) {
     const value = String(location.surface_value || '').trim();
     if (!value) return '';
-    return `Suprafata: ${escHtml(value)} ${escHtml(location.surface_unit || 'mp')}`;
+    return `Suprafață: ${escHtml(value)} ${escHtml(location.surface_unit || 'mp')}`;
 }
 
 function renderQuickLocations(client) {
     const locations = client.locations || [];
     if (!locations.length) {
-        return `<div class="quick-empty">Clientul nu are locatii/puncte de lucru salvate. Pentru documente si servicii, adauga cel putin o locatie.</div>`;
+        return `<div class="quick-empty">Clientul nu are locații/puncte de lucru salvate. Pentru documente si servicii, adauga cel puțin o locație.</div>`;
     }
 
     return `<div class="quick-locations-list">${locations.map(location => {
@@ -2263,7 +2541,7 @@ function openClientQuickView(clientId) {
 
     body.innerHTML = `
         <div class="client-quick-actions">
-            <button class="btn accent" type="button" onclick="closeClientQuickView(); openClientModal(${Number(client.id)});">Editeaza client</button>
+            <button class="btn accent" type="button" onclick="closeClientQuickView(); openClientModal(${Number(client.id)});">Editează client</button>
         </div>
         <div class="client-quick-grid">
             <div class="client-quick-card">
@@ -2280,11 +2558,15 @@ function openClientQuickView(clientId) {
                         ${quickField('Calitate reprezentant', client.legal_representative_role)}
                         ${quickField('Telefon', client.phone)}
                         ${quickField('Email', client.email)}
-                        ${quickField('Adresa sediu / domiciliu', client.registered_address)}
+                        ${quickField('Țară facturare', client.billing_country || 'Romania')}
+                        ${quickField('Județ facturare', client.billing_county)}
+                        ${quickField('Oraș / sector', client.billing_city)}
+                        ${quickField('Cod postal', client.billing_postal_code)}
+                        ${quickField('Adresa fiscală', client.registered_address)}
                         ${quickField('Banca', client.bank_name)}
                         ${quickField('Cont bancar', client.bank_account)}
                     </div>
-                    ${client.notes ? `<div style="margin-top:12px;">${quickField('Observatii client', client.notes)}</div>` : ''}
+                    ${client.notes ? `<div style="margin-top:12px;">${quickField('Observații client', client.notes)}</div>` : ''}
                 </div>
             </div>
             <div class="client-quick-card">
@@ -2294,15 +2576,15 @@ function openClientQuickView(clientId) {
                         ${quickKpi(Number(client.contracts_count || 0) > 0 ? 'Da' : 'Nu', 'Are contract')}
                         ${quickKpi(client.contracts_count || 0, 'Contracte')}
                         ${quickKpi(client.completed_appointments_count || 0, 'Interventii finalizate')}
-                        ${quickKpi(client.appointments_count || 0, 'Programari totale')}
+                        ${quickKpi(client.appointments_count || 0, 'Programări totale')}
                         ${quickKpi(client.active_tasks_count || 0, 'Sarcini active')}
-                        ${quickKpi(client.locations_count || 0, 'Locatii')}
+                        ${quickKpi(client.locations_count || 0, 'Locații')}
                     </div>
                 </div>
             </div>
         </div>
         <div class="client-quick-card" style="margin-top:14px;">
-            <div class="client-quick-card-head"><div class="client-quick-card-title">Locatii / puncte de lucru</div></div>
+            <div class="client-quick-card-head"><div class="client-quick-card-title">Locații / puncte de lucru</div></div>
             <div class="client-quick-card-body">${renderQuickLocations(client)}</div>
         </div>
     `;
@@ -2319,6 +2601,29 @@ function setField(id, value) {
     if (field) field.value = value || '';
 }
 
+function buildBillingAddressFromFields() {
+    const parts = [
+        (document.getElementById('billing_address_line')?.value || '').trim(),
+        (document.getElementById('billing_county')?.value || '').trim(),
+        (document.getElementById('billing_city')?.value || '').trim(),
+        (document.getElementById('billing_sector')?.value || '').trim(),
+        (document.getElementById('billing_country')?.value || '').trim(),
+    ].filter(Boolean);
+    const postal = (document.getElementById('billing_postal_code')?.value || '').trim();
+    let address = parts.join(', ');
+    if (postal) address += (address ? ', ' : '') + 'CP ' + postal;
+    return address;
+}
+
+function refreshRegisteredAddressFromBilling(force = false) {
+    const target = document.getElementById('registered_address');
+    if (!target) return;
+    const built = buildBillingAddressFromFields();
+    if (force || !target.value.trim()) {
+        target.value = built;
+    }
+}
+
 function setClientType(type) {
     const isIndividual = type === 'individual';
     document.getElementById('client_type').value = isIndividual ? 'individual' : 'company';
@@ -2330,6 +2635,8 @@ function setClientType(type) {
 
     const repName = document.getElementById('legal_representative_name');
     if (repName) repName.required = !isIndividual;
+    const repRole = document.getElementById('legal_representative_role');
+    if (repRole) repRole.required = !isIndividual;
 
     if (isIndividual) {
         setField('legal_representative_name', '');
@@ -2346,8 +2653,14 @@ function resetClientForm() {
     setField('anaf_raw_response', '');
     setField('anaf_last_lookup_at', '');
     setField('anaf_cui', '');
+    setField('billing_country', 'Romania');
+    setField('billing_county', '');
+    setField('billing_city', '');
+    setField('billing_sector', '');
+    setField('billing_address_line', '');
+    setField('billing_postal_code', '');
     document.getElementById('anaf_message').className = 'anaf-message';
-    document.getElementById('anaf_message').textContent = 'Telefonul nu se preia de la ANAF. Completeaza manual telefonul dorit.';
+    document.getElementById('anaf_message').textContent = '';
     document.getElementById('locationsFormList').innerHTML = '';
     locationIndex = 0;
     setClientType('company');
@@ -2358,7 +2671,7 @@ function openClientModal(clientId = null) {
 
     if (clientId && clientsData[clientId]) {
         const client = clientsData[clientId];
-        document.getElementById('clientModalTitle').textContent = 'Editeaza client';
+        document.getElementById('clientModalTitle').textContent = 'Editează client';
         setField('form_action', 'update');
         setField('client_id', client.id);
         setClientType(client.client_type || 'company');
@@ -2366,6 +2679,12 @@ function openClientModal(clientId = null) {
         setField('fiscal_code', client.fiscal_code);
         setField('registry_number', client.registry_number);
         setField('registered_address', client.registered_address);
+        setField('billing_country', client.billing_country || 'Romania');
+        setField('billing_county', client.billing_county);
+        setField('billing_city', client.billing_city);
+        setField('billing_sector', client.billing_sector);
+        setField('billing_address_line', client.billing_address_line);
+        setField('billing_postal_code', client.billing_postal_code);
         setField('bank_name', client.bank_name);
         setField('bank_account', client.bank_account);
         setField('phone', client.phone);
@@ -2382,7 +2701,7 @@ function openClientModal(clientId = null) {
             activeCheckbox.checked = (Number(client.active) === 1);
             updateClientStatusLabel(activeCheckbox);
         }
-        // Setam toggle SMS conform datelor existente (default = activat daca lipseste)
+        // Setam toggle SMS conform datelor existente (default = activat dacă lipseste)
         const smsCheckbox = document.getElementById('client_sms_enabled');
         if (smsCheckbox) {
             smsCheckbox.checked = (client.sms_enabled === undefined || client.sms_enabled === null) ? true : (Number(client.sms_enabled) === 1);
@@ -2390,6 +2709,9 @@ function openClientModal(clientId = null) {
         }
 
         (client.locations || []).forEach(location => addLocationRow(location));
+        if (!client.locations || client.locations.length === 0) {
+            addLocationRow();
+        }
     } else {
         document.getElementById('clientModalTitle').textContent = 'Client nou';
         // Pentru client nou, default e activ
@@ -2407,6 +2729,15 @@ function openClientModal(clientId = null) {
     }
 
     document.getElementById('clientModal').classList.add('open');
+
+    if (!clientId) {
+        setTimeout(() => {
+            const focusTarget = document.getElementById('client_type')?.value === 'company'
+                ? document.getElementById('anaf_cui')
+                : document.getElementById('name');
+            focusTarget?.focus();
+        }, 80);
+    }
 }
 
 /* === Toggle label dinamic Activ/Inactiv === */
@@ -2439,9 +2770,51 @@ function closeClientModal() {
     document.getElementById('clientModal').classList.remove('open');
 }
 
+function getClientLocationContactDefaults() {
+    const type = document.getElementById('client_type').value;
+    const clientName = (document.getElementById('name').value || '').trim();
+    const repName = (document.getElementById('legal_representative_name').value || '').trim();
+    const phone = (document.getElementById('phone').value || '').trim();
+    const contact = type === 'individual' ? clientName : (repName || clientName);
+
+    return {
+        contact_person: contact,
+        phone,
+    };
+}
+
+function setFieldIfEmpty(id, value) {
+    const field = document.getElementById(id);
+    if (field && !field.value.trim() && value) {
+        field.value = value;
+    }
+}
+
+function syncFirstLocationFromClient() {
+    const firstRow = document.querySelector('#locationsFormList .location-form-row');
+    if (!firstRow) return;
+
+    const idx = firstRow.dataset.idx;
+    refreshRegisteredAddressFromBilling(false);
+    const registeredAddress = (document.getElementById('registered_address').value || '').trim();
+    setFieldIfEmpty('location_address_' + idx, registeredAddress);
+}
+
 function addLocationRow(location = {}) {
     const list = document.getElementById('locationsFormList');
     const idx = locationIndex++;
+    refreshRegisteredAddressFromBilling(false);
+    const registeredAddress = (document.getElementById('registered_address').value || '').trim();
+    const isFirstNewBlankRow = list.children.length === 0
+        && !location.id
+        && !location.address
+        && !location.location_name
+        && !location.contact_person
+        && !location.phone;
+    if (isFirstNewBlankRow && registeredAddress) {
+        location = { ...location, address: registeredAddress };
+    }
+
     const row = document.createElement('div');
     row.className = 'location-form-row';
     row.dataset.idx = idx;
@@ -2452,41 +2825,34 @@ function addLocationRow(location = {}) {
         <div class="location-row-head">
             <div class="location-row-title">Punct de lucru</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <button class="btn" type="button" onclick="copyClientContactToLocation(${idx})">Preia date contact</button>
-                <button class="btn danger" type="button" onclick="removeLocationRow(this, ${idx}, ${location.id ? 'true' : 'false'})">Sterge</button>
+                <button class="btn" type="button" onclick="copyClientContactToLocation(${idx})">Preia date</button>
+                <button class="btn danger" type="button" onclick="removeLocationRow(this, ${idx}, ${location.id ? 'true' : 'false'})">Șterge</button>
             </div>
         </div>
         <div class="form-grid">
             <div>
-                <label>Nume punct de lucru</label>
-                <input type="text" name="location_name[]" id="location_name_${idx}" value="${escHtml(location.location_name || '')}" placeholder="Ex: Magazin Tomis Mall">
+                <label>Nume punct de lucru *</label>
+                <input type="text" name="location_name[]" id="location_name_${idx}" value="${escHtml(location.location_name || '')}" placeholder="Ex: Magazin Tomis Mall" required>
             </div>
             <div>
-                <label>Persoana contact locatie</label>
-                <input type="text" name="location_contact_person[]" id="location_contact_person_${idx}" value="${escHtml(location.contact_person || '')}">
+                <label>Persoană contact locație *</label>
+                <input type="text" name="location_contact_person[]" id="location_contact_person_${idx}" value="${escHtml(location.contact_person || '')}" required>
             </div>
             <div>
-                <label>Telefon contact locatie</label>
-                <input type="tel" name="location_phone[]" id="location_phone_${idx}" value="${escHtml(location.phone || '')}">
+                <label>Telefon contact locație *</label>
+                <input type="tel" name="location_phone[]" id="location_phone_${idx}" value="${escHtml(location.phone || '')}" required>
             </div>
             <div class="form-group full">
-                <label>Adresa punct de lucru</label>
-                <input type="text" name="location_address[]" id="location_address_${idx}" value="${escHtml(location.address || '')}">
+                <label>Adresa punctului de lucru *</label>
+                <input type="text" name="location_address[]" id="location_address_${idx}" value="${escHtml(location.address || '')}" required>
             </div>
             <div>
-                <label>Suprafata locatie</label>
-                <input type="text" name="location_surface_value[]" id="location_surface_value_${idx}" value="${escHtml(location.surface_value || '')}" placeholder="Ex: 120">
-            </div>
-            <div>
-                <label>Unitate suprafata</label>
-                <select name="location_surface_unit[]" id="location_surface_unit_${idx}">
-                    <option value="mp" ${(!location.surface_unit || location.surface_unit === 'mp') ? 'selected' : ''}>m²</option>
-                    <option value="ml" ${location.surface_unit === 'ml' ? 'selected' : ''}>ml</option>
-                    <option value="buc" ${location.surface_unit === 'buc' ? 'selected' : ''}>buc.</option>
-                </select>
+                <label>Suprafață locație (mp) *</label>
+                <input type="text" name="location_surface_value[]" id="location_surface_value_${idx}" value="${escHtml(location.surface_value || '')}" placeholder="Ex: 120" required>
+                <input type="hidden" name="location_surface_unit[]" id="location_surface_unit_${idx}" value="mp">
             </div>
             <div class="form-group full">
-                <label>Notite locatie / particularitati</label>
+                <label>Notite locație / particularitati</label>
                 <textarea name="location_notes[]" id="location_notes_${idx}">${escHtml(location.notes || '')}</textarea>
             </div>
         </div>
@@ -2494,6 +2860,9 @@ function addLocationRow(location = {}) {
 
     if (location.active === 0) {
         row.style.opacity = '.55';
+        row.querySelectorAll('input, textarea, select').forEach(field => {
+            if (field.type !== 'hidden') field.required = false;
+        });
     }
 
     list.appendChild(row);
@@ -2505,6 +2874,9 @@ function removeLocationRow(button, idx, existing) {
 
     if (existing) {
         document.getElementById('location_active_' + idx).value = '0';
+        row.querySelectorAll('input, textarea, select').forEach(field => {
+            if (field.type !== 'hidden') field.required = false;
+        });
         row.style.display = 'none';
     } else {
         row.remove();
@@ -2512,14 +2884,10 @@ function removeLocationRow(button, idx, existing) {
 }
 
 function copyClientContactToLocation(idx) {
-    const type = document.getElementById('client_type').value;
-    const clientName = document.getElementById('name').value;
-    const repName = document.getElementById('legal_representative_name').value;
-    const phone = document.getElementById('phone').value;
-    const contact = type === 'individual' ? clientName : (repName || clientName);
+    const defaults = getClientLocationContactDefaults();
 
-    setField('location_contact_person_' + idx, contact);
-    setField('location_phone_' + idx, phone);
+    setField('location_contact_person_' + idx, defaults.contact_person);
+    setField('location_phone_' + idx, defaults.phone);
 }
 
 async function lookupAnaf() {
@@ -2551,13 +2919,20 @@ async function lookupAnaf() {
         setField('name', cleanText(data.name || ''));
         setField('fiscal_code', data.fiscal_code || '');
         setField('registry_number', cleanText(data.registry_number || ''));
-        setField('registered_address', cleanText(data.registered_address || ''));
+        setField('billing_country', cleanText(data.billing_country || 'Romania'));
+        setField('billing_county', cleanText(data.billing_county || ''));
+        setField('billing_city', cleanText(data.billing_city || ''));
+        setField('billing_sector', cleanText(data.billing_sector || ''));
+        setField('billing_address_line', cleanText(data.billing_address_line || data.registered_address || ''));
+        setField('billing_postal_code', cleanText(data.billing_postal_code || ''));
+        refreshRegisteredAddressFromBilling(true);
         setField('bank_account', cleanText(data.bank_account || ''));
         setField('anaf_last_lookup_at', data.anaf_last_lookup_at || '');
         setField('anaf_raw_response', data.anaf_raw_response || '');
+        syncFirstLocationFromClient();
 
         message.className = 'anaf-message ok';
-        message.textContent = 'Datele au fost preluate de la ANAF. Telefonul ramane completat manual.';
+        message.textContent = 'Datele au fost preluate de la ANAF.';
     } catch (err) {
         console.error(err);
         message.className = 'anaf-message bad';
@@ -2576,9 +2951,22 @@ document.addEventListener('keydown', event => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+    ['billing_country', 'billing_county', 'billing_city', 'billing_sector', 'billing_address_line', 'billing_postal_code'].forEach(id => {
+        const field = document.getElementById(id);
+        if (field) {
+            field.addEventListener('input', () => refreshRegisteredAddressFromBilling(true));
+        }
+    });
+
     if (shouldOpenCreate) {
         openClientModal();
+    } else if (shouldOpenEditClientId > 0) {
+        openClientModal(shouldOpenEditClientId);
     }
+});
+
+document.getElementById('clientForm')?.addEventListener('submit', () => {
+    refreshRegisteredAddressFromBilling(true);
 });
 
 /* === Kebab menu toggle pentru row actions === */

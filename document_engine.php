@@ -24,7 +24,7 @@ if (!function_exists('pzdoc_engine_build')) {
         if (!$document) { throw new RuntimeException('Document inexistent.'); }
 
         $design  = pzdoc_pdf_design($pdo, $document);
-        $content = pzdoc_pdf_convert_px_to_pt(pzdoc_render_document_html($pdo, $documentId, null, false));
+        $content = pzdoc_pdf_prepare_html(pzdoc_pdf_convert_px_to_pt(pzdoc_render_document_html($pdo, $documentId, null, false)));
         $design  = pzdoc_pdf_apply_content_font_to_design($design, $content);
 
         $header = pzdoc_pdf_header_html($pdo, $design);

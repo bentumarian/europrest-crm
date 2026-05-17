@@ -311,74 +311,6 @@ foreach ($stats as $stat) {
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Documente - PestZone</title>
 <?php app_theme_css(); ?>
-<style>
-.docs-topbar { justify-content:flex-end; padding:0 20px; }
-.docs-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
-.docs-hero { background:linear-gradient(135deg, var(--accent-deep) 0%, var(--accent-strong) 100%); color:#fff; border-radius:20px; padding:22px; margin-bottom:16px; box-shadow:var(--shadow-lg); display:flex; justify-content:space-between; gap:18px; align-items:flex-start; }
-.docs-hero h1 { margin:0 0 6px; font-size:28px; letter-spacing:-.03em; }
-.docs-hero p { margin:0; color:rgba(255,255,255,.78); max-width:780px; font-size:14px; }
-.hero-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-.hero-pill { display:inline-flex; align-items:center; gap:6px; min-height:34px; padding:0 10px; border-radius:999px; background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.18); font-size:12px; font-weight:900; white-space:nowrap; }
-.alert { border-radius:14px; padding:12px 14px; margin-bottom:14px; font-size:13px; font-weight:800; border:1px solid var(--border); background:#fff; }
-.alert.error { color:var(--danger); background:var(--danger-soft); border-color:rgba(180,35,24,.16); }
-.stats-grid { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; margin-bottom:14px; }
-.stat-card { background:#fff; border:1px solid var(--border); border-radius:18px; padding:15px; box-shadow:var(--shadow); }
-.stat-label { color:var(--muted); font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.04em; }
-.stat-value { margin-top:8px; font-size:25px; font-weight:950; color:var(--text); letter-spacing:-.04em; }
-.stat-sub { margin-top:5px; color:var(--muted); font-size:12px; font-weight:750; }
-.panel { background:#fff; border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden; }
-.panel-head { padding:15px 16px; border-bottom:1px solid var(--border2); display:flex; justify-content:space-between; gap:12px; align-items:center; }
-.panel-title { font-size:15px; font-weight:950; }
-.panel-subtitle { margin-top:3px; color:var(--muted); font-size:12px; font-weight:700; }
-.panel-body { padding:14px 16px; }
-.filter-form { display:grid; grid-template-columns:minmax(220px,1.2fr) 160px 160px 145px 145px 110px auto; gap:10px; align-items:end; }
-.field label { display:block; color:var(--muted); font-size:11px; font-weight:900; margin:0 0 6px; text-transform:uppercase; letter-spacing:.03em; }
-.field input,
-.field select { width:100%; height:40px; border-radius:12px; border:1px solid var(--border); background:#fff; color:var(--text); padding:0 11px; outline:none; font-size:13px; font-weight:750; }
-.field input:focus,
-.field select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
-.btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:38px; border-radius:12px; padding:0 13px; border:1px solid var(--border); background:#fff; color:var(--text); font-size:13px; font-weight:900; text-decoration:none; cursor:pointer; white-space:nowrap; }
-.btn:hover { border-color:var(--accent); color:var(--accent-deep); }
-.btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
-.btn.primary:hover { background:var(--accent-strong); color:#fff; }
-.btn.dark { background:var(--accent); border-color:var(--accent); color:#fff; }
-.btn.danger { color:var(--danger); border-color:rgba(180,35,24,.28); background:#fff; }
-.btn.small { min-height:32px; padding:0 10px; font-size:12px; border-radius:10px; }
-.btn.ghost { background:transparent; }
-.badge { display:inline-flex; align-items:center; justify-content:center; border-radius:999px; padding:6px 9px; font-size:11px; font-weight:900; border:1px solid var(--border2); background:var(--surface-soft); color:var(--muted); white-space:nowrap; }
-.badge.draft { background:var(--warning-soft); color:var(--warning); border-color:rgba(154,103,0,.18); }
-.badge.issued { background:var(--success-soft); color:var(--success); border-color:rgba(31,111,84,.18); }
-.badge.cancelled { background:var(--danger-soft); color:var(--danger); border-color:rgba(180,35,24,.16); }
-.badge.oferta { background:rgba(0,113,163,.08); color:var(--accent-deep); border-color:rgba(0,113,163,.16); }
-.badge.contract { background:var(--accent-soft); color:var(--accent); border-color:var(--accent-soft-2); }
-.badge.proces-verbal { background:rgba(31,111,84,.08); color:var(--success); border-color:rgba(31,111,84,.14); }
-.docs-list { display:grid; gap:10px; }
-.doc-row { background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); padding:13px 14px; display:grid; grid-template-columns:minmax(250px,1.2fr) minmax(135px,.45fr) minmax(170px,.55fr) minmax(120px,.35fr) minmax(115px,.3fr) auto; gap:12px; align-items:center; }
-.doc-title { font-size:14px; font-weight:950; color:var(--text); overflow-wrap:anywhere; }
-.doc-meta { color:var(--muted); font-size:12px; margin-top:4px; line-height:1.35; }
-.doc-number { font-weight:950; color:var(--text); }
-.doc-actions { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
-.email-state { font-size:12px; font-weight:850; color:var(--muted); }
-.email-state.sent { color:var(--success); }
-.empty-state { padding:24px; text-align:center; color:var(--muted); font-weight:800; border:1px dashed var(--border); border-radius:16px; background:var(--surface-soft); }
-.pagination { display:flex; gap:6px; justify-content:flex-end; align-items:center; flex-wrap:wrap; margin-top:12px; }
-.quick-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; margin-bottom:14px; }
-.quick-card { background:#fff; border:1px solid var(--border); border-radius:18px; padding:14px; box-shadow:var(--shadow); display:flex; justify-content:space-between; gap:12px; align-items:center; }
-.quick-card strong { display:block; font-size:14px; font-weight:950; }
-.quick-card span { display:block; margin-top:3px; color:var(--muted); font-size:12px; font-weight:750; }
-@media (max-width: 1180px) {
-    .filter-form { grid-template-columns:1fr 1fr 1fr; }
-    .doc-row { grid-template-columns:1fr; }
-    .doc-actions { justify-content:flex-start; }
-}
-@media (max-width: 820px) {
-    .docs-hero { display:block; padding:18px; }
-    .hero-actions { justify-content:flex-start; margin-top:12px; }
-    .stats-grid, .quick-grid { grid-template-columns:1fr; }
-    .filter-form { grid-template-columns:1fr; }
-    .docs-topbar { justify-content:flex-start; padding-left:70px; min-height:72px; }
-}
-</style>
 </head>
 <body>
 <div class="layout">
@@ -387,12 +319,12 @@ foreach ($stats as $stat) {
     <main class="main">
         <header class="topbar docs-topbar">
             <div class="docs-toolbar">
-                <a class="btn primary" href="oferte.php?new=1">Oferta noua</a>
+                <a class="btn primary" href="oferte.php?new=1">Ofertă nouă</a>
                 <a class="btn primary" href="contracts.php?new=1">Contract nou</a>
             </div>
         </header>
 
-        <div class="content">
+        <div class="content docs-page">
             <?php if ($errorMessage): ?>
                 <div class="alert error"><?= pz_docs_h($errorMessage) ?></div>
             <?php endif; ?>
@@ -436,15 +368,15 @@ foreach ($stats as $stat) {
                 <div class="panel-head">
                     <div>
                         <div class="panel-title">Filtrare documente</div>
-                        <div class="panel-subtitle">Cauta dupa client, CUI, reprezentant, numar document, titlu sau locatie.</div>
+                        <div class="panel-subtitle">Caută după client, CUI, reprezentant, numar document, titlu sau locație.</div>
                     </div>
                     <a class="btn small" href="documente.php">Reset</a>
                 </div>
                 <div class="panel-body">
                     <form method="get" class="filter-form">
                         <div class="field">
-                            <label>Cautare</label>
-                            <input type="search" name="q" value="<?= pz_docs_h($q) ?>" placeholder="Client, CUI, numar, locatie">
+                            <label>Căutare</label>
+                            <input type="search" name="q" value="<?= pz_docs_h($q) ?>" placeholder="Client, CUI, numar, locație">
                         </div>
                         <div class="field">
                             <label>Tip</label>
@@ -469,7 +401,7 @@ foreach ($stats as $stat) {
                             <input type="date" name="date_from" value="<?= pz_docs_h($dateFrom) ?>">
                         </div>
                         <div class="field">
-                            <label>Pana la</label>
+                            <label>Până la</label>
                             <input type="date" name="date_to" value="<?= pz_docs_h($dateTo) ?>">
                         </div>
                         <div class="field">
@@ -490,7 +422,7 @@ foreach ($stats as $stat) {
 
             <section class="docs-list">
                 <?php if (!$documents): ?>
-                    <div class="empty-state">Nu exista documente pentru filtrele selectate.</div>
+                    <div class="empty-state">Nu există documente pentru filtrele selectate.</div>
                 <?php else: ?>
                     <?php foreach ($documents as $doc): ?>
                         <?php
@@ -531,7 +463,7 @@ foreach ($stats as $stat) {
                             </div>
 
                             <div>
-                                <div class="doc-title"><?= pz_docs_h($locationName !== '' ? $locationName : 'Locatie principala') ?></div>
+                                <div class="doc-title"><?= pz_docs_h($locationName !== '' ? $locationName : 'Locație principala') ?></div>
                                 <div class="doc-meta"><?= pz_docs_h($locationAddress !== '' ? $locationAddress : 'Sediu social / domiciliu') ?></div>
                             </div>
 
@@ -545,7 +477,7 @@ foreach ($stats as $stat) {
                             <div class="doc-actions">
                                 <a class="btn small" href="document_view.php?id=<?= $docId ?>">Vezi</a>
                                 <?php if ($isDraft): ?>
-                                    <a class="btn small" href="document_edit.php?id=<?= $docId ?>">Editeaza</a>
+                                    <a class="btn small" href="document_edit.php?id=<?= $docId ?>">Editează</a>
                                 <?php endif; ?>
                                 <a class="btn small" href="document_pdf.php?id=<?= $docId ?>&mode=inline" target="_blank">PDF</a>
                                 <?php if ($isIssued): ?>
@@ -560,7 +492,7 @@ foreach ($stats as $stat) {
             <?php if ($totalPages > 1): ?>
                 <div class="pagination">
                     <?php if ($page > 1): ?>
-                        <a class="btn small" href="<?= pz_docs_h(pz_docs_current_url(['page' => $page - 1])) ?>">Inapoi</a>
+                        <a class="btn small" href="<?= pz_docs_h(pz_docs_current_url(['page' => $page - 1])) ?>">Înapoi</a>
                     <?php endif; ?>
 
                     <?php
@@ -572,7 +504,7 @@ foreach ($stats as $stat) {
                     <?php endfor; ?>
 
                     <?php if ($page < $totalPages): ?>
-                        <a class="btn small" href="<?= pz_docs_h(pz_docs_current_url(['page' => $page + 1])) ?>">Inainte</a>
+                        <a class="btn small" href="<?= pz_docs_h(pz_docs_current_url(['page' => $page + 1])) ?>">Înainte</a>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>

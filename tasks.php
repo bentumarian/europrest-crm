@@ -22,6 +22,17 @@ function h($value): string {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
 
+function task_page_url(array $params): string {
+    $clean = [];
+    foreach ($params as $key => $value) {
+        if ($value === null || $value === '') {
+            continue;
+        }
+        $clean[$key] = $value;
+    }
+    return 'tasks.php' . ($clean ? '?' . http_build_query($clean) : '');
+}
+
 function table_exists_tasks(PDO $pdo, string $table): bool {
     $stmt = $pdo->prepare("
         SELECT COUNT(*) AS total
@@ -56,7 +67,7 @@ function ensure_column_tasks(PDO $pdo, string $table, string $column, string $de
         try {
             $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
         } catch (Throwable $e) {
-            // Nu blocam pagina daca ALTER-ul nu poate rula.
+            // Nu blocam pagina dacă ALTER-ul nu poate rula.
         }
     }
 }
@@ -124,6 +135,19 @@ function task_next_due_date(string $dueDate, string $recurrenceType, ?int $recur
 }
 
 function task_client_address(array $client): string {
+    $line = trim((string)($client['billing_address_line'] ?? ''));
+    $county = trim((string)($client['billing_county'] ?? ''));
+    $city = trim((string)($client['billing_city'] ?? ''));
+    $country = trim((string)($client['billing_country'] ?? ''));
+    $postal = trim((string)($client['billing_postal_code'] ?? ''));
+    $address = trim(implode(', ', array_filter([$line, $county, $city, $country], static fn($value) => $value !== '')));
+    if ($postal !== '') {
+        $address .= ($address !== '' ? ', ' : '') . 'CP ' . $postal;
+    }
+    if ($address !== '') {
+        return $address;
+    }
+
     return trim((string)($client['registered_address'] ?? '')) ?: trim((string)($client['address'] ?? ''));
 }
 
@@ -226,7 +250,7 @@ $pdo->exec("
         notes TEXT NULL,
         active TINYINT(1) NOT NULL DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 
 ensure_column_tasks($pdo, 'clients', 'client_type', "VARCHAR(20) NOT NULL DEFAULT 'company'");
@@ -251,7 +275,7 @@ $pdo->exec("
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_client_locations_client_id (client_id),
         INDEX idx_client_locations_active (active)
-    )
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 
 ensure_column_tasks($pdo, 'client_locations', 'client_id', "INT NOT NULL");
@@ -358,11 +382,12 @@ if (!$activeServices) {
 
 /*
 |--------------------------------------------------------------------------
-| Clienti si locatii
+| Clienți si locații
 |--------------------------------------------------------------------------
 */
 $clients = $pdo->query("
-    SELECT id, client_type, name, legal_representative_name, phone, email, address, registered_address, active
+    SELECT id, client_type, name, legal_representative_name, phone, email, address, registered_address,
+           billing_country, billing_county, billing_city, billing_address_line, billing_postal_code, active
     FROM clients
     WHERE active = 1
     ORDER BY name ASC
@@ -615,7 +640,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $appendNote .= " (" . date('d.m.Y H:i') . ")";
 
                 if ($extensionNote !== '') {
-                    $appendNote .= "\nObservatii prelungire: " . $extensionNote;
+                    $appendNote .= "\nObservații prelungire: " . $extensionNote;
                 }
 
                 $oldNotes = trim((string)($task['notes'] ?? ''));
@@ -656,7 +681,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $skipReason = $reasonCustom !== '' ? $reasonCustom : $reasonPreset;
 
         if ($skipReason === '') {
-            $skipReason = 'Clientul nu doreste interventia luna aceasta';
+            $skipReason = 'Clientul nu doreste intervenția luna aceasta';
         }
 
         if ($taskId > 0) {
@@ -671,7 +696,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($task && in_array($task['status'], ['de_programat', 'contactat', 'amanat'], true)) {
                 $oldNotes = trim((string)($task['notes'] ?? ''));
-                $skipNote = "Sarcina sarita peste: " . $skipReason . " (" . date('d.m.Y H:i') . ")";
+                $skipNote = "Sarcină omisa: " . $skipReason . " (" . date('d.m.Y H:i') . ")";
                 $newNotes = $oldNotes !== '' ? $oldNotes . "
 
 " . $skipNote : $skipNote;
@@ -879,7 +904,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 /*
 |--------------------------------------------------------------------------
-| Month range - luna trecuta / luna curenta / luna urmatoare
+| Month range - luna trecută / luna curentă / luna următoare
 |--------------------------------------------------------------------------
 */
 $prefillClientId = max(0, (int)($_GET['client_id'] ?? 0));
@@ -889,15 +914,15 @@ $returnTo = ($_GET['return_to'] ?? '');
 $todayMonthObj = new DateTime(date('Y-m-01'));
 $monthButtons = [
     'prev' => [
-        'label' => 'Luna trecuta',
+        'label' => 'Lună trecută',
         'date' => (clone $todayMonthObj)->modify('-1 month'),
     ],
     'current' => [
-        'label' => 'Luna curenta',
+        'label' => 'Lună curentă',
         'date' => clone $todayMonthObj,
     ],
     'next' => [
-        'label' => 'Luna urmatoare',
+        'label' => 'Lună următoare',
         'date' => (clone $todayMonthObj)->modify('+1 month'),
     ],
 ];
@@ -930,11 +955,81 @@ $rangeEnd = $rangeEndObj->format('Y-m-d');
 $currentDate = $selectedMonthKey === 'current' ? date('Y-m-d') : $rangeStart;
 $calendarInitialDate = $rangeStart;
 
+$taskFilter = trim((string)($_GET['filter'] ?? 'all'));
+if (!in_array($taskFilter, ['all', 'overdue', 'today', 'future', 'skipped'], true)) {
+    $taskFilter = 'all';
+}
+$taskSearch = trim((string)($_GET['q'] ?? ''));
+$taskService = trim((string)($_GET['service'] ?? ''));
+$taskBaseQuery = [
+    'month' => $selectedMonthObj->format('Y-m'),
+    'filter' => $taskFilter !== 'all' ? $taskFilter : '',
+    'q' => $taskSearch,
+    'service' => $taskService,
+];
+
 /*
 |--------------------------------------------------------------------------
 | Query sarcini
 |--------------------------------------------------------------------------
 */
+$taskWhere = [
+    "t.due_date BETWEEN ? AND ?",
+    "t.status IN ('de_programat', 'contactat', 'amanat', 'skipped')",
+    "t.recurrence_stopped = 0",
+];
+$taskParams = [$rangeStart, $rangeEnd];
+
+if ($taskFilter === 'overdue') {
+    $taskWhere[] = "t.status != 'skipped'";
+    $taskWhere[] = "t.due_date < ?";
+    $taskParams[] = date('Y-m-d');
+} elseif ($taskFilter === 'today') {
+    $taskWhere[] = "t.status != 'skipped'";
+    $taskWhere[] = "t.due_date = ?";
+    $taskParams[] = date('Y-m-d');
+} elseif ($taskFilter === 'future') {
+    $taskWhere[] = "t.status != 'skipped'";
+    $taskWhere[] = "t.due_date > ?";
+    $taskParams[] = date('Y-m-d');
+} elseif ($taskFilter === 'skipped') {
+    $taskWhere[] = "t.status = 'skipped'";
+}
+
+if ($taskSearch !== '') {
+    $taskWhere[] = "(c.name LIKE ? OR t.service_type LIKE ? OR t.address LIKE ? OR l.location_name LIKE ? OR t.contact_person LIKE ? OR t.contact_phone LIKE ?)";
+    $like = '%' . $taskSearch . '%';
+    array_push($taskParams, $like, $like, $like, $like, $like, $like);
+}
+
+if ($taskService !== '') {
+    $taskWhere[] = "t.service_type = ?";
+    $taskParams[] = $taskService;
+}
+
+$hasContractsTable = table_exists_tasks($pdo, 'contracts');
+$hasContractServicesTable = table_exists_tasks($pdo, 'contract_services');
+$hasContractTitleColumn = $hasContractsTable && column_exists_tasks($pdo, 'contracts', 'title');
+$hasContractServiceLocationColumn = $hasContractServicesTable && column_exists_tasks($pdo, 'contract_services', 'location_name');
+$hasContractServiceSurfaceValueColumn = $hasContractServicesTable && column_exists_tasks($pdo, 'contract_services', 'surface_value');
+$hasContractServiceSurfaceUnitColumn = $hasContractServicesTable && column_exists_tasks($pdo, 'contract_services', 'surface_unit');
+
+$contractSelect = $hasContractsTable
+    ? "ct.contract_number,\n        " . ($hasContractTitleColumn ? "ct.title" : "NULL") . " AS contract_title"
+    : "NULL AS contract_number,\n        NULL AS contract_title";
+
+$contractServiceSelect = $hasContractServicesTable
+    ? "cs.service_name AS contract_service_name,\n        cs.price AS contract_service_price,\n        cs.currency AS contract_service_currency,\n        " . ($hasContractServiceLocationColumn ? "cs.location_name" : "NULL") . " AS contract_location_name,\n        " . ($hasContractServiceSurfaceValueColumn ? "cs.surface_value" : "NULL") . " AS contract_surface_value,\n        " . ($hasContractServiceSurfaceUnitColumn ? "cs.surface_unit" : "NULL") . " AS contract_surface_unit"
+    : "NULL AS contract_service_name,\n        NULL AS contract_service_price,\n        NULL AS contract_service_currency,\n        NULL AS contract_location_name,\n        NULL AS contract_surface_value,\n        NULL AS contract_surface_unit";
+
+$contractJoin = $hasContractsTable
+    ? "LEFT JOIN contracts ct ON ct.id = t.contract_id"
+    : "";
+
+$contractServiceJoin = $hasContractServicesTable
+    ? "LEFT JOIN contract_services cs ON cs.id = t.contract_service_id"
+    : "";
+
 $stmt = $pdo->prepare("
     SELECT
         t.*,
@@ -949,16 +1044,18 @@ $stmt = $pdo->prepare("
         l.address AS location_address,
         l.contact_person AS location_contact_person,
         l.phone AS location_phone,
-        l.notes AS location_notes
+        l.notes AS location_notes,
+        {$contractSelect},
+        {$contractServiceSelect}
     FROM tasks t
     LEFT JOIN clients c ON c.id = t.client_id
     LEFT JOIN client_locations l ON l.id = t.client_location_id
-    WHERE t.due_date BETWEEN ? AND ?
-      AND t.status IN ('de_programat', 'contactat', 'amanat', 'skipped')
-      AND t.recurrence_stopped = 0
+    {$contractJoin}
+    {$contractServiceJoin}
+    WHERE " . implode("\n      AND ", $taskWhere) . "
     ORDER BY t.due_date ASC, t.id ASC
 ");
-$stmt->execute([$rangeStart, $rangeEnd]);
+$stmt->execute($taskParams);
 $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $totalTasks = count($tasks);
@@ -998,21 +1095,25 @@ foreach ($tasks as $task) {
     $isOverdue = !$isSkipped && $task['due_date'] < date('Y-m-d');
     $isToday = !$isSkipped && $task['due_date'] === date('Y-m-d');
 
-    $color = '#163b63';
+    $color = '#163B63';
+    $statusGroup = 'future';
 
     if ($isOverdue) {
-        $color = '#7a8796';
+        $color = '#D24726';
+        $statusGroup = 'overdue';
     }
 
     if ($isToday) {
-        $color = '#102d4a';
+        $color = '#1160B7';
+        $statusGroup = 'today';
     }
 
     if ($isSkipped) {
-        $color = '#9aa3af';
+        $color = '#9AA3AF';
+        $statusGroup = 'skipped';
     }
 
-    $eventTitle = trim(($task['client_name'] ?: 'Client') . ' - ' . ($task['service_type'] ?: 'Sarcina'));
+    $eventTitle = trim(($task['client_name'] ?: 'Client') . ' - ' . ($task['service_type'] ?: 'Sarcină'));
 
     if ($isSkipped) {
         $eventTitle = 'SARITA - ' . $eventTitle;
@@ -1050,6 +1151,11 @@ foreach ($tasks as $task) {
         'allDay' => true,
         'backgroundColor' => $color,
         'borderColor' => $color,
+        'extendedProps' => [
+            'status_group' => $statusGroup,
+            'client' => $task['client_name'] ?: 'Client',
+            'service' => $task['service_type'] ?: 'Sarcină',
+        ],
     ];
 
     $tasksForJs[(int)$task['id']] = [
@@ -1067,7 +1173,7 @@ foreach ($tasks as $task) {
         'contact_phone' => $effectiveContactPhone,
         'due_date' => $task['due_date'] ?? '',
         'status' => $task['status'] ?? 'de_programat',
-        'status_label' => (($task['status'] ?? '') === 'skipped') ? 'Sarita peste' : 'De programat',
+        'status_label' => (($task['status'] ?? '') === 'skipped') ? 'Omisa' : 'De programat',
         'skipped_at' => $task['skipped_at'] ?? '',
         'skipped_reason' => $task['skipped_reason'] ?? '',
         'notes' => $task['notes'] ?? '',
@@ -1080,6 +1186,19 @@ foreach ($tasks as $task) {
             $task['recurrence_type'] ?? 'none',
             $task['recurrence_days'] ? (int)$task['recurrence_days'] : null
         ),
+        'contract_id' => (int)($task['contract_id'] ?? 0),
+        'contract_service_id' => (int)($task['contract_service_id'] ?? 0),
+        'contract_number' => $task['contract_number'] ?? '',
+        'contract_title' => $task['contract_title'] ?? '',
+        'contract_service_name' => ($task['contract_service_name'] ?? '') ?: ($task['service_type'] ?? ''),
+        'contract_location_name' => ($task['contract_location_name'] ?? '') ?: ($task['location_name'] ?? ''),
+        'surface_value' => ($task['surface_value'] ?? '') ?: ($task['contract_surface_value'] ?? ''),
+        'surface_unit' => ($task['surface_unit'] ?? '') ?: ($task['contract_surface_unit'] ?? ''),
+        'billing_amount' => ($task['billing_amount'] ?? '') ?: ($task['contract_service_price'] ?? ''),
+        'currency' => ($task['currency'] ?? '') ?: (($task['contract_service_currency'] ?? '') ?: 'RON'),
+        'document_id' => (int)($task['document_id'] ?? 0),
+        'document_item_id' => (int)($task['document_item_id'] ?? 0),
+        'has_contract' => !empty($task['contract_id']) || !empty($task['contract_service_id']),
         'can_extend' => (($task['recurrence_type'] ?? 'none') !== 'none' && !$isSkipped),
         'can_skip' => !$isSkipped,
         'can_schedule' => !$isSkipped,
@@ -1236,24 +1355,47 @@ foreach ($tasks as $task) {
     -webkit-backdrop-filter: blur(14px) saturate(130%);
 }
 
-.stat-pill .stat-icon {
-    width: 28px;
-    height: 28px;
+.stat-pill .task-kpi-icon {
+    width: 18px;
+    height: 18px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999px;
-    border: 1px solid currentColor;
-    font-size: 15px;
+    border-radius: 4px;
+    border: 0;
+    font-size: 0;
     line-height: 1;
+    flex: 0 0 18px;
 }
 
-.stat-pill.stat-active .stat-icon,
-.stat-pill.stat-today .stat-icon {
+.stat-pill .task-kpi-icon .nav-icon,
+.stat-pill .task-kpi-icon svg {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    stroke-width: 1.9;
+    color: currentColor;
+}
+
+.stat-pill .task-kpi-icon .nav-icon {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.stat-pill .task-kpi-icon .nav-icon svg {
+    display: block;
+}
+
+.stat-pill.stat-active .task-kpi-icon,
+.stat-pill.stat-today .task-kpi-icon {
     color: #1160B7;
 }
 
-.stat-pill.stat-overdue .stat-icon {
+.stat-pill.stat-overdue .task-kpi-icon {
     color: #D24726;
 }
 
@@ -1299,6 +1441,19 @@ foreach ($tasks as $task) {
 
 .task-details-row:last-child {
     border-bottom: none;
+}
+
+.task-details-section {
+    margin: 4px 0 0;
+    padding: 9px 11px;
+    border: 1px solid rgba(177, 214, 240, .70);
+    border-radius: 12px;
+    background: rgba(177, 214, 240, .20);
+    color: #002050;
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .05em;
 }
 
 .task-details-label {
@@ -1523,11 +1678,17 @@ foreach ($tasks as $task) {
         white-space: nowrap;
     }
 
-    .stat-pill .stat-icon {
-        width: 22px;
-        height: 22px;
-        font-size: 12px;
-        flex: 0 0 22px;
+    .stat-pill .task-kpi-icon {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 16px;
+    }
+
+    .stat-pill .task-kpi-icon .nav-icon,
+    .stat-pill .task-kpi-icon svg {
+        width: 16px;
+        height: 16px;
+        flex-basis: 16px;
     }
 }
 
@@ -1551,11 +1712,17 @@ foreach ($tasks as $task) {
         padding: 5px 3px;
     }
 
-    .stat-pill .stat-icon {
-        width: 20px;
-        height: 20px;
-        font-size: 11px;
-        flex-basis: 20px;
+    .stat-pill .task-kpi-icon {
+        width: 16px;
+        height: 16px;
+        flex-basis: 16px;
+    }
+
+    .stat-pill .task-kpi-icon .nav-icon,
+    .stat-pill .task-kpi-icon svg {
+        width: 16px;
+        height: 16px;
+        flex-basis: 16px;
     }
 }
 
@@ -1648,11 +1815,18 @@ foreach ($tasks as $task) {
         white-space: nowrap !important;
     }
 
-    .stat-pill .stat-icon {
-        width: 22px !important;
-        height: 22px !important;
-        flex: 0 0 22px !important;
-        font-size: 12px !important;
+    .stat-pill .task-kpi-icon {
+        width: 16px !important;
+        height: 16px !important;
+        flex: 0 0 16px !important;
+        font-size: 0 !important;
+    }
+
+    .stat-pill .task-kpi-icon .nav-icon,
+    .stat-pill .task-kpi-icon svg {
+        width: 16px !important;
+        height: 16px !important;
+        flex-basis: 16px !important;
     }
 }
 
@@ -1684,11 +1858,18 @@ foreach ($tasks as $task) {
         padding: 5px 3px !important;
     }
 
-    .stat-pill .stat-icon {
-        width: 20px !important;
-        height: 20px !important;
-        flex-basis: 20px !important;
-        font-size: 11px !important;
+    .stat-pill .task-kpi-icon {
+        width: 15px !important;
+        height: 15px !important;
+        flex-basis: 15px !important;
+        font-size: 0 !important;
+    }
+
+    .stat-pill .task-kpi-icon .nav-icon,
+    .stat-pill .task-kpi-icon svg {
+        width: 15px !important;
+        height: 15px !important;
+        flex-basis: 15px !important;
     }
 }
 
@@ -1799,11 +1980,18 @@ foreach ($tasks as $task) {
         line-height: 1 !important;
     }
 
-    .stat-pill .stat-icon {
-        width: 22px !important;
-        height: 22px !important;
-        flex: 0 0 22px !important;
-        font-size: 12px !important;
+    .stat-pill .task-kpi-icon {
+        width: 16px !important;
+        height: 16px !important;
+        flex: 0 0 16px !important;
+        font-size: 0 !important;
+    }
+
+    .stat-pill .task-kpi-icon .nav-icon,
+    .stat-pill .task-kpi-icon svg {
+        width: 16px !important;
+        height: 16px !important;
+        flex-basis: 16px !important;
     }
 }
 
@@ -1834,14 +2022,317 @@ foreach ($tasks as $task) {
         padding: 5px 3px !important;
     }
 
-    .stat-pill .stat-icon {
-        width: 20px !important;
-        height: 20px !important;
-        flex-basis: 20px !important;
-        font-size: 11px !important;
+    .stat-pill .task-kpi-icon {
+        width: 15px !important;
+        height: 15px !important;
+        flex-basis: 15px !important;
+        font-size: 0 !important;
+    }
+
+    .stat-pill .task-kpi-icon .nav-icon,
+    .stat-pill .task-kpi-icon svg {
+        width: 15px !important;
+        height: 15px !important;
+        flex-basis: 15px !important;
     }
 }
 
+/* Compact operational refresh */
+.tasks-topbar { overflow: visible; z-index: 500; }
+.tasks-toolbar {
+    display: grid;
+    grid-template-columns: auto minmax(280px, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+.tasks-view-switcher .task-view-btn,
+.tasks-action-line .btn,
+.tasks-filter-line .btn,
+.tasks-filter-line select,
+.tasks-filter-line input {
+    min-height: 40px;
+    height: 40px;
+    border-radius: 999px !important;
+}
+.tasks-view-switcher .task-view-btn {
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 800;
+}
+.tasks-filter-line {
+    display: grid;
+    grid-template-columns: 120px minmax(180px, 1fr) auto auto;
+    gap: 7px;
+    min-width: 0;
+    align-items: center;
+}
+.tasks-filter-line select,
+.tasks-filter-line input {
+    width: 100%;
+    min-width: 0;
+    border: 1.5px solid rgba(29,110,193,.34);
+    background: #fff;
+    color: #002050;
+    font-size: 12px;
+    font-weight: 750;
+    padding: 0 13px;
+    box-shadow: 0 8px 18px rgba(29,110,193,.06), inset 0 1px 0 rgba(255,255,255,.86);
+}
+.tasks-filter-line input::placeholder { color: #7A8796; font-weight: 650; }
+.tasks-hero {
+    min-height: auto;
+    padding: 18px 22px;
+    border-radius: 18px;
+    margin-bottom: 14px;
+}
+.tasks-hero::after { left: 22px; top: 20px; bottom: 20px; }
+.tasks-hero-copy { padding-left: 28px; }
+.tasks-hero-copy { text-align: center; }
+.tasks-hero h1 { font-size: 25px; letter-spacing: -.03em; }
+.tasks-hero p { font-size: 13px; margin-top: 5px; }
+.stat-pill { min-height: 38px; padding: 7px 12px; border-radius: 999px; font-size: 12px; }
+.tasks-calendar-card {
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 12px 28px -24px rgba(0,32,80,.32), inset 0 1px 0 rgba(255,255,255,.72);
+}
+.tasks-status-legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 0 0 10px;
+}
+.tasks-status-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 25px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(0,32,80,.10);
+    background: #fff;
+    color: #002050;
+    font-size: 11.5px;
+    font-weight: 750;
+}
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    display: inline-block;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.38);
+}
+.legend-dot.overdue { background: #D24726; }
+.legend-dot.today { background: #1160B7; }
+.legend-dot.future { background: #163B63; }
+.legend-dot.skipped { background: #9AA3AF; }
+.fc .fc-daygrid-day-number {
+    color: #002050;
+    font-size: 12px;
+    font-weight: 850;
+}
+.fc .fc-day-today .fc-daygrid-day-frame {
+    background: color-mix(in srgb,#1160B7 7%,#fff) !important;
+    box-shadow: inset 0 0 0 2px rgba(17,96,183,.36);
+}
+.fc .fc-daygrid-day-events {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 1px 5px 5px;
+}
+.fc .fc-daygrid-event-harness { margin: 0 !important; }
+.fc-event.fc-task-event {
+    width: 10px !important;
+    min-width: 10px !important;
+    max-width: 10px !important;
+    height: 10px !important;
+    min-height: 10px !important;
+    padding: 0 !important;
+    border-radius: 999px !important;
+    border-width: 1px !important;
+    box-shadow: 0 2px 6px rgba(0,32,80,.14), inset 0 1px 0 rgba(255,255,255,.36) !important;
+    overflow: hidden !important;
+}
+.fc-event.fc-task-event .fc-event-main,
+.fc-event.fc-task-event .fc-event-main-frame { min-height: 8px !important; height: 8px !important; }
+.fc-event.fc-task-event .fc-event-title,
+.fc-event.fc-task-event .fc-event-time { display: none !important; }
+.fc-event.fc-task-skipped { opacity: .58; }
+@media(max-width:1180px){
+    .tasks-toolbar { grid-template-columns: 1fr; align-items: stretch; }
+    .tasks-action-line { margin-left: 0; justify-content: stretch; }
+    .tasks-action-line .btn { width: 100%; justify-content: center; }
+}
+@media(max-width:760px){
+    .tasks-topbar { padding: 10px 12px !important; }
+    .tasks-toolbar { gap: 8px; }
+    .tasks-view-switcher {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 7px;
+        width: 100%;
+    }
+    .tasks-view-switcher .task-view-btn {
+        min-height: 34px;
+        height: 34px;
+        border-radius: 8px !important;
+        padding: 0 8px;
+        font-size: 12px;
+    }
+    .tasks-filter-line {
+        display: none;
+    }
+    .tasks-action-line { width: 100%; margin: 0; }
+    .tasks-action-line .btn {
+        width: 100%;
+        min-height: 38px;
+        height: 38px;
+        border-radius: 8px !important;
+        font-size: 13px;
+    }
+    .tasks-hero {
+        padding: 15px 12px 14px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        background: #fff;
+        box-shadow: none;
+        display: grid;
+        gap: 13px;
+        align-items: center;
+    }
+    .tasks-hero::before,
+    .tasks-hero::after { display: none; }
+    .tasks-hero-copy { padding-left: 0; }
+    .tasks-hero-copy {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+    }
+    .tasks-hero h1 {
+        font-size: 22px;
+        letter-spacing: 0;
+        text-align: center;
+        margin: 0;
+    }
+    .tasks-hero p {
+        display: none;
+    }
+    .stats {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 7px;
+        width: 100%;
+        justify-content: stretch !important;
+    }
+    .stat-pill {
+        width: 100% !important;
+        min-height: 44px;
+        border-radius: 8px;
+        padding: 8px 6px;
+        justify-content: center;
+        gap: 5px;
+        font-size: 12px;
+        box-shadow: none;
+        background: var(--surface-soft);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+    .stat-pill .task-kpi-icon,
+    .stat-pill .task-kpi-icon .nav-icon,
+    .stat-pill .task-kpi-icon svg {
+        width: 15px;
+        height: 15px;
+        flex-basis: 15px;
+    }
+    .tasks-calendar-card {
+        border-radius: 8px;
+        padding: 10px;
+        box-shadow: none;
+    }
+    .tasks-status-legend {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+    .tasks-status-legend span {
+        min-height: 28px;
+        border-radius: 8px;
+        padding: 3px 6px;
+        justify-content: center;
+        gap: 4px;
+        font-size: 10.5px;
+    }
+    .legend-dot {
+        width: 8px;
+        height: 8px;
+    }
+    .fc .fc-daygrid-day-number {
+        font-size: 10.5px;
+        padding: 3px 4px;
+    }
+    .fc .fc-col-header-cell-cushion {
+        font-size: 10px;
+        padding: 4px 0;
+    }
+    .fc .fc-daygrid-day-frame {
+        min-height: 64px;
+    }
+    .fc .fc-daygrid-day-events {
+        gap: 1px;
+        padding: 0 3px 3px;
+    }
+    .fc-event.fc-task-event {
+        width: 8px !important;
+        min-width: 8px !important;
+        max-width: 8px !important;
+        height: 8px !important;
+        min-height: 8px !important;
+    }
+}
+
+@media(max-width:760px){
+    .tasks-hero .stats {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 8px auto 0 !important;
+        gap: 6px !important;
+        align-items: center !important;
+    }
+    .tasks-hero .stats .stat-pill {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: 38px !important;
+        min-height: 38px !important;
+        flex: 0 1 auto !important;
+        border-radius: 8px !important;
+        padding: 5px 3px !important;
+        font-size: 10.5px !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+    }
+    .tasks-toolbar .tasks-action-line {
+        width: 100% !important;
+        max-width: none !important;
+    }
+    .tasks-toolbar .tasks-action-line .btn {
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+    }
+    .tasks-hero .tasks-hero-copy h1 {
+        font-size: 20px !important;
+        line-height: 1.15 !important;
+        margin: 0 !important;
+        letter-spacing: 0 !important;
+    }
+}
 </style>
 </head>
 
@@ -1860,16 +2351,38 @@ foreach ($tasks as $task) {
                         <?php $buttonMonth = $monthButton['date']->format('Y-m'); ?>
                         <a 
                             class="btn task-view-btn <?= $selectedMonthKey === $monthKey ? 'active' : '' ?>" 
-                            href="tasks.php?month=<?= urlencode($buttonMonth) ?>"
+                            href="<?= h(task_page_url(array_merge($taskBaseQuery, ['month' => $buttonMonth]))) ?>"
                         >
                             <?= h($monthButton['label']) ?>
                         </a>
                     <?php endforeach; ?>
                 </div>
 
+                <form method="get" class="tasks-filter-line">
+                    <input type="hidden" name="month" value="<?= h($selectedMonthObj->format('Y-m')) ?>">
+                    <select name="filter" onchange="this.form.submit()">
+                        <option value="all" <?= $taskFilter === 'all' ? 'selected' : '' ?>>Toate</option>
+                        <option value="overdue" <?= $taskFilter === 'overdue' ? 'selected' : '' ?>>Intarziate</option>
+                        <option value="today" <?= $taskFilter === 'today' ? 'selected' : '' ?>>Azi</option>
+                        <option value="future" <?= $taskFilter === 'future' ? 'selected' : '' ?>>Viitoare</option>
+                        <option value="skipped" <?= $taskFilter === 'skipped' ? 'selected' : '' ?>>Omise</option>
+                    </select>
+                    <select name="service" onchange="this.form.submit()">
+                        <option value="">Toate serviciile</option>
+                        <?php foreach ($activeServices as $service): ?>
+                            <?php $serviceName = (string)$service['name']; ?>
+                            <option value="<?= h($serviceName) ?>" <?= $taskService === $serviceName ? 'selected' : '' ?>><?= h($serviceName) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button class="btn" type="submit">Filtreaza</button>
+                    <?php if ($taskFilter !== 'all' || $taskSearch !== '' || $taskService !== ''): ?>
+                        <a class="btn" href="<?= h(task_page_url(['month' => $selectedMonthObj->format('Y-m')])) ?>">Reset</a>
+                    <?php endif; ?>
+                </form>
+
                 <div class="tasks-action-line">
                     <button class="btn accent" type="button" onclick="openCreateTaskModal('<?= h($currentDate) ?>')">
-                        + Sarcina noua
+                        + Sarcină nouă
                     </button>
                 </div>
 
@@ -1877,66 +2390,72 @@ foreach ($tasks as $task) {
         </div>
 
         <?php if (isset($_GET['success'])): ?>
-            <div class="notice notice-success">Sarcina a fost adaugata.</div>
+            <div class="notice notice-success">Sarcină a fost adăugată.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['updated'])): ?>
-            <div class="notice notice-success">Sarcina a fost actualizata.</div>
+            <div class="notice notice-success">Sarcină a fost actualizată.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['extended'])): ?>
-            <div class="notice notice-success">Recurenta a fost prelungita cu succes.</div>
+            <div class="notice notice-success">Recurența a fost prelungita cu succes.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['extend_error'])): ?>
-            <div class="notice notice-warning">Recurenta nu a putut fi prelungita. Verifica daca sarcina este recurenta si activa.</div>
+            <div class="notice notice-warning">Recurența nu a putut fi prelungita. Verifica dacă sarcina este recurenta si activa.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['deleted'])): ?>
-            <div class="notice notice-warning">Sarcina a fost stearsa.</div>
+            <div class="notice notice-warning">Sarcină a fost ștearsă.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['stopped'])): ?>
-            <div class="notice notice-warning">Recurenta a fost oprita si sarcinile viitoare au fost sterse.</div>
+            <div class="notice notice-warning">Recurența a fost oprita si sarcinile viitoare au fost șterse.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['skipped'])): ?>
-            <div class="notice notice-warning">Sarcina a fost marcata ca sarita peste.</div>
+            <div class="notice notice-warning">Sarcină a fost omisa.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['skip_error'])): ?>
-            <div class="notice notice-danger">Sarcina nu a putut fi sarita peste.</div>
+            <div class="notice notice-danger">Sarcină nu a putut fi omisa.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['error'])): ?>
-            <div class="notice notice-danger">Completeaza clientul, serviciul si data sarcinii.</div>
+            <div class="notice notice-danger">Completează clientul, serviciul si data sarcinii.</div>
         <?php endif; ?>
 
         <div class="content">
 
             <section class="tasks-hero">
                 <div class="tasks-hero-copy">
-                    <h1>Sarcini birou</h1>
-                    <p>Fiecare sarcina notata inseamna un client mai bine gestionat.</p>
+                    <h1>Priorități de lucru</h1>
+                    <p>Sarcinile importante sunt aici, la vedere, ca ziua să rămână sub control.</p>
                 </div>
 
                 <div class="stats" aria-label="Indicatori sarcini">
                     <span class="stat-pill stat-active">
-                        <span class="stat-icon">✓</span>
+                        <span class="task-kpi-icon"><?= app_icon_svg('check') ?></span>
                         <?= (int)$activeTasks ?> active
                     </span>
                     <span class="stat-pill stat-overdue">
-                        <span class="stat-icon">!</span>
-                        <?= (int)$overdueTasks ?> intarziate
+                        <span class="task-kpi-icon"><?= app_icon_svg('alert') ?></span>
+                        <?= (int)$overdueTasks ?> întârziate
                     </span>
                     <span class="stat-pill stat-today">
-                        <span class="stat-icon">▦</span>
-                        <?= (int)$todayTasks ?> astazi
+                        <span class="task-kpi-icon"><?= app_icon_svg('calendar') ?></span>
+                        <?= (int)$todayTasks ?> astăzi
                     </span>
                 </div>
             </section>
 
             <section class="tasks-calendar-card">
+                <div class="tasks-status-legend" aria-label="Legenda sarcini">
+                    <span><i class="legend-dot overdue"></i>Intarziate</span>
+                    <span><i class="legend-dot today"></i>Azi</span>
+                    <span><i class="legend-dot future"></i>Viitoare</span>
+                    <span><i class="legend-dot skipped"></i>Omise</span>
+                </div>
                 <div id="tasksCalendar"></div>
             </section>
 
@@ -1947,7 +2466,7 @@ foreach ($tasks as $task) {
 <div class="modal" id="createTaskModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h2>Sarcina noua</h2>
+            <h2>Sarcină nouă</h2>
             <button class="modal-close" type="button" onclick="closeModal('createTaskModal')">&times;</button>
         </div>
 
@@ -1961,7 +2480,7 @@ foreach ($tasks as $task) {
                     <label>Client *</label>
                     <input type="hidden" name="client_id" id="create_client_id" required value="<?= (int)$prefillClientId ?>">
                     <div class="pz-autocomplete" id="create_clientAutocomplete" data-prefix="create" data-onchange="handleTaskClientChange">
-                        <input type="text" class="pz-autocomplete-input" id="create_clientSearchInput" placeholder="Cauta dupa nume, CUI, telefon, reprezentant…" autocomplete="off">
+                        <input type="text" class="pz-autocomplete-input" id="create_clientSearchInput" placeholder="Caută după nume, CUI, telefon, reprezentant..." autocomplete="off">
                         <div class="pz-autocomplete-selected" id="create_clientSelectedBox">
                             <div>
                                 <div class="ps-name"></div>
@@ -1974,7 +2493,7 @@ foreach ($tasks as $task) {
                 </div>
 
                 <div>
-                    <label>Locatie / punct de lucru</label>
+                    <label>Locație / punct de lucru</label>
                     <select name="client_location_id" id="create_client_location_id" onchange="handleTaskLocationChange('create')" disabled>
                         <option value="">Alege clientul mai intai</option>
                     </select>
@@ -1982,8 +2501,8 @@ foreach ($tasks as $task) {
                 </div>
 
                 <div>
-                    <label>Persoana contact</label>
-                    <input type="text" name="contact_person" id="create_contact_person" placeholder="Se preia automat din client / locatie">
+                    <label>Persoană contact</label>
+                    <input type="text" name="contact_person" id="create_contact_person" placeholder="Se preia automat din client / locație">
                 </div>
 
                 <div>
@@ -2009,12 +2528,12 @@ foreach ($tasks as $task) {
                 </div>
 
                 <div class="form-group full">
-                    <label>Adresa interventie</label>
-                    <input type="text" name="address" id="create_address" placeholder="Se salveaza ca adresa exacta a acestei interventii">
+                    <label>Adresa intervenție</label>
+                    <input type="text" name="address" id="create_address" placeholder="Se salveaza ca adresa exacta a acestei intervenții">
                 </div>
 
                 <div>
-                    <label>Recurenta</label>
+                    <label>Recurența</label>
                     <select name="recurrence_type" id="create_recurrence_type" onchange="toggleRecurrenceDays('create')">
                         <option value="none">Fara recurenta</option>
                         <option value="days">La un numar de zile</option>
@@ -2036,8 +2555,8 @@ foreach ($tasks as $task) {
                 </div>
 
                 <div class="form-group full">
-                    <label>Observatii</label>
-                    <textarea name="notes" placeholder="Detalii pentru birou, persoana de contact, preferinte client..."></textarea>
+                    <label>Observații</label>
+                    <textarea name="notes" placeholder="Detalii pentru birou, persoană de contact, preferinte client..."></textarea>
                 </div>
             </div>
 
@@ -2045,8 +2564,8 @@ foreach ($tasks as $task) {
                 <div></div>
 
                 <div class="actions-right">
-                    <button class="btn" type="button" onclick="closeModal('createTaskModal')">Renunta</button>
-                    <button class="btn accent" type="submit">Salveaza sarcina</button>
+                    <button class="btn" type="button" onclick="closeModal('createTaskModal')">Renunță</button>
+                    <button class="btn accent" type="submit">Salvează sarcina</button>
                 </div>
             </div>
         </form>
@@ -2064,14 +2583,14 @@ foreach ($tasks as $task) {
 
         <div class="actions-row">
             <div class="actions-left">
-                <button class="btn danger" type="button" onclick="deleteCurrentTask()">Sterge</button>
-                <button class="btn" type="button" id="skipTaskBtn" onclick="openSkipTaskModal()">Sari peste</button>
-                <button class="btn" type="button" id="stopFutureTaskBtn" onclick="stopCurrentFutureTasks()">Opreste viitoarele</button>
+                <button class="btn danger" type="button" onclick="deleteCurrentTask()">Șterge</button>
+                <button class="btn" type="button" id="skipTaskBtn" onclick="openSkipTaskModal()">Omite</button>
+                <button class="btn" type="button" id="stopFutureTaskBtn" onclick="stopCurrentFutureTasks()">Opreste recurenta</button>
                 <button class="btn" type="button" id="extendRecurrenceBtn" onclick="openExtendRecurrenceModal()">Prelungeste recurenta</button>
             </div>
 
             <div class="actions-right">
-                <button class="btn" type="button" id="editTaskBtn" onclick="openEditTaskFromDetails()">Editeaza</button>
+                <button class="btn" type="button" id="editTaskBtn" onclick="openEditTaskFromDetails()">Editează</button>
                 <a class="btn accent" id="scheduleTaskLink" href="#">Programeaza</a>
             </div>
         </div>
@@ -2081,7 +2600,7 @@ foreach ($tasks as $task) {
 <div class="modal" id="skipTaskModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h2>Sari peste sarcina</h2>
+            <h2>Omite sarcina</h2>
             <button class="modal-close" type="button" onclick="closeModal('skipTaskModal')">&times;</button>
         </div>
 
@@ -2098,7 +2617,7 @@ foreach ($tasks as $task) {
                 <div class="form-group full">
                     <label>Motiv *</label>
                     <select name="skip_reason_preset" id="skip_reason_preset" required>
-                        <option value="Clientul nu doreste interventia luna aceasta">Clientul nu doreste interventia luna aceasta</option>
+                        <option value="Clientul nu doreste intervenția luna aceasta">Clientul nu doreste intervenția luna aceasta</option>
                         <option value="Locatia este inchisa">Locatia este inchisa</option>
                         <option value="Interventia a fost amanata de client">Interventia a fost amanata de client</option>
                         <option value="Alt motiv">Alt motiv</option>
@@ -2106,8 +2625,8 @@ foreach ($tasks as $task) {
                 </div>
 
                 <div class="form-group full">
-                    <label>Observatii motiv</label>
-                    <textarea name="skip_reason_custom" id="skip_reason_custom" placeholder="Completeaza doar daca vrei un motiv diferit sau mai detaliat."></textarea>
+                    <label>Observații motiv</label>
+                    <textarea name="skip_reason_custom" id="skip_reason_custom" placeholder="Completează doar dacă vrei un motiv diferit sau mai detaliat."></textarea>
                 </div>
             </div>
 
@@ -2115,8 +2634,8 @@ foreach ($tasks as $task) {
                 <div></div>
 
                 <div class="actions-right">
-                    <button class="btn" type="button" onclick="closeModal('skipTaskModal')">Renunta</button>
-                    <button class="btn accent" type="submit">Confirma sari peste</button>
+                    <button class="btn" type="button" onclick="closeModal('skipTaskModal')">Renunță</button>
+                    <button class="btn accent" type="submit">Confirma omitere</button>
                 </div>
             </div>
         </form>
@@ -2146,7 +2665,7 @@ foreach ($tasks as $task) {
                 </div>
 
                 <div class="form-group full">
-                    <label>Observatii prelungire</label>
+                    <label>Observații prelungire</label>
                     <textarea name="extension_note" id="extension_note" placeholder="Ex: Contract prelungit cu 12 luni."></textarea>
                 </div>
             </div>
@@ -2155,8 +2674,8 @@ foreach ($tasks as $task) {
                 <div></div>
 
                 <div class="actions-right">
-                    <button class="btn" type="button" onclick="closeModal('extendRecurrenceModal')">Renunta</button>
-                    <button class="btn accent" type="submit">Salveaza prelungirea</button>
+                    <button class="btn" type="button" onclick="closeModal('extendRecurrenceModal')">Renunță</button>
+                    <button class="btn accent" type="submit">Salvează prelungirea</button>
                 </div>
             </div>
         </form>
@@ -2166,7 +2685,7 @@ foreach ($tasks as $task) {
 <div class="modal" id="editTaskModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h2>Editeaza sarcina</h2>
+            <h2>Editează sarcina</h2>
             <button class="modal-close" type="button" onclick="closeModal('editTaskModal')">&times;</button>
         </div>
 
@@ -2180,7 +2699,7 @@ foreach ($tasks as $task) {
                     <label>Client *</label>
                     <input type="hidden" name="client_id" id="edit_client_id" required value="">
                     <div class="pz-autocomplete" id="edit_clientAutocomplete" data-prefix="edit" data-onchange="handleTaskClientChange">
-                        <input type="text" class="pz-autocomplete-input" id="edit_clientSearchInput" placeholder="Cauta dupa nume, CUI, telefon, reprezentant…" autocomplete="off">
+                        <input type="text" class="pz-autocomplete-input" id="edit_clientSearchInput" placeholder="Caută după nume, CUI, telefon, reprezentant..." autocomplete="off">
                         <div class="pz-autocomplete-selected" id="edit_clientSelectedBox">
                             <div>
                                 <div class="ps-name"></div>
@@ -2193,7 +2712,7 @@ foreach ($tasks as $task) {
                 </div>
 
                 <div>
-                    <label>Locatie / punct de lucru</label>
+                    <label>Locație / punct de lucru</label>
                     <select name="client_location_id" id="edit_client_location_id" onchange="handleTaskLocationChange('edit')" disabled>
                         <option value="">Alege clientul mai intai</option>
                     </select>
@@ -2201,7 +2720,7 @@ foreach ($tasks as $task) {
                 </div>
 
                 <div>
-                    <label>Persoana contact</label>
+                    <label>Persoană contact</label>
                     <input type="text" name="contact_person" id="edit_contact_person">
                 </div>
 
@@ -2228,12 +2747,12 @@ foreach ($tasks as $task) {
                 </div>
 
                 <div class="form-group full">
-                    <label>Adresa interventie</label>
+                    <label>Adresa intervenție</label>
                     <input type="text" name="address" id="edit_address">
                 </div>
 
                 <div>
-                    <label>Recurenta</label>
+                    <label>Recurența</label>
                     <select name="recurrence_type" id="edit_recurrence_type" onchange="toggleRecurrenceDays('edit')">
                         <option value="none">Fara recurenta</option>
                         <option value="days">La un numar de zile</option>
@@ -2255,7 +2774,7 @@ foreach ($tasks as $task) {
                 </div>
 
                 <div class="form-group full">
-                    <label>Observatii</label>
+                    <label>Observații</label>
                     <textarea name="notes" id="edit_notes"></textarea>
                 </div>
             </div>
@@ -2264,8 +2783,8 @@ foreach ($tasks as $task) {
                 <div></div>
 
                 <div class="actions-right">
-                    <button class="btn" type="button" onclick="closeModal('editTaskModal')">Renunta</button>
-                    <button class="btn accent" type="submit">Salveaza modificarile</button>
+                    <button class="btn" type="button" onclick="closeModal('editTaskModal')">Renunță</button>
+                    <button class="btn accent" type="submit">Salvează modificarile</button>
                 </div>
             </div>
         </form>
@@ -2389,7 +2908,7 @@ function populateLocationSelect(prefix, clientId, selectedLocationId = '') {
     if (helper) {
         helper.textContent = locations.length > 0
             ? 'Alege sediul sau unul dintre punctele de lucru ale clientului.'
-            : 'Clientul nu are puncte de lucru. Sarcina se face pe ' + clientType + '.';
+            : 'Clientul nu are puncte de lucru. Sarcină se face pe ' + clientType + '.';
     }
 
     handleTaskLocationChange(prefix);
@@ -2438,6 +2957,13 @@ function openCreateTaskModal(date) {
     populateLocationSelect('create', '', '');
     toggleRecurrenceDays('create');
     openModal('createTaskModal');
+    setTimeout(() => {
+        const clientInput = document.getElementById('create_clientSearchInput');
+        const clientHidden = document.getElementById('create_client_id');
+        if (clientInput && !clientHidden?.value) {
+            clientInput.focus();
+        }
+    }, 80);
 }
 
 function toggleRecurrenceDays(prefix) {
@@ -2459,7 +2985,7 @@ function openTaskDetails(id) {
     const task = tasksData[id];
 
     if (!task) {
-        alert('Sarcina nu a fost gasita.');
+        alert('Sarcină nu a fost gasita.');
         return;
     }
 
@@ -2495,13 +3021,58 @@ function openTaskDetails(id) {
     const skippedRows = task.status === 'skipped'
         ? `
             <div class="task-details-row">
-                <div class="task-details-label">Motiv sari peste</div>
+                <div class="task-details-label">Motiv omitere</div>
                 <div class="task-details-value">${escHtml(task.skipped_reason || '-')}</div>
             </div>
 
             <div class="task-details-row">
-                <div class="task-details-label">Data sari peste</div>
+                <div class="task-details-label">Data omitere</div>
                 <div class="task-details-value">${escHtml(task.skipped_at || '-')}</div>
+            </div>
+        `
+        : '';
+
+    const contractLabel = task.contract_number || task.contract_title || (task.contract_id ? '#' + task.contract_id : '-');
+    const surfaceText = [task.surface_value, task.surface_unit].filter(Boolean).join(' ') || '-';
+    const amountValue = parseFloat(task.billing_amount || '0');
+    const amountText = amountValue > 0
+        ? amountValue.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + (task.currency || 'RON')
+        : '-';
+    const documentText = task.document_id
+        ? 'Document #' + task.document_id + (task.document_item_id ? ' / Item #' + task.document_item_id : '')
+        : '-';
+    const contractRows = task.has_contract
+        ? `
+            <div class="task-details-section">Date contract</div>
+
+            <div class="task-details-row">
+                <div class="task-details-label">Contract</div>
+                <div class="task-details-value">${escHtml(contractLabel)}</div>
+            </div>
+
+            <div class="task-details-row">
+                <div class="task-details-label">Serviciu contractat</div>
+                <div class="task-details-value">${escHtml(task.contract_service_name || '-')}</div>
+            </div>
+
+            <div class="task-details-row">
+                <div class="task-details-label">Locație contract</div>
+                <div class="task-details-value">${escHtml(task.contract_location_name || '-')}</div>
+            </div>
+
+            <div class="task-details-row">
+                <div class="task-details-label">Suprafață</div>
+                <div class="task-details-value">${escHtml(surfaceText)}</div>
+            </div>
+
+            <div class="task-details-row">
+                <div class="task-details-label">Valoare</div>
+                <div class="task-details-value">${escHtml(amountText)}</div>
+            </div>
+
+            <div class="task-details-row">
+                <div class="task-details-label">Document</div>
+                <div class="task-details-value">${escHtml(documentText)}</div>
             </div>
         `
         : '';
@@ -2518,7 +3089,7 @@ function openTaskDetails(id) {
         </div>
 
         <div class="task-details-row">
-            <div class="task-details-label">Locatie</div>
+            <div class="task-details-label">Locație</div>
             <div class="task-details-value">${escHtml(task.location_name || 'Sediu social / domiciliu')}</div>
         </div>
 
@@ -2543,12 +3114,12 @@ function openTaskDetails(id) {
         </div>
 
         <div class="task-details-row">
-            <div class="task-details-label">Adresa interventie</div>
+            <div class="task-details-label">Adresa intervenție</div>
             <div class="task-details-value">${escHtml(task.address || '-')}</div>
         </div>
 
         <div class="task-details-row">
-            <div class="task-details-label">Recurenta</div>
+            <div class="task-details-label">Recurența</div>
             <div class="task-details-value">${escHtml(task.recurrence_label || '-')}</div>
         </div>
 
@@ -2563,9 +3134,13 @@ function openTaskDetails(id) {
         </div>
 
         <div class="task-details-row">
-            <div class="task-details-label">Observatii</div>
+            <div class="task-details-label">Observații</div>
             <div class="task-details-value">${escHtml(task.notes || '-').replace(/\n/g, '<br>')}</div>
         </div>
+
+        ${contractRows}
+
+        ${skippedRows}
     `;
 
     openModal('taskDetailsModal');
@@ -2573,24 +3148,24 @@ function openTaskDetails(id) {
 
 function openSkipTaskModal() {
     if (!currentTaskId || !tasksData[currentTaskId]) {
-        alert('Sarcina nu a fost identificata.');
+        alert('Sarcină nu a fost identificata.');
         return;
     }
 
     const task = tasksData[currentTaskId];
 
     if (!task.can_skip) {
-        alert('Aceasta sarcina este deja inchisa sau sarita peste.');
+        alert('Aceasta sarcina este deja inchisa sau omisa.');
         return;
     }
 
     document.getElementById('skip_task_id').value = task.id || '';
-    document.getElementById('skip_reason_preset').value = 'Clientul nu doreste interventia luna aceasta';
+    document.getElementById('skip_reason_preset').value = 'Clientul nu doreste intervenția luna aceasta';
     document.getElementById('skip_reason_custom').value = '';
 
     document.getElementById('skipTaskSummary').innerHTML = `
         <strong>Client:</strong> ${escHtml(task.client_name || '-')}<br>
-        <strong>Locatie:</strong> ${escHtml(task.location_name || 'Sediu social / domiciliu')}<br>
+        <strong>Locație:</strong> ${escHtml(task.location_name || 'Sediu social / domiciliu')}<br>
         <strong>Serviciu:</strong> ${escHtml(task.service_type || '-')}<br>
         <strong>Data sarcinii:</strong> ${escHtml(task.due_date || '-')}
     `;
@@ -2601,7 +3176,7 @@ function openSkipTaskModal() {
 
 function openExtendRecurrenceModal() {
     if (!currentTaskId || !tasksData[currentTaskId]) {
-        alert('Sarcina nu a fost identificata.');
+        alert('Sarcină nu a fost identificata.');
         return;
     }
 
@@ -2618,11 +3193,11 @@ function openExtendRecurrenceModal() {
 
     document.getElementById('extendTaskSummary').innerHTML = `
         <strong>Client:</strong> ${escHtml(task.client_name || '-')}<br>
-        <strong>Locatie:</strong> ${escHtml(task.location_name || 'Sediu social / domiciliu')}<br>
+        <strong>Locație:</strong> ${escHtml(task.location_name || 'Sediu social / domiciliu')}<br>
         <strong>Contact:</strong> ${escHtml(task.contact_person || '-')}<br>
         <strong>Telefon:</strong> ${escHtml(task.contact_phone || '-')}<br>
         <strong>Serviciu:</strong> ${escHtml(task.service_type || '-')}<br>
-        <strong>Recurenta:</strong> ${escHtml(task.recurrence_label || '-')}<br>
+        <strong>Recurența:</strong> ${escHtml(task.recurrence_label || '-')}<br>
         <strong>Cicl curent:</strong> ${escHtml(task.recurrence_index || '1')} / ${escHtml(task.recurrence_total || '1')}<br>
         <strong>Cicluri ramase acum:</strong> ${escHtml(task.recurrence_remaining || '1')}
     `;
@@ -2639,7 +3214,7 @@ function openEditTaskFromDetails() {
     const task = tasksData[currentTaskId];
 
     document.getElementById('edit_task_id').value = task.id || '';
-    // Setam clientul prin noul autocomplete (sau clear daca task-ul nu are client)
+    // Setam clientul prin noul autocomplete (sau clear dacă task-ul nu are client)
     if (task.client_id && clientsData[task.client_id]) {
         pzClientSetAuto('edit', clientsData[task.client_id]);
     } else {
@@ -2678,7 +3253,7 @@ function stopCurrentFutureTasks() {
         return;
     }
 
-    if (confirm('Sigur vrei sa opresti recurenta si sa stergi sarcinile viitoare?')) {
+    if (confirm('Sigur vrei sa opresti recurenta? Se sterg doar sarcinile viitoare neprogramate. Programările deja create raman neschimbate.')) {
         document.getElementById('stop_future_task_id').value = currentTaskId;
         document.getElementById('stopFutureTaskForm').submit();
     }
@@ -2721,7 +3296,7 @@ document.addEventListener('keydown', event => {
 
 /* === AUTOCOMPLETE smart pentru client (prefix create / edit) === */
 const pzAutocompleteState = {};
-function pzNormalize(s) { return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+function pzNormalize(s) { return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 function pzEscHtml(s) { return String(s||'').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c])); }
 function pzHighlight(text, q) {
     if (!q) return pzEscHtml(text);
@@ -2763,7 +3338,7 @@ function pzRenderResults(prefix, results, q) {
     cont.innerHTML = results.map((c, i) => {
         const meta = [c.fiscal_code ? 'CUI ' + pzEscHtml(c.fiscal_code) : '',
                       c.legal_representative_name ? pzEscHtml(c.legal_representative_name) : '',
-                      c.phone ? pzEscHtml(c.phone) : ''].filter(Boolean).join(' · ');
+                      c.phone ? pzEscHtml(c.phone) : ''].filter(Boolean).join(' - ');
         return '<div class="pz-autocomplete-result" data-index="' + i + '" onclick="pzClientPickAuto(\'' + prefix + '\',' + i + ')">'
             + '<div class="ar-name">' + pzHighlight(c.name||'', q) + '</div>'
             + (meta ? '<div class="ar-meta">' + meta + '</div>' : '')
@@ -2788,7 +3363,7 @@ function pzClientSetAuto(prefix, client) {
     if (client.fiscal_code) meta.push('CUI ' + client.fiscal_code);
     if (client.legal_representative_name) meta.push(client.legal_representative_name);
     if (client.phone) meta.push(client.phone);
-    box.querySelector('.ps-meta').textContent = meta.join(' · ');
+    box.querySelector('.ps-meta').textContent = meta.join(' - ');
     // Triggereaza handler-ul existent (handleTaskClientChange)
     const onChangeName = wrap.dataset.onchange;
     if (onChangeName && typeof window[onChangeName] === 'function') {
@@ -2814,7 +3389,7 @@ function pzInitAutocomplete(prefix) {
     const input = document.getElementById(prefix + '_clientSearchInput');
     const hidden = document.getElementById(prefix + '_client_id');
     if (!wrap || !input || !hidden) return;
-    // Daca avem deja o valoare (la edit sau prefill), o setam vizual
+    // Dacă avem deja o valoare (la edit sau prefill), o setam vizual
     const initialId = String(hidden.value || '');
     if (initialId && initialId !== '0' && clientsData[initialId]) {
         pzClientSetAuto(prefix, clientsData[initialId]);
@@ -2880,7 +3455,16 @@ document.addEventListener('DOMContentLoaded', () => {
         firstDay: 1,
         height: 'auto',
         headerToolbar: false,
+        dayMaxEvents: 12,
+        moreLinkContent: args => '+' + args.num,
         events: <?= json_encode($calendarEvents, JSON_UNESCAPED_UNICODE) ?>,
+        eventClassNames: info => {
+            const group = info.event.extendedProps.status_group || 'future';
+            return ['fc-task-event', 'fc-task-' + group];
+        },
+        eventDidMount: info => {
+            info.el.title = [info.event.extendedProps.client || 'Client', info.event.extendedProps.service || 'Sarcină'].filter(Boolean).join(' - ');
+        },
         eventClick: info => {
             openTaskDetails(info.event.id);
         },

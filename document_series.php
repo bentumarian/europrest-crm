@@ -194,7 +194,7 @@ function ds_ensure_schema(PDO $pdo): void
         ds_ensure_column($pdo, 'contracts', 'issued_at', "DATETIME NULL");
         ds_ensure_column($pdo, 'contracts', 'issued_by', "INT NULL");
     }
-    // Nu mai recream automat seriile sterse.
+    // Nu mai recream automat seriile șterse.
     // Seriile se gestioneaza manual din interfata: Oferte, Contracte, Procese verbale.
 }
 
@@ -401,7 +401,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $year = $existing['year'] ?? null;
         $resetYearly = (int)($existing['reset_yearly'] ?? 0);
-        // Interfata nu mai foloseste serie implicita/secundara.
+        // Interfata nu mai folosește serie implicita/secundara.
         // Pastram is_default intern, dar orice serie salvata devine seria activa principala pentru tipul ei.
         $isDefault = 1;
         $active = !empty($_POST['active']) ? 1 : 0;
@@ -675,6 +675,9 @@ $preview = ds_format_number($formSeries, (int)($formSeries['next_number'] ?? 1),
     <?php render_sidebar('document_series', true); ?>
 
     <main class="main">
+        <div class="topbar" style="padding:12px 20px;">
+            <a class="btn ghost" href="settings.php">Înapoi la Setări</a>
+        </div>
         <div class="content series-page">
             <section class="series-hero">
                 <div>
@@ -694,7 +697,7 @@ $preview = ds_format_number($formSeries, (int)($formSeries['next_number'] ?? 1),
             <div class="series-grid">
                 <section class="card">
                     <div class="card-head">
-                        <h2><?= $editSeries ? 'Editeaza seria' : 'Serie noua' ?></h2>
+                        <h2><?= $editSeries ? 'Editează seria' : 'Serie noua' ?></h2>
                     </div>
 
                     <form method="post" class="card-body">
@@ -726,7 +729,7 @@ $preview = ds_format_number($formSeries, (int)($formSeries['next_number'] ?? 1),
                             <div class="form-field">
                                 <label>Serie / prefix</label>
                                 <input type="text" name="series_code" id="seriesCodeInput" value="<?= ds_h($formSeries['series_code'] ?? ds_default_series_code((string)$formSeries['document_type'])) ?>" placeholder="Ex: OF, CTR, PV">
-                                <div class="help-text">Prefixul se afiseaza doar daca formatul contine {SERIE}.</div>
+                                <div class="help-text">Prefixul se afiseaza doar dacă formatul contine {SERIE}.</div>
                             </div>
 
                             <div class="form-field">
@@ -747,16 +750,16 @@ $preview = ds_format_number($formSeries, (int)($formSeries['next_number'] ?? 1),
                                 <input type="text" name="format_pattern" value="<?= ds_h($formSeries['format_pattern'] ?? '{N}/{DD}.{MM}.{YYYY}') ?>" required>
                                 <div class="preview-box">Preview: <?= ds_h($preview) ?></div>
                                 <div class="help-text">
-                                    Pentru contracte foloseste <strong>{N}/{DD}.{MM}.{YYYY}</strong>. 
+                                    Pentru contracte folosește <strong>{N}/{DD}.{MM}.{YYYY}</strong>. 
                                     Variabile disponibile: {N}, {NR}, {DD}, {MM}, {YYYY}, {SERIE}.
                                 </div>
                             </div>
                         </div>
 
                         <div class="actions-row">
-                            <button class="btn accent" type="submit"><?= $editSeries ? 'Salveaza seria' : 'Adauga seria' ?></button>
+                            <button class="btn accent" type="submit"><?= $editSeries ? 'Salvează seria' : 'Adaugă seria' ?></button>
                             <?php if ($editSeries): ?>
-                                <a class="btn" href="document_series.php">Renunta</a>
+                                <a class="btn" href="document_series.php">Renunță</a>
                             <?php endif; ?>
                         </div>
                     </form>
@@ -769,7 +772,7 @@ $preview = ds_format_number($formSeries, (int)($formSeries['next_number'] ?? 1),
 
                     <div class="card-body">
                         <?php if (!$seriesList): ?>
-                            <div class="empty-state">Nu exista serii documente.</div>
+                            <div class="empty-state">Nu există serii documente.</div>
                         <?php else: ?>
                             <div class="table-wrap">
                                 <table class="series-table">
@@ -780,7 +783,7 @@ $preview = ds_format_number($formSeries, (int)($formSeries['next_number'] ?? 1),
                                             <th>Urmatorul numar</th>
                                             <th>Status</th>
                                             <th>Emise</th>
-                                            <th>Actiuni</th>
+                                            <th>Acțiuni</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -801,7 +804,7 @@ $preview = ds_format_number($formSeries, (int)($formSeries['next_number'] ?? 1),
                                             <td><?= (int)($series['issued_count'] ?? 0) ?></td>
                                             <td>
                                                 <div class="row-actions">
-                                                    <a class="btn" href="document_series.php?edit_id=<?= (int)$series['id'] ?>">Editeaza</a>
+                                                    <a class="btn" href="document_series.php?edit_id=<?= (int)$series['id'] ?>">Editează</a>
 
                                                     <form method="post">
                                                         <?= csrf_field() ?>
@@ -810,11 +813,11 @@ $preview = ds_format_number($formSeries, (int)($formSeries['next_number'] ?? 1),
                                                         <button class="btn ghost" type="submit"><?= !empty($series['active']) ? 'Dezactiveaza' : 'Activeaza' ?></button>
                                                     </form>
 
-                                                    <form method="post" onsubmit="return confirm('Stergi aceasta serie? Se poate sterge doar daca nu are documente emise.');">
+                                                    <form method="post" onsubmit="return confirm('Stergi aceasta serie? Se poate sterge doar dacă nu are documente emise.');">
                                                         <?= csrf_field() ?>
                                                         <input type="hidden" name="action" value="delete_series">
                                                         <input type="hidden" name="series_id" value="<?= (int)$series['id'] ?>">
-                                                        <button class="btn ghost danger" type="submit">Sterge</button>
+                                                        <button class="btn ghost danger" type="submit">Șterge</button>
                                                     </form>
                                                 </div>
                                             </td>

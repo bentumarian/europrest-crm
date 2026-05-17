@@ -1,7 +1,7 @@
 <?php
 /**
  * PestZone CRM - document_design.php
- * Setari globale A4 — o singura dimensiune pentru TOATE documentele (PV, oferte, contracte).
+ * Setări globale A4 — o singura dimensiune pentru TOATE documentele (PV, oferte, contracte).
  * Fara footer (dezactivat global). Defaults: NARROW (13 mm).
  */
 
@@ -40,7 +40,7 @@ $success = false;
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     csrf_require();
 
-    // Setari globale A4 — o singura dimensiune pentru toate documentele
+    // Setări globale A4 — o singura dimensiune pentru toate documentele
     $pageTopVal    = pzdd_num($_POST['page_top'] ?? '', 13, 5, 35);
     $pageRightVal  = pzdd_num($_POST['page_right'] ?? '', 13, 5, 35);
     $pageBottomVal = pzdd_num($_POST['page_bottom'] ?? '', 13, 5, 35);
@@ -71,7 +71,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         'document.footer_height_mm'      => '0',
         'document.footer_line_enabled'   => '0',
 
-        // PV foloseste ACELEASI setari ca celelalte documente — sincronizam si dezactivam compact
+        // PV folosește ACELEASI setari ca celelalte documente — sincronizam si dezactivam compact
         'document.pv_compact_enabled'        => '0',
         'document.pv_page_margin_top_mm'     => $pageTopVal,
         'document.pv_page_margin_bottom_mm'  => $pageBottomVal,
@@ -86,7 +86,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         'document.header_company_text'   => '',
         'document.header_strip_enabled'  => '0',
 
-        // Pastram path-urile existente daca nu se incarca alte fisiere
+        // Pastram path-urile existente dacă nu se incarca alte fișiere
         'document.header_logo_path'      => trim((string)($settings['document.header_logo_path'] ?? '')),
         'document.company_stamp_path'    => trim((string)($settings['document.company_stamp_path'] ?? '')),
         'document.company_stamp_width_mm' => pzdd_num($_POST['stamp_width'] ?? '', 36, 18, 60),
@@ -130,17 +130,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
     }
 
-    // Upload stampila firmei
+    // Upload ștampila firmei
     if (isset($_FILES['stamp_file']) && is_array($_FILES['stamp_file']) && (int)($_FILES['stamp_file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
         if ((int)$_FILES['stamp_file']['error'] !== UPLOAD_ERR_OK) {
-            $error = 'Stampila nu a putut fi incarcata.';
+            $error = 'Ștampila nu a putut fi incarcata.';
         } elseif ((int)($_FILES['stamp_file']['size'] ?? 0) > 2 * 1024 * 1024) {
-            $error = 'Stampila este prea mare. Maxim 2 MB.';
+            $error = 'Ștampila este prea mare. Maxim 2 MB.';
         } else {
             $tmp = (string)$_FILES['stamp_file']['tmp_name'];
             $ext = strtolower(pathinfo((string)$_FILES['stamp_file']['name'], PATHINFO_EXTENSION));
             if (!in_array($ext, ['png','jpg','jpeg','webp'], true) || !@getimagesize($tmp)) {
-                $error = 'Format stampila invalid. Acceptat: PNG (cu fundal transparent), JPG, WEBP.';
+                $error = 'Format ștampila invalid. Acceptat: PNG (cu fundal transparent), JPG, WEBP.';
             } else {
                 $dir = __DIR__ . '/uploads';
                 if (!is_dir($dir)) @mkdir($dir, 0755, true);
@@ -149,7 +149,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 } else {
                     $file = 'company_stamp_' . date('Ymd_His') . '_' . bin2hex(random_bytes(3)) . '.' . ($ext === 'jpeg' ? 'jpg' : $ext);
                     if (!move_uploaded_file($tmp, $dir . '/' . $file)) {
-                        $error = 'Stampila nu a putut fi salvata.';
+                        $error = 'Ștampila nu a putut fi salvata.';
                     } else {
                         $values['document.company_stamp_path'] = 'uploads/' . $file;
                     }
@@ -165,7 +165,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $success = true;
         } catch (Throwable $e) {
             error_log('PestZone document_design save error: ' . $e->getMessage());
-            $error = 'Setarile nu au putut fi salvate.';
+            $error = 'Setările nu au putut fi salvate.';
         }
     }
 }
@@ -232,8 +232,8 @@ $companyName  = trim((string)($company['company.display_name'] ?? $company['comp
     <?php render_sidebar('settings', true); ?>
     <main class="main">
         <div class="topbar dd-top">
-            <a class="btn ghost" href="settings.php">Inapoi la Setari</a>
-            <button class="btn accent" type="submit" form="designForm">Salveaza designul</button>
+            <a class="btn ghost" href="settings.php">Înapoi la Setări</a>
+            <button class="btn accent" type="submit" form="designForm">Salvează designul</button>
         </div>
         <div class="content">
             <?php if ($success): ?><div class="notice ok">Designul documentelor a fost salvat.</div><?php endif; ?>
@@ -259,28 +259,28 @@ $companyName  = trim((string)($company['company.display_name'] ?? $company['comp
                     <div class="dd-section"><h3>Antet / logo</h3><div class="dd-grid">
                         <div class="dd-field full"><label class="dd-check"><input type="checkbox" name="logo_enabled" value="1" <?= $logoEnabled ? 'checked' : '' ?>> Afiseaza logo in antet</label></div>
                         <div class="dd-field full"><label>Logo</label><input type="file" name="logo_file" accept="image/png,image/jpeg,image/webp"><span class="dd-help">Optional. Acceptat PNG, JPG, WEBP, maxim 2 MB.</span></div>
-                        <?php if ($logoPath): ?><div class="dd-field full"><label class="dd-check"><input type="checkbox" name="remove_logo" value="1"> Sterge logo-ul curent</label></div><?php endif; ?>
+                        <?php if ($logoPath): ?><div class="dd-field full"><label class="dd-check"><input type="checkbox" name="remove_logo" value="1"> Șterge logo-ul curent</label></div><?php endif; ?>
                         <div class="dd-field"><label>Pozitie logo</label><select name="logo_align"><option value="left" <?= $logoAlign==='left'?'selected':'' ?>>Stanga</option><option value="center" <?= $logoAlign==='center'?'selected':'' ?>>Centru</option><option value="right" <?= $logoAlign==='right'?'selected':'' ?>>Dreapta</option></select></div>
                         <div class="dd-field"><label>Spatiu antet, mm</label><input name="header_height" type="number" step="0.5" min="0" max="40" value="<?= pzdd_h($headerHeight) ?>"></div>
                         <div class="dd-field"><label>Latime logo, mm</label><input name="logo_width" type="number" step="0.5" min="25" max="90" value="<?= pzdd_h($logoWidth) ?>"></div>
                         <div class="dd-field"><label>Inaltime logo, mm</label><input name="logo_height" type="number" step="0.5" min="6" max="28" value="<?= pzdd_h($logoHeight) ?>"></div>
                     </div></div>
 
-                    <div class="dd-section"><h3>Stampila firmei</h3><div class="dd-grid">
-                        <div class="dd-field full"><span class="dd-help">Stampila apare pe procesele verbale doar cand este bifata explicit (operatorii din teren primesc bifa automat). Recomandat: PNG cu fundal transparent, ~400x400px.</span></div>
-                        <div class="dd-field full"><label>Imagine stampila</label><input type="file" name="stamp_file" accept="image/png,image/jpeg,image/webp"><span class="dd-help">Optional. Acceptat PNG, JPG, WEBP, maxim 2 MB.</span></div>
+                    <div class="dd-section"><h3>Ștampila firmei</h3><div class="dd-grid">
+                        <div class="dd-field full"><span class="dd-help">Ștampila apare pe procesele verbale doar cand este bifata explicit (operatorii din teren primesc bifa automat). Recomandat: PNG cu fundal transparent, ~400x400px.</span></div>
+                        <div class="dd-field full"><label>Imagine ștampila</label><input type="file" name="stamp_file" accept="image/png,image/jpeg,image/webp"><span class="dd-help">Optional. Acceptat PNG, JPG, WEBP, maxim 2 MB.</span></div>
                         <?php if ($stampPath): ?>
-                            <div class="dd-field"><label>Stampila curenta</label><div style="background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:center;min-height:80px;"><img src="<?= pzdd_h($stampPath) ?>" alt="Stampila" style="max-width:90px;max-height:90px;object-fit:contain;"></div></div>
-                            <div class="dd-field"><label>&nbsp;</label><label class="dd-check"><input type="checkbox" name="remove_stamp" value="1"> Sterge stampila curenta</label></div>
+                            <div class="dd-field"><label>Ștampila curenta</label><div style="background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:center;min-height:80px;"><img src="<?= pzdd_h($stampPath) ?>" alt="Ștampila" style="max-width:90px;max-height:90px;object-fit:contain;"></div></div>
+                            <div class="dd-field"><label>&nbsp;</label><label class="dd-check"><input type="checkbox" name="remove_stamp" value="1"> Șterge ștampila curenta</label></div>
                         <?php endif; ?>
-                        <div class="dd-field"><label>Latime stampila, mm</label><input name="stamp_width" type="number" step="0.5" min="18" max="60" value="<?= pzdd_h($stampWidth) ?>"></div>
-                        <div class="dd-field"><label>Inaltime stampila, mm</label><input name="stamp_height" type="number" step="0.5" min="18" max="60" value="<?= pzdd_h($stampHeight) ?>"></div>
+                        <div class="dd-field"><label>Latime ștampila, mm</label><input name="stamp_width" type="number" step="0.5" min="18" max="60" value="<?= pzdd_h($stampWidth) ?>"></div>
+                        <div class="dd-field"><label>Inaltime ștampila, mm</label><input name="stamp_height" type="number" step="0.5" min="18" max="60" value="<?= pzdd_h($stampHeight) ?>"></div>
                     </div></div>
                 </form>
 
                 <aside class="dd-card dd-preview">
                     <h2>Previzualizare orientativa</h2>
-                    <p class="dd-help">PDF-ul real foloseste aceleasi setari globale pentru toate tipurile de documente. Fara footer.</p>
+                    <p class="dd-help">PDF-ul real folosește aceleasi setari globale pentru toate tipurile de documente. Fara footer.</p>
                     <div class="a4-box"><div class="a4-page">
                         <div class="pv-header">
                             <?php if ($logoEnabled && $logoPath): ?><img class="pv-logo" src="<?= pzdd_h($logoPath) ?>" alt="Logo"><?php else: ?><div class="pv-logo-text"><?= pzdd_h($companyName) ?></div><?php endif; ?>

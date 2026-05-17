@@ -4,8 +4,8 @@
 | PestZone - acces documente pentru admin si angajati teren
 |--------------------------------------------------------------------------
 | Adminul poate accesa orice document.
-| Angajatul poate accesa doar procesele verbale legate de programarile
-| echipei lui.
+| Angajatul poate accesa doar procesele verbale legate de programările
+| tehnicianului lui.
 |--------------------------------------------------------------------------
 */
 

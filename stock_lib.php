@@ -34,8 +34,8 @@ if (!function_exists('stock_group_options')) {
     function stock_group_options(): array
     {
         return [
-            'dezinsectie' => 'Dezinsectie',
-            'dezinfectie' => 'Dezinfectie',
+            'dezinsectie' => 'Dezinsecție',
+            'dezinfectie' => 'Dezinfecție',
             'deratizare' => 'Deratizare',
             'materiale' => 'Materiale',
         ];
@@ -273,7 +273,7 @@ if (!function_exists('stock_insert_movement_dynamic')) {
     function stock_insert_movement_dynamic(PDO $pdo, array $data): void
     {
         if (!stock_table_exists($pdo, 'stock_movements')) {
-            throw new RuntimeException('Tabelul stock_movements nu exista. Ruleaza stock_install.php.');
+            throw new RuntimeException('Tabelul stock_movements nu există. Ruleaza stock_install.php.');
         }
 
         $columns = [
@@ -305,6 +305,88 @@ if (!function_exists('stock_insert_movement_dynamic')) {
     }
 }
 
+if (!function_exists('stock_count_document_consumes')) {
+    function stock_count_document_consumes(PDO $pdo, int $documentId): int
+    {
+        if ($documentId <= 0 || !stock_table_exists($pdo, 'stock_movements')) {
+            return 0;
+        }
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM stock_movements WHERE movement_type = 'consume' AND reference_type = 'document_pv' AND reference_id = ?");
+        $stmt->execute([$documentId]);
+        return (int)$stmt->fetchColumn();
+    }
+}
+
+if (!function_exists('stock_resolve_document_material_stock')) {
+    function stock_resolve_document_material_stock(PDO $pdo, array $material, float $neededQty = 0.0): array
+    {
+        $productId = (int)($material['stock_product_id'] ?? 0);
+        $receiptId = (int)($material['stock_receipt_id'] ?? 0);
+        $materialId = (int)($material['id'] ?? 0);
+        $name = trim((string)($material['material_name'] ?? ''));
+        $lot = trim((string)($material['lot_number'] ?? ''));
+
+        if ($receiptId > 0 && $productId <= 0) {
+            $stmt = $pdo->prepare('SELECT product_id FROM stock_receipts WHERE id = ? LIMIT 1');
+            $stmt->execute([$receiptId]);
+            $productId = (int)$stmt->fetchColumn();
+        }
+
+        if ($productId <= 0 && $name !== '') {
+            $stmt = $pdo->prepare('SELECT id FROM stock_products WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) ORDER BY id ASC LIMIT 2');
+            $stmt->execute([$name]);
+            $matches = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+            if (count($matches) === 1) {
+                $productId = (int)$matches[0];
+            }
+        }
+
+        if ($receiptId <= 0 && $lot !== '') {
+            if ($productId > 0) {
+                $stmt = $pdo->prepare('SELECT id FROM stock_receipts WHERE product_id = ? AND LOWER(TRIM(lot)) = LOWER(TRIM(?)) ORDER BY reception_date ASC, id ASC LIMIT 10');
+                $stmt->execute([$productId, $lot]);
+                $matches = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+                $availableMatches = array_values(array_filter(array_map('intval', $matches), function ($candidateId) use ($pdo, $neededQty) {
+                    return $neededQty <= 0 || stock_available_qty_for_receipt($pdo, $candidateId) + 0.0001 >= $neededQty;
+                }));
+                if (count($availableMatches) === 1) {
+                    $receiptId = (int)$availableMatches[0];
+                }
+            } elseif ($name !== '') {
+                $stmt = $pdo->prepare("\n                    SELECT r.id, r.product_id\n                    FROM stock_receipts r\n                    INNER JOIN stock_products p ON p.id = r.product_id\n                    WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?)) AND LOWER(TRIM(r.lot)) = LOWER(TRIM(?))\n                    ORDER BY r.reception_date ASC, r.id ASC\n                    LIMIT 10\n                ");
+                $stmt->execute([$name, $lot]);
+                $matches = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                $availableMatches = array_values(array_filter($matches, function ($candidate) use ($pdo, $neededQty) {
+                    return $neededQty <= 0 || stock_available_qty_for_receipt($pdo, (int)$candidate['id']) + 0.0001 >= $neededQty;
+                }));
+                if (count($availableMatches) === 1) {
+                    $receiptId = (int)$availableMatches[0]['id'];
+                    $productId = (int)$availableMatches[0]['product_id'];
+                }
+            }
+        }
+
+        if ($productId > 0 && $receiptId <= 0) {
+            $stmt = $pdo->prepare("SELECT id FROM stock_receipts WHERE product_id = ? ORDER BY COALESCE(expires_at, '2999-12-31') ASC, reception_date ASC, id ASC LIMIT 20");
+            $stmt->execute([$productId]);
+            $matches = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+            $availableMatches = array_values(array_filter(array_map('intval', $matches), function ($candidateId) use ($pdo, $neededQty) {
+                return $neededQty <= 0 || stock_available_qty_for_receipt($pdo, $candidateId) + 0.0001 >= $neededQty;
+            }));
+            if (count($availableMatches) === 1) {
+                $receiptId = (int)$availableMatches[0];
+            }
+        }
+
+        if ($materialId > 0 && ($productId > 0 || $receiptId > 0)) {
+            $stmt = $pdo->prepare('UPDATE document_materials SET stock_product_id = COALESCE(NULLIF(?, 0), stock_product_id), stock_receipt_id = COALESCE(NULLIF(?, 0), stock_receipt_id) WHERE id = ?');
+            $stmt->execute([$productId, $receiptId, $materialId]);
+        }
+
+        return [$productId, $receiptId];
+    }
+}
+
 if (!function_exists('stock_consume_document_materials')) {
     function stock_consume_document_materials(PDO $pdo, int $documentId): void
     {
@@ -315,9 +397,7 @@ if (!function_exists('stock_consume_document_materials')) {
             return;
         }
 
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM stock_movements WHERE movement_type = 'consume' AND reference_type = 'document_pv' AND reference_id = ?");
-        $stmt->execute([$documentId]);
-        if ((int)$stmt->fetchColumn() > 0) {
+        if (stock_count_document_consumes($pdo, $documentId) > 0) {
             return; // protectie impotriva scaderii duble
         }
 
@@ -333,35 +413,41 @@ if (!function_exists('stock_consume_document_materials')) {
             $decoded = json_decode((string)$document['payload_json'], true);
             if (is_array($decoded)) { $payload = $decoded; }
         }
+        if (($payload['stock_consumption_deferred'] ?? '') === '1') {
+            return;
+        }
 
-        $stmt = $pdo->prepare("SELECT * FROM document_materials WHERE document_id = ? AND stock_product_id IS NOT NULL AND stock_product_id > 0 AND quantity > 0 ORDER BY sort_order ASC, id ASC");
+        $stmt = $pdo->prepare("SELECT * FROM document_materials WHERE document_id = ? AND TRIM(material_name) <> '' ORDER BY sort_order ASC, id ASC");
         $stmt->execute([$documentId]);
         $materials = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
         if (!$materials) {
             return;
         }
 
+        $created = 0;
         foreach ($materials as $material) {
-            $productId = (int)($material['stock_product_id'] ?? 0);
-            $receiptId = (int)($material['stock_receipt_id'] ?? 0);
             $qty = stock_decimal($material['quantity'] ?? 0);
-            if ($productId <= 0 || $qty <= 0) {
-                continue;
+            if ($qty <= 0) {
+                throw new RuntimeException('Cantitate lipsă pentru produsul "' . (string)($material['material_name'] ?? 'produs') . '".');
+            }
+            [$productId, $receiptId] = stock_resolve_document_material_stock($pdo, $material, $qty);
+            if ($productId <= 0) {
+                throw new RuntimeException('Produs negăsit în gestiune: ' . (string)($material['material_name'] ?? 'produs'));
             }
             if ($receiptId <= 0) {
-                throw new RuntimeException('Selecteaza lotul pentru produsul "' . (string)($material['material_name'] ?? 'produs') . '" inainte de emiterea PV.');
+                throw new RuntimeException('Selectează lotul pentru produsul "' . (string)($material['material_name'] ?? 'produs') . '" înainte de emiterea PV.');
             }
 
             $product = stock_get_product($pdo, $productId);
             if (!$product) {
-                throw new RuntimeException('Produsul din PV nu mai exista in gestiune: ' . (string)($material['material_name'] ?? $productId));
+                throw new RuntimeException('Produsul din PV nu mai există in gestiune: ' . (string)($material['material_name'] ?? $productId));
             }
 
             $stmtReceipt = $pdo->prepare('SELECT * FROM stock_receipts WHERE id = ? AND product_id = ? LIMIT 1 FOR UPDATE');
             $stmtReceipt->execute([$receiptId, $productId]);
             $receipt = $stmtReceipt->fetch(PDO::FETCH_ASSOC);
             if (!$receipt) {
-                throw new RuntimeException('Lotul selectat nu apartine produsului "' . (string)($product['name'] ?? $material['material_name']) . '".');
+                throw new RuntimeException('Lotul selectat nu aparține produsului "' . (string)($product['name'] ?? $material['material_name']) . '".');
             }
 
             $available = stock_available_qty_for_receipt($pdo, $receiptId);
@@ -392,7 +478,9 @@ if (!function_exists('stock_consume_document_materials')) {
                 'pv_no' => (string)($document['document_number'] ?? ''),
                 'workers_names' => (string)($payload['workers_names'] ?? ''),
             ]);
+            $created++;
         }
+
     }
 }
 
@@ -447,20 +535,20 @@ if (!function_exists('stock_validate_product_data')) {
             throw new RuntimeException('Unitatea de consum este invalida.');
         }
         if ((float)($data['package_qty'] ?? 0) <= 0) {
-            throw new RuntimeException('Cantitatea per ambalaj trebuie sa fie mai mare decat zero.');
+            throw new RuntimeException('Cantitatea per ambalaj trebuie să fie mai mare decât zero.');
         }
         if ((float)($data['min_qty'] ?? 0) < 0) {
             throw new RuntimeException('Stocul minim nu poate fi negativ.');
         }
         if (stock_is_biocide_group($group)) {
             if (trim((string)($data['aviz_no'] ?? '')) === '') {
-                throw new RuntimeException('Numarul de aviz este obligatoriu pentru Dezinsectie / Dezinfectie / Deratizare.');
+                throw new RuntimeException('Numărul de aviz este obligatoriu pentru Dezinsecție / Dezinfecție / Deratizare.');
             }
             if (trim((string)($data['aviz_valid_until'] ?? '')) === '') {
                 throw new RuntimeException('Valabilitatea avizului este obligatorie pentru produsul biocid.');
             }
             if (trim((string)($data['safety_measures'] ?? '')) === '') {
-                throw new RuntimeException('Masurile de siguranta pentru PV sunt obligatorii pentru produsul biocid.');
+                throw new RuntimeException('Măsurile de siguranță pentru PV sunt obligatorii pentru produsul biocid.');
             }
         }
     }
@@ -472,23 +560,23 @@ if (!function_exists('stock_validate_receipt_data')) {
         $productId = (int)($data['product_id'] ?? 0);
         $product = stock_get_product($pdo, $productId);
         if (!$product) {
-            throw new RuntimeException('Produsul selectat nu exista.');
+            throw new RuntimeException('Produsul selectat nu există.');
         }
         if (trim((string)($data['reception_date'] ?? '')) === '') {
-            throw new RuntimeException('Data receptiei este obligatorie.');
+            throw new RuntimeException('Data recepției este obligatorie.');
         }
         if (trim((string)($data['document_no'] ?? '')) === '') {
-            throw new RuntimeException('Numarul facturii / avizului este obligatoriu.');
+            throw new RuntimeException('Numărul facturii / avizului este obligatoriu.');
         }
         if ((float)($data['qty'] ?? 0) <= 0) {
-            throw new RuntimeException('Cantitatea intrata trebuie sa fie mai mare decat zero.');
+            throw new RuntimeException('Cantitatea intrată trebuie să fie mai mare decât zero.');
         }
         if (stock_is_biocide_group((string)($product['product_group'] ?? ''))) {
             if (trim((string)($data['lot'] ?? '')) === '') {
                 throw new RuntimeException('Lotul este obligatoriu pentru produsele biocide.');
             }
             if (trim((string)($data['expires_at'] ?? '')) === '') {
-                throw new RuntimeException('Data expirarii lotului este obligatorie pentru produsele biocide.');
+                throw new RuntimeException('Data expirării lotului este obligatorie pentru produsele biocide.');
             }
         }
         return $product;
@@ -499,27 +587,42 @@ if (!function_exists('stock_validate_outgoing_data')) {
     function stock_validate_outgoing_data(PDO $pdo, array $data): array
     {
         $productId = (int)($data['product_id'] ?? 0);
+        $receiptId = (int)($data['receipt_id'] ?? 0);
         $product = stock_get_product($pdo, $productId);
         if (!$product) {
-            throw new RuntimeException('Produsul selectat nu exista.');
+            throw new RuntimeException('Produsul selectat nu există.');
         }
         $allowed = ['loss', 'expired', 'adjust_minus'];
         if (!in_array((string)($data['movement_type'] ?? ''), $allowed, true)) {
-            throw new RuntimeException('Tipul iesirii din stoc este invalid.');
+            throw new RuntimeException('Tipul ieșirii din stoc este invalid.');
         }
         $qty = (float)($data['qty'] ?? 0);
         if ($qty <= 0) {
-            throw new RuntimeException('Cantitatea scoasa din stoc trebuie sa fie mai mare decat zero.');
+            throw new RuntimeException('Cantitatea scoasă din stoc trebuie să fie mai mare decât zero.');
         }
         $currentQty = stock_current_qty_for_product($pdo, $productId);
         if ($qty > $currentQty) {
-            throw new RuntimeException('Cantitatea depaseste stocul disponibil. Disponibil: ' . stock_unit_display($currentQty, (string)$product['unit_consumption']));
+            throw new RuntimeException('Cantitatea depășește stocul disponibil. Disponibil: ' . stock_unit_display($currentQty, (string)$product['unit_consumption']));
+        }
+        if (stock_is_biocide_group((string)($product['product_group'] ?? '')) && $receiptId <= 0) {
+            throw new RuntimeException('Selectează lotul pentru produsul biocid înainte de ieșirea din stoc.');
+        }
+        if ($receiptId > 0) {
+            $stmt = $pdo->prepare('SELECT id FROM stock_receipts WHERE id = ? AND product_id = ? LIMIT 1');
+            $stmt->execute([$receiptId, $productId]);
+            if (!$stmt->fetchColumn()) {
+                throw new RuntimeException('Lotul selectat nu aparține produsului ales.');
+            }
+            $available = stock_available_qty_for_receipt($pdo, $receiptId);
+            if ($qty > $available + 0.0001) {
+                throw new RuntimeException('Cantitatea depășește stocul disponibil pe lot. Disponibil: ' . stock_unit_display($available, (string)$product['unit_consumption']));
+            }
         }
         return $product;
     }
 }
 
-/* Extra helpers V5 - fisa magazie interval + registru evidenta lucrari */
+/* Extra helpers V5 - fișa magazie interval + registru evidență lucrări */
 if (!function_exists('stock_date_or_default')) {
     function stock_date_or_default($value, string $default): string
     {

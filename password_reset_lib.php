@@ -1,7 +1,7 @@
 <?php
 /**
  * Password reset helpers - EuroPrest CRM
- * Texte fara diacritice, compatibil cu editorul PHP/cPanel.
+ * Texte UTF-8, cu diacritice pastrate.
  */
 
 if (!function_exists('pr_h')) {
@@ -104,7 +104,7 @@ if (!function_exists('pr_find_account_by_email')) {
                     'account_type' => 'team',
                     'account_id' => (int)$row['id'],
                     'email' => (string)$row['email'],
-                    'name' => (string)($row['name'] ?? 'Echipa teren'),
+                    'name' => (string)($row['name'] ?? 'Tehnician'),
                 ];
             }
         }
@@ -122,21 +122,21 @@ if (!function_exists('pr_build_reset_email')) {
         $subject = 'Resetare parola cont CRM';
 
         $html = '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#10243e;">'
-            . '<p>Buna ziua, ' . $safeName . ',</p>'
+            . '<p>Bună ziua, ' . $safeName . ',</p>'
             . '<p>A fost solicitata resetarea parolei pentru contul tau din platforma CRM.</p>'
             . '<p><a href="' . $safeLink . '" style="display:inline-block;background:#1160B7;color:#ffffff;text-decoration:none;padding:11px 16px;border-radius:10px;font-weight:700;">Seteaza parola noua</a></p>'
-            . '<p>Daca butonul nu functioneaza, copiaza acest link in browser:</p>'
+            . '<p>Dacă butonul nu functioneaza, copiaza acest link in browser:</p>'
             . '<p style="word-break:break-all;color:#526B82;">' . $safeLink . '</p>'
-            . '<p>Linkul este valabil 60 de minute. Daca nu ai solicitat resetarea parolei, ignora acest email.</p>'
+            . '<p>Linkul este valabil 60 de minute. Dacă nu ai solicitat resetarea parolei, ignora acest email.</p>'
             . '<p>Mesaj automat.</p>'
             . '</div>';
 
-        $text = "Buna ziua, {$displayName},\n\n"
+        $text = "Bună ziua, {$displayName},\n\n"
             . "A fost solicitata resetarea parolei pentru contul tau din platforma CRM.\n\n"
             . "Pentru a seta o parola noua, acceseaza linkul de mai jos:\n"
             . $link . "\n\n"
             . "Linkul este valabil 60 de minute.\n"
-            . "Daca nu ai solicitat resetarea parolei, ignora acest email.\n\n"
+            . "Dacă nu ai solicitat resetarea parolei, ignora acest email.\n\n"
             . "Mesaj automat.";
 
         return ['subject' => $subject, 'html' => $html, 'text' => $text];
@@ -231,19 +231,19 @@ if (!function_exists('pr_update_password')) {
 
         if ($accountType === 'user') {
             if (!pr_table_exists($pdo, 'users')) {
-                throw new RuntimeException('Tabelul users nu exista.');
+                throw new RuntimeException('Tabelul users nu există.');
             }
 
             $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ? LIMIT 1");
             $stmt->execute([$hash, $accountId]);
         } elseif ($accountType === 'team') {
             if (!pr_table_exists($pdo, 'team_members')) {
-                throw new RuntimeException('Tabelul team_members nu exista.');
+                throw new RuntimeException('Tabelul team_members nu există.');
             }
 
             $column = pr_column_exists($pdo, 'team_members', 'password_hash') ? 'password_hash' : 'password';
             if (!pr_column_exists($pdo, 'team_members', $column)) {
-                throw new RuntimeException('Nu exista coloana de parola pentru echipa teren.');
+                throw new RuntimeException('Nu există coloana de parola pentru tehnician.');
             }
 
             $stmt = $pdo->prepare("UPDATE team_members SET {$column} = ? WHERE id = ? LIMIT 1");

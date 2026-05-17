@@ -78,7 +78,7 @@ function reset_collect_file_paths(PDO $pdo): array {
                     }
                 }
             } catch (Throwable $e) {
-                // Nu blocam resetul daca un tabel vechi are o structura diferita.
+                // Nu blocam resetul dacă un tabel vechi are o structura diferita.
             }
         }
     }
@@ -155,9 +155,9 @@ function reset_delete_generated_files(array $filePaths, array &$messages): int {
         }
     }
     if ($deleted > 0) {
-        $messages[] = 'OK: au fost sterse ' . $deleted . ' fisiere generate atasate documentelor.';
+        $messages[] = 'OK: au fost șterse ' . $deleted . ' fișiere generate atașate documentelor.';
     } else {
-        $messages[] = 'INFO: nu au fost gasite fisiere generate de sters sau nu erau in directoare permise.';
+        $messages[] = 'INFO: nu au fost gasite fișiere generate de șters sau nu erau in directoare permise.';
     }
     return $deleted;
 }
@@ -170,19 +170,9 @@ $resetTables = [
     'login_attempts',
     'password_resets',
 
-    // notificari si emailuri trimise
+    // notificări si emailuri trimise
     'notification_logs',
     'document_email_logs',
-
-    // facturare veche / Oblio / drafturi interne - pastrate doar ca structura, fara date
-    'billing_sync_log',
-    'billing_oblio_webhook_events',
-    'billing_oblio_collections',
-    'billing_oblio_items',
-    'billing_oblio_documents',
-    'billing_draft_items',
-    'billing_drafts',
-    'billing_products',
 
     // gestiune operationala - se pastreaza nomenclatorul stock_products, dar stocul revine la zero
     'stock_movements',
@@ -211,7 +201,7 @@ $resetTables = [
     'tasks',
     'appointments',
 
-    // contracte si clienti
+    // contracte si clienți
     'contracts',
     'client_locations',
     'clients',
@@ -236,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Pentru confirmare trebuie sa scrii exact RESET.';
     }
     if (!$backupChecked) {
-        $errors[] = 'Trebuie sa confirmi ca ai facut backup inainte de reset.';
+        $errors[] = 'Trebuie sa confirmi ca ai facut backup înainte de reset.';
     }
     if (!$finalChecked) {
         $errors[] = 'Trebuie sa bifezi confirmarea finala de stergere.';
@@ -251,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             foreach ($resetTables as $table) {
                 if (!reset_table_exists($pdo, $table)) {
-                    $messages[] = 'SKIP: tabelul ' . $table . ' nu exista.';
+                    $messages[] = 'SKIP: tabelul ' . $table . ' nu există.';
                     continue;
                 }
 
@@ -263,7 +253,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Fallback pentru tabele unde TRUNCATE poate fi blocat de FK/permisiuni.
                     $pdo->exec('DELETE FROM ' . $safeTable);
                     try { $pdo->exec('ALTER TABLE ' . $safeTable . ' AUTO_INCREMENT = 1'); } catch (Throwable $ignored) {}
-                    $messages[] = 'OK: tabelul ' . $table . ' a fost sters prin DELETE.';
+                    $messages[] = 'OK: tabelul ' . $table . ' a fost șters prin DELETE.';
                 }
             }
 
@@ -276,10 +266,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
             $pdo->commit();
 
-            // Stergem doar fisiere generate/atasate, doar daca sunt in directoare operationale permise.
+            // Ștergem doar fișiere generate/atașate, doar dacă sunt in directoare operationale permise.
             reset_delete_generated_files($generatedFilePaths, $messages);
 
-            // Token nou dupa reset, ca sa evitam repetarea prin refresh.
+            // Token nou după reset, ca sa evitam repetarea prin refresh.
             $_SESSION['platform_reset_token'] = bin2hex(random_bytes(32));
             $done = true;
         } catch (Throwable $e) {
@@ -315,14 +305,13 @@ foreach ($resetTables as $table) {
 <div class="layout">
     <?php render_sidebar('settings', true); ?>
     <main class="main">
-        <div class="topbar" style="padding:12px 20px;"><strong>Reset platforma</strong></div>
+        <div class="topbar" style="padding:12px 20px;"><a class="btn ghost" href="settings.php">Înapoi la Setări</a></div>
         <div class="content reset-page">
             <div class="reset-head">
                 <div>
                     <h1>Reset platforma</h1>
-                    <p>Sterge datele operationale introduse si readuce platforma la o stare curata, pastrand configurarea de baza.</p>
+                    <p>Șterge datele operationale introduse si readuce platforma la o stare curata, pastrand configurarea de baza.</p>
                 </div>
-                <a class="btn ghost" href="settings.php">Inapoi la setari</a>
             </div>
 
             <?php foreach ($errors as $err): ?>
@@ -330,13 +319,13 @@ foreach ($resetTables as $table) {
             <?php endforeach; ?>
 
             <?php if ($done): ?>
-                <div class="alert alert-ok">Resetul a fost finalizat. Datele operationale au fost sterse.</div>
+                <div class="alert alert-ok">Resetul a fost finalizat. Datele operationale au fost șterse.</div>
                 <div class="log"><?php foreach($messages as $m) echo reset_h($m) . "\n"; ?></div>
             <?php endif; ?>
 
             <section class="danger-box">
                 <h2 class="danger-title">Atentie: actiune ireversibila</h2>
-                <p class="danger-text">Aceasta actiune sterge clienti, locatii, contracte, sarcini, programari, documente/PV/oferte/contracte generate, statusurile de facturare, valori de interventii, loguri de email/SMS si date operationale vechi de facturare. Nu apasa butonul fara backup complet al bazei de date si fisierelor.</p>
+                <p class="danger-text">Aceasta actiune sterge clienți, locații, contracte, sarcini, programări, documente/PV/oferte/contracte generate, statusurile de facturare, valori de intervenții, loguri de email/SMS si date operationale vechi de facturare. Nu apasa butonul fara backup complet al bazei de date si fișierelor.</p>
             </section>
 
             <section class="safe-box">
@@ -345,17 +334,17 @@ foreach ($resetTables as $table) {
                     <div>Utilizatorii si parolele</div>
                     <div>Datele companiei si setarile platformei</div>
                     <div>Serviciile din nomenclator</div>
-                    <div>Echipele / operatorii</div>
+                    <div>Tehnicienii / operatorii</div>
                     <div>Produsele din nomenclatorul de stoc, dar fara intrari/miscari</div>
                     <div>Template-urile si designul documentelor</div>
                     <div>Template-urile SMS/email</div>
                     <div>Seriile documentelor, dar cu numerotarea resetata</div>
                 </div>
-                <div class="small-note">Codul platformei, fisierele PHP si configurarea tehnica nu sunt sterse. Se pot sterge doar fisiere generate/atasate documentelor, daca se afla in directoare operationale permise.</div>
+                <div class="small-note">Codul platformei, fișierele PHP si configurarea tehnica nu sunt șterse. Se pot sterge doar fișiere generate/atașate documentelor, dacă se afla in directoare operationale permise.</div>
             </section>
 
             <section class="safe-box">
-                <h2>Date care vor fi sterse</h2>
+                <h2>Date care vor fi șterse</h2>
                 <div class="grid-counts">
                     <?php foreach($counts as $table => $count): ?>
                         <div class="count-card">
@@ -368,12 +357,12 @@ foreach ($resetTables as $table) {
 
             <section class="danger-box">
                 <h2 class="danger-title">Confirmare reset</h2>
-                <form method="post" action="platform_reset.php" onsubmit="return confirm('Confirmi resetarea platformei? Datele sterse nu pot fi recuperate fara backup.');">
+                <form method="post" action="platform_reset.php" onsubmit="return confirm('Confirmi resetarea platformei? Datele șterse nu pot fi recuperate fara backup.');">
                     <input type="hidden" name="reset_token" value="<?= reset_h($_SESSION['platform_reset_token']) ?>">
 
                     <label class="check-row">
                         <input type="checkbox" name="backup_confirm" value="1">
-                        <span>Confirm ca am facut backup complet la baza de date si fisiere.</span>
+                        <span>Confirm ca am facut backup complet la baza de date si fișiere.</span>
                     </label>
 
                     <label class="check-row">
@@ -387,7 +376,7 @@ foreach ($resetTables as $table) {
                     </div>
 
                     <div class="actions">
-                        <a class="btn ghost" href="settings.php">Renunta</a>
+                        <a class="btn ghost" href="settings.php">Renunță</a>
                         <button class="btn btn-danger" type="submit">Reseteaza platforma</button>
                     </div>
                 </form>

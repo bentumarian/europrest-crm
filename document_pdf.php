@@ -33,6 +33,6 @@ try {
     echo '<!doctype html><html><body style="font-family:Arial;padding:24px;">';
     echo '<h2>Eroare generare PDF</h2>';
     echo '<p>' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</p>';
-    echo '<p><a href="document_view.php?id=' . (int)$documentId . '">Inapoi</a></p>';
+    echo '<p><a href="document_view.php?id=' . (int)$documentId . '">Înapoi</a></p>';
     echo '</body></html>';
 }

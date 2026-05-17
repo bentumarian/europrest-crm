@@ -13,8 +13,20 @@
 */
 
 return [
+    'app_env' => 'production',
+    'app_debug' => false,
+
     'db_host' => 'localhost',
-    'db_name' => 'r132680pest_pestzone_app',
-    'db_user' => 'r132680pest_bentu',
-    'db_pass' => 'INLOCUIESTE_CU_PAROLA_NOUA_DIN_CPANEL',
+    'db_name' => 'crm_database_name',
+    'db_user' => 'crm_database_user',
+    'db_pass' => 'INLOCUIESTE_CU_PAROLA_SIGURA',
+
+    // Optional: contul principal care poate accesa zone critice.
+    'super_admin_user_id' => 1,
+    // 'super_admin_email' => 'admin@firma-ta.ro',
+
+    // Optional: email tranzactional.
+    // 'sendgrid_api_key' => 'SG_xxxxxxxxx',
+    // 'sendgrid_from_email' => 'office@firma-ta.ro',
+    // 'sendgrid_from_name' => 'Firma ta',
 ];

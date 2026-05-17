@@ -11,17 +11,17 @@ if (!is_admin()) {
 
 /*
 |--------------------------------------------------------------------------
-| PestZone - sabloane documente
+| PestZone - șabloane documente
 |--------------------------------------------------------------------------
-| Pagina noua pentru administrarea sabloanelor folosite de motorul unic:
+| Pagina noua pentru administrarea șabloanelor folosite de motorul unic:
 | - oferta
 | - contract
 | - proces verbal
 |
 | Reguli:
 | - folosim doar document_templates.is_active
-| - un singur sablon implicit per tip document
-| - nu stergem sabloane folosite de documente emise/drafturi
+| - un singur șablon implicit per tip document
+| - nu stergem șabloane folosite de documente emise/drafturi
 |--------------------------------------------------------------------------
 */
 
@@ -129,8 +129,8 @@ function dtpl_has_default(PDO $pdo, string $type): bool
 function dtpl_create_template(PDO $pdo, string $type, string $name, ?string $description = null, ?string $content = null): int
 {
     $type = pzdoc_validate_document_type($type);
-    $name = trim($name) !== '' ? trim($name) : ('Sablon ' . dtpl_type_label($type));
-    $description = $description !== null && trim($description) !== '' ? trim($description) : 'Sablon creat in motorul nou de documente.';
+    $name = trim($name) !== '' ? trim($name) : ('Șablon ' . dtpl_type_label($type));
+    $description = $description !== null && trim($description) !== '' ? trim($description) : 'Șablon creat in motorul nou de documente.';
     $content = $content !== null && trim($content) !== '' ? $content : pzdoc_default_template_content($type);
     $slug = dtpl_unique_slug($pdo, $type . '_' . $name);
     $isDefault = dtpl_has_default($pdo, $type) ? 0 : 1;
@@ -154,7 +154,7 @@ function dtpl_set_default(PDO $pdo, int $templateId): void
 {
     $template = dtpl_get_template($pdo, $templateId);
     if (!$template) {
-        throw new RuntimeException('Sablonul nu a fost gasit.');
+        throw new RuntimeException('Șablonul nu a fost gasit.');
     }
 
     $type = pzdoc_validate_document_type((string)$template['document_type']);
@@ -216,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $templateId = (int)($_POST['template_id'] ?? 0);
             $template = dtpl_get_template($pdo, $templateId);
             if (!$template) {
-                throw new RuntimeException('Sablonul nu a fost gasit.');
+                throw new RuntimeException('Șablonul nu a fost gasit.');
             }
 
             $newId = dtpl_create_template(
@@ -238,7 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $templateId = (int)($_POST['template_id'] ?? 0);
             $template = dtpl_get_template($pdo, $templateId);
             if (!$template) {
-                throw new RuntimeException('Sablonul nu a fost gasit.');
+                throw new RuntimeException('Șablonul nu a fost gasit.');
             }
 
             $isDefault = (int)($template['is_default'] ?? 0) === 1;
@@ -257,7 +257,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $templateId = (int)($_POST['template_id'] ?? 0);
             $template = dtpl_get_template($pdo, $templateId);
             if (!$template) {
-                throw new RuntimeException('Sablonul nu a fost gasit.');
+                throw new RuntimeException('Șablonul nu a fost gasit.');
             }
 
             if ((int)($template['is_default'] ?? 0) === 1) {
@@ -279,18 +279,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $okMessages = [
-    'defaults' => 'Sabloanele implicite au fost verificate.',
-    'created' => 'Sablonul a fost creat.',
-    'duplicated' => 'Sablonul a fost duplicat.',
-    'default' => 'Sablonul implicit a fost actualizat.',
-    'toggled' => 'Statusul sablonului a fost schimbat.',
-    'deleted' => 'Sablonul a fost sters.',
+    'defaults' => 'Șabloanele implicite au fost verificate.',
+    'created' => 'Șablonul a fost creat.',
+    'duplicated' => 'Șablonul a fost duplicat.',
+    'default' => 'Șablonul implicit a fost actualizat.',
+    'toggled' => 'Statusul șablonului a fost schimbat.',
+    'deleted' => 'Șablonul a fost șters.',
 ];
 
 $errorMessages = [
-    'default_toggle' => 'Sablonul implicit nu poate fi dezactivat. Alege intai alt sablon implicit.',
-    'default_delete' => 'Sablonul implicit nu poate fi sters. Alege intai alt sablon implicit.',
-    'used_delete' => 'Sablonul este folosit de documente si nu poate fi sters.',
+    'default_toggle' => 'Șablonul implicit nu poate fi dezactivat. Alege intai alt șablon implicit.',
+    'default_delete' => 'Șablonul implicit nu poate fi șters. Alege intai alt șablon implicit.',
+    'used_delete' => 'Șablonul este folosit de documente si nu poate fi șters.',
 ];
 
 if (isset($_GET['ok'], $okMessages[(string)$_GET['ok']])) {
@@ -352,7 +352,7 @@ $isAdmin = is_admin();
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Sabloane documente - PestZone</title>
+<title>Șabloane documente - PestZone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -656,11 +656,12 @@ a.btn.small {
     <main class="main">
         <div class="topbar document-topbar">
             <div class="document-toolbar">
-                <a class="btn" href="document_template_edit.php">+ Sablon nou</a>
+                <a class="btn ghost" href="settings.php">Înapoi la Setări</a>
+                <a class="btn" href="document_template_edit.php">+ Șablon nou</a>
                 <form method="post">
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="seed_defaults">
-                    <button class="btn" type="submit">Verifica sabloane implicite</button>
+                    <button class="btn" type="submit">Verifica șabloane implicite</button>
                 </form>
             </div>
         </div>
@@ -675,22 +676,22 @@ a.btn.small {
 
         <?php if (!empty($_GET['edit'])): ?>
             <div class="notice notice-warning">
-                Sablonul a fost creat. Deschide editorul: <a href="document_template_edit.php?id=<?= (int)$_GET['edit'] ?>">document_template_edit.php?id=<?= (int)$_GET['edit'] ?></a>
+                Șablonul a fost creat. Deschide editorul: <a href="document_template_edit.php?id=<?= (int)$_GET['edit'] ?>">document_template_edit.php?id=<?= (int)$_GET['edit'] ?></a>
             </div>
         <?php endif; ?>
 
         <div class="content">
             <section class="document-hero">
                 <div>
-                    <h1>Sabloane documente</h1>
+                    <h1>Șabloane documente</h1>
                     <p>
-                        Administreaza sabloanele folosite de motorul unic pentru oferte, contracte si procese verbale.
-                        Emiterea documentelor va lua automat sablonul implicit al fiecarui tip.
+                        Administreaza șabloanele folosite de motorul unic pentru oferte, contracte si procese verbale.
+                        Emiterea documentelor va lua automat șablonul implicit al fiecarui tip.
                     </p>
                 </div>
 
                 <div class="stats">
-                    <span class="stat-pill"><?= (int)$totalTemplates ?> sabloane</span>
+                    <span class="stat-pill"><?= (int)$totalTemplates ?> șabloane</span>
                     <span class="stat-pill"><?= (int)$totalActive ?> active</span>
                     <span class="stat-pill"><?= (int)$totalDefault ?> implicite</span>
                 </div>
@@ -711,7 +712,7 @@ a.btn.small {
                     </div>
 
                     <div class="field">
-                        <label>Nume sablon</label>
+                        <label>Nume șablon</label>
                         <input type="text" name="name" placeholder="Ex: Oferta standard corporate" required>
                     </div>
 
@@ -722,8 +723,8 @@ a.btn.small {
             <section class="filter-card">
                 <form class="filter-form" method="get">
                     <div class="field">
-                        <label>Cautare</label>
-                        <input type="search" name="q" value="<?= dtpl_h($q) ?>" placeholder="Cauta dupa nume, descriere sau slug">
+                        <label>Căutare</label>
+                        <input type="search" name="q" value="<?= dtpl_h($q) ?>" placeholder="Caută după nume, descriere sau slug">
                     </div>
 
                     <div class="field">
@@ -751,7 +752,7 @@ a.btn.small {
 
             <?php if (!$templates): ?>
                 <div class="empty-state">
-                    Nu exista sabloane pentru filtrul selectat.
+                    Nu există șabloane pentru filtrul selectat.
                 </div>
             <?php else: ?>
                 <section class="templates-list">
@@ -771,7 +772,7 @@ a.btn.small {
 
                         <article class="template-card">
                             <div>
-                                <div class="template-title"><?= dtpl_h($template['name'] ?? 'Sablon') ?></div>
+                                <div class="template-title"><?= dtpl_h($template['name'] ?? 'Șablon') ?></div>
                                 <div class="template-desc">
                                     <?= !empty($template['description']) ? dtpl_h($template['description']) : 'Fara descriere.' ?>
                                 </div>
@@ -799,7 +800,7 @@ a.btn.small {
                             </div>
 
                             <div class="template-actions">
-                                <a class="btn small" href="document_template_edit.php?id=<?= $templateId ?>">Editeaza</a>
+                                <a class="btn small" href="document_template_edit.php?id=<?= $templateId ?>">Editează</a>
 
                                 <form method="post">
                                     <?= csrf_field() ?>
@@ -824,11 +825,11 @@ a.btn.small {
                                     <button class="btn small" type="submit"><?= $isActive ? 'Dezactiveaza' : 'Activeaza' ?></button>
                                 </form>
 
-                                <form method="post" onsubmit="return confirm('Sigur vrei sa stergi acest sablon?');">
+                                <form method="post" onsubmit="return confirm('Sigur vrei sa stergi acest șablon?');">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="action" value="delete">
                                     <input type="hidden" name="template_id" value="<?= $templateId ?>">
-                                    <button class="btn small danger" type="submit">Sterge</button>
+                                    <button class="btn small danger" type="submit">Șterge</button>
                                 </form>
                             </div>
                         </article>

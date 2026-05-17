@@ -196,7 +196,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
 }
 
 if (!function_exists('is_admin') || !is_admin()) {
-    pz_drag_json(['ok' => false, 'error' => 'Nu ai drepturi pentru mutarea programarilor.'], 403);
+    pz_drag_json(['ok' => false, 'error' => 'Nu ai drepturi pentru mutarea programărilor.'], 403);
 }
 
 if (function_exists('csrf_check') && !csrf_check()) {
@@ -221,7 +221,7 @@ try {
     $teamStmt = $pdo->prepare("SELECT id FROM team_members WHERE id = ? AND active = 1 LIMIT 1");
     $teamStmt->execute([$newTeamId]);
     if (!$teamStmt->fetchColumn()) {
-        pz_drag_json(['ok' => false, 'error' => 'Tehnicianul ales nu exista sau este inactiv.'], 422);
+        pz_drag_json(['ok' => false, 'error' => 'Tehnicianul ales nu există sau este inactiv.'], 422);
     }
 
     $stmt = $pdo->prepare("SELECT * FROM appointments WHERE id = ? LIMIT 1");
@@ -229,11 +229,11 @@ try {
     $old = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$old) {
-        pz_drag_json(['ok' => false, 'error' => 'Programarea nu exista.'], 404);
+        pz_drag_json(['ok' => false, 'error' => 'Programarea nu există.'], 404);
     }
 
     if (($old['status'] ?? '') === 'finalizata') {
-        pz_drag_json(['ok' => false, 'error' => 'Lucrarea finalizata nu poate fi mutata prin drag & drop.'], 409);
+        pz_drag_json(['ok' => false, 'error' => 'Lucrarea finalizata nu poate fi mutată prin drag & drop.'], 409);
     }
 
     $oldStartMinutes = pz_drag_time_to_minutes((string)($old['start_time'] ?? '')) ?? 9 * 60;
@@ -270,7 +270,7 @@ try {
     pz_drag_sync_primary_team($pdo, $appointmentId, $newTeamId);
 
     // Regula noua: mutarea prin drag & drop nu mai trimite SMS automat.
-    // Daca s-a schimbat data/ora, SMS-ul se trimite manual din fisa programarii.
+    // Dacă s-a schimbat data/ora, SMS-ul se trimite manual din fișa programării.
     $smsStatus = 'not_sent';
     $smsError = null;
 
@@ -287,5 +287,5 @@ try {
     ]);
 } catch (Throwable $e) {
     error_log('PestZone appointment_drag_update error: ' . $e->getMessage());
-    pz_drag_json(['ok' => false, 'error' => 'Eroare server la mutarea programarii.'], 500);
+    pz_drag_json(['ok' => false, 'error' => 'Eroare server la mutarea programării.'], 500);
 }

@@ -211,6 +211,25 @@ if (!function_exists('pzdoc_get_template')) {
 }
 
 if (!function_exists('pzdoc_fetch_client_snapshot')) {
+    function pzdoc_build_client_billing_address(array $client): string
+    {
+        $line = trim((string)($client['billing_address_line'] ?? ''));
+        $county = trim((string)($client['billing_county'] ?? ''));
+        $city = trim((string)($client['billing_city'] ?? ''));
+        $sector = trim((string)($client['billing_sector'] ?? ''));
+        $country = trim((string)($client['billing_country'] ?? ''));
+        $postal = trim((string)($client['billing_postal_code'] ?? ''));
+
+        $location = trim(implode(', ', array_filter([$county, $city, $sector], static fn($value) => $value !== '')));
+        $address = trim(implode(', ', array_filter([$line, $location, $country], static fn($value) => $value !== '')));
+
+        if ($postal !== '') {
+            $address .= ($address !== '' ? ', ' : '') . 'CP ' . $postal;
+        }
+
+        return $address;
+    }
+
     function pzdoc_fetch_client_snapshot(PDO $pdo, ?int $clientId): array
     {
         if (!$clientId || !pzdoc_table_exists($pdo, 'clients')) {
@@ -224,8 +243,11 @@ if (!function_exists('pzdoc_fetch_client_snapshot')) {
             return [];
         }
 
-        $address = $client['registered_address'] ?? null;
-        if (!$address && !empty($client['address'])) {
+        $address = pzdoc_build_client_billing_address($client);
+        if ($address === '') {
+            $address = trim((string)($client['registered_address'] ?? ''));
+        }
+        if ($address === '' && !empty($client['address'])) {
             $address = $client['address'];
         }
 
@@ -307,12 +329,12 @@ if (!function_exists('pzdoc_calculate_items_totals')) {
             $unitPrice = pzdoc_decimal($item['unit_price'] ?? 0, 0);
             $itemType = trim((string)($item['item_type'] ?? ''));
             if ($itemType === 'contract_service') {
-                // Contractele folosesc sume nete fixe: fara TVA si fara inmultire cu suprafata.
-                // quantity = suprafata informativa, unit_price = pret/interventie.
+                // Contractele folosesc sume nete fixe: fără TVA si fara inmultire cu suprafata.
+                // quantity = suprafata informativa, unit_price = pret/intervenție.
                 $lineTotal = round($unitPrice, 2);
                 $vatPercent = 0.0;
             } elseif ($itemType === 'offer_service') {
-                // Ofertele sunt tot fara TVA. Valoarea liniei = cantitate x pret unitar,
+                // Ofertele sunt tot fără TVA. Valoarea liniei = cantitate x pret unitar,
                 // recalculata pe server ca sa evitam diferente de tip 300 -> 299,96.
                 $lineTotal = round($qty * $unitPrice, 2);
                 $vatPercent = 0.0;
@@ -381,7 +403,7 @@ if (!function_exists('pzdoc_create_document')) {
             $payload = pzdoc_json_decode($payload);
         }
 
-        // Stampila firmei: bifata automat pentru operatori (team), optional pentru admin.
+        // Ștampila firmei: bifata automat pentru operatori (team), optional pentru admin.
         $applyStamp = 0;
         if (array_key_exists('apply_company_stamp', $data)) {
             $applyStamp = !empty($data['apply_company_stamp']) ? 1 : 0;
@@ -556,7 +578,7 @@ if (!function_exists('pzdoc_update_document')) {
             $payload = pzdoc_json_decode($payload);
         }
 
-        // Stampila firmei: bifare automata pentru operatori (team), pastram valoarea existenta daca nu e in $data.
+        // Ștampila firmei: bifare automata pentru operatori (team), pastram valoarea existenta dacă nu e in $data.
         if (array_key_exists('apply_company_stamp', $data)) {
             $applyStamp = !empty($data['apply_company_stamp']) ? 1 : 0;
         } elseif (function_exists('is_team_user') && is_team_user()) {
@@ -657,12 +679,12 @@ if (!function_exists('pzdoc_replace_document_items')) {
             $unitPrice = round(pzdoc_decimal($item['unit_price'] ?? 0, 0), 2);
             $itemType = pzdoc_str($item['item_type'] ?? 'service', 40) ?: 'service';
             if ($documentTypeForItems === 'contract' || $itemType === 'contract_service') {
-                // In contract, pretul este suma neta fixa / interventie. Nu folosim TVA si nu inmultim cu suprafata.
+                // In contract, pretul este suma neta fixa / intervenție. Nu folosim TVA si nu inmultim cu suprafata.
                 $itemType = 'contract_service';
                 $totalPrice = $unitPrice;
                 $itemVatPercent = 0.0;
             } elseif ($documentTypeForItems === 'oferta' || $itemType === 'offer_service') {
-                // In oferta, preturile sunt fara TVA. Valoarea liniei se recalculeaza pe server din cantitate x pret unitar.
+                // In oferta, preturile sunt fără TVA. Valoarea liniei se recalculeaza pe server din cantitate x pret unitar.
                 $itemType = 'offer_service';
                 $totalPrice = round($quantity * $unitPrice, 2);
                 $itemVatPercent = 0.0;
@@ -764,11 +786,11 @@ if (!function_exists('pzdoc_recalculate_document_totals')) {
             $itemType = trim((string)($item['item_type'] ?? ''));
             if ($itemType === 'contract_service') {
                 // Contractele sunt nete si fixe. total_price vechi poate contine valori calculate gresit;
-                // pentru contract luam mereu unit_price ca valoare reala / interventie.
+                // pentru contract luam mereu unit_price ca valoare reala / intervenție.
                 $line = round(pzdoc_decimal($item['unit_price'] ?? $item['total_price'] ?? 0, 0), 2);
                 $vat = 0.0;
             } elseif ($itemType === 'offer_service') {
-                // Ofertele sunt nete si fara TVA: cantitate x pret unitar, fara campuri ascunse vechi.
+                // Ofertele sunt nete si fără TVA: cantitate x pret unitar, fara campuri ascunse vechi.
                 $qty = pzdoc_decimal($item['quantity'] ?? 1, 1);
                 $unit = pzdoc_decimal($item['unit_price'] ?? 0, 0);
                 $line = round($qty * $unit, 2);

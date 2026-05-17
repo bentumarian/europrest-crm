@@ -65,13 +65,19 @@ $isSuperAdmin = function_exists('pz_is_super_admin') ? pz_is_super_admin() : is_
 $cards = [
     [
         'title' => 'Utilizatori',
-        'desc' => 'Gestioneaza utilizatorii de birou, parolele si accesul administrativ',
+        'desc' => 'Conturi de birou si acces administrativ',
         'url' => 'users.php',
         'icon' => 'users',
     ],
     [
+        'title' => 'Import date',
+        'desc' => 'Încarcă clienți si locații din Excel',
+        'url' => 'data_import.php',
+        'icon' => 'clients',
+    ],
+    [
         'title' => 'Serii documente',
-        'desc' => 'Configureaza numerotarea pentru oferte, contracte si procese verbale',
+        'desc' => 'Numerotare pentru oferte, contracte si procese verbale',
         'url' => 'document_series.php',
         'icon' => 'series',
     ],
@@ -82,20 +88,20 @@ $cards = [
         'icon' => 'design',
     ],
     [
-        'title' => 'Sabloane documente',
+        'title' => 'Șabloane documente',
         'desc' => 'Gestioneaza continutul pentru oferte, contracte si procese verbale',
         'url' => 'document_templates.php',
         'icon' => 'templates',
     ],
     [
         'title' => 'Servicii',
-        'desc' => 'Gestioneaza serviciile DDD care apar in contracte, sarcini si programari',
+        'desc' => 'Serviciile DDD folosite in contracte, sarcini si programări',
         'url' => 'services.php',
         'icon' => 'services',
     ],
     [
-        'title' => 'Echipe teren',
-        'desc' => 'Adauga echipe, parole pentru operatori si culori in calendar',
+        'title' => 'Tehnicieni',
+        'desc' => 'Adaugă tehnicieni, parole de acces si culori in calendar',
         'url' => 'team.php',
         'icon' => 'team',
     ],
@@ -103,44 +109,44 @@ $cards = [
 
 $superAdminCards = [
     [
-        'title' => 'Integrare facturare',
-        'desc' => 'Configureaza Oblio pentru emitere facturi, proforme si incasari prin API',
-        'url' => 'billing_settings.php',
+        'title' => 'SmartBill',
+        'desc' => 'Configureaza facturarea, cotele TVA, seria si statusul e-Factura / SPV',
+        'url' => 'smartbill_settings.php',
         'icon' => 'invoice',
     ],
     [
-        'title' => 'Comunicare / Integrari',
-        'desc' => 'Configureaza SendGrid pentru email si SMSLink.ro pentru SMS-uri',
+        'title' => 'Canale comunicare',
+        'desc' => 'Conectare SendGrid si SMSLink.ro',
         'url' => 'communication_settings.php',
         'icon' => 'mail',
     ],
     [
-        'title' => 'Review & Satisfactie',
-        'desc' => 'Configureaza cererea de review, linkul Google si formularul de feedback intern',
+        'title' => 'Review clienți',
+        'desc' => 'Link Google si formular intern de satisfacție',
         'url' => 'review_settings.php',
         'icon' => 'star',
     ],
     [
-        'title' => 'Sabloane email',
-        'desc' => 'Personalizeaza subiectele si mesajele pentru emailurile trimise prin SendGrid',
+        'title' => 'Șabloane email',
+        'desc' => 'Textele emailurilor trimise din CRM',
         'url' => 'email_templates.php',
         'icon' => 'mail',
     ],
     [
-        'title' => 'Sabloane SMS',
-        'desc' => 'Personalizeaza mesajele pentru programari si remindere la scadenta',
+        'title' => 'Șabloane SMS',
+        'desc' => 'Mesaje pentru programări si remindere',
         'url' => 'sms_templates.php',
         'icon' => 'sms',
     ],
     [
-        'title' => 'Activitate SMS',
-        'desc' => 'Vezi ultimele SMS-uri trimise, sarite (skipped) sau esuate. Util pentru debugging.',
+        'title' => 'Jurnal SMS',
+        'desc' => 'SMS-uri trimise, sărite sau eșuate',
         'url' => 'sms_activity.php',
         'icon' => 'reports',
     ],
     [
-        'title' => 'Activitate Email',
-        'desc' => 'Vezi ultimele emailuri trimise sau esuate. Combina log-urile SendGrid + log-urile pe documente.',
+        'title' => 'Jurnal email',
+        'desc' => 'Emailuri trimise sau eșuate',
         'url' => 'email_activity.php',
         'icon' => 'mail',
     ],
@@ -150,312 +156,75 @@ $superAdminCards = [
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Setari - PestZone</title>
+<title>Setări - PestZone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <?php app_theme_css(); ?>
 <style>
 .settings-page {
-    max-width: 1120px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
+    gap: 12px !important;
 }
-
-.settings-head {
-    max-width: 920px;
-    background:
-        radial-gradient(circle at top right, rgba(91,75,255,.12), transparent 34%),
-        linear-gradient(135deg, #ffffff 0%, #f8fbff 55%, #eef4ff 100%);
-    border: 1px solid rgba(203,213,225,.95);
-    border-radius: 24px;
-    box-shadow: 0 18px 45px rgba(15, 23, 42, .08);
-    padding: 24px 28px;
-    position: relative;
-    overflow: hidden;
+.settings-page .settings-head {
+    padding: 18px 20px !important;
 }
-
-.settings-head:before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 5px;
-    background: linear-gradient(180deg, var(--accent), #7c6cff);
-    opacity: .95;
+.settings-page .settings-head p {
+    max-width: 560px !important;
+    margin-top: 8px !important;
+    line-height: 1.4 !important;
 }
-
-.settings-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    color: var(--accent);
-    font-size: 11px;
-    font-weight: 750;
-    letter-spacing: .12em;
-    text-transform: uppercase;
+.settings-page .section-label {
+    margin-top: 6px !important;
 }
-
-.settings-eyebrow:before {
-    content: "";
-    width: 7px;
-    height: 7px;
-    border-radius: 99px;
-    background: var(--accent);
-    box-shadow: 0 0 0 5px rgba(91,75,255,.1);
+.settings-page .setting-row {
+    grid-template-columns: 28px minmax(0, 1fr) 30px !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
 }
-
-.settings-head h1 {
-    margin: 0;
-    font-size: 28px;
-    font-weight: 750;
-    letter-spacing: -.045em;
-    color: var(--text);
+.settings-page .setting-icon {
+    width: 24px !important;
+    height: 24px !important;
+    background: transparent !important;
+    border: 0 !important;
+    color: var(--muted) !important;
+    box-shadow: none !important;
 }
-
-.settings-head p {
-    margin: 7px 0 0;
-    color: var(--muted);
-    font-weight: 400;
-    font-size: 14px;
-    line-height: 1.55;
-    max-width: 720px;
+.settings-page .setting-icon .nav-icon,
+.settings-page .setting-icon svg {
+    width: 22px !important;
+    height: 22px !important;
 }
-
-.section-label {
-    max-width: 920px;
-    margin: 8px 0 -8px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 11px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: .12em;
-    color: var(--muted);
+.settings-page .setting-desc {
+    margin-top: 1px !important;
 }
-
-.section-label:after {
-    content: "";
-    height: 1px;
-    flex: 1;
-    background: linear-gradient(90deg, var(--border), transparent);
+.settings-page .setting-arrow {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 4px !important;
 }
-
-.settings-list {
-    background: rgba(255,255,255,.94);
-    border: 1px solid rgba(203,213,225,.95);
-    border-radius: 22px;
-    box-shadow: 0 16px 38px rgba(15, 23, 42, .07);
-    overflow: hidden;
-    max-width: 920px;
-    backdrop-filter: blur(8px);
-}
-
-.setting-row {
-    display: grid;
-    grid-template-columns: 46px minmax(0, 1fr) 42px;
-    gap: 15px;
-    align-items: center;
-    padding: 17px 20px;
-    border-bottom: 1px solid rgba(226,232,240,.9);
-    transition: background .14s ease, transform .14s ease;
-    text-decoration: none;
-    color: inherit;
-}
-
-.setting-row:last-child {
-    border-bottom: 0;
-}
-
-.setting-row:hover {
-    background: linear-gradient(90deg, rgba(91,75,255,.055), rgba(255,255,255,0));
-    transform: translateX(2px);
-}
-
-.setting-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, rgba(91,75,255,.12), rgba(91,75,255,.055));
-    border: 1px solid rgba(91,75,255,.08);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--accent);
-    flex: 0 0 auto;
-}
-
-.setting-icon svg {
-    width: 20px;
-    height: 20px;
-}
-
-.setting-icon .nav-icon {
-    width: 20px;
-    height: 20px;
-    margin: 0;
-}
-
-.setting-title {
-    font-weight: 750;
-    font-size: 15px;
-    color: var(--text);
-    letter-spacing: -.018em;
-}
-
-.setting-desc {
-    display: block;
-    font-weight: 400;
-    color: var(--muted);
-    margin-top: 4px;
-    line-height: 1.38;
-    font-size: 13px;
-}
-
-.setting-arrow {
-    width: 38px;
-    height: 38px;
-    border: 1px solid rgba(203,213,225,.9);
-    border-radius: 14px;
-    background: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 23px;
-    font-weight: 500;
-    color: var(--muted);
-    transition: color .14s ease, border-color .14s ease, background .14s ease;
-}
-
-.setting-row:hover .setting-arrow {
-    color: var(--accent);
-    border-color: rgba(91,75,255,.25);
-    background: rgba(91,75,255,.045);
-}
-
-.company-card {
-    background: rgba(255,255,255,.94);
-    border: 1px solid rgba(203,213,225,.95);
-    border-radius: 22px;
-    box-shadow: 0 16px 38px rgba(15, 23, 42, .07);
-    padding: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    max-width: 920px;
-}
-
-.company-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-}
-
-.company-logo {
-    width: 70px;
-    height: 48px;
-    border: 1px solid rgba(203,213,225,.9);
-    border-radius: 16px;
-    background: linear-gradient(135deg, #ffffff, #f7f9ff);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--accent);
-    font-weight: 750;
-    font-size: 13px;
-    text-align: center;
-}
-
-.company-name {
-    font-weight: 750;
-    font-size: 16px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    letter-spacing: -.02em;
-}
-
-.company-sub {
-    font-weight: 400;
-    color: var(--muted);
-    margin-top: 3px;
-    font-size: 13px;
-}
-
-.admin-note {
-    max-width: 920px;
-    background: linear-gradient(135deg, #fff7ed, #fffbeb);
-    color: var(--warning);
-    border: 1px solid rgba(154,103,0,.18);
-    border-radius: 18px;
-    padding: 13px 15px;
-    font-weight: 500;
-    line-height: 1.45;
-    font-size: 13px;
-}
-
-.reset-card {
-    background: rgba(255,255,255,.94);
-    border: 1px solid #fecaca;
-    border-radius: 22px;
-    box-shadow: 0 16px 38px rgba(153, 27, 27, .06);
-    overflow: hidden;
-    max-width: 920px;
-}
-
-.reset-card .setting-row {
-    border-bottom: 0;
-}
-
-.reset-card .setting-icon {
-    background: linear-gradient(135deg, #fef3f2, #fff7f7);
-    color: #b42318;
-    border-color: rgba(180,35,24,.12);
-}
-
-.reset-card .setting-title {
-    color: #991b1b;
-}
-
-.reset-card .setting-desc {
-    color: #7f1d1d;
-}
-
 @media(max-width: 760px) {
     .settings-page {
-        max-width: 100%;
+        gap: 10px !important;
     }
-
-    .settings-head {
-        padding: 18px 16px;
+    .settings-page .settings-head {
+        padding: 16px 18px !important;
     }
-
-    .setting-row {
-        grid-template-columns: 34px minmax(0, 1fr) 38px;
-        padding: 15px 12px;
+    .settings-page .setting-row {
+        grid-template-columns: 24px minmax(0, 1fr) 28px !important;
+        gap: 9px !important;
+        padding: 9px 10px !important;
+        min-height: 54px !important;
     }
-
-    .setting-title {
-        font-size: 14px;
+    .settings-page .setting-icon,
+    .settings-page .setting-icon .nav-icon,
+    .settings-page .setting-icon svg {
+        width: 21px !important;
+        height: 21px !important;
     }
-
-    .setting-desc {
-        font-size: 12px;
+    .settings-page .setting-title {
+        font-size: 13.5px !important;
     }
-
-    .company-card {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .company-card .btn {
-        width: 100%;
-        justify-content: center;
+    .settings-page .setting-desc {
+        font-size: 11.5px !important;
+        line-height: 1.25 !important;
     }
 }
 </style>
@@ -468,11 +237,11 @@ $superAdminCards = [
         <div class="content settings-page">
             <div class="settings-head">
                 <div class="settings-eyebrow">Administrare platforma</div>
-                <h1>Setari</h1>
-                <p>Zona centrala pentru utilizatori, documente, servicii, echipe, comunicare si integrari.</p>
+                <h1>Setări</h1>
+                <p>Zona centrala pentru utilizatori, documente, servicii, tehnicieni, comunicare si integrari.</p>
             </div>
 
-            <div class="section-label">Administrare operationala</div>
+            <div class="section-label">Administrare operaționala</div>
             <section class="settings-list">
                 <?php foreach ($cards as $card): ?>
                     <a class="setting-row" href="<?= st_h($card['url']) ?>">
@@ -506,7 +275,7 @@ $superAdminCards = [
                         <span class="setting-icon"><?= st_setting_icon('settings') ?></span>
                         <span>
                             <span class="setting-title">Reset platforma</span>
-                            <span class="setting-desc">Sterge datele operationale de test: clienti, contracte, sarcini, programari si numere generate</span>
+                            <span class="setting-desc">Șterge datele operaționale de test: clienți, contracte, sarcini, programări si numere generate</span>
                         </span>
                         <span class="setting-arrow">›</span>
                     </a>
@@ -523,7 +292,7 @@ $superAdminCards = [
                 </div>
 
                 <?php if ($isSuperAdmin): ?>
-                    <a class="btn ghost" href="company_settings.php">Editeaza compania</a>
+                    <a class="btn ghost" href="company_settings.php">Editează compania</a>
                 <?php else: ?>
                     <span class="btn ghost" style="opacity:.55;cursor:not-allowed;">Doar super admin</span>
                 <?php endif; ?>

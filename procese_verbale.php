@@ -120,6 +120,16 @@ function pz_pv_date_ro(?string $date): string {
     return $ts ? date('d.m.Y', $ts) : '-';
 }
 
+function pz_pv_date_for_storage($value): string {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return '';
+    }
+
+    $ts = strtotime($value);
+    return $ts ? date('Y-m-d', $ts) : '';
+}
+
 function pz_pv_time_ro(?string $time): string {
     if (!$time) {
         return '-';
@@ -161,9 +171,26 @@ function pz_pv_fetch_clients(PDO $pdo): array {
         return [];
     }
 
-    $stmt = $pdo->query("\n        SELECT id, name, fiscal_code, registry_number, registered_address, address,\n               legal_representative_name, legal_representative_role, email, phone, active\n        FROM clients\n        WHERE COALESCE(active, 1) = 1\n        ORDER BY name ASC\n        LIMIT 1500\n    ");
+    $stmt = $pdo->query("\n        SELECT *\n        FROM clients\n        WHERE COALESCE(active, 1) = 1\n        ORDER BY name ASC\n        LIMIT 1500\n    ");
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+function pz_pv_client_address(array $client): string {
+    $line = trim((string)($client['billing_address_line'] ?? ''));
+    $county = trim((string)($client['billing_county'] ?? ''));
+    $city = trim((string)($client['billing_city'] ?? ''));
+    $country = trim((string)($client['billing_country'] ?? ''));
+    $postal = trim((string)($client['billing_postal_code'] ?? ''));
+    $address = trim(implode(', ', array_filter([$line, $county, $city, $country], static fn($value) => $value !== '')));
+    if ($postal !== '') {
+        $address .= ($address !== '' ? ', ' : '') . 'CP ' . $postal;
+    }
+    if ($address !== '') {
+        return $address;
+    }
+
+    return trim((string)(($client['registered_address'] ?? '') ?: ($client['address'] ?? '')));
 }
 
 function pz_pv_fetch_locations(PDO $pdo): array {
@@ -598,7 +625,7 @@ function pz_pv_build_items_from_post(array $postItems, array $locationsById, ?in
     return $items;
 }
 
-function pz_pv_build_materials_from_post(array $postMaterials, array $productsById, array $receiptsById): array {
+function pz_pv_build_materials_from_post(array $postMaterials, array $productsById, array $receiptsById, bool $deferStockConsumption = false): array {
     $materials = [];
     $sort = 0;
 
@@ -612,37 +639,76 @@ function pz_pv_build_materials_from_post(array $postMaterials, array $productsBy
         $product = ($productId && isset($productsById[$productId])) ? $productsById[$productId] : null;
         $receipt = ($receiptId && isset($receiptsById[$receiptId])) ? $receiptsById[$receiptId] : null;
 
-        $name = pz_pv_str($row['material_name'] ?? '', 255);
-        if ($name === '' && $product) {
-            $name = pz_pv_str($product['name'] ?? '', 255);
-        }
+        $manualName = pz_pv_str($row['manual_material_name'] ?? '', 255);
+        $manualLot = pz_pv_str($row['manual_lot_number'] ?? '', 120);
+        $manualQuantityRaw = $row['manual_quantity'] ?? '';
+        $manualQuantity = $manualQuantityRaw !== '' ? pz_pv_decimal($manualQuantityRaw, 0) : '';
+        $manualAviz = pz_pv_str($row['manual_aviz_no'] ?? '', 120);
+        $manualExpiry = pz_pv_date_for_storage($row['manual_expiry_date'] ?? '');
+        $manualConcentration = pz_pv_str($row['manual_work_concentration'] ?? '', 120);
+        $manualApplicationMethod = pz_pv_str($row['manual_application_method'] ?? '', 160);
+        $legacyName = pz_pv_str($row['material_name'] ?? '', 255);
+        $productName = $product ? pz_pv_str($product['name'] ?? '', 255) : '';
+        $name = $productName !== '' ? $productName : ($manualName !== '' ? $manualName : $legacyName);
 
-        if ($name === '' && !$productId) {
+        if ($name === '' && !$product) {
             continue;
         }
 
+        $quantity = pz_pv_decimal($row['quantity'] ?? 0, 0);
         $applicationMethod = pz_pv_str($row['application_method'] ?? '', 160);
         $applicationMethodCustom = pz_pv_str($row['application_method_custom'] ?? '', 255);
+        $isBiocide = $product && function_exists('stock_is_biocide_group') && stock_is_biocide_group((string)($product['product_group'] ?? ''));
+
+        if (!$deferStockConsumption && $product && $quantity <= 0) {
+            throw new RuntimeException('Completează cantitatea utilizată pentru produsul "' . $name . '".');
+        }
+
+        if (!$deferStockConsumption && $isBiocide && !$receiptId) {
+            throw new RuntimeException('Selectează lotul pentru produsul "' . $name . '".');
+        }
 
         $materials[] = [
-            'stock_product_id' => $productId,
-            'stock_receipt_id' => $receiptId,
+            'stock_product_id' => $product ? $productId : null,
+            'stock_receipt_id' => $receipt ? $receiptId : null,
             'material_name' => $name,
             'product_group' => pz_pv_str($row['product_group'] ?? ($product['product_group'] ?? ''), 50),
-            'aviz_no' => pz_pv_str($row['aviz_no'] ?? ($product['aviz_no'] ?? ''), 120),
-            'quantity' => pz_pv_decimal($row['quantity'] ?? 0, 0),
+            'aviz_no' => $product ? pz_pv_str($row['aviz_no'] ?? ($product['aviz_no'] ?? ''), 120) : ($manualAviz !== '' ? $manualAviz : pz_pv_str($row['aviz_no'] ?? '', 120)),
+            'quantity' => $product ? $quantity : ($manualQuantityRaw !== '' ? $manualQuantity : (($row['quantity'] ?? '') !== '' ? $quantity : '')),
             'unit' => pz_pv_str($row['unit'] ?? ($product['unit_consumption'] ?? ''), 30),
-            'lot_number' => pz_pv_str($row['lot_number'] ?? ($receipt['lot'] ?? ''), 120),
-            'expiry_date' => pz_pv_str($row['expiry_date'] ?? ($receipt['expires_at'] ?? ''), 40),
-            'application_method' => $applicationMethod,
+            'lot_number' => $product ? pz_pv_str($row['lot_number'] ?? ($receipt['lot'] ?? ''), 120) : $manualLot,
+            'expiry_date' => $product ? pz_pv_str($row['expiry_date'] ?? ($receipt['expires_at'] ?? ''), 40) : ($manualExpiry !== '' ? $manualExpiry : pz_pv_str($row['expiry_date'] ?? '', 40)),
+            'application_method' => $product ? $applicationMethod : ($manualApplicationMethod !== '' ? $manualApplicationMethod : $applicationMethod),
             'application_method_custom' => $applicationMethodCustom,
             'application_area' => pz_pv_str($row['application_area'] ?? '', 160),
-            'work_concentration' => pz_pv_str($row['work_concentration'] ?? '', 120),
+            'work_concentration' => $product ? pz_pv_str($row['work_concentration'] ?? '', 120) : ($manualConcentration !== '' ? $manualConcentration : pz_pv_str($row['work_concentration'] ?? '', 120)),
             'safety_measures' => pz_pv_str($row['safety_measures'] ?? ($product['safety_measures'] ?? '')),
             'notes' => pz_pv_str($row['notes'] ?? ''),
             'sort_order' => $sort,
         ];
         $sort++;
+
+        if ($product && $manualName !== '') {
+            $materials[] = [
+                'stock_product_id' => null,
+                'stock_receipt_id' => null,
+                'material_name' => $manualName,
+                'product_group' => '',
+                'aviz_no' => $manualAviz,
+                'quantity' => $manualQuantity,
+                'unit' => '',
+                'lot_number' => $manualLot,
+                'expiry_date' => $manualExpiry,
+                'application_method' => $manualApplicationMethod,
+                'application_method_custom' => '',
+                'application_area' => '',
+                'work_concentration' => $manualConcentration,
+                'safety_measures' => '',
+                'notes' => '',
+                'sort_order' => $sort,
+            ];
+            $sort++;
+        }
     }
 
     return $materials;
@@ -661,6 +727,7 @@ function pz_pv_build_payload_from_post(array $post): array {
         'basis_document' => '',
         'contract_number' => '',
         'materials_enabled' => !empty($post['materials_enabled']) ? '1' : '0',
+        'stock_consumption_deferred' => !empty($post['stock_consumption_deferred']) ? '1' : '0',
     ];
 }
 
@@ -706,10 +773,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($isTeamUser) {
             if ($action !== 'issue') {
-                pz_pv_redirect_with_error('In modul angajat poti doar emite PV-ul final.', $documentId);
+                pz_pv_redirect_with_error('In modul angajat poți doar emite PV-ul final.', $documentId);
             }
             if ($appointmentId <= 0 || !$appointment || !pzdoc_user_can_access_appointment_for_pv($pdo, $appointmentId, true)) {
-                pz_pv_redirect_with_error('Nu poti emite PV pentru aceasta programare. Lucrarea trebuie sa fie finalizata si sa apartina echipei tale.', $documentId);
+                pz_pv_redirect_with_error('Nu poți emite PV pentru aceasta programare. Lucrarea trebuie sa fie finalizata si sa apartina tehnicianului tau.', $documentId);
             }
             if ($documentId > 0) {
                 $existingForAccess = pzdoc_get_document($pdo, $documentId, false);
@@ -759,23 +826,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $materialsEnabled = !empty($_POST['materials_enabled']);
-        $materials = $materialsEnabled ? pz_pv_build_materials_from_post($_POST['materials'] ?? [], $productsById, $receiptsById) : [];
+        $deferStockConsumption = $isAdmin && !empty($_POST['stock_consumption_deferred']);
+        try {
+            $materials = $materialsEnabled ? pz_pv_build_materials_from_post($_POST['materials'] ?? [], $productsById, $receiptsById, $deferStockConsumption) : [];
+        } catch (Throwable $e) {
+            pz_pv_redirect_with_error($e->getMessage(), $documentId);
+        }
 
         if ($clientId <= 0) {
-            pz_pv_redirect_with_error('Selecteaza clientul pentru procesul verbal.', $documentId);
+            pz_pv_redirect_with_error('Selectează clientul pentru procesul verbal.', $documentId);
         }
 
         if (!$locationId) {
-            pz_pv_redirect_with_error('Selecteaza o locatie / punct de lucru din fisa clientului. Daca serviciul se face la sediu, adauga sediul ca locatie in fisa clientului.', $documentId);
+            pz_pv_redirect_with_error('Selectează o locație / punct de lucru din fișa clientului. Dacă serviciul se face la sediu, adauga sediul ca locație in fișa clientului.', $documentId);
         }
 
         if (!$items) {
-            pz_pv_redirect_with_error('Selecteaza cel putin un serviciu prestat.', $documentId);
+            pz_pv_redirect_with_error('Selectează cel puțin un serviciu prestat.', $documentId);
         }
 
         $basis = pz_pv_resolve_basis_from_post($_POST, $contracts, $contractsById, $clientId, $locationId);
 
         $payload = pz_pv_build_payload_from_post($_POST);
+        $payload['stock_consumption_deferred'] = $deferStockConsumption ? '1' : '0';
         $payload['pv_services'] = $selectedServices;
         $payload['basis_type'] = $basis['basis_type'];
         $payload['basis_document'] = $basis['basis_document'];
@@ -803,7 +876,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $payload['end_time'] = substr((string)$appointment['end_time'], 0, 5);
             }
         }
-        // Stampila firmei: operatorii (team) au bifa automata; admin alege din checkbox.
+        // Ștampila firmei: operatorii (team) au bifa automata; admin alege din checkbox.
         $applyStamp = 0;
         if (function_exists('is_team_user') && is_team_user()) {
             $applyStamp = 1;
@@ -933,6 +1006,10 @@ $formDocument = $editingDocument ?: [
     'internal_notes' => '',
 ];
 
+if (!$editingDocument && !empty($_GET['client_id'])) {
+    $formDocument['client_id'] = max(0, (int)$_GET['client_id']);
+}
+
 $selectedPvServices = pz_pv_normalize_selected_services($editingPayload['pv_services'] ?? []);
 if (!$selectedPvServices && $editingItems) {
     $selectedPvServices = pz_pv_selected_services_from_items($editingItems);
@@ -993,6 +1070,10 @@ if ($q !== '') {
 if (in_array($status, ['draft', 'issued', 'cancelled'], true)) {
     $filters['status'] = $status;
 }
+$filterClientId = max(0, (int)($_GET['client_id'] ?? 0));
+if ($filterClientId > 0) {
+    $filters['client_id'] = $filterClientId;
+}
 
 $totalRows = pzdoc_count_documents($pdo, 'proces_verbal', $filters);
 $totalPages = max(1, (int)ceil($totalRows / $perPage));
@@ -1009,7 +1090,7 @@ foreach ($clients as $client) {
         'name' => (string)($client['name'] ?? ''),
         'fiscal_code' => (string)($client['fiscal_code'] ?? ''),
         'registry_number' => (string)($client['registry_number'] ?? ''),
-        'address' => (string)($client['registered_address'] ?? $client['address'] ?? ''),
+        'address' => pz_pv_client_address($client),
         'representative' => trim((string)($client['legal_representative_name'] ?? '') . ' ' . (string)($client['legal_representative_role'] ?? '')),
         'email' => (string)($client['email'] ?? ''),
         'phone' => (string)($client['phone'] ?? ''),
@@ -1110,6 +1191,7 @@ if (($editingPayload['materials_enabled'] ?? '') === '1') {
 if (!empty($isQuickPvFromAppointment)) {
     $materialsEnabled = true;
 }
+$stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '') === '1');
 ?>
 <!DOCTYPE html>
 <html lang="ro">
@@ -1171,14 +1253,15 @@ if (!empty($isQuickPvFromAppointment)) {
 
 /* === TOGGLE PILLS pentru servicii === */
 .pz-pills { display:flex; flex-wrap:wrap; gap:8px; }
-.pz-pill { position:relative; padding:9px 16px 9px 36px; border-radius:999px; border:1.5px solid var(--accent-soft-2); background:#fff; color:var(--muted); font-size:13px; font-weight:700; cursor:pointer; transition:all .14s ease; user-select:none; }
-.pz-pill::before { content:''; position:absolute; left:11px; top:50%; transform:translateY(-50%); width:16px; height:16px; border-radius:50%; border:1.5px solid var(--accent-soft-2); background:#fff; transition:all .14s ease; }
-.pz-pill:hover { border-color:var(--accent); color:var(--text); }
-.pz-pill.is-active { background:var(--accent); color:#fff; border-color:var(--accent); }
-.pz-pill.is-active::before { background:#fff; border-color:#fff; }
-.pz-pill.is-active::after { content:''; position:absolute; left:15px; top:50%; transform:translateY(-50%) rotate(45deg); width:5px; height:9px; border-right:2px solid var(--accent); border-bottom:2px solid var(--accent); }
+.pz-pill { position:relative; min-height:34px; display:inline-flex; align-items:center; padding:7px 13px 7px 36px; border-radius:6px; border:1px solid var(--border); background:#fff; color:var(--text); font-size:12.5px; font-weight:850; cursor:pointer; transition:border-color .14s ease, background .14s ease, color .14s ease; user-select:none; }
+.pz-pill::before { content:''; position:absolute; left:12px; top:50%; transform:translateY(-50%); width:15px; height:15px; border-radius:4px; border:1.5px solid #cbd5e1; background:#fff; transition:all .14s ease; box-sizing:border-box; }
+.pz-pill:hover { border-color:var(--accent); background:var(--accent-soft); }
+.pz-pill.is-active { background:var(--accent-soft); color:var(--accent-deep); border-color:var(--accent); }
+.pz-pill.is-active::before { background:var(--accent); border-color:var(--accent); }
+.pz-pill.is-active::after { content:''; position:absolute; left:16px; top:50%; transform:translateY(-58%) rotate(45deg); width:4px; height:8px; border-right:2px solid #fff; border-bottom:2px solid #fff; }
+.pz-pills.is-invalid .pz-pill { border-color:rgba(220, 38, 38, .36); }
 
-/* === LOCATIE smart - cazul cu o singura locatie === */
+/* === LOCATIE smart - cazul cu o singura locație === */
 .pz-location-info { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--surface-soft); border:1px solid var(--border2); border-radius:12px; color:var(--text); font-size:13px; font-weight:600; }
 .pz-location-info .pl-label { color:var(--muted); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
 
@@ -1209,9 +1292,13 @@ if (!empty($isQuickPvFromAppointment)) {
 .pv-material-card-title { font-size:13px; font-weight:950; color:var(--accent-deep); }
 .pv-material-grid { display:grid; grid-template-columns:1.4fr 1fr; gap:10px; }
 .pv-material-mini-grid { display:grid; grid-template-columns:1fr .85fr 1fr; gap:10px; margin-top:10px; }
+.pv-manual-extra { margin-top:12px; padding-top:12px; border-top:1px dashed rgba(100,116,139,.28); }
+.pv-manual-extra-title { font-size:11px; font-weight:950; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px; }
 .pv-material-card label { display:block; font-size:11px; font-weight:900; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.035em; }
 .pv-material-card input,.pv-material-card select { width:100%; border:1px solid var(--accent-soft-2); border-radius:12px; padding:9px 10px; background:#fff; color:var(--text); font-size:13px; outline:none; }
 .pv-material-card input:focus,.pv-material-card select:focus { border-color:var(--accent); box-shadow:var(--focus-ring); }
+.quantity-input { appearance:textfield; -moz-appearance:textfield; }
+.quantity-input::-webkit-outer-spin-button,.quantity-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
 .pv-stock-hint { margin-top:7px; padding:8px 10px; border-radius:12px; background:rgba(17,96,183,.06); border:1px solid rgba(17,96,183,.12); color:var(--muted); font-size:11.5px; font-weight:750; line-height:1.35; }
 .pv-quick-materials .pv-add-material-wrap { justify-content:center !important; }
 @media (max-width:760px) { .pv-material-grid,.pv-material-mini-grid { grid-template-columns:1fr; } .pv-material-card { padding:11px; border-radius:16px; } }
@@ -1256,6 +1343,9 @@ if (!empty($isQuickPvFromAppointment)) {
 .pv-quick-materials .panel-head { padding-bottom:10px; }
 .pv-quick-materials .panel-subtitle { display:none; }
 .pv-quick-observatii .panel-subtitle { display:none; }
+.pv-defer-consumption { margin:12px 0 14px; display:inline-flex; align-items:center; gap:9px; padding:8px 10px; border:1px solid rgba(220,38,38,.22); background:#fff7f7; color:#b91c1c; border-radius:8px; font-weight:850; font-size:12.5px; }
+.pv-defer-consumption input { width:16px; height:16px; margin:0; accent-color:#dc2626; }
+.pv-defer-consumption small { color:#b91c1c; font-weight:700; opacity:.78; }
 @media (max-width:700px) { .pv-quick-summary-grid { grid-template-columns:1fr; } .pv-quick-summary { padding:13px; border-radius:18px; } }
 
 /* === Mobile optimizare zona 1. Document === */
@@ -1378,7 +1468,7 @@ if (!empty($isQuickPvFromAppointment)) {
         <?php if (!$isAdmin): ?>
             <header class="topbar pv-topbar">
                 <div class="pv-toolbar">
-                    <a class="btn" href="calendar.php">Inapoi la calendar</a>
+                    <a class="btn" href="calendar.php">Înapoi la calendar</a>
                 </div>
             </header>
         <?php endif; ?>
@@ -1396,8 +1486,8 @@ if (!empty($isQuickPvFromAppointment)) {
                 <section class="panel pv-form-compact" id="pvFormPanel">
                     <div class="panel-head">
                         <div>
-                            <div class="panel-title"><?= !empty($isQuickPvFromAppointment) ? 'PV rapid din programare' : ($editingDocument ? 'Editeaza proces verbal draft' : 'Proces verbal nou') ?></div>
-                            <div class="panel-subtitle"><?= !empty($isQuickPvFromAppointment) ? 'Completeaza produsele/materialele utilizate si observatiile. Datele lucrarii sunt preluate automat.' : 'Completeaza datele PV, clientul, locatia, serviciile si materialele utilizate.' ?></div>
+                            <div class="panel-title"><?= !empty($isQuickPvFromAppointment) ? 'PV rapid din programare' : ($editingDocument ? 'Editează proces verbal draft' : 'Proces verbal nou') ?></div>
+                            <div class="panel-subtitle"><?= !empty($isQuickPvFromAppointment) ? 'Completează produsele/materialele utilizate si observatiile. Datele lucrării sunt preluate automat.' : 'Completează datele PV, clientul, locatia, serviciile si materialele utilizate.' ?></div>
                         </div>
                         <a class="pv-close-btn" href="<?= $isTeamUser ? 'calendar.php' : 'procese_verbale.php' ?>" title="Inchide formularul" aria-label="Inchide formularul">&times;</a>
                     </div>
@@ -1431,13 +1521,13 @@ if (!empty($isQuickPvFromAppointment)) {
                                     </div>
                                     <div class="pv-quick-summary-grid">
                                         <div class="pv-quick-item"><div class="pv-quick-label">Client</div><div class="pv-quick-value"><?= pz_pv_h($quickClient ?: '-') ?></div></div>
-                                        <div class="pv-quick-item"><div class="pv-quick-label">Locatie</div><div class="pv-quick-value"><?= pz_pv_h($quickLocation ?: '-') ?></div></div>
+                                        <div class="pv-quick-item"><div class="pv-quick-label">Locație</div><div class="pv-quick-value"><?= pz_pv_h($quickLocation ?: '-') ?></div></div>
                                         <div class="pv-quick-item"><div class="pv-quick-label">Adresa</div><div class="pv-quick-value"><?= pz_pv_h($quickAddress ?: '-') ?></div></div>
                                         <div class="pv-quick-item"><div class="pv-quick-label">Contact</div><div class="pv-quick-value"><?= pz_pv_h(trim($quickContact . ($quickPhone !== '' ? ' / ' . $quickPhone : '')) ?: '-') ?></div></div>
                                         <div class="pv-quick-item"><div class="pv-quick-label">Serviciu</div><div class="pv-quick-value"><?= pz_pv_h($quickService ?: '-') ?></div></div>
                                         <div class="pv-quick-item"><div class="pv-quick-label">Data/Ora</div><div class="pv-quick-value"><?= pz_pv_h($quickDateTime ?: '-') ?></div></div>
-                                        <div class="pv-quick-item"><div class="pv-quick-label">Echipa</div><div class="pv-quick-value"><?= pz_pv_h($quickTeam ?: '-') ?></div></div>
-                                        <div class="pv-quick-item"><div class="pv-quick-label">Suprafata</div><div class="pv-quick-value"><?= pz_pv_h($quickSurface ?: '-') ?></div></div>
+                                        <div class="pv-quick-item"><div class="pv-quick-label">Tehnician</div><div class="pv-quick-value"><?= pz_pv_h($quickTeam ?: '-') ?></div></div>
+                                        <div class="pv-quick-item"><div class="pv-quick-label">Suprafață</div><div class="pv-quick-value"><?= pz_pv_h($quickSurface ?: '-') ?></div></div>
                                     </div>
                                 </div>
                             <?php endif; ?>
@@ -1468,7 +1558,7 @@ if (!empty($isQuickPvFromAppointment)) {
                                                     <option value="<?= (int)$appointment['id'] ?>" <?= (int)($formDocument['appointment_id'] ?? $selectedAppointmentId ?? 0) === (int)$appointment['id'] ? 'selected' : '' ?>><?= pz_pv_h(implode(' / ', $labelParts)) ?></option>
                                                 <?php endforeach; ?>
                                             </select>
-                                            <div class="client-help">Optional. Daca alegi o programare, clientul, locatia, data si ora se completeaza automat.</div>
+                                            <div class="client-help">Optional. Dacă alegi o programare, clientul, locatia, data si ora se completeaza automat.</div>
                                         </div>
                                         <?php endif; ?>
                                         <div class="field pv-date-field">
@@ -1480,7 +1570,7 @@ if (!empty($isQuickPvFromAppointment)) {
                                             <input type="time" name="document_time" value="<?= pz_pv_h(substr((string)($formDocument['document_time'] ?? date('H:i')), 0, 5)) ?>">
                                         </div>
                                         <div class="field pv-template-field">
-                                            <label>Sablon</label>
+                                            <label>Șablon</label>
                                             <select name="template_id">
                                                 <?php foreach ($templates as $template): ?>
                                                     <option value="<?= (int)$template['id'] ?>" <?= (int)($formDocument['template_id'] ?? 0) === (int)$template['id'] ? 'selected' : '' ?>>
@@ -1517,7 +1607,7 @@ if (!empty($isQuickPvFromAppointment)) {
                                                 <select name="contract_id" id="contractSelect" data-selected="<?= (int)$selectedContractId ?>"></select>
                                                 <input type="text" name="basis_manual_text" id="basisManualText" class="basis-manual" value="<?= pz_pv_h($editingPayload['basis_manual_text'] ?? '') ?>" placeholder="ex: Nota de comanda nr. 123 / Achizitie directa / alta baza">
                                             </div>
-                                            <div class="client-help" id="basisHelp">Daca exista contract pentru client, se selecteaza automat. Altfel poti completa manual.</div>
+                                            <div class="client-help" id="basisHelp">Dacă există contract pentru client, se selecteaza automat. Altfel poți completa manual.</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1526,8 +1616,8 @@ if (!empty($isQuickPvFromAppointment)) {
                             <div class="panel <?= !empty($isQuickPvFromAppointment) ? 'pv-quick-hidden' : '' ?>" style="box-shadow:none; margin-top:14px;">
                                 <div class="panel-head">
                                     <div>
-                                        <div class="panel-title">2. Client si locatie</div>
-                                        <div class="panel-subtitle">Cautare dupa nume client, CUI, reprezentant, email sau telefon.</div>
+                                        <div class="panel-title">2. Client si locație</div>
+                                        <div class="panel-subtitle">Căutare după nume client, CUI, reprezentant, email sau telefon.</div>
                                     </div>
                                 </div>
                                 <div class="panel-body">
@@ -1536,8 +1626,8 @@ if (!empty($isQuickPvFromAppointment)) {
                                             <label>Client *</label>
                                             <input type="hidden" name="client_id" id="clientSelect" required value="<?= (int)($formDocument['client_id'] ?? 0) ?>" data-selected="<?= (int)($formDocument['client_id'] ?? 0) ?>">
                                             <div class="pz-autocomplete" id="clientAutocomplete">
-                                                <input type="text" class="pz-autocomplete-input" id="clientSearchInput" placeholder="Cauta dupa nume client, CUI, telefon, reprezentant…" autocomplete="off">
-                                                <button type="button" class="pz-autocomplete-clear" id="clientClearBtn" title="Sterge">&times;</button>
+                                                <input type="text" class="pz-autocomplete-input" id="clientSearchInput" placeholder="Caută după nume client, CUI, telefon, reprezentant…" autocomplete="off">
+                                                <button type="button" class="pz-autocomplete-clear" id="clientClearBtn" title="Șterge">&times;</button>
                                                 <div class="pz-autocomplete-selected" id="clientSelectedBox">
                                                     <div>
                                                         <div class="ps-name"></div>
@@ -1559,22 +1649,22 @@ if (!empty($isQuickPvFromAppointment)) {
                                             </div>
                                         </div>
                                         <div class="field span2" id="locationField">
-                                            <label>Locatie / punct de lucru</label>
-                                            <!-- Wrapper - decizia de display se face in JS in functie de cate locatii are clientul -->
+                                            <label>Locație / punct de lucru</label>
+                                            <!-- Wrapper - decizia de display se face in JS in functie de cate locații are clientul -->
                                             <select name="client_location_id" id="locationSelect" data-selected="<?= (int)($formDocument['client_location_id'] ?? 0) ?>" style="display:none;" required></select>
                                             <div class="pz-location-info" id="locationInfo" style="display:none;">
                                                 <span class="pl-label">Folosim:</span>
-                                                <span id="locationInfoText">Alege locatie</span>
+                                                <span id="locationInfoText">Alege locație</span>
                                             </div>
-                                            <div class="client-help" id="locationHelp">Selecteaza un client mai intai.</div>
+                                            <div class="client-help" id="locationHelp">Selectează un client mai intai.</div>
                                         </div>
                                         <div class="field span2">
-                                            <label>Suprafata / zona tratata</label>
+                                            <label>Suprafață / zona tratata</label>
                                             <input type="text" name="surface_text" id="surfaceText" value="<?= pz_pv_h($editingPayload['surface_text'] ?? '') ?>" placeholder="ex: 250 mp interior + exterior">
                                         </div>
                                         <div class="field full">
                                             <label>Operatori / executanti</label>
-                                            <input type="text" name="workers_names" id="workersNames" value="<?= pz_pv_h($editingPayload['workers_names'] ?? '') ?>" placeholder="Se completeaza automat din echipa/operatorul programarii, daca exista">
+                                            <input type="text" name="workers_names" id="workersNames" value="<?= pz_pv_h($editingPayload['workers_names'] ?? '') ?>" placeholder="Se completeaza automat din tehnicianul/operatorul programării, dacă există">
                                         </div>
                                     </div>
                                 </div>
@@ -1584,7 +1674,7 @@ if (!empty($isQuickPvFromAppointment)) {
                                 <div class="panel-head">
                                     <div>
                                         <div class="panel-title">3. Servicii prestate</div>
-                                        <div class="panel-subtitle">Selecteaza serviciile executate. In sablon foloseste {{services_checks}} pentru afisarea cu bife.</div>
+                                        <div class="panel-subtitle">Selectează serviciile executate. In șablon folosește {{services_checks}} pentru afișarea cu bife.</div>
                                     </div>
                                 </div>
                                 <div class="panel-body">
@@ -1621,31 +1711,93 @@ if (!empty($isQuickPvFromAppointment)) {
                                 <div class="panel-head">
                                     <div>
                                         <div class="panel-title">Produse / materiale utilizate</div>
-                                        <div class="panel-subtitle">Aceste randuri se transforma automat in tabelul {{materials_table}} din sablon.</div>
+                                        <div class="panel-subtitle">Aceste randuri se transforma automat in tabelul {{materials_table}} din șablon.</div>
                                     </div>
                                     <?php if (!empty($isQuickPvFromAppointment)): ?>
                                         <input type="hidden" name="materials_enabled" id="materialsEnabled" value="1">
                                     <?php else: ?>
                                         <label class="switch-row">
                                             <input type="checkbox" name="materials_enabled" id="materialsEnabled" value="1" <?= $materialsEnabled ? 'checked' : '' ?> onchange="toggleMaterialsPanel()">
-                                            Adauga biocide / materiale
+                                            Adaugă biocide / materiale
                                         </label>
                                     <?php endif; ?>
                                 </div>
                                 <div class="panel-body" id="materialsPanel">
+                                    <?php if ($isAdmin): ?>
+                                        <label class="pv-defer-consumption">
+                                            <input type="checkbox" name="stock_consumption_deferred" value="1" <?= $stockConsumptionDeferred ? 'checked' : '' ?>>
+                                            Emite fără consum stoc
+                                            <small>Cantitatea se completează ulterior.</small>
+                                        </label>
+                                    <?php endif; ?>
                                     <?php if (!empty($isQuickPvFromAppointment)): ?>
                                         <div class="pv-material-cards" id="materialsBody">
                                             <?php foreach ($editingMaterials as $index => $material): ?>
+                                                <?php
+                                                    $isManualMaterialRow = empty($material['stock_product_id'])
+                                                        && trim((string)($material['manual_material_name'] ?? ($material['material_name'] ?? ''))) !== '';
+                                                ?>
+                                                <?php if ($isManualMaterialRow): ?>
+                                                <div class="material-row pv-material-card pv-manual-material-row">
+                                                    <div class="pv-material-card-head">
+                                                        <div class="pv-material-card-title">Produs fără stoc #<?= (int)$index + 1 ?></div>
+                                                        <button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button>
+                                                    </div>
+                                                    <input type="hidden" name="materials[<?= (int)$index ?>][stock_product_id]" value="">
+                                                    <input type="hidden" name="materials[<?= (int)$index ?>][stock_receipt_id]" value="">
+                                                    <div class="pv-material-grid">
+                                                        <div>
+                                                            <label>Denumire</label>
+                                                            <input type="text" name="materials[<?= (int)$index ?>][manual_material_name]" class="manual-material-name" value="<?= pz_pv_h($material['manual_material_name'] ?? ($material['material_name'] ?? '')) ?>" placeholder="produs fără stoc">
+                                                        </div>
+                                                        <div>
+                                                            <label>Nr. aviz</label>
+                                                            <input type="text" name="materials[<?= (int)$index ?>][manual_aviz_no]" value="<?= pz_pv_h($material['manual_aviz_no'] ?? ($material['aviz_no'] ?? '')) ?>" placeholder="opțional">
+                                                        </div>
+                                                    </div>
+                                                    <div class="pv-material-mini-grid">
+                                                        <div>
+                                                            <label>Lot</label>
+                                                            <input type="text" name="materials[<?= (int)$index ?>][manual_lot_number]" class="manual-lot-number" value="<?= pz_pv_h($material['manual_lot_number'] ?? ($material['lot_number'] ?? '')) ?>" placeholder="opțional">
+                                                        </div>
+                                                        <div>
+                                                            <label>Valabilitate opțională</label>
+                                                            <input type="text" name="materials[<?= (int)$index ?>][manual_expiry_date]" value="<?= pz_pv_h($material['manual_expiry_date'] ?? ($material['expiry_date'] ?? '')) ?>" placeholder="ex: 31.12.2027">
+                                                        </div>
+                                                        <div>
+                                                            <label>Diluție</label>
+                                                            <input type="text" name="materials[<?= (int)$index ?>][manual_work_concentration]" value="<?= pz_pv_h($material['manual_work_concentration'] ?? ($material['work_concentration'] ?? '')) ?>" placeholder="ex: 1%">
+                                                        </div>
+                                                    </div>
+                                                    <div class="pv-material-mini-grid">
+                                                        <div>
+                                                            <label>Cantitate</label>
+                                                            <input type="text" inputmode="decimal" class="quantity-input" name="materials[<?= (int)$index ?>][manual_quantity]" value="<?= pz_pv_h($material['manual_quantity'] ?? ($material['quantity'] ?? '')) ?>" placeholder="cant.">
+                                                        </div>
+                                                        <div>
+                                                            <label>Aplicare</label>
+                                                            <select name="materials[<?= (int)$index ?>][manual_application_method]">
+                                                                <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare'] as $value => $label): ?>
+                                                                    <option value="<?= pz_pv_h($value) ?>" <?= (($material['manual_application_method'] ?? ($material['application_method'] ?? '')) === $value) ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
+                                                                <?php endforeach; ?>
+                                                            </select>
+                                                        </div>
+                                                        <div></div>
+                                                    </div>
+                                                    <input type="hidden" name="materials[<?= (int)$index ?>][application_method_custom]" value="">
+                                                    <input type="hidden" name="materials[<?= (int)$index ?>][application_area]" value="">
+                                                    <input type="hidden" name="materials[<?= (int)$index ?>][notes]" value="">
+                                                </div>
+                                                <?php else: ?>
                                                 <div class="material-row pv-material-card">
                                                     <div class="pv-material-card-head">
                                                         <div class="pv-material-card-title">Produs utilizat #<?= (int)$index + 1 ?></div>
-                                                        <button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Sterge</button>
+                                                        <button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button>
                                                     </div>
                                                     <div class="pv-material-grid">
                                                         <div>
                                                             <label>Produs / material</label>
                                                             <select name="materials[<?= (int)$index ?>][stock_product_id]" class="product-select" data-selected="<?= (int)($material['stock_product_id'] ?? 0) ?>" onchange="syncProductRow(this)"></select>
-                                                            <input type="text" name="materials[<?= (int)$index ?>][material_name]" class="material-name" value="<?= pz_pv_h($material['material_name'] ?? '') ?>" placeholder="produs manual" style="margin-top:7px;">
                                                             <input type="hidden" name="materials[<?= (int)$index ?>][product_group]" class="product-group" value="<?= pz_pv_h($material['product_group'] ?? '') ?>">
                                                             <input type="hidden" name="materials[<?= (int)$index ?>][safety_measures]" class="safety-measures" value="<?= pz_pv_h($material['safety_measures'] ?? '') ?>">
                                                             <input type="hidden" name="materials[<?= (int)$index ?>][unit]" class="material-unit" value="<?= pz_pv_h($material['unit'] ?? '') ?>">
@@ -1655,24 +1807,23 @@ if (!empty($isQuickPvFromAppointment)) {
                                                         <div>
                                                             <label>Lot / stoc</label>
                                                             <select name="materials[<?= (int)$index ?>][stock_receipt_id]" class="receipt-select" data-selected="<?= (int)($material['stock_receipt_id'] ?? 0) ?>" onchange="syncLotRow(this)"></select>
-                                                            <input type="text" name="materials[<?= (int)$index ?>][lot_number]" class="lot-number" value="<?= pz_pv_h($material['lot_number'] ?? '') ?>" placeholder="lot manual" style="margin-top:7px;">
                                                             <div class="pv-stock-hint">Datele din stoc se preiau automat: aviz, lot, valabilitate si UM.</div>
                                                         </div>
                                                     </div>
                                                     <div class="pv-material-mini-grid">
                                                         <div>
                                                             <label>Dilutie</label>
-                                                            <input type="text" name="materials[<?= (int)$index ?>][work_concentration]" class="work-concentration" value="<?= pz_pv_h($material['work_concentration'] ?? '') ?>" placeholder="ex: 1%">
+                                                            <input type="text" name="materials[<?= (int)$index ?>][work_concentration]" class="work-concentration" value="<?= pz_pv_h(!empty($material['stock_product_id']) ? ($material['work_concentration'] ?? '') : '') ?>" placeholder="ex: 1%">
                                                         </div>
                                                         <div>
                                                             <label>Cantitate</label>
-                                                            <input type="number" step="0.001" min="0" name="materials[<?= (int)$index ?>][quantity]" value="<?= pz_pv_h($material['quantity'] ?? '') ?>" placeholder="cant.">
+                                                            <input type="text" inputmode="decimal" class="quantity-input" name="materials[<?= (int)$index ?>][quantity]" value="<?= pz_pv_h(!empty($material['stock_product_id']) ? ($material['quantity'] ?? '') : '') ?>" placeholder="cant.">
                                                         </div>
                                                         <div>
                                                             <label>Metoda aplicare</label>
                                                             <select name="materials[<?= (int)$index ?>][application_method]" class="application-method">
                                                                 <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare'] as $value => $label): ?>
-                                                                    <option value="<?= pz_pv_h($value) ?>" <?= ($material['application_method'] ?? '') === $value ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
+                                                                    <option value="<?= pz_pv_h($value) ?>" <?= (!empty($material['stock_product_id']) && (($material['application_method'] ?? '') === $value)) ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
                                                                 <?php endforeach; ?>
                                                             </select>
                                                         </div>
@@ -1681,6 +1832,7 @@ if (!empty($isQuickPvFromAppointment)) {
                                                     <input type="hidden" name="materials[<?= (int)$index ?>][application_area]" value="">
                                                     <input type="hidden" name="materials[<?= (int)$index ?>][notes]" value="">
                                                 </div>
+                                                <?php endif; ?>
                                             <?php endforeach; ?>
                                         </div>
                                     <?php else: ?>
@@ -1693,72 +1845,103 @@ if (!empty($isQuickPvFromAppointment)) {
                                                         <th style="width:190px;">Lot</th>
                                                         <th style="width:145px;">Data valabilitate</th>
                                                         <th style="width:130px;">Dilutie</th>
-                                                        <th style="width:155px;">Cantitate utilizata</th>
+                                                        <th style="width:155px;">Cantitate utilizată</th>
                                                         <th style="width:170px;">Metoda aplicare</th>
                                                         <th style="width:70px;"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="materialsBody">
                                                     <?php foreach ($editingMaterials as $index => $material): ?>
-                                                        <tr class="material-row">
-                                                            <td>
-                                                                <select name="materials[<?= (int)$index ?>][stock_product_id]" class="product-select" data-selected="<?= (int)($material['stock_product_id'] ?? 0) ?>" onchange="syncProductRow(this)"></select>
-                                                                <input type="text" name="materials[<?= (int)$index ?>][material_name]" class="material-name" value="<?= pz_pv_h($material['material_name'] ?? '') ?>" placeholder="sau scrie manual produs/material" style="margin-top:6px;">
-                                                                <input type="hidden" name="materials[<?= (int)$index ?>][product_group]" class="product-group" value="<?= pz_pv_h($material['product_group'] ?? '') ?>">
-                                                                <input type="hidden" name="materials[<?= (int)$index ?>][safety_measures]" class="safety-measures" value="<?= pz_pv_h($material['safety_measures'] ?? '') ?>">
-                                                                <input type="hidden" name="materials[<?= (int)$index ?>][unit]" class="material-unit" value="<?= pz_pv_h($material['unit'] ?? '') ?>">
-                                                            </td>
-                                                            <td><input type="text" name="materials[<?= (int)$index ?>][aviz_no]" class="aviz-no" value="<?= pz_pv_h($material['aviz_no'] ?? '') ?>"></td>
-                                                            <td>
-                                                                <select name="materials[<?= (int)$index ?>][stock_receipt_id]" class="receipt-select" data-selected="<?= (int)($material['stock_receipt_id'] ?? 0) ?>" onchange="syncLotRow(this)"></select>
-                                                                <input type="text" name="materials[<?= (int)$index ?>][lot_number]" class="lot-number" value="<?= pz_pv_h($material['lot_number'] ?? '') ?>" placeholder="lot manual" style="margin-top:6px;">
-                                                            </td>
-                                                            <td><input type="date" name="materials[<?= (int)$index ?>][expiry_date]" class="expiry-date" value="<?= pz_pv_h($material['expiry_date'] ?? '') ?>"></td>
-                                                            <td><input type="text" name="materials[<?= (int)$index ?>][work_concentration]" class="work-concentration" value="<?= pz_pv_h($material['work_concentration'] ?? '') ?>" placeholder="ex: 1%"></td>
-                                                            <td><input type="number" step="0.001" min="0" name="materials[<?= (int)$index ?>][quantity]" value="<?= pz_pv_h($material['quantity'] ?? '') ?>" placeholder="cant."></td>
-                                                            <td>
-                                                                <select name="materials[<?= (int)$index ?>][application_method]" class="application-method">
-                                                                    <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare'] as $value => $label): ?>
-                                                                        <option value="<?= pz_pv_h($value) ?>" <?= ($material['application_method'] ?? '') === $value ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
-                                                                    <?php endforeach; ?>
-                                                                </select>
-                                                            </td>
-                                                            <td>
-                                                                <input type="hidden" name="materials[<?= (int)$index ?>][application_method_custom]" value="">
-                                                                <input type="hidden" name="materials[<?= (int)$index ?>][application_area]" value="">
-                                                                <input type="hidden" name="materials[<?= (int)$index ?>][notes]" value="">
-                                                                <button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Sterge</button>
-                                                            </td>
-                                                        </tr>
+                                                        <?php
+                                                            $isManualMaterialRow = empty($material['stock_product_id'])
+                                                                && trim((string)($material['manual_material_name'] ?? ($material['material_name'] ?? ''))) !== '';
+                                                        ?>
+                                                        <?php if ($isManualMaterialRow): ?>
+                                                            <tr class="material-row pv-manual-material-row">
+                                                                <td>
+                                                                    <input type="hidden" name="materials[<?= (int)$index ?>][stock_product_id]" value="">
+                                                                    <input type="text" name="materials[<?= (int)$index ?>][manual_material_name]" class="manual-material-name" value="<?= pz_pv_h($material['manual_material_name'] ?? ($material['material_name'] ?? '')) ?>" placeholder="produs fără stoc">
+                                                                </td>
+                                                                <td><input type="text" name="materials[<?= (int)$index ?>][manual_aviz_no]" value="<?= pz_pv_h($material['manual_aviz_no'] ?? ($material['aviz_no'] ?? '')) ?>" placeholder="opțional"></td>
+                                                                <td>
+                                                                    <input type="hidden" name="materials[<?= (int)$index ?>][stock_receipt_id]" value="">
+                                                                    <input type="text" name="materials[<?= (int)$index ?>][manual_lot_number]" class="manual-lot-number" value="<?= pz_pv_h($material['manual_lot_number'] ?? ($material['lot_number'] ?? '')) ?>" placeholder="opțional">
+                                                                </td>
+                                                                <td><input type="text" name="materials[<?= (int)$index ?>][manual_expiry_date]" value="<?= pz_pv_h($material['manual_expiry_date'] ?? ($material['expiry_date'] ?? '')) ?>" placeholder="ex: 31.12.2027"></td>
+                                                                <td><input type="text" name="materials[<?= (int)$index ?>][manual_work_concentration]" value="<?= pz_pv_h($material['manual_work_concentration'] ?? ($material['work_concentration'] ?? '')) ?>" placeholder="ex: 1%"></td>
+                                                                <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[<?= (int)$index ?>][manual_quantity]" value="<?= pz_pv_h($material['manual_quantity'] ?? ($material['quantity'] ?? '')) ?>" placeholder="cant."></td>
+                                                                <td>
+                                                                    <select name="materials[<?= (int)$index ?>][manual_application_method]">
+                                                                        <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare'] as $value => $label): ?>
+                                                                            <option value="<?= pz_pv_h($value) ?>" <?= (($material['manual_application_method'] ?? ($material['application_method'] ?? '')) === $value) ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
+                                                                        <?php endforeach; ?>
+                                                                    </select>
+                                                                </td>
+                                                                <td>
+                                                                    <input type="hidden" name="materials[<?= (int)$index ?>][application_method_custom]" value="">
+                                                                    <input type="hidden" name="materials[<?= (int)$index ?>][application_area]" value="">
+                                                                    <input type="hidden" name="materials[<?= (int)$index ?>][notes]" value="">
+                                                                    <button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button>
+                                                                </td>
+                                                            </tr>
+                                                        <?php else: ?>
+                                                            <tr class="material-row">
+                                                                <td>
+                                                                    <select name="materials[<?= (int)$index ?>][stock_product_id]" class="product-select" data-selected="<?= (int)($material['stock_product_id'] ?? 0) ?>" onchange="syncProductRow(this)"></select>
+                                                                    <input type="hidden" name="materials[<?= (int)$index ?>][product_group]" class="product-group" value="<?= pz_pv_h($material['product_group'] ?? '') ?>">
+                                                                    <input type="hidden" name="materials[<?= (int)$index ?>][safety_measures]" class="safety-measures" value="<?= pz_pv_h($material['safety_measures'] ?? '') ?>">
+                                                                    <input type="hidden" name="materials[<?= (int)$index ?>][unit]" class="material-unit" value="<?= pz_pv_h($material['unit'] ?? '') ?>">
+                                                                </td>
+                                                                <td><input type="text" name="materials[<?= (int)$index ?>][aviz_no]" class="aviz-no" value="<?= pz_pv_h($material['aviz_no'] ?? '') ?>"></td>
+                                                                <td><select name="materials[<?= (int)$index ?>][stock_receipt_id]" class="receipt-select" data-selected="<?= (int)($material['stock_receipt_id'] ?? 0) ?>" onchange="syncLotRow(this)"></select></td>
+                                                                <td><input type="date" name="materials[<?= (int)$index ?>][expiry_date]" class="expiry-date" value="<?= pz_pv_h($material['expiry_date'] ?? '') ?>"></td>
+                                                                <td><input type="text" name="materials[<?= (int)$index ?>][work_concentration]" class="work-concentration" value="<?= pz_pv_h($material['work_concentration'] ?? '') ?>" placeholder="ex: 1%"></td>
+                                                                <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[<?= (int)$index ?>][quantity]" value="<?= pz_pv_h($material['quantity'] ?? '') ?>" placeholder="cant."></td>
+                                                                <td>
+                                                                    <select name="materials[<?= (int)$index ?>][application_method]" class="application-method">
+                                                                        <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare'] as $value => $label): ?>
+                                                                            <option value="<?= pz_pv_h($value) ?>" <?= (($material['application_method'] ?? '') === $value) ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
+                                                                        <?php endforeach; ?>
+                                                                    </select>
+                                                                </td>
+                                                                <td>
+                                                                    <input type="hidden" name="materials[<?= (int)$index ?>][application_method_custom]" value="">
+                                                                    <input type="hidden" name="materials[<?= (int)$index ?>][application_area]" value="">
+                                                                    <input type="hidden" name="materials[<?= (int)$index ?>][notes]" value="">
+                                                                    <button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button>
+                                                                </td>
+                                                            </tr>
+                                                        <?php endif; ?>
                                                     <?php endforeach; ?>
                                                 </tbody>
                                             </table>
                                         </div>
                                     <?php endif; ?>
-                                    <div class="pv-add-material-wrap" style="margin-top:10px; display:flex; justify-content:flex-end;">
-                                        <button class="btn small primary" type="button" onclick="addMaterialRow()">+ Adauga produs</button>
+                                    <div class="pv-add-material-wrap" style="margin-top:10px; display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;">
+                                        <button class="btn small danger" type="button" onclick="addManualMaterialRow()">+ Produs fără stoc</button>
+                                        <button class="btn small primary" type="button" onclick="addMaterialRow()">+ Adaugă produs</button>
                                     </div>
                                 </div>                            </div>
 
                             <div class="panel pv-quick-observatii" style="box-shadow:none; margin-top:14px;">
                                 <div class="panel-head">
                                     <div>
-                                        <div class="panel-title">Observatii executant</div>
+                                        <div class="panel-title">Observații executant</div>
                                         <div class="panel-subtitle">Singurul camp care apare pe procesul verbal.</div>
                                     </div>
                                 </div>
                                 <div class="panel-body">
                                     <div class="pv-form-grid">
                                         <div class="field full">
-                                            <label>Observatii executant</label>
-                                            <textarea name="executor_notes" placeholder="Ce a constatat / efectuat echipa"><?= pz_pv_h($formDocument['executor_notes'] ?? '') ?></textarea>
+                                            <label>Observații executant</label>
+                                            <textarea name="executor_notes" placeholder="Ce a constatat / efectuat tehnicianul"><?= pz_pv_h($formDocument['executor_notes'] ?? '') ?></textarea>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             <?php
-                                // Stampila firmei: pre-bifata automat pentru operatori (team), neobligatoriu pentru admin.
+                                // Ștampila firmei: pre-bifata automat pentru operatori (team), neobligatoriu pentru admin.
                                 $stampChecked = false;
                                 if (isset($formDocument['apply_company_stamp'])) {
                                     $stampChecked = !empty($formDocument['apply_company_stamp']);
@@ -1772,19 +1955,19 @@ if (!empty($isQuickPvFromAppointment)) {
                                 <div style="margin:14px 0;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:#f8fafc;">
                                     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;color:var(--text);">
                                         <input type="checkbox" name="apply_company_stamp" value="1" <?= $stampChecked ? 'checked' : '' ?> style="width:18px;height:18px;">
-                                        <span>Aplica stampila firmei pe acest PV</span>
+                                        <span>Aplica ștampila firmei pe acest PV</span>
                                     </label>
                                     <div style="margin-top:6px;font-size:12px;color:var(--muted);padding-left:28px;">
-                                        Stampila incarcata in <em>Setari → Design documente</em> apare langa semnatura emitent. Operatorii din teren primesc bifa automat.
+                                        Ștampila incarcata in <em>Setări → Design documente</em> apare langa semnătura emitent. Operatorii din teren primesc bifa automat.
                                     </div>
                                 </div>
                             <?php endif; ?>
 
                             <div class="form-actions">
-                                <a class="btn" href="<?= $isTeamUser ? 'calendar.php' : 'procese_verbale.php' ?>">Renunta</a>
+                                <a class="btn" href="<?= $isTeamUser ? 'calendar.php' : 'procese_verbale.php' ?>">Renunță</a>
                                 <div class="right">
                                     <?php if ($isAdmin): ?>
-                                        <button class="btn" type="submit" name="action" value="save_draft">Salveaza draft</button>
+                                        <button class="btn" type="submit" name="action" value="save_draft">Salvează draft</button>
                                     <?php endif; ?>
                                     <button class="btn primary" type="submit" name="action" value="issue" onclick="return confirm('Emiti procesul verbal si generezi numar?');">Emite PV</button>
                                 </div>
@@ -1802,12 +1985,15 @@ if (!empty($isQuickPvFromAppointment)) {
                         <div class="panel-subtitle">Drafturi, PV emise si PV anulate.</div>
                     </div>
                 
-                    <a class="btn primary" href="procese_verbale.php?new=1">+ PV nou</a>
+                    <a class="btn primary" href="procese_verbale.php?new=1<?= $filterClientId > 0 ? '&client_id=' . (int)$filterClientId : '' ?>">+ PV nou</a>
                 </div>
                 <div class="panel-body">
                     <form class="filter-form" method="get">
+                        <?php if ($filterClientId > 0): ?>
+                            <input type="hidden" name="client_id" value="<?= (int)$filterClientId ?>">
+                        <?php endif; ?>
                         <div class="field">
-                            <label>Cautare</label>
+                            <label>Căutare</label>
                             <input type="text" name="q" value="<?= pz_pv_h($q) ?>" placeholder="Client, CUI, numar PV, titlu">
                         </div>
                         <div class="field">
@@ -1833,7 +2019,7 @@ if (!empty($isQuickPvFromAppointment)) {
             </section>
 
             <?php if (!$documents): ?>
-                <div class="empty-state">Nu exista procese verbale pentru filtrarea curenta.</div>
+                <div class="empty-state">Nu există procese verbale pentru filtrarea curenta.</div>
             <?php else: ?>
                 <div class="docs-list">
                     <?php foreach ($documents as $doc): ?>
@@ -1863,7 +2049,7 @@ if (!empty($isQuickPvFromAppointment)) {
                             <div class="doc-actions">
                                 <a class="btn small" href="document_view.php?id=<?= (int)$doc['id'] ?>">Vezi</a>
                                 <?php if (($doc['status'] ?? '') === 'draft'): ?>
-                                    <a class="btn small" href="procese_verbale.php?edit=<?= (int)$doc['id'] ?>">Editeaza</a>
+                                    <a class="btn small" href="procese_verbale.php?edit=<?= (int)$doc['id'] ?>">Editează</a>
                                 <?php endif; ?>
                                 <a class="btn small" href="document_pdf.php?id=<?= (int)$doc['id'] ?>&mode=inline" target="_blank">PDF</a>
                             </div>
@@ -1873,11 +2059,11 @@ if (!empty($isQuickPvFromAppointment)) {
 
                 <div class="pagination">
                     <?php if ($page > 1): ?>
-                        <a class="btn small" href="<?= pz_pv_h(pz_pv_current_url(['page' => $page - 1])) ?>">Inapoi</a>
+                        <a class="btn small" href="<?= pz_pv_h(pz_pv_current_url(['page' => $page - 1])) ?>">Înapoi</a>
                     <?php endif; ?>
                     <span class="badge">Pagina <?= (int)$page ?> / <?= (int)$totalPages ?></span>
                     <?php if ($page < $totalPages): ?>
-                        <a class="btn small" href="<?= pz_pv_h(pz_pv_current_url(['page' => $page + 1])) ?>">Inainte</a>
+                        <a class="btn small" href="<?= pz_pv_h(pz_pv_current_url(['page' => $page + 1])) ?>">Înainte</a>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
@@ -2055,7 +2241,7 @@ function initClientAutocomplete() {
     const hidden = document.getElementById('clientSelect');
     if (!wrap || !input || !hidden) return;
 
-    // Daca avem deja un client selectat (la editare draft sau dupa redirect)
+    // Dacă avem deja un client selectat (la editare draft sau după redirect)
     const initialId = Number(hidden.value || hidden.dataset.selected || 0);
     if (initialId > 0) {
         const c = clientsData.find(x => Number(x.id) === initialId);
@@ -2114,7 +2300,7 @@ function pzHighlightActive() {
     }
 }
 
-/* === LOCATIE smart - 0/1/2+ locatii === */
+/* === LOCATIE smart - 0/1/2+ locații === */
 function populateLocationsSmart() {
     const clientSelect = document.getElementById('clientSelect');
     const locationSelect = document.getElementById('locationSelect');
@@ -2129,7 +2315,7 @@ function populateLocationsSmart() {
         locationSelect.innerHTML = '<option value="">Alege clientul mai intai</option>';
         locationSelect.value = '';
         if (locationInfo) locationInfo.style.display = 'none';
-        if (help) help.textContent = 'Selecteaza un client mai intai.';
+        if (help) help.textContent = 'Selectează un client mai intai.';
         return;
     }
 
@@ -2138,10 +2324,10 @@ function populateLocationsSmart() {
 
     if (locations.length === 0) {
         locationSelect.style.display = 'block';
-        locationSelect.innerHTML = '<option value="">Clientul nu are locatii salvate</option>';
+        locationSelect.innerHTML = '<option value="">Clientul nu are locații salvate</option>';
         locationSelect.value = '';
         if (locationInfo) locationInfo.style.display = 'none';
-        if (help) help.textContent = 'Adauga o locatie in fisa clientului. Daca interventia se face la sediu, adauga sediul ca locatie.';
+        if (help) help.textContent = 'Adaugă o locație in fișa clientului. Dacă intervenția se face la sediu, adauga sediul ca locație.';
     } else if (locations.length === 1 && !selectedId) {
         const loc = locations[0];
         locationSelect.style.display = 'none';
@@ -2151,7 +2337,7 @@ function populateLocationsSmart() {
             locationInfo.style.display = 'flex';
             locationInfoText.textContent = (loc.location_name || 'Punct de lucru') + (loc.address ? ' - ' + loc.address : '');
         }
-        if (help) help.textContent = 'Singura locatie salvata pentru client. Aceasta va aparea in document.';
+        if (help) help.textContent = 'Singura locație salvata pentru client. Aceasta va aparea in document.';
     } else {
         const options = [{value: '', text: 'Alege locatia'}];
         locations.forEach(loc => {
@@ -2170,7 +2356,7 @@ function populateLocationsSmart() {
             if (String(opt.value) === selectedId) o.selected = true;
             locationSelect.appendChild(o);
         });
-        if (help) help.textContent = 'Clientul are ' + locations.length + ' locatii. Alege locatia unde se executa serviciul.';
+        if (help) help.textContent = 'Clientul are ' + locations.length + ' locații. Alege locatia unde se executa serviciul.';
     }
 
     updateLocationHelp();
@@ -2228,7 +2414,7 @@ function populateBasisContracts(forceAuto) {
     } else {
         const opt = document.createElement('option');
         opt.value = '';
-        opt.textContent = 'Nu exista contract emis pentru acest client';
+        opt.textContent = 'Nu există contract emis pentru acest client';
         contractSelect.appendChild(opt);
         contractSelect.value = '';
         if (currentType === 'auto' || currentType === 'contract') {
@@ -2243,13 +2429,13 @@ function populateBasisContracts(forceAuto) {
     if (help) {
         if (useContract) {
             const selectedContract = contracts.find(c => String(c.id) === String(contractSelect.value));
-            help.textContent = selectedContract ? ('Se va afisa: Contract nr. ' + (selectedContract.document_number || selectedContract.id)) : 'Contractul este selectat automat.';
+            help.textContent = selectedContract ? ('Se va afișa: Contract nr. ' + (selectedContract.document_number || selectedContract.id)) : 'Contractul este selectat automat.';
         } else if (basisType.value === 'achizitie_directa') {
-            help.textContent = 'Se va afisa Achizitie directa sau textul completat manual.';
+            help.textContent = 'Se va afișa Achizitie directa sau textul completat manual.';
         } else if (basisType.value === 'manual') {
-            help.textContent = 'Completeaza baza documentului exact cum vrei sa apara in PV.';
+            help.textContent = 'Completează baza documentului exact cum vrei sa apara in PV.';
         } else {
-            help.textContent = 'Se va afisa Nota de comanda sau textul completat manual.';
+            help.textContent = 'Se va afișa Nota de comanda sau textul completat manual.';
         }
     }
 }
@@ -2270,7 +2456,7 @@ function bindBasisControls() {
             const help = document.getElementById('basisHelp');
             const selectedContract = contractsData.find(c => String(c.id) === String(contractSelect.value));
             if (help && selectedContract) {
-                help.textContent = 'Se va afisa: Contract nr. ' + (selectedContract.document_number || selectedContract.id);
+                help.textContent = 'Se va afișa: Contract nr. ' + (selectedContract.document_number || selectedContract.id);
             }
         });
     }
@@ -2335,7 +2521,7 @@ function pzApplyAutofill() {
     if (!pzAutofillData) return;
     const d = pzAutofillData;
 
-    // Suprafata
+    // Suprafață
     if (d.surface_text) {
         const surf = document.getElementById('surfaceText');
         if (surf && !surf.value) surf.value = d.surface_text;
@@ -2355,7 +2541,7 @@ function pzApplyAutofill() {
         });
         pzSyncServicesHidden();
     }
-    // Locatie (daca e in lista)
+    // Locație (dacă e in lista)
     if (d.client_location_id) {
         const ls = document.getElementById('locationSelect');
         if (ls) {
@@ -2373,11 +2559,13 @@ function pzDismissAutofill() {
     if (banner) banner.classList.remove('is-visible');
 }
 
-/* === VALIDARE simpla - dezactiveaza Emite PV daca lipsesc campuri obligatorii === */
+/* === VALIDARE simpla - dezactiveaza Emite PV dacă lipsesc campuri obligatorii === */
 function pzValidateForm() {
     const clientId = document.getElementById('clientSelect') ? document.getElementById('clientSelect').value : '';
     const hasServices = document.querySelectorAll('#servicesHidden input[name="pv_services[]"]').length > 0;
     const isQuickPv = !!document.getElementById('pvQuickMode');
+    const servicesPills = document.getElementById('servicesPills');
+    if (servicesPills) servicesPills.classList.toggle('is-invalid', !hasServices && !isQuickPv);
 
     const issueBtn = document.querySelector('button[name="action"][value="issue"]');
     if (!issueBtn) return;
@@ -2386,13 +2574,13 @@ function pzValidateForm() {
     issueBtn.disabled = !valid;
     issueBtn.style.opacity = valid ? '1' : '.5';
     issueBtn.style.cursor = valid ? 'pointer' : 'not-allowed';
-    issueBtn.title = valid ? '' : 'Selecteaza un client si cel putin un serviciu pentru a emite PV-ul.';
+    issueBtn.title = valid ? '' : 'Selectează un client si cel puțin un serviciu pentru a emite PV-ul.';
 }
 
 function updateClientHelp(client) {
     const help = document.getElementById('clientHelp');
     if (!help) return;
-    if (!client) { help.textContent = 'Cauta direct in lista dupa nume client, CUI, reprezentant, email sau telefon.'; return; }
+    if (!client) { help.textContent = 'Caută direct in lista după nume client, CUI, reprezentant, email sau telefon.'; return; }
     const parts = [];
     if (client.fiscal_code) parts.push('CUI: ' + client.fiscal_code);
     if (client.representative) parts.push('Reprezentant: ' + client.representative);
@@ -2409,21 +2597,21 @@ function updateLocationHelp() {
     const locationId = Number(locationSelect.value || 0);
     const loc = locationsData.find(item => Number(item.id) === locationId);
     if (!loc) {
-        help.textContent = 'Selecteaza o locatie salvata in fisa clientului.';
+        help.textContent = 'Selectează o locație salvata in fișa clientului.';
         return;
     }
     const parts = [];
     if (loc.address) parts.push('Adresa: ' + loc.address);
     if (loc.contact_person) parts.push('Contact: ' + loc.contact_person);
     if (loc.phone) parts.push('Tel: ' + loc.phone);
-    if (loc.surface_text) parts.push('Suprafata: ' + loc.surface_text);
-    help.textContent = parts.length ? parts.join(' | ') : 'Locatie selectata.';
+    if (loc.surface_text) parts.push('Suprafață: ' + loc.surface_text);
+    help.textContent = parts.length ? parts.join(' | ') : 'Locație selectata.';
     if (surface && loc.surface_text) surface.value = loc.surface_text;
 }
 
 function initEnhancedSelects() {
     // Client si servicii nu mai folosesc TomSelect (sunt custom autocomplete + toggle pills).
-    // Pentru locatie folosim un select normal cu logica smart in populateLocationsSmart().
+    // Pentru locație folosim un select normal cu logica smart in populateLocationsSmart().
     // Restul de TomSelect-uri (product-select, receipt-select etc) raman nesh schimbate, le initializam in continuare in alta parte.
 
     // Atasam handler pe locationSelect pentru a actualiza row-uri si surface
@@ -2479,9 +2667,9 @@ function addItemRow() {
     const defaultSurface = document.getElementById('surfaceText') ? document.getElementById('surfaceText').value : '';
     tr.innerHTML = `
         <td><select name="items[${i}][service_id]" class="service-select" onchange="syncServiceName(this)">${serviceOptionsHtml()}</select><input type="text" name="items[${i}][service_name]" class="service-name" placeholder="sau scrie serviciul manual" style="margin-top:6px;"><input type="hidden" name="items[${i}][client_location_id]" class="row-location-hidden" value="${escapeHtml(mainLocation)}"></td>
-        <td><textarea name="items[${i}][description]" placeholder="Mentiuni / detalii serviciu prestat"></textarea></td>
+        <td><textarea name="items[${i}][description]" placeholder="Mențiuni / detalii serviciu prestat"></textarea></td>
         <td><input type="text" name="items[${i}][surface_text]" class="item-surface" placeholder="ex: 1500 mp" value="${escapeHtml(defaultSurface)}"></td>
-        <td><button type="button" class="btn small danger" onclick="removeItemRow(this)">Sterge</button></td>`;
+        <td><button type="button" class="btn small danger" onclick="removeItemRow(this)">Șterge</button></td>`;
     body.appendChild(tr);
 }
 function removeItemRow(button) {
@@ -2519,9 +2707,14 @@ function methodLabelToValue(value) {
     if (v.includes('direct')) return 'aplicare directa';
     return '';
 }
+function selectedSelectValue(select) {
+    const current = Number(select.value || 0);
+    if (current > 0) return current;
+    return Number(select.dataset.selected || 0);
+}
 function populateProductSelects() {
     document.querySelectorAll('.product-select').forEach(select => {
-        const selected = Number(select.dataset.selected || select.value || 0);
+        const selected = selectedSelectValue(select);
         select.innerHTML = productOptionsHtml(selected);
         populateReceiptSelect(select.closest('.material-row'));
     });
@@ -2532,13 +2725,18 @@ function populateReceiptSelect(row) {
     const receiptSelect = row.querySelector('.receipt-select');
     if (!productSelect || !receiptSelect) return;
     const productId = Number(productSelect.value || 0);
-    const selected = Number(receiptSelect.dataset.selected || receiptSelect.value || 0);
-    receiptSelect.innerHTML = '<option value="">Fara lot / manual</option>';
+    const selected = selectedSelectValue(receiptSelect);
+    receiptSelect.innerHTML = '<option value="">Alege lot</option>';
+    if (!productId) {
+        receiptSelect.dataset.selected = '0';
+        syncLotRow(receiptSelect);
+        return;
+    }
     receiptsData.filter(r => Number(r.product_id) === productId).forEach(r => {
         const option = document.createElement('option');
         option.value = r.id;
-        option.textContent = r.lot ? String(r.lot) : 'Fara lot';
-        option.title = (r.lot ? 'Lot ' + r.lot : 'Lot fara nume') + (r.expires_at ? ' / exp. ' + r.expires_at : '') + (r.qty ? ' / disponibil ' + r.qty : '');
+        option.textContent = r.lot ? String(r.lot) : 'Fără lot';
+        option.title = (r.lot ? 'Lot ' + r.lot : 'Lot fără nume') + (r.expires_at ? ' / exp. ' + r.expires_at : '') + (r.qty ? ' / disponibil ' + r.qty : '');
         if (Number(r.id) === selected) option.selected = true;
         receiptSelect.appendChild(option);
     });
@@ -2548,22 +2746,26 @@ function populateReceiptSelect(row) {
 function syncProductRow(select) {
     const row = select.closest('.material-row');
     if (!row) return;
+    select.dataset.selected = select.value || '0';
     const product = productsData.find(p => Number(p.id) === Number(select.value || 0));
     if (product) {
-        const name = row.querySelector('.material-name');
         const unit = row.querySelector('.material-unit');
         const group = row.querySelector('.product-group');
         const aviz = row.querySelector('.aviz-no');
         const safety = row.querySelector('.safety-measures');
         const concentration = row.querySelector('.work-concentration');
         const method = row.querySelector('.application-method');
-        if (name && !name.value) name.value = product.name || '';
-        if (unit && !unit.value) unit.value = product.unit_consumption || product.unit || '';
+        if (unit) unit.value = product.unit_consumption || product.unit || '';
         if (group) group.value = product.product_group || '';
-        if (aviz && !aviz.value) aviz.value = product.aviz_no || '';
+        if (aviz) aviz.value = product.aviz_no || '';
         if (safety) safety.value = product.safety_measures || '';
-        if (concentration && !concentration.value) concentration.value = product.product_concentration || '';
-        if (method && !method.value) method.value = methodLabelToValue(product.default_application_method || '');
+        if (concentration) concentration.value = product.product_concentration || '';
+        if (method) method.value = methodLabelToValue(product.default_application_method || '');
+    } else {
+        ['.material-unit', '.product-group', '.aviz-no', '.safety-measures', '.work-concentration', '.expiry-date'].forEach(selector => {
+            const input = row.querySelector(selector);
+            if (input) input.value = '';
+        });
     }
     const receiptSelect = row.querySelector('.receipt-select');
     if (receiptSelect) receiptSelect.dataset.selected = '0';
@@ -2573,11 +2775,12 @@ function syncLotRow(select) {
     const row = select.closest('.material-row');
     if (!row) return;
     const receipt = receiptsData.find(r => Number(r.id) === Number(select.value || 0));
-    const lot = row.querySelector('.lot-number');
     const expiry = row.querySelector('.expiry-date');
+    select.dataset.selected = select.value || '0';
     if (receipt) {
-        if (lot) lot.value = receipt.lot || '';
-        if (expiry && !expiry.value) expiry.value = receipt.expires_at || '';
+        if (expiry) expiry.value = receipt.expires_at || '';
+    } else if (expiry) {
+        expiry.value = '';
     }
 }
 function nextMaterialIndex() { return document.querySelectorAll('#materialsBody .material-row').length; }
@@ -2591,30 +2794,70 @@ function addMaterialRow() {
     row.className = cardMode ? 'material-row pv-material-card' : 'material-row';
     if (cardMode) {
         row.innerHTML = `
-            <div class="pv-material-card-head"><div class="pv-material-card-title">Produs utilizat #${i + 1}</div><button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Sterge</button></div>
+            <div class="pv-material-card-head"><div class="pv-material-card-title">Produs utilizat #${i + 1}</div><button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button></div>
             <div class="pv-material-grid">
-                <div><label>Produs / material</label><select name="materials[${i}][stock_product_id]" class="product-select" data-selected="0" onchange="syncProductRow(this)"></select><input type="text" name="materials[${i}][material_name]" class="material-name" placeholder="produs manual" style="margin-top:7px;"><input type="hidden" name="materials[${i}][product_group]" class="product-group"><input type="hidden" name="materials[${i}][safety_measures]" class="safety-measures"><input type="hidden" name="materials[${i}][unit]" class="material-unit"><input type="hidden" name="materials[${i}][aviz_no]" class="aviz-no"><input type="hidden" name="materials[${i}][expiry_date]" class="expiry-date"></div>
-                <div><label>Lot / stoc</label><select name="materials[${i}][stock_receipt_id]" class="receipt-select" data-selected="0" onchange="syncLotRow(this)"></select><input type="text" name="materials[${i}][lot_number]" class="lot-number" placeholder="lot manual" style="margin-top:7px;"><div class="pv-stock-hint">Datele din stoc se preiau automat: aviz, lot, valabilitate si UM.</div></div>
+                <div><label>Produs / material</label><select name="materials[${i}][stock_product_id]" class="product-select" data-selected="0" onchange="syncProductRow(this)"></select><input type="hidden" name="materials[${i}][product_group]" class="product-group"><input type="hidden" name="materials[${i}][safety_measures]" class="safety-measures"><input type="hidden" name="materials[${i}][unit]" class="material-unit"><input type="hidden" name="materials[${i}][aviz_no]" class="aviz-no"><input type="hidden" name="materials[${i}][expiry_date]" class="expiry-date"></div>
+                <div><label>Lot / stoc</label><select name="materials[${i}][stock_receipt_id]" class="receipt-select" data-selected="0" onchange="syncLotRow(this)"></select><div class="pv-stock-hint">Datele din stoc se preiau automat: aviz, lot, valabilitate si UM.</div></div>
             </div>
             <div class="pv-material-mini-grid">
                 <div><label>Dilutie</label><input type="text" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></div>
-                <div><label>Cantitate</label><input type="number" step="0.001" min="0" name="materials[${i}][quantity]" placeholder="cant."></div>
+                <div><label>Cantitate</label><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][quantity]" placeholder="cant."></div>
                 <div><label>Metoda aplicare</label><select name="materials[${i}][application_method]" class="application-method"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directa</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option></select></div>
             </div>
             <input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value="">`;
     } else {
         row.innerHTML = `
-            <td><select name="materials[${i}][stock_product_id]" class="product-select" data-selected="0" onchange="syncProductRow(this)"></select><input type="text" name="materials[${i}][material_name]" class="material-name" placeholder="sau scrie manual produs/material" style="margin-top:6px;"><input type="hidden" name="materials[${i}][product_group]" class="product-group"><input type="hidden" name="materials[${i}][safety_measures]" class="safety-measures"><input type="hidden" name="materials[${i}][unit]" class="material-unit"></td>
+            <td><select name="materials[${i}][stock_product_id]" class="product-select" data-selected="0" onchange="syncProductRow(this)"></select><input type="hidden" name="materials[${i}][product_group]" class="product-group"><input type="hidden" name="materials[${i}][safety_measures]" class="safety-measures"><input type="hidden" name="materials[${i}][unit]" class="material-unit"></td>
             <td><input type="text" name="materials[${i}][aviz_no]" class="aviz-no"></td>
-            <td><select name="materials[${i}][stock_receipt_id]" class="receipt-select" data-selected="0" onchange="syncLotRow(this)"></select><input type="text" name="materials[${i}][lot_number]" class="lot-number" placeholder="lot manual" style="margin-top:6px;"></td>
+            <td><select name="materials[${i}][stock_receipt_id]" class="receipt-select" data-selected="0" onchange="syncLotRow(this)"></select></td>
             <td><input type="date" name="materials[${i}][expiry_date]" class="expiry-date"></td>
             <td><input type="text" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></td>
-            <td><input type="number" step="0.001" min="0" name="materials[${i}][quantity]" placeholder="cant."></td>
+            <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][quantity]" placeholder="cant."></td>
             <td><select name="materials[${i}][application_method]" class="application-method"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directa</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option></select></td>
-            <td><input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value=""><button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Sterge</button></td>`;
+            <td><input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value=""><button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button></td>`;
     }
     body.appendChild(row);
     populateProductSelects();
+}
+function addManualMaterialRow() {
+    const body = document.getElementById('materialsBody');
+    if (!body) return;
+    const i = nextMaterialIndex();
+    const cardMode = isMaterialsCardMode();
+    const row = document.createElement(cardMode ? 'div' : 'tr');
+    row.className = cardMode ? 'material-row pv-material-card pv-manual-material-row' : 'material-row pv-manual-material-row';
+    if (cardMode) {
+        row.innerHTML = `
+            <div class="pv-material-card-head"><div class="pv-material-card-title">Produs fără stoc #${i + 1}</div><button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button></div>
+            <input type="hidden" name="materials[${i}][stock_product_id]" value="">
+            <input type="hidden" name="materials[${i}][stock_receipt_id]" value="">
+            <div class="pv-material-grid">
+                <div><label>Denumire</label><input type="text" name="materials[${i}][manual_material_name]" class="manual-material-name" placeholder="produs fără stoc"></div>
+                <div><label>Nr. aviz</label><input type="text" name="materials[${i}][manual_aviz_no]" placeholder="opțional"></div>
+            </div>
+            <div class="pv-material-mini-grid">
+                <div><label>Lot</label><input type="text" name="materials[${i}][manual_lot_number]" class="manual-lot-number" placeholder="opțional"></div>
+                <div><label>Valabilitate opțională</label><input type="text" name="materials[${i}][manual_expiry_date]" placeholder="ex: 31.12.2027"></div>
+                <div><label>Diluție</label><input type="text" name="materials[${i}][manual_work_concentration]" placeholder="ex: 1%"></div>
+            </div>
+            <div class="pv-material-mini-grid">
+                <div><label>Cantitate</label><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][manual_quantity]" placeholder="cant."></div>
+                <div><label>Aplicare</label><select name="materials[${i}][manual_application_method]"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directă</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option></select></div>
+                <div></div>
+            </div>
+            <input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value="">`;
+    } else {
+        row.innerHTML = `
+            <td><input type="hidden" name="materials[${i}][stock_product_id]" value=""><input type="text" name="materials[${i}][manual_material_name]" class="manual-material-name" placeholder="produs fără stoc"></td>
+            <td><input type="text" name="materials[${i}][manual_aviz_no]" placeholder="opțional"></td>
+            <td><input type="hidden" name="materials[${i}][stock_receipt_id]" value=""><input type="text" name="materials[${i}][manual_lot_number]" class="manual-lot-number" placeholder="opțional"></td>
+            <td><input type="text" name="materials[${i}][manual_expiry_date]" placeholder="ex: 31.12.2027"></td>
+            <td><input type="text" name="materials[${i}][manual_work_concentration]" placeholder="ex: 1%"></td>
+            <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][manual_quantity]" placeholder="cant."></td>
+            <td><select name="materials[${i}][manual_application_method]"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directă</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option></select></td>
+            <td><input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value=""><button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button></td>`;
+    }
+    body.appendChild(row);
 }
 function removeMaterialRow(button) {
     const rows = document.querySelectorAll('#materialsBody .material-row');

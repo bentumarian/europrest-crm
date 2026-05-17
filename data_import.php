@@ -137,7 +137,7 @@ function di_download_import_template(): void
     $workbookXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
     <sheets>
-        <sheet name="Import clienti" sheetId="1" r:id="rId1"/>
+        <sheet name="Import clienți" sheetId="1" r:id="rId1"/>
     </sheets>
 </workbook>';
 
@@ -175,7 +175,7 @@ function di_download_import_template(): void
 
     if ($tmp === false) {
         http_response_code(500);
-        echo 'Nu pot crea fisier temporar.';
+        echo 'Nu pot crea fișier temporar.';
         exit;
     }
 
@@ -183,7 +183,7 @@ function di_download_import_template(): void
 
     if ($zip->open($tmp, ZipArchive::OVERWRITE) !== true) {
         http_response_code(500);
-        echo 'Nu pot genera sablonul Excel.';
+        echo 'Nu pot genera șablonul Excel.';
         exit;
     }
 
@@ -515,7 +515,7 @@ function di_read_xlsx(string $file): array
 
     /*
     Detectam automat randul de antet.
-    Unele exporturi Excel au un rand gol/tehnic inaintea antetului real.
+    Unele exporturi Excel au un rand gol/tehnic înaintea antetului real.
     */
     $knownHeaders = [
         'id',
@@ -526,10 +526,10 @@ function di_read_xlsx(string $file): array
         'telefon_contact',
         'e_mail_contact',
         'email_contact',
-        'judet_livrare',
-        'oras_livrare',
-        'judet_facturare',
-        'oras_facturare',
+        'județ_livrare',
+        'oraș_livrare',
+        'județ_facturare',
+        'oraș_facturare',
         'strada_facturare',
         'strada_livrare',
         'nume_contact',
@@ -600,11 +600,11 @@ function di_default_mapping(array $headers): array
         'registry_number' => ['nr_reg_com_cnp', 'nr_reg_com', 'cnp'],
         'phone' => ['telefon_contact', 'telefon'],
         'email' => ['e_mail_contact', 'email_contact', 'email', 'mail'],
-        'billing_county' => ['judet_facturare'],
-        'billing_city' => ['oras_facturare'],
+        'billing_county' => ['județ_facturare'],
+        'billing_city' => ['oraș_facturare'],
         'billing_street' => ['strada_facturare'],
-        'delivery_county' => ['judet_livrare'],
-        'delivery_city' => ['oras_livrare'],
+        'delivery_county' => ['județ_livrare'],
+        'delivery_city' => ['oraș_livrare'],
         'delivery_street' => ['strada_livrare'],
         'contact_person' => ['nume_contact', 'contact'],
         'contact_role' => ['functie_contact', 'functie'],
@@ -903,14 +903,14 @@ function di_location_insert(PDO $pdo, int $clientId, array $data): bool
 function di_save_uploaded_file(): string
 {
     if (empty($_FILES['import_file']['tmp_name'])) {
-        throw new RuntimeException('Incarca un fisier Excel.');
+        throw new RuntimeException('Incarca un fișier Excel.');
     }
 
     $name = (string)($_FILES['import_file']['name'] ?? '');
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
 
     if ($ext !== 'xlsx') {
-        throw new RuntimeException('Momentan importul accepta doar fisiere .xlsx.');
+        throw new RuntimeException('Momentan importul accepta doar fișiere .xlsx.');
     }
 
     $token = bin2hex(random_bytes(12));
@@ -929,7 +929,7 @@ function di_file_from_token(string $token): string
     $path = di_upload_dir() . '/' . $token . '.xlsx';
 
     if ($token === '' || !is_file($path)) {
-        throw new RuntimeException('Fisierul de import nu mai exista. Incarca din nou Excelul.');
+        throw new RuntimeException('Fisierul de import nu mai există. Incarca din nou Excelul.');
     }
 
     return $path;
@@ -1066,11 +1066,11 @@ $fields = [
     'registry_number' => 'Reg. Com. / CNP',
     'phone' => 'Telefon',
     'email' => 'Email',
-    'billing_county' => 'Judet facturare',
-    'billing_city' => 'Oras facturare',
+    'billing_county' => 'Județ facturare',
+    'billing_city' => 'Oraș facturare',
     'billing_street' => 'Strada facturare',
-    'delivery_county' => 'Judet livrare',
-    'delivery_city' => 'Oras livrare',
+    'delivery_county' => 'Județ livrare',
+    'delivery_city' => 'Oraș livrare',
     'delivery_street' => 'Strada livrare',
     'contact_person' => 'Nume contact',
     'contact_role' => 'Functie contact',
@@ -1114,7 +1114,7 @@ th { background:var(--surface-soft); color:var(--muted); font-size:11px; text-tr
 
     <main class="main">
         <div class="topbar">
-            <strong>Import date</strong>
+            <a class="btn ghost" href="settings.php">Înapoi la Setări</a>
         </div>
 
         <div class="content import-page">
@@ -1122,9 +1122,9 @@ th { background:var(--surface-soft); color:var(--muted); font-size:11px; text-tr
                 <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
                     <div>
                         <h1>Import date</h1>
-                        <p>Import sigur pentru clienti si puncte de lucru din Excel. Datele sunt previzualizate inainte de import.</p>
+                        <p>Import sigur pentru clienți si puncte de lucru din Excel. Datele sunt previzualizate înainte de import.</p>
                     </div>
-                    <a class="btn" href="data_import.php?download_template=1">Descarca sablon Excel</a>
+                    <a class="btn" href="data_import.php?download_template=1">Descarcă șablon Excel</a>
                 </div>
             </section>
 
@@ -1137,10 +1137,10 @@ th { background:var(--surface-soft); color:var(--muted); font-size:11px; text-tr
                     <div class="card-head"><h2>Raport import</h2></div>
                     <div class="card-body">
                         <div class="grid-2">
-                            <div><strong>Clienti creati:</strong> <?= (int)$result['created'] ?></div>
-                            <div><strong>Clienti actualizati:</strong> <?= (int)$result['updated'] ?></div>
+                            <div><strong>Clienți creati:</strong> <?= (int)$result['created'] ?></div>
+                            <div><strong>Clienți actualizati:</strong> <?= (int)$result['updated'] ?></div>
                             <div><strong>Randuri sarite:</strong> <?= (int)$result['skipped'] ?></div>
-                            <div><strong>Locatii create:</strong> <?= (int)$result['locations_created'] ?></div>
+                            <div><strong>Locații create:</strong> <?= (int)$result['locations_created'] ?></div>
                         </div>
                         <a class="btn accent" href="clients.php">Mergi la Contacte</a>
                     </div>
@@ -1201,7 +1201,7 @@ th { background:var(--surface-soft); color:var(--muted); font-size:11px; text-tr
                 <section class="card">
                     <div class="card-head">
                         <h2>Previzualizare import</h2>
-                        <span class="small-muted"><?= count($preview) ?> randuri valide afisate</span>
+                        <span class="small-muted"><?= count($preview) ?> randuri valide afișate</span>
                     </div>
                     <div class="table-wrap">
                         <table>
@@ -1213,7 +1213,7 @@ th { background:var(--surface-soft); color:var(--muted); font-size:11px; text-tr
                                     <th>Telefon</th>
                                     <th>Email</th>
                                     <th>Sediu</th>
-                                    <th>Locatie separata</th>
+                                    <th>Locație separata</th>
                                 </tr>
                             </thead>
                             <tbody>

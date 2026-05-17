@@ -3,8 +3,8 @@
 |--------------------------------------------------------------------------
 | PestZone CRM - Review & Satisfactie
 |--------------------------------------------------------------------------
-| Modul separat pentru solicitare feedback dupa interventii finalizate.
-| Regula: prima interventie trimite SMS si poate afisa Google Review la 5 stele.
+| Modul separat pentru solicitare feedback după intervenții finalizate.
+| Regula: prima intervenție trimite SMS si poate afișa Google Review la 5 stele.
 | Interventiile ulterioare trimit doar email si raman strict pentru control intern.
 |--------------------------------------------------------------------------
 */
@@ -137,7 +137,7 @@ if (!function_exists('pz_review_default_questions')) {
     {
         return [
             'q1' => ['label' => 'Cat de multumit ati fost de comunicarea cu biroul?', 'type' => 'score'],
-            'q2' => ['label' => 'Echipa a ajuns in intervalul stabilit?', 'type' => 'score'],
+            'q2' => ['label' => 'Tehnicianul a ajuns in intervalul stabilit?', 'type' => 'score'],
             'q3' => ['label' => 'Operatorii au fost politicosi si profesionisti?', 'type' => 'score'],
             'q4' => ['label' => 'Lucrarea a fost explicata clar?', 'type' => 'score'],
             'q5' => ['label' => 'Interventia a fost realizata curat si ordonat?', 'type' => 'score'],
@@ -210,8 +210,8 @@ if (!function_exists('pz_review_init')) {
             'review_google_url' => '',
             'review_alert_email' => pz_review_setting_get('email_reply_to', ''),
             'review_sms_template' => '{brand}: Va multumim ca ati ales serviciile noastre. Spuneti-ne cum a fost experienta: {feedback_link}',
-            'review_email_subject' => 'Formular satisfactie interventie {brand}',
-            'review_email_template' => '<p>Buna ziua,</p><p>Va rugam sa ne transmiteti feedback despre interventia efectuata de echipa noastra:</p><p><a href="{feedback_link}">Completeaza formularul de satisfactie</a></p><p>Va multumim,<br>{brand}</p>',
+            'review_email_subject' => 'Formular satisfactie intervenție {brand}',
+            'review_email_template' => '<p>Bună ziua,</p><p>Vă rugăm sa ne transmiteti feedback despre intervenția efectuata de tehnicianul nostru:</p><p><a href="{feedback_link}">Completează formularul de satisfactie</a></p><p>Va multumim,<br>{brand}</p>',
             'review_cron_key' => bin2hex(random_bytes(16)),
         ];
 
@@ -415,13 +415,13 @@ if (!function_exists('pz_review_create_and_send')) {
 
         $appointment = pz_review_load_appointment($appointmentId);
         if (!$appointment) {
-            return ['ok' => false, 'skipped' => true, 'reason' => 'Programarea nu exista.'];
+            return ['ok' => false, 'skipped' => true, 'reason' => 'Programarea nu există.'];
         }
         if ((string)($appointment['status'] ?? '') !== 'finalizata') {
             return ['ok' => false, 'skipped' => true, 'reason' => 'Programarea nu este finalizata.'];
         }
         if (pz_review_request_exists_for_appointment($appointmentId)) {
-            return ['ok' => false, 'skipped' => true, 'reason' => 'Exista deja solicitare pentru aceasta programare.'];
+            return ['ok' => false, 'skipped' => true, 'reason' => 'Există deja solicitare pentru aceasta programare.'];
         }
 
         $clientId = (int)($appointment['client_id'] ?? 0);
@@ -438,7 +438,7 @@ if (!function_exists('pz_review_create_and_send')) {
         list($phone, $email) = pz_review_appointment_phone_email($appointment, $client);
 
         if ($deliveryChannel === 'sms' && ($phone === '' || strlen($phone) < 10)) {
-            return ['ok' => false, 'skipped' => true, 'reason' => 'Prima interventie trebuie trimisa prin SMS, dar telefonul este invalid sau lipsa.'];
+            return ['ok' => false, 'skipped' => true, 'reason' => 'Prima intervenție trebuie trimisa prin SMS, dar telefonul este invalid sau lipsa.'];
         }
         if ($deliveryChannel === 'email' && ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL))) {
             return ['ok' => false, 'skipped' => true, 'reason' => 'Interventia ulterioara trebuie trimisa prin email, dar emailul este invalid sau lipsa.'];
@@ -474,8 +474,8 @@ if (!function_exists('pz_review_create_and_send')) {
 
             $result = pz_smslink_send_sms($phone, $message, 'review_request', $requestId, $clientId);
         } else {
-            $subjectTemplate = pz_review_setting_get('review_email_subject', 'Formular satisfactie interventie {brand}');
-            $bodyTemplate = pz_review_setting_get('review_email_template', '<p>Buna ziua,</p><p>Va rugam sa ne transmiteti feedback despre interventia efectuata de echipa noastra:</p><p><a href="{feedback_link}">Completeaza formularul de satisfactie</a></p><p>Va multumim,<br>{brand}</p>');
+            $subjectTemplate = pz_review_setting_get('review_email_subject', 'Formular satisfactie intervenție {brand}');
+            $bodyTemplate = pz_review_setting_get('review_email_template', '<p>Bună ziua,</p><p>Vă rugăm sa ne transmiteti feedback despre intervenția efectuata de tehnicianul nostru:</p><p><a href="{feedback_link}">Completează formularul de satisfactie</a></p><p>Va multumim,<br>{brand}</p>');
             $vars = [
                 'brand' => $brand,
                 'feedback_link' => $feedbackLink,

@@ -66,7 +66,7 @@ try {
     pzdoc_require_schema($pdo);
 
     if (!function_exists('is_team_user') || !is_team_user()) {
-        pzsig_json(['ok' => false, 'error' => 'Semnatura se poate salva doar din modul Angajat / Teren.'], 403);
+        pzsig_json(['ok' => false, 'error' => 'Semnătura se poate salva doar din modul Angajat / Teren.'], 403);
     }
 
     $documentId = (int)($_POST['document_id'] ?? 0);
@@ -81,35 +81,35 @@ try {
 
     $type = pzdoc_normalize_document_type((string)($document['document_type'] ?? ''));
     if ($type !== 'proces_verbal') {
-        pzsig_json(['ok' => false, 'error' => 'Semnatura este disponibila doar pentru PV.'], 400);
+        pzsig_json(['ok' => false, 'error' => 'Semnătura este disponibila doar pentru PV.'], 400);
     }
 
     if ((string)($document['status'] ?? '') !== 'issued') {
-        pzsig_json(['ok' => false, 'error' => 'PV-ul trebuie emis inainte de semnare.'], 400);
+        pzsig_json(['ok' => false, 'error' => 'PV-ul trebuie emis înainte de semnare.'], 400);
     }
 
     $appointmentId = pzsig_document_appointment_id($document);
     if ($appointmentId <= 0 || !pzdoc_user_can_access_appointment_for_pv($pdo, $appointmentId, true)) {
-        pzsig_json(['ok' => false, 'error' => 'Semnatura se poate salva doar dupa finalizarea lucrarii tale.'], 403);
+        pzsig_json(['ok' => false, 'error' => 'Semnătura se poate salva doar după finalizarea lucrării tale.'], 403);
     }
 
     $signatureData = trim((string)($_POST['signature_data'] ?? ''));
     if ($signatureData === '') {
-        pzsig_json(['ok' => false, 'error' => 'Semnatura lipsa.'], 400);
+        pzsig_json(['ok' => false, 'error' => 'Semnătura lipsa.'], 400);
     }
 
     if (strlen($signatureData) > 2500000) {
-        pzsig_json(['ok' => false, 'error' => 'Semnatura este prea mare. Sterge si semneaza din nou.'], 400);
+        pzsig_json(['ok' => false, 'error' => 'Semnătura este prea mare. Șterge si semneaza din nou.'], 400);
     }
 
     if (!preg_match('#^data:image/png;base64,#', $signatureData)) {
-        pzsig_json(['ok' => false, 'error' => 'Format semnatura invalid.'], 400);
+        pzsig_json(['ok' => false, 'error' => 'Format semnătura invalid.'], 400);
     }
 
     $base64 = substr($signatureData, strpos($signatureData, ',') + 1);
     $binary = base64_decode($base64, true);
     if ($binary === false || strlen($binary) < 100) {
-        pzsig_json(['ok' => false, 'error' => 'Semnatura nu a putut fi citita.'], 400);
+        pzsig_json(['ok' => false, 'error' => 'Semnătura nu a putut fi citita.'], 400);
     }
 
     if (substr($binary, 0, 8) !== "\x89PNG\r\n\x1a\n") {
@@ -124,7 +124,7 @@ try {
     $filename = 'pv_' . $documentId . '_client_signature_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.png';
     $absolutePath = $dir . '/' . $filename;
     if (file_put_contents($absolutePath, $binary, LOCK_EX) === false) {
-        pzsig_json(['ok' => false, 'error' => 'Semnatura nu a putut fi salvata pe server.'], 500);
+        pzsig_json(['ok' => false, 'error' => 'Semnătura nu a putut fi salvata pe server.'], 500);
     }
 
     @chmod($absolutePath, 0644);
@@ -152,7 +152,7 @@ try {
 
     pzsig_json([
         'ok' => true,
-        'message' => 'Semnatura salvata.',
+        'message' => 'Semnătura salvata.',
         'document_id' => $documentId,
         'signature_path' => $relativePath,
     ]);

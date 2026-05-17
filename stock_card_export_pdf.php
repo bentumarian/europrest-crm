@@ -16,16 +16,16 @@ ob_start();
 <!doctype html><html><head><meta charset="utf-8"><style>
 body{font-family:DejaVu Sans, Arial, sans-serif;font-size:10px;color:#111}h1{font-size:18px;margin:0 0 4px}.meta{font-size:10px;color:#444;margin-bottom:10px}.small{font-size:9px;color:#555}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d5dce5;padding:5px 6px;vertical-align:top}th{background:#eef2f7;text-transform:uppercase;font-size:8.5px;text-align:left}td.num{text-align:right;white-space:nowrap}.footer{margin-top:10px;font-size:9px;color:#555}.ok{color:#166534;font-weight:bold}.low{color:#b42318;font-weight:bold}
 </style></head><body>
-<h1>Fisa magazie - raport cantitativ</h1>
+<h1>Fișa magazie - raport cantitativ</h1>
 <div class="meta">Interval: <strong><?= stock_h(date('d.m.Y', strtotime($dateFrom))) ?></strong> - <strong><?= stock_h(date('d.m.Y', strtotime($dateTo))) ?></strong> | Generat: <?= stock_h($generatedAt) ?></div>
-<table><thead><tr><th>Produs</th><th>Grupa</th><th>UM</th><th>Stoc initial</th><th>Intrari</th><th>Consum / iesiri</th><th>Stoc final</th><th>Status</th></tr></thead><tbody>
+<table><thead><tr><th>Produs</th><th>Grupă</th><th>UM</th><th>Stoc inițial</th><th>Intrări</th><th>Consum / ieșiri</th><th>Stoc final</th><th>Status</th></tr></thead><tbody>
 <?php foreach($rows as $r): $low=(float)$r['min_qty']>0 && (float)$r['final_qty'] <= (float)$r['min_qty']; ?>
 <tr><td><?= stock_h($r['name']) ?></td><td><?= stock_h(stock_group_label($r['product_group'])) ?></td><td><?= stock_h($r['unit_consumption']) ?></td><td class="num"><?= stock_h(stock_unit_display($r['initial_qty'], $r['unit_consumption'])) ?></td><td class="num"><?= stock_h(stock_unit_display($r['in_qty'], $r['unit_consumption'])) ?></td><td class="num"><?= stock_h(stock_unit_display($r['out_qty'], $r['unit_consumption'])) ?></td><td class="num"><strong><?= stock_h(stock_unit_display($r['final_qty'], $r['unit_consumption'])) ?></strong></td><td class="<?= $low ? 'low' : 'ok' ?>"><?= $low ? 'Sub minim' : 'OK' ?></td></tr>
 <?php endforeach; ?>
-<?php if(!$rows): ?><tr><td colspan="8">Nu exista produse pentru filtrele selectate.</td></tr><?php endif; ?>
+<?php if(!$rows): ?><tr><td colspan="8">Nu există produse pentru filtrele selectate.</td></tr><?php endif; ?>
 </tbody></table>
-<div class="footer">Formula: Stoc final = Stoc initial + Intrari - Consum/Iesiri. Raport fara valori/preturi.</div>
+<div class="footer">Formula: Stoc final = Stoc inițial + Intrări - Consum/Ieșiri. Raport fără valori/prețuri.</div>
 </body></html>
 <?php
 $html = ob_get_clean();
-stock_render_pdf_or_html($html, 'fisa_magazie_' . $dateFrom . '_' . $dateTo . '.pdf');
+stock_render_pdf_or_html($html, 'fișa_magazie_' . $dateFrom . '_' . $dateTo . '.pdf');

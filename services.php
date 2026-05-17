@@ -53,7 +53,7 @@ function ensure_column_services(PDO $pdo, string $table, string $column, string 
         try {
             $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
         } catch (Exception $e) {
-            // Nu blocam pagina daca acea coloana exista deja sau ALTER-ul nu poate rula.
+            // Nu blocam pagina dacă acea coloana există deja sau ALTER-ul nu poate rula.
         }
     }
 }
@@ -325,319 +325,6 @@ $durationOptions = [
 
 <?php app_theme_css(); ?>
 
-<style>
-.services-topbar {
-    align-items: center;
-    padding: 12px 20px;
-}
-
-.services-toolbar {
-    width: 100%;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-}
-
-.services-toolbar .btn {
-    min-width: 170px;
-}
-
-.services-hero {
-    background: linear-gradient(135deg, #10243E, #163B63);
-    color: #fff;
-    border-radius: var(--radius-lg);
-    padding: 22px 24px;
-    box-shadow: var(--shadow-lg);
-    margin-bottom: 16px;
-    display: flex;
-    justify-content: space-between;
-    gap: 18px;
-    flex-wrap: wrap;
-    align-items: center;
-}
-
-.services-hero h1 {
-    font-size: 24px;
-    font-weight: 900;
-    letter-spacing: -.03em;
-    margin: 0;
-}
-
-.services-hero p {
-    color: rgba(255, 255, 255, .72);
-    margin: 4px 0 0;
-    max-width: 780px;
-}
-
-.stats {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    max-width: 100%;
-}
-
-.stat-pill {
-    background: rgba(255, 255, 255, .10);
-    border: 1px solid rgba(255, 255, 255, .16);
-    border-radius: 999px;
-    padding: 8px 13px;
-    color: #fff;
-    font-weight: 900;
-    font-size: 13px;
-    white-space: nowrap;
-}
-
-.services-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
-}
-
-.service-card {
-    min-width: 0;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow);
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-.service-card.inactive {
-    opacity: .68;
-}
-
-.service-title-row {
-    min-width: 0;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
-}
-
-.service-title {
-    color: var(--text);
-    font-size: 17px;
-    font-weight: 900;
-    line-height: 1.2;
-    overflow-wrap: anywhere;
-}
-
-.service-desc {
-    color: var(--muted);
-    font-size: 13px;
-    line-height: 1.45;
-    min-height: 36px;
-    overflow-wrap: anywhere;
-}
-
-.service-meta {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    min-width: 0;
-}
-
-.service-pill {
-    background: var(--surface-soft);
-    border: 1px solid var(--border2);
-    border-radius: 999px;
-    padding: 6px 10px;
-    color: var(--muted);
-    font-weight: 900;
-    font-size: 12px;
-    white-space: nowrap;
-}
-
-.service-pill.active {
-    background: rgba(22, 59, 99, .08);
-    border-color: rgba(22, 59, 99, .18);
-    color: var(--text);
-}
-
-.service-actions {
-    margin-top: auto;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 7px;
-}
-
-.service-actions form {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    display: flex !important;
-    margin: 0;
-}
-
-.service-actions .btn,
-.service-actions button {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    white-space: normal;
-    text-align: center;
-    line-height: 1.15;
-    padding-left: 8px;
-    padding-right: 8px;
-}
-
-.empty-state {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow);
-    padding: 34px;
-    text-align: center;
-    color: var(--muted);
-    font-weight: 800;
-}
-
-.service-checkbox {
-    display: flex !important;
-    align-items: center;
-    gap: 8px;
-    font-weight: 900;
-    text-transform: none;
-    letter-spacing: 0;
-    margin: 0;
-}
-
-.service-checkbox input[type="checkbox"] {
-    width: 18px !important;
-    height: 18px !important;
-    min-height: 18px !important;
-    flex: 0 0 auto;
-}
-
-@media(max-width: 1180px) {
-    .services-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .service-actions {
-        grid-template-columns: 1fr;
-    }
-
-    .service-actions .btn,
-    .service-actions button {
-        min-height: 40px;
-    }
-}
-
-@media(max-width: 860px) {
-    body {
-        overflow-x: hidden !important;
-    }
-
-    .services-topbar {
-        width: 100% !important;
-        max-width: 100vw !important;
-        padding: 8px 10px 14px 10px !important;
-        overflow-x: hidden !important;
-        display: block !important;
-        position: relative !important;
-        top: auto !important;
-    }
-
-    .services-toolbar {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        display: grid !important;
-        grid-template-columns: 1fr !important;
-        gap: 8px !important;
-        align-items: stretch !important;
-        justify-items: stretch !important;
-        margin: 0 auto !important;
-        padding: 0 !important;
-        overflow-x: hidden !important;
-    }
-
-    .services-toolbar .btn {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        height: 42px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        text-align: center !important;
-    }
-
-    .content {
-        width: 100% !important;
-        max-width: 100vw !important;
-        overflow-x: hidden !important;
-    }
-
-    .services-hero {
-        padding: 18px;
-    }
-
-    .services-hero h1 {
-        font-size: 22px;
-    }
-
-    .services-hero p {
-        font-size: 13px;
-    }
-
-    .stats {
-        width: 100%;
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 7px;
-    }
-
-    .stat-pill {
-        width: 100%;
-        text-align: center;
-        padding: 7px 8px;
-        font-size: 12px;
-    }
-
-    .services-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .service-card {
-        padding: 14px;
-    }
-
-    .service-actions {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-
-    .service-actions .btn,
-    .service-actions button {
-        width: 100% !important;
-        height: 42px !important;
-    }
-}
-
-@media(max-width: 420px) {
-    .stats {
-        grid-template-columns: 1fr;
-    }
-
-    .services-hero {
-        padding: 16px;
-    }
-
-    .service-title {
-        font-size: 16px;
-    }
-}
-</style>
 </head>
 
 <body>
@@ -649,6 +336,7 @@ $durationOptions = [
 
         <div class="topbar services-topbar">
             <div class="services-toolbar">
+                <a class="btn ghost" href="settings.php">Înapoi la Setări</a>
                 <button class="btn accent" type="button" onclick="openCreateServiceModal()">
                     + Serviciu nou
                 </button>
@@ -668,15 +356,15 @@ $durationOptions = [
         <?php endif; ?>
 
         <?php if (isset($_GET['deleted'])): ?>
-            <div class="notice notice-warning">Serviciul a fost sters.</div>
+            <div class="notice notice-warning">Serviciul a fost șters.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['delete_blocked'])): ?>
-            <div class="notice notice-warning">Serviciul este folosit in sarcini sau programari si a fost dezactivat in loc sa fie sters.</div>
+            <div class="notice notice-warning">Serviciul este folosit in sarcini sau programări si a fost dezactivat in loc sa fie șters.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['error'])): ?>
-            <div class="notice notice-danger">Completeaza numele serviciului.</div>
+            <div class="notice notice-danger">Completează numele serviciului.</div>
         <?php endif; ?>
 
         <div class="content">
@@ -685,7 +373,7 @@ $durationOptions = [
                 <div>
                     <h1>Servicii</h1>
                     <p>
-                        Gestioneaza serviciile disponibile in programari si sarcini.
+                        Gestioneaza serviciile disponibile in programări si sarcini.
                         Serviciile active apar automat in formulare.
                     </p>
                 </div>
@@ -699,7 +387,7 @@ $durationOptions = [
 
             <?php if (!$services): ?>
                 <div class="empty-state">
-                    Nu exista servicii definite.
+                    Nu există servicii definite.
                 </div>
             <?php else: ?>
                 <section class="services-grid">
@@ -735,7 +423,7 @@ $durationOptions = [
 
                             <div class="service-actions">
                                 <button class="btn" type="button" onclick="openEditServiceModal(<?= $serviceId ?>)">
-                                    Editeaza
+                                    Editează
                                 </button>
 
                                 <form method="post">
@@ -748,7 +436,7 @@ $durationOptions = [
                                 </form>
 
                                 <button class="btn danger" type="button" onclick="deleteService(<?= $serviceId ?>)">
-                                    Sterge
+                                    Șterge
                                 </button>
                             </div>
                         </article>
@@ -789,7 +477,7 @@ $durationOptions = [
                 </div>
 
                 <div>
-                    <label>Ordine afisare</label>
+                    <label>Ordine afișare</label>
                     <input type="number" name="sort_order" value="0">
                 </div>
 
@@ -811,8 +499,8 @@ $durationOptions = [
                 <div></div>
 
                 <div class="actions-right">
-                    <button class="btn" type="button" onclick="closeModal('createServiceModal')">Renunta</button>
-                    <button class="btn accent" type="submit">Salveaza serviciul</button>
+                    <button class="btn" type="button" onclick="closeModal('createServiceModal')">Renunță</button>
+                    <button class="btn accent" type="submit">Salvează serviciul</button>
                 </div>
             </div>
         </form>
@@ -822,7 +510,7 @@ $durationOptions = [
 <div class="modal" id="editServiceModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h2>Editeaza serviciu</h2>
+            <h2>Editează serviciu</h2>
             <button class="modal-close" type="button" onclick="closeModal('editServiceModal')">&times;</button>
         </div>
 
@@ -849,7 +537,7 @@ $durationOptions = [
                 </div>
 
                 <div>
-                    <label>Ordine afisare</label>
+                    <label>Ordine afișare</label>
                     <input type="number" name="sort_order" id="edit_sort_order">
                 </div>
 
@@ -871,8 +559,8 @@ $durationOptions = [
                 <div></div>
 
                 <div class="actions-right">
-                    <button class="btn" type="button" onclick="closeModal('editServiceModal')">Renunta</button>
-                    <button class="btn accent" type="submit">Salveaza modificarile</button>
+                    <button class="btn" type="button" onclick="closeModal('editServiceModal')">Renunță</button>
+                    <button class="btn accent" type="submit">Salvează modificarile</button>
                 </div>
             </div>
         </form>
@@ -919,7 +607,7 @@ function openEditServiceModal(id) {
 }
 
 function deleteService(id) {
-    if (confirm('Sigur vrei sa stergi acest serviciu? Daca este folosit, va fi dezactivat in loc sa fie sters.')) {
+    if (confirm('Sigur vrei sa stergi acest serviciu? Dacă este folosit, va fi dezactivat in loc sa fie șters.')) {
         document.getElementById('delete_service_id').value = id;
         document.getElementById('deleteServiceForm').submit();
     }

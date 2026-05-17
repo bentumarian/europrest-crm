@@ -5,7 +5,7 @@
 |--------------------------------------------------------------------------
 | Combina doua surse:
 |  1. notification_logs (channel='email') - SendGrid generic
-|  2. document_email_logs - emailuri trimise atasate la documente (PV, oferte, contracte)
+|  2. document_email_logs - emailuri trimise atașate la documente (PV, oferte, contracte)
 |
 | Afiseaza ultimele 100 trimiteri cu status, motiv, mesaj, link la document.
 |--------------------------------------------------------------------------
@@ -74,7 +74,7 @@ try {
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) $logs[] = $r;
 } catch (Throwable $e) { /* tabela poate sa nu existe */ }
 
-// Sortam combinatia descrescator dupa created_at, limit la $limit
+// Sortam combinatia descrescator după created_at, limit la $limit
 usort($logs, function($a, $b) { return strcmp((string)$b['created_at'], (string)$a['created_at']); });
 $logs = array_slice($logs, 0, $limit);
 
@@ -159,6 +159,7 @@ try {
 <div class="layout">
     <?php render_sidebar('email_activity', $isAdmin); ?>
     <main class="main">
+        <div class="topbar" style="padding:12px 20px;"><a class="btn ghost" href="settings.php">Înapoi la Setări</a></div>
         <div class="content">
 
             <div style="margin-bottom: 18px;">

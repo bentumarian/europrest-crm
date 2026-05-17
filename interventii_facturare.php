@@ -2,6 +2,7 @@
 require_once 'config.php';
 require_login();
 require_once 'app_ui.php';
+require_once __DIR__ . '/smartbill_lib.php';
 
 $isAdmin = is_admin();
 if (!$isAdmin) {
@@ -30,7 +31,7 @@ function ib_ensure_column(PDO $pdo, string $table, string $column, string $defin
         try {
             $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
         } catch (Throwable $e) {
-            error_log('interventii_facturare add column error: ' . $e->getMessage());
+            error_log('intervenții_facturare add column error: ' . $e->getMessage());
         }
     }
 }
@@ -44,10 +45,10 @@ function ib_safe_date(?string $date, ?string $fallback = null): string {
 
 function ib_status_label(string $status): string {
     return [
-        'de_facturat' => 'De facturat',
-        'facturata' => 'Facturata',
-        'nu_se_factureaza' => 'Nu se factureaza',
-    ][$status] ?? 'De facturat';
+        'de_facturat' => 'De transmis',
+        'facturata' => 'Transmisa',
+        'nu_se_factureaza' => 'Nu se facturează',
+    ][$status] ?? 'De transmis';
 }
 
 function ib_status_class(string $status): string {
@@ -116,15 +117,19 @@ if (!ib_table_exists($pdo, 'appointments')) {
 }
 
 ib_ensure_column($pdo, 'appointments', 'billing_amount', "DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+ib_ensure_column($pdo, 'appointments', 'billing_vat_code', "VARCHAR(40) NOT NULL DEFAULT '21'");
 ib_ensure_column($pdo, 'appointments', 'billing_status', "VARCHAR(30) NOT NULL DEFAULT 'de_facturat'");
 ib_ensure_column($pdo, 'appointments', 'billing_note', "TEXT NULL");
 ib_ensure_column($pdo, 'appointments', 'billing_updated_at', "DATETIME NULL");
 ib_ensure_column($pdo, 'appointments', 'billing_updated_by', "INT NULL");
+if (function_exists('pz_smartbill_ensure_schema')) {
+    pz_smartbill_ensure_schema($pdo);
+}
 
 try {
     $pdo->exec("UPDATE appointments SET billing_status = 'de_facturat' WHERE billing_status IS NULL OR billing_status = '' OR billing_status NOT IN ('de_facturat','facturata','nu_se_factureaza')");
 } catch (Throwable $e) {
-    error_log('interventii_facturare normalize status error: ' . $e->getMessage());
+    error_log('intervenții_facturare normalize status error: ' . $e->getMessage());
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -138,14 +143,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'save_amount') {
         $amount = ib_money_value($_POST['billing_amount'] ?? 0);
+        $vatCode = trim((string)($_POST['billing_vat_code'] ?? '21'));
+        $smartbillSettingsForSave = function_exists('pz_smartbill_settings') ? pz_smartbill_settings($pdo) : [];
+        $vatOptionsForSave = function_exists('pz_smartbill_vat_options') ? pz_smartbill_vat_options() : ['21' => '21%'];
+        $allowedVatForSave = function_exists('pz_smartbill_allowed_vat_codes') ? pz_smartbill_allowed_vat_codes($smartbillSettingsForSave) : ['21'];
+        if (!isset($vatOptionsForSave[$vatCode]) || !in_array($vatCode, $allowedVatForSave, true)) {
+            $vatCode = (string)($smartbillSettingsForSave['smartbill.default_vat_code'] ?? '21');
+        }
         $stmt = $pdo->prepare("
             UPDATE appointments
             SET billing_amount = ?,
+                billing_vat_code = ?,
                 billing_updated_at = NOW(),
                 billing_updated_by = ?
             WHERE id = ? AND status = 'finalizata'
         ");
-        $stmt->execute([$amount, current_user_id(), $appointmentId]);
+        $stmt->execute([$amount, $vatCode, current_user_id(), $appointmentId]);
         ib_redirect(['saved' => '1']);
     }
 
@@ -175,6 +188,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $today = date('Y-m-d');
+$smartbillSettings = function_exists('pz_smartbill_settings') ? pz_smartbill_settings($pdo) : [];
+$smartbillVatOptions = function_exists('pz_smartbill_vat_options') ? pz_smartbill_vat_options() : ['21' => '21%'];
+$smartbillAllowedVatCodes = function_exists('pz_smartbill_allowed_vat_codes') ? pz_smartbill_allowed_vat_codes($smartbillSettings) : ['21'];
+$smartbillDefaultVatCode = (string)($smartbillSettings['smartbill.default_vat_code'] ?? '21');
+if (!isset($smartbillVatOptions[$smartbillDefaultVatCode])) {
+    $smartbillDefaultVatCode = '21';
+}
+if (!in_array($smartbillDefaultVatCode, $smartbillAllowedVatCodes, true)) {
+    $smartbillAllowedVatCodes[] = $smartbillDefaultVatCode;
+}
 $currentMonthStart = date('Y-m-01');
 $currentMonthEnd = date('Y-m-t');
 $prevMonthStart = date('Y-m-01', strtotime('first day of previous month'));
@@ -242,7 +265,7 @@ if ($selectedStatus !== 'all') {
     $statusParams[] = $selectedStatus;
 }
 
-$baseSelect = "\n    SELECT\n        a.id, a.client_id, a.client_location_id, a.title, a.service_type,\n        a.appointment_date, a.start_time, a.end_time, a.address, a.notes, a.completion_notes,\n        a.billing_amount, a.billing_status, a.billing_note, a.billing_updated_at,\n        c.name AS client_name, c.phone AS client_phone, c.fiscal_code AS client_fiscal_code,\n        l.location_name, l.address AS location_address,\n        {$pvSelect}\n    FROM appointments a\n    LEFT JOIN clients c ON c.id = a.client_id\n    LEFT JOIN client_locations l ON l.id = a.client_location_id\n    {$pvJoin}\n    {$statusWhere}\n    ORDER BY a.appointment_date DESC, a.start_time DESC, a.id DESC\n    LIMIT 1000\n";
+$baseSelect = "\n    SELECT\n        a.id, a.client_id, a.client_location_id, a.title, a.service_type,\n        a.appointment_date, a.start_time, a.end_time, a.address, a.notes, a.completion_notes,\n        a.billing_amount, a.billing_status, a.billing_note, a.billing_updated_at,\n        c.name AS client_name, c.phone AS client_phone, c.fiscal_code AS client_fiscal_code,\n        l.location_name, l.address AS location_address,\n        si.id AS invoice_id, si.smartbill_series, si.smartbill_number, si.smartbill_status AS invoice_status,\n        {$pvSelect}\n    FROM appointments a\n    LEFT JOIN clients c ON c.id = a.client_id\n    LEFT JOIN client_locations l ON l.id = a.client_location_id\n    LEFT JOIN smartbill_invoices si ON si.appointment_id = a.id\n    {$pvJoin}\n    {$statusWhere}\n    ORDER BY a.appointment_date DESC, a.start_time DESC, a.id DESC\n    LIMIT 1000\n";
 $stmt = $pdo->prepare($baseSelect);
 $stmt->execute($statusParams);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -272,19 +295,19 @@ try {
         }
     }
 } catch (Throwable $e) {
-    error_log('interventii_facturare summary error: ' . $e->getMessage());
+    error_log('intervenții_facturare summary error: ' . $e->getMessage());
 }
 
 $totalAllStatuses = array_sum(array_column($summary, 'count'));
 $totalAllAmount = array_sum(array_column($summary, 'amount'));
 
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
-    $fileName = 'interventii_facturare_' . date('Ymd_His') . '.csv';
+    $fileName = 'intervenții_facturare_' . date('Ymd_His') . '.csv';
     header('Content-Type: text/csv; charset=UTF-8');
     header('Content-Disposition: attachment; filename="' . $fileName . '"');
     echo "\xEF\xBB\xBF";
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['Data', 'Ora', 'Client', 'Locatie', 'Servicii', 'PV', 'Valoare fara TVA', 'Status facturare', 'Observatii']);
+    fputcsv($out, ['Data', 'Ora', 'Client', 'Locație', 'Servicii', 'PV', 'Valoare fără TVA', 'TVA', 'Status transmitere', 'Observații']);
     foreach ($rows as $row) {
         fputcsv($out, [
             $row['appointment_date'] ?? '',
@@ -294,6 +317,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             ib_service_label($row),
             ib_pv_label($row),
             ib_money_input($row['billing_amount'] ?? 0),
+            $smartbillVatOptions[(string)($row['billing_vat_code'] ?? $smartbillDefaultVatCode)] ?? (string)($row['billing_vat_code'] ?? $smartbillDefaultVatCode),
             ib_status_label((string)($row['billing_status'] ?? 'de_facturat')),
             $row['billing_note'] ?? '',
         ]);
@@ -307,7 +331,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Facturare</title>
+<title>Evidenta lucrări</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -350,8 +374,9 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 .pv-empty { color:var(--muted); font-weight:800; }
 .note-cell { max-width:260px; font-size:13px; line-height:1.4; }
 .note-cell.empty { color:var(--muted); }
-.amount-form { display:flex; gap:6px; align-items:center; min-width:160px; }
+.amount-form { display:flex; gap:6px; align-items:center; min-width:250px; flex-wrap:wrap; }
 .amount-form input { width:104px; height:34px; border:1px solid var(--border); border-radius:10px; padding:0 8px; font-weight:900; font-family:var(--mono); }
+.amount-form select { width:104px; height:34px; border:1px solid var(--border); border-radius:10px; padding:0 8px; font-weight:900; background:#fff; color:var(--text); }
 .amount-save { min-width:34px; width:34px; padding:0; }
 .amount-hint { margin-top:4px; color:var(--muted); font-size:11px; font-weight:800; }
 .actions-stack { display:flex; gap:7px; flex-wrap:wrap; align-items:flex-start; }
@@ -375,12 +400,12 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                 <form method="get" class="ib-filters">
                     <input type="date" name="date_from" value="<?= ib_h($dateFrom) ?>" aria-label="Data inceput">
                     <input type="date" name="date_to" value="<?= ib_h($dateTo) ?>" aria-label="Data final">
-                    <input type="search" name="q" value="<?= ib_h($q) ?>" placeholder="Client, locatie, PV" aria-label="Cautare">
-                    <select name="billing_status" aria-label="Status facturare">
+                    <input type="search" name="q" value="<?= ib_h($q) ?>" placeholder="Client, locație, PV" aria-label="Căutare">
+                    <select name="billing_status" aria-label="Status transmitere">
                         <option value="all" <?= $selectedStatus === 'all' ? 'selected' : '' ?>>Toate statusurile</option>
-                        <option value="de_facturat" <?= $selectedStatus === 'de_facturat' ? 'selected' : '' ?>>De facturat</option>
-                        <option value="facturata" <?= $selectedStatus === 'facturata' ? 'selected' : '' ?>>Facturata</option>
-                        <option value="nu_se_factureaza" <?= $selectedStatus === 'nu_se_factureaza' ? 'selected' : '' ?>>Nu se factureaza</option>
+                        <option value="de_facturat" <?= $selectedStatus === 'de_facturat' ? 'selected' : '' ?>>De transmis</option>
+                        <option value="facturata" <?= $selectedStatus === 'facturata' ? 'selected' : '' ?>>Transmisa</option>
+                        <option value="nu_se_factureaza" <?= $selectedStatus === 'nu_se_factureaza' ? 'selected' : '' ?>>Nu se facturează</option>
                     </select>
                     <select name="service" aria-label="Serviciu">
                         <option value="all" <?= $selectedService === 'all' ? 'selected' : '' ?>>Toate serviciile</option>
@@ -400,13 +425,14 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         </div>
 
         <div class="content">
-            <?php if (isset($_GET['saved'])): ?><div class="notice notice-success">Statusul de facturare a fost actualizat.</div><?php endif; ?>
-            <?php if (($_GET['error'] ?? '') === 'note'): ?><div class="notice notice-warning">Pentru "Nu se factureaza" trebuie completat motivul.</div><?php endif; ?>
+            <?php render_billing_module_nav('interventii_facturare'); ?>
+            <?php if (isset($_GET['saved'])): ?><div class="notice notice-success">Statusul lucrării a fost actualizat.</div><?php endif; ?>
+            <?php if (($_GET['error'] ?? '') === 'note'): ?><div class="notice notice-warning">Pentru "Nu se facturează" trebuie completat motivul.</div><?php endif; ?>
 
             <section class="ib-hero">
                 <div>
-                    <h1>Checklist facturare interventii</h1>
-                    <p>Lista lucrarilor finalizate. Biroul marcheaza rapid daca interventia este de facturat, facturata sau nu se factureaza.</p>
+                    <h1>Evidenta lucrări finalizate</h1>
+                    <p>Lista lucrărilor finalizate. De aici porneste factura nativa SmartBill, direct din lucrare.</p>
                 </div>
                 <div class="hero-actions">
                     <a class="btn light" href="<?= ib_h(ib_current_url(['export' => 'csv'])) ?>">Export CSV</a>
@@ -422,22 +448,22 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 
             <section class="kpi-grid">
                 <div class="kpi-card">
-                    <div class="kpi-label">Total interventii</div>
+                    <div class="kpi-label">Total intervenții</div>
                     <div class="kpi-value"><?= (int)$totalAllStatuses ?></div>
-                    <div class="kpi-sub"><?= ib_h(ib_money_label($totalAllAmount)) ?> fara TVA</div>
+                    <div class="kpi-sub"><?= ib_h(ib_money_label($totalAllAmount)) ?> fără TVA</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label">De facturat</div>
+                    <div class="kpi-label">De transmis</div>
                     <div class="kpi-value"><?= (int)$summary['de_facturat']['count'] ?></div>
-                    <div class="kpi-sub"><?= ib_h(ib_money_label($summary['de_facturat']['amount'])) ?> fara TVA</div>
+                    <div class="kpi-sub"><?= ib_h(ib_money_label($summary['de_facturat']['amount'])) ?> fără TVA</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label">Facturate</div>
+                    <div class="kpi-label">Transmise</div>
                     <div class="kpi-value"><?= (int)$summary['facturata']['count'] ?></div>
-                    <div class="kpi-sub"><?= ib_h(ib_money_label($summary['facturata']['amount'])) ?> fara TVA</div>
+                    <div class="kpi-sub"><?= ib_h(ib_money_label($summary['facturata']['amount'])) ?> fără TVA</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label">Nu se factureaza</div>
+                    <div class="kpi-label">Nu se facturează</div>
                     <div class="kpi-value"><?= (int)$summary['nu_se_factureaza']['count'] ?></div>
                     <div class="kpi-sub"><?= ib_h(ib_money_label($summary['nu_se_factureaza']['amount'])) ?> potential</div>
                 </div>
@@ -447,12 +473,12 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                 <div class="table-head">
                     <div>
                         <div class="table-title">Interventii</div>
-                        <div class="table-subtitle"><?= count($rows) ?> rezultate afisate. Implicit se vad doar lucrarile "De facturat".</div>
+                        <div class="table-subtitle"><?= count($rows) ?> rezultate afișate. Implicit se vad doar lucrările "De transmis".</div>
                     </div>
                 </div>
 
                 <?php if (!$rows): ?>
-                    <div class="empty-state">Nu exista interventii pentru filtrele selectate.</div>
+                    <div class="empty-state">Nu există intervenții pentru filtrele selectate.</div>
                 <?php else: ?>
                     <div class="table-scroll">
                         <table class="ib-table">
@@ -460,13 +486,13 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                 <tr>
                                     <th>Data</th>
                                     <th>Client</th>
-                                    <th>Locatie</th>
+                                    <th>Locație</th>
                                     <th>Servicii</th>
                                     <th>PV</th>
                                     <th>Valoare</th>
-                                    <th>Status facturare</th>
-                                    <th>Observatii</th>
-                                    <th>Actiuni</th>
+                                    <th>Status transmitere</th>
+                                    <th>Observații</th>
+                                    <th>Acțiuni</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -502,16 +528,37 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="action" value="save_amount">
                                             <input type="hidden" name="appointment_id" value="<?= (int)$row['id'] ?>">
-                                            <input type="number" name="billing_amount" step="0.01" min="0" value="<?= ib_h(ib_money_input($row['billing_amount'] ?? 0)) ?>" aria-label="Valoare lucrare fara TVA">
-                                            <button class="ib-small-btn muted amount-save" type="submit" title="Salveaza valoarea">✓</button>
+                                            <input type="number" name="billing_amount" step="0.01" min="0" value="<?= ib_h(ib_money_input($row['billing_amount'] ?? 0)) ?>" aria-label="Valoare lucrare fără TVA">
+                                            <?php
+                                                $rowVatCode = (string)($row['billing_vat_code'] ?? $smartbillDefaultVatCode);
+                                                $rowVatCodes = $smartbillAllowedVatCodes;
+                                                if (!in_array($rowVatCode, $rowVatCodes, true) && isset($smartbillVatOptions[$rowVatCode])) {
+                                                    $rowVatCodes[] = $rowVatCode;
+                                                }
+                                            ?>
+                                            <select name="billing_vat_code" aria-label="Cota TVA">
+                                                <?php foreach ($rowVatCodes as $vatCode): ?>
+                                                    <?php if (isset($smartbillVatOptions[$vatCode])): ?>
+                                                        <option value="<?= ib_h($vatCode) ?>" <?= $rowVatCode === $vatCode ? 'selected' : '' ?>><?= ib_h($smartbillVatOptions[$vatCode]) ?></option>
+                                                    <?php endif; ?>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <button class="ib-small-btn muted amount-save" type="submit" title="Salvează valoarea">✓</button>
                                         </form>
-                                        <div class="amount-hint">fara TVA</div>
+                                        <div class="amount-hint">suma neta + cota TVA pentru SmartBill</div>
                                     </td>
                                     <td><span class="status-pill <?= ib_h(ib_status_class($status)) ?>"><?= ib_h(ib_status_label($status)) ?></span></td>
                                     <td><div class="note-cell <?= $note === '' ? 'empty' : '' ?>"><?= $note !== '' ? nl2br(ib_h($note)) : '-' ?></div></td>
                                     <td>
                                         <div class="actions-stack">
                                             <a class="ib-small-btn muted" href="calendar.php?date=<?= ib_h($row['appointment_date'] ?? date('Y-m-d')) ?>&view=day">Vezi lucrarea</a>
+                                            <?php if (!empty($row['invoice_id'])): ?>
+                                                <a class="ib-small-btn primary" href="facturi.php?id=<?= (int)$row['invoice_id'] ?>">
+                                                    <?= trim((string)($row['smartbill_number'] ?? '')) !== '' ? ib_h(trim((string)(($row['smartbill_series'] ?? '') . ' ' . ($row['smartbill_number'] ?? '')))) : 'Draft factura' ?>
+                                                </a>
+                                            <?php else: ?>
+                                                <a class="ib-small-btn primary" href="facturi.php?appointment_id=<?= (int)$row['id'] ?>">Factura</a>
+                                            <?php endif; ?>
                                             <?php if ($status !== 'facturata'): ?>
                                                 <form method="post" class="inline-form" action="<?= ib_h(ib_current_url()) ?>">
                                                     <?= csrf_field() ?>
@@ -527,7 +574,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                                     <input type="hidden" name="action" value="mark_not_billable">
                                                     <input type="hidden" name="appointment_id" value="<?= (int)$row['id'] ?>">
                                                     <input type="text" name="billing_note" placeholder="Motiv nefacturare" required>
-                                                    <button class="ib-small-btn" type="submit">Nu se factureaza</button>
+                                                    <button class="ib-small-btn" type="submit">Nu se facturează</button>
                                                 </form>
                                             <?php endif; ?>
 

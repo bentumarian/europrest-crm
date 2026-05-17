@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $reset && $error === '') {
                 $reset = null;
             } catch (Throwable $e) {
                 error_log('Password reset update error: ' . $e->getMessage());
-                $error = 'Parola nu a putut fi actualizata. Contacteaza administratorul.';
+                $error = 'Parola nu a putut fi actualizată. Contacteaza administratorul.';
             }
         }
     }
@@ -239,7 +239,7 @@ input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(17,96,183
         <p class="login-subtitle">Alege o parola noua pentru contul tau. Linkul poate fi folosit o singura data.</p>
 
         <?php if ($success): ?>
-            <div class="msg ok">Parola a fost schimbata cu succes. Te poti autentifica folosind noua parola.</div>
+            <div class="msg ok">Parola a fost schimbata cu succes. Te poți autentifica folosind noua parola.</div>
             <a class="back" href="login.php">Mergi la autentificare</a>
         <?php else: ?>
             <?php if ($error): ?><div class="msg err"><?= pr_h($error) ?></div><?php endif; ?>
@@ -263,11 +263,11 @@ input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(17,96,183
                     </div>
                     <button class="login-button" type="submit">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12"></path><path d="m13 6 6 6-6 6"></path></svg>
-                        <span>Salveaza parola noua</span>
+                        <span>Salvează parola noua</span>
                     </button>
                 </form>
             <?php endif; ?>
-            <a class="back" href="login.php">Inapoi la autentificare</a>
+            <a class="back" href="login.php">Înapoi la autentificare</a>
         <?php endif; ?>
 
         <div class="security-line" aria-hidden="true">

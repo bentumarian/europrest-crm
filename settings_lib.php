@@ -221,8 +221,8 @@ if (!function_exists('pz_document_logo_path')) {
 
 if (!function_exists('pz_document_stamp_path')) {
     /**
-     * Returneaza calea relativa catre stampila firmei (PNG/JPG/WEBP) sau '' daca nu este configurata.
-     * Stampila apare automat doar pe procesele verbale, langa semnatura emitent.
+     * Returneaza calea relativa catre ștampila firmei (PNG/JPG/WEBP) sau '' dacă nu este configurata.
+     * Ștampila apare automat doar pe procesele verbale, langa semnătura emitent.
      */
     function pz_document_stamp_path(?PDO $pdo = null): string
     {

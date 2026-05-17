@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/app_ui.php';
 require_once __DIR__ . '/notification_lib.php';
 
 if (function_exists('require_login')) {
@@ -74,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'test',
                 null
             );
-            $res['ok'] ? $success[] = 'Emailul de test a fost trimis.' : $errors[] = 'Email test eșuat: ' . ($res['error'] ?? 'eroare necunoscută');
+            $res['ok'] ? $success[] = 'Emailul de test a fost trimis.' : $errors[] = 'Email test esuat: ' . ($res['error'] ?? 'eroare necunoscuta');
         }
     }
 
@@ -85,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Param 6 = allowWithoutClient = true (e SMS de test, nu pentru un client anume)
             $res = pz_smslink_send_sms($to, 'EUROPREST: SMS de test trimis din CRM prin SMSLink.', 'test', null, null, true);
-            $res['ok'] ? $success[] = 'SMS-ul de test a fost trimis către gateway.' : $errors[] = 'SMS test eșuat: ' . ($res['error'] ?? 'eroare necunoscută');
+            $res['ok'] ? $success[] = 'SMS-ul de test a fost trimis catre gateway.' : $errors[] = 'SMS test esuat: ' . ($res['error'] ?? 'eroare necunoscuta');
         }
     }
 }
@@ -103,38 +104,23 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
     <meta charset="utf-8">
     <title>Comunicare / Integrări</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        :root{--brand:#0071A3;--bg:#f5f7fa;--border:#dbe3ea;--text:#132238;--muted:#64748b}
-        body{margin:0;background:var(--bg);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text);font-size:14px}
-        .wrap{max-width:1180px;margin:0 auto;padding:24px}
-        .top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:18px}
-        h1{font-size:22px;margin:0}
-        .muted{color:var(--muted)}
-        .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-        .card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:0 1px 2px rgba(16,24,40,.03)}
-        label{display:block;font-size:12px;font-weight:700;margin:12px 0 6px;color:#334155}
-        input,select,textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font:inherit;box-sizing:border-box;background:#fff}
-        .btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:12px;padding:10px 14px;background:#fff;color:var(--text);text-decoration:none;font-weight:700;cursor:pointer}
-        .btn-primary{background:var(--brand);border-color:var(--brand);color:#fff}
-        .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-        .alert{padding:12px 14px;border-radius:12px;margin-bottom:10px}
-        .ok{background:#ecfdf3;color:#027a48;border:1px solid #abefc6}
-        .err{background:#fff1f3;color:#b42318;border:1px solid #fecdd3}
-        table{width:100%;border-collapse:collapse;font-size:13px}
-        th,td{border-bottom:1px solid var(--border);padding:9px;text-align:left;vertical-align:top}
-        th{font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.04em}
-        .full{grid-column:1/-1}
-        @media(max-width:860px){.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.wrap{padding:16px}}
-    </style>
+    <?php app_theme_css(); ?>
 </head>
 <body>
-<div class="wrap">
-    <div class="top">
+<div class="layout">
+    <?php
+    $pz_page_title = 'Setări';
+    $pz_page_breadcrumbs = ['Comunicare / Integrări'];
+    render_sidebar('communication_settings', true);
+    ?>
+    <main class="main">
+        <div class="topbar" style="padding:12px 20px;"><a href="settings.php" class="btn ghost">Înapoi la Setări</a></div>
+        <div class="content settings-module-page">
+    <div class="module-head">
         <div>
             <h1>Comunicare / Integrări</h1>
-            <div class="muted">SendGrid pentru email și SMSLink.ro pentru SMS-uri tranzacționale.</div>
+            <p>SendGrid pentru email si SMSLink.ro pentru SMS-uri tranzactionale.</p>
         </div>
-        <a href="settings.php" class="btn">Înapoi la Setări</a>
     </div>
 
     <?php foreach ($success as $msg): ?><div class="alert ok"><?= pz_h($msg) ?></div><?php endforeach; ?>
@@ -145,8 +131,8 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
         <input type="hidden" name="action" value="save">
         <div class="grid">
             <div class="card">
-                <h2 style="margin-top:0;font-size:17px">Email — SendGrid</h2>
-                <p class="muted">Folosit pentru resetare parolă, contracte, procese verbale, notificări.</p>
+                <h2>Email - SendGrid</h2>
+                <p class="muted">Folosit pentru resetare parola, contracte, procese verbale si notificări.</p>
 
                 <label>API Key SendGrid</label>
                 <input type="password" name="sendgrid_api_key" value="<?= pz_setting_get('sendgrid_api_key') ? '********' : '' ?>" autocomplete="off">
@@ -154,8 +140,8 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
                 <label>Regiune SendGrid</label>
                 <select name="sendgrid_region">
                     <?php $region = pz_setting_get('sendgrid_region', 'global'); ?>
-                    <option value="global" <?= $region === 'global' ? 'selected' : '' ?>>Global — api.sendgrid.com</option>
-                    <option value="eu" <?= $region === 'eu' ? 'selected' : '' ?>>EU — api.eu.sendgrid.com</option>
+                    <option value="global" <?= $region === 'global' ? 'selected' : '' ?>>Global - api.sendgrid.com</option>
+                    <option value="eu" <?= $region === 'eu' ? 'selected' : '' ?>>EU - api.eu.sendgrid.com</option>
                 </select>
 
                 <div class="row">
@@ -174,8 +160,8 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
             </div>
 
             <div class="card">
-                <h2 style="margin-top:0;font-size:17px">SMS — SMSLink.ro</h2>
-                <p class="muted">Folosit pentru confirmări și remindere programări.</p>
+                <h2>SMS - SMSLink.ro</h2>
+                <p class="muted">Folosit pentru confirmari si remindere programări.</p>
 
                 <label>Status SMS</label>
                 <?php $enabled = pz_setting_get('smslink_enabled', '1'); ?>
@@ -195,36 +181,36 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
             </div>
 
             <div class="card full">
-                <button class="btn btn-primary" type="submit">Salvează setările</button>
+                <button class="btn accent" type="submit">Salvează setarile</button>
             </div>
         </div>
     </form>
 
     <div class="grid" style="margin-top:18px">
         <div class="card">
-            <h2 style="margin-top:0;font-size:17px">Test email</h2>
+            <h2>Test email</h2>
             <form method="post">
                 <?= $csrf ?>
                 <input type="hidden" name="action" value="test_email">
-                <label>Trimite email de test către</label>
+                <label>Trimite email de test catre</label>
                 <input type="email" name="test_email_to" value="<?= pz_h(pz_setting_get('email_reply_to')) ?>" placeholder="email@domeniu.ro">
-                <div style="margin-top:12px"><button class="btn btn-primary" type="submit">Trimite test email</button></div>
+                <div style="margin-top:12px"><button class="btn accent" type="submit">Trimite test email</button></div>
             </form>
         </div>
 
         <div class="card">
-            <h2 style="margin-top:0;font-size:17px">Test SMS</h2>
+            <h2>Test SMS</h2>
             <form method="post">
                 <?= $csrf ?>
                 <input type="hidden" name="action" value="test_sms">
-                <label>Trimite SMS de test către</label>
+                <label>Trimite SMS de test catre</label>
                 <input type="text" name="test_sms_to" value="<?= pz_h(pz_setting_get('sms_default_test_phone')) ?>" placeholder="07xxxxxxxx">
-                <div style="margin-top:12px"><button class="btn btn-primary" type="submit">Trimite test SMS</button></div>
+                <div style="margin-top:12px"><button class="btn accent" type="submit">Trimite test SMS</button></div>
             </form>
         </div>
 
         <div class="card full">
-            <h2 style="margin-top:0;font-size:17px">Ultimele notificări</h2>
+            <h2>Ultimele notificări</h2>
             <table>
                 <thead>
                 <tr>
@@ -232,12 +218,12 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
                     <th>Canal</th>
                     <th>Destinatar</th>
                     <th>Status</th>
-                    <th>Răspuns</th>
+                    <th>Raspuns</th>
                 </tr>
                 </thead>
                 <tbody>
                 <?php if (!$logs): ?>
-                    <tr><td colspan="5" class="muted">Nu există notificări trimise încă.</td></tr>
+                    <tr><td colspan="5" class="muted">Nu există notificări trimise inca.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($logs as $log): ?>
                     <tr>
@@ -252,6 +238,8 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
             </table>
         </div>
     </div>
+        </div>
+    </main>
 </div>
 </body>
 </html>

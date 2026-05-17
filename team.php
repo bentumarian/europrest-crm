@@ -53,7 +53,7 @@ function ensure_column_team(PDO $pdo, string $table, string $column, string $def
         try {
             $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
         } catch (Exception $e) {
-            // Nu blocam pagina daca acea coloana exista deja sau ALTER-ul nu poate rula.
+            // Nu blocam pagina dacă acea coloana există deja sau ALTER-ul nu poate rula.
         }
     }
 }
@@ -70,7 +70,7 @@ function normalize_color_team(string $color): string {
 
 /*
 |--------------------------------------------------------------------------
-| Tabel echipe
+| Tabel tehnicieni
 |--------------------------------------------------------------------------
 */
 $pdo->exec("
@@ -100,7 +100,7 @@ ensure_column_team($pdo, 'team_members', 'created_at', "TIMESTAMP DEFAULT CURREN
 
 /*
 |--------------------------------------------------------------------------
-| Tabel programari, pentru verificare la stergere
+| Tabel programări, pentru verificare la stergere
 |--------------------------------------------------------------------------
 */
 $pdo->exec("
@@ -122,7 +122,7 @@ $pdo->exec("
 
 /*
 |--------------------------------------------------------------------------
-| Echipe implicite
+| Tehnicieni impliciti
 |--------------------------------------------------------------------------
 */
 $countTeams = (int)($pdo->query("SELECT COUNT(*) AS total FROM team_members")->fetch()['total'] ?? 0);
@@ -134,9 +134,9 @@ if ($countTeams === 0) {
     ");
 
     $defaultTeams = [
-        ['Echipa 1', '#163B63', 1],
-        ['Echipa 2', '#315B7D', 1],
-        ['Echipa 3', '#64748B', 1],
+        ['Tehnician 1', '#163B63', 1],
+        ['Tehnician 2', '#315B7D', 1],
+        ['Tehnician 3', '#64748B', 1],
     ];
 
     foreach ($defaultTeams as $team) {
@@ -316,7 +316,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 /*
 |--------------------------------------------------------------------------
-| Query echipe
+| Query tehnicieni
 |--------------------------------------------------------------------------
 */
 $stmt = $pdo->query("
@@ -394,7 +394,7 @@ foreach ($teams as $team) {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Echipe · PestZone</title>
+<title>Tehnicieni · PestZone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -402,236 +402,6 @@ foreach ($teams as $team) {
 
 <?php app_theme_css(); ?>
 
-<style>
-.team-topbar {
-    align-items: center;
-    padding: 12px 20px;
-}
-
-.team-toolbar {
-    width: 100%;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-}
-
-.team-hero {
-    background: linear-gradient(135deg, #10243e, #163b63);
-    color: #fff;
-    border-radius: var(--radius-lg);
-    padding: 22px 24px;
-    box-shadow: var(--shadow-lg);
-    margin-bottom: 16px;
-    display: flex;
-    justify-content: space-between;
-    gap: 18px;
-    flex-wrap: wrap;
-    align-items: center;
-}
-
-.team-hero h1 {
-    font-size: 24px;
-    font-weight: 900;
-    letter-spacing: -.03em;
-    margin: 0;
-}
-
-.team-hero p {
-    color: rgba(255,255,255,.72);
-    margin-top: 4px;
-    max-width: 780px;
-}
-
-.stats {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.stat-pill {
-    background: rgba(255,255,255,.10);
-    border: 1px solid rgba(255,255,255,.16);
-    border-radius: 999px;
-    padding: 8px 13px;
-    color: #fff;
-    font-weight: 900;
-    font-size: 13px;
-}
-
-.team-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
-}
-
-.team-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow);
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-.team-card.inactive {
-    opacity: .68;
-}
-
-.team-headline {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.team-main {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-}
-
-.team-dot {
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-    color: #fff;
-    font-weight: 900;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-}
-
-.team-title {
-    font-size: 17px;
-    font-weight: 900;
-    color: var(--text);
-    line-height: 1.2;
-}
-
-.team-sub {
-    margin-top: 3px;
-    color: var(--muted);
-    font-size: 13px;
-}
-
-.team-meta {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.team-pill {
-    background: var(--surface-soft);
-    border: 1px solid var(--border2);
-    border-radius: 999px;
-    padding: 6px 10px;
-    color: var(--muted);
-    font-weight: 900;
-    font-size: 12px;
-}
-
-.team-pill.active {
-    background: rgba(22, 59, 99, .08);
-    border-color: rgba(22, 59, 99, .18);
-    color: var(--text);
-}
-
-.team-actions {
-    margin-top: auto;
-    display: flex;
-    gap: 7px;
-    flex-wrap: wrap;
-}
-
-.team-actions .btn {
-    flex: 1 1 auto;
-}
-
-.empty-state {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow);
-    padding: 34px;
-    text-align: center;
-    color: var(--muted);
-    font-weight: 800;
-}
-
-.details-grid {
-    display: grid;
-    gap: 10px;
-    margin-bottom: 16px;
-}
-
-.details-row {
-    display: grid;
-    grid-template-columns: 135px 1fr;
-    gap: 12px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border2);
-}
-
-.details-row:last-child {
-    border-bottom: none;
-}
-
-.details-label {
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-}
-
-.details-value {
-    color: var(--text);
-    font-weight: 700;
-}
-
-@media(max-width: 1100px) {
-    .team-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-@media(max-width: 860px) {
-    .team-topbar {
-        padding: 8px 10px;
-    }
-
-    .team-toolbar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .team-toolbar .btn {
-        width: 100%;
-        height: 42px;
-    }
-
-    .team-hero {
-        padding: 18px;
-    }
-
-    .team-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media(max-width: 620px) {
-    .details-row {
-        grid-template-columns: 1fr;
-        gap: 3px;
-    }
-}
-</style>
 </head>
 
 <body>
@@ -643,43 +413,44 @@ foreach ($teams as $team) {
 
         <div class="topbar team-topbar">
             <div class="team-toolbar">
+                <a class="btn ghost" href="settings.php">Înapoi la Setări</a>
                 <button class="btn accent" type="button" onclick="openCreateTeamModal()">
-                    + Echipa noua
+                    + Tehnician nou
                 </button>
             </div>
         </div>
 
         <?php if (isset($_GET['success'])): ?>
-            <div class="notice notice-success">Echipa a fost adaugata.</div>
+            <div class="notice notice-success">Tehnicianul a fost adaugat.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['updated'])): ?>
-            <div class="notice notice-success">Echipa a fost actualizata.</div>
+            <div class="notice notice-success">Tehnicianul a fost actualizat.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['toggled'])): ?>
-            <div class="notice notice-success">Statusul echipei a fost schimbat.</div>
+            <div class="notice notice-success">Statusul tehnicianului a fost schimbat.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['deleted'])): ?>
-            <div class="notice notice-warning">Echipa a fost stearsa.</div>
+            <div class="notice notice-warning">Tehnicianul a fost șters.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['delete_blocked'])): ?>
-            <div class="notice notice-warning">Echipa are programari asociate si a fost dezactivata in loc sa fie stearsa.</div>
+            <div class="notice notice-warning">Tehnicianul are programări asociate si a fost dezactivat in loc sa fie șters.</div>
         <?php endif; ?>
 
         <?php if (isset($_GET['error'])): ?>
-            <div class="notice notice-danger">Completeaza numele echipei.</div>
+            <div class="notice notice-danger">Completează numele tehnicianului.</div>
         <?php endif; ?>
 
         <div class="content">
 
             <section class="team-hero">
                 <div>
-                    <h1>Echipe</h1>
+                    <h1>Tehnicieni</h1>
                     <p>
-                        Gestioneaza echipele de teren, culorile din calendar si accesul operatorilor.
+                        Gestioneaza tehnicienii, culorile din calendar si accesul operatorilor.
                     </p>
                 </div>
 
@@ -692,7 +463,7 @@ foreach ($teams as $team) {
 
             <?php if (!$teams): ?>
                 <div class="empty-state">
-                    Nu exista echipe definite.
+                    Nu există tehnicieni definiti.
                 </div>
             <?php else: ?>
                 <section class="team-grid">
@@ -748,7 +519,7 @@ foreach ($teams as $team) {
                                 </button>
 
                                 <button class="btn" type="button" onclick="openEditTeamModal(<?= $teamId ?>)">
-                                    Editeaza
+                                    Editează
                                 </button>
 
                                 <form method="post" style="display:inline-flex;flex:1;">
@@ -772,7 +543,7 @@ foreach ($teams as $team) {
 <div class="modal" id="createTeamModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h2>Echipa noua</h2>
+            <h2>Tehnician nou</h2>
             <button class="modal-close" type="button" onclick="closeModal('createTeamModal')">&times;</button>
         </div>
 
@@ -782,8 +553,8 @@ foreach ($teams as $team) {
 
             <div class="form-grid">
                 <div>
-                    <label>Nume echipa *</label>
-                    <input type="text" name="name" required placeholder="Ex: Echipa 1">
+                    <label>Nume tehnician *</label>
+                    <input type="text" name="name" required placeholder="Ex: Alex">
                 </div>
 
                 <div>
@@ -793,12 +564,12 @@ foreach ($teams as $team) {
 
                 <div>
                     <label>Email</label>
-                    <input type="email" name="email" placeholder="echipa@email.ro">
+                    <input type="email" name="email" placeholder="tehnician@email.ro">
                 </div>
 
                 <div>
                     <label>Utilizator login</label>
-                    <input type="text" name="username" placeholder="ex: echipa1">
+                    <input type="text" name="username" placeholder="ex: alex">
                 </div>
 
                 <div>
@@ -820,8 +591,8 @@ foreach ($teams as $team) {
                 </div>
 
                 <div class="form-group full">
-                    <label>Observatii</label>
-                    <textarea name="notes" placeholder="Detalii interne despre echipa..."></textarea>
+                    <label>Observații</label>
+                    <textarea name="notes" placeholder="Detalii interne despre tehnician..."></textarea>
                 </div>
             </div>
 
@@ -829,8 +600,8 @@ foreach ($teams as $team) {
                 <div></div>
 
                 <div class="actions-right">
-                    <button class="btn" type="button" onclick="closeModal('createTeamModal')">Renunta</button>
-                    <button class="btn accent" type="submit">Salveaza echipa</button>
+                    <button class="btn" type="button" onclick="closeModal('createTeamModal')">Renunță</button>
+                    <button class="btn accent" type="submit">Salvează tehnicianul</button>
                 </div>
             </div>
         </form>
@@ -840,7 +611,7 @@ foreach ($teams as $team) {
 <div class="modal" id="editTeamModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h2>Editeaza echipa</h2>
+            <h2>Editează tehnician</h2>
             <button class="modal-close" type="button" onclick="closeModal('editTeamModal')">&times;</button>
         </div>
 
@@ -851,7 +622,7 @@ foreach ($teams as $team) {
 
             <div class="form-grid">
                 <div>
-                    <label>Nume echipa *</label>
+                    <label>Nume tehnician *</label>
                     <input type="text" name="name" id="edit_name" required>
                 </div>
 
@@ -872,7 +643,7 @@ foreach ($teams as $team) {
 
                 <div>
                     <label>Parola noua</label>
-                    <input type="password" name="password" placeholder="Lasa gol daca nu schimbi parola">
+                    <input type="password" name="password" placeholder="Lasa gol dacă nu schimbi parola">
                 </div>
 
                 <div>
@@ -889,19 +660,19 @@ foreach ($teams as $team) {
                 </div>
 
                 <div class="form-group full">
-                    <label>Observatii</label>
+                    <label>Observații</label>
                     <textarea name="notes" id="edit_notes"></textarea>
                 </div>
             </div>
 
             <div class="actions-row">
                 <div class="actions-left">
-                    <button class="btn danger" type="button" onclick="deleteCurrentTeam()">Sterge</button>
+                    <button class="btn danger" type="button" onclick="deleteCurrentTeam()">Șterge</button>
                 </div>
 
                 <div class="actions-right">
-                    <button class="btn" type="button" onclick="closeModal('editTeamModal')">Renunta</button>
-                    <button class="btn accent" type="submit">Salveaza modificarile</button>
+                    <button class="btn" type="button" onclick="closeModal('editTeamModal')">Renunță</button>
+                    <button class="btn accent" type="submit">Salvează modificarile</button>
                 </div>
             </div>
         </form>
@@ -911,7 +682,7 @@ foreach ($teams as $team) {
 <div class="modal" id="teamDetailsModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h2>Detalii echipa</h2>
+            <h2>Detalii tehnician</h2>
             <button class="modal-close" type="button" onclick="closeModal('teamDetailsModal')">&times;</button>
         </div>
 
@@ -921,7 +692,7 @@ foreach ($teams as $team) {
             <div></div>
 
             <div class="actions-right">
-                <button class="btn" type="button" onclick="openEditTeamFromDetails()">Editeaza</button>
+                <button class="btn" type="button" onclick="openEditTeamFromDetails()">Editează</button>
                 <a class="btn accent" id="detailsCalendarLink" href="#">Vezi calendar</a>
             </div>
         </div>
@@ -961,7 +732,7 @@ function openEditTeamModal(id) {
     const team = teamsData[id];
 
     if (!team) {
-        alert('Echipa nu a fost gasita.');
+        alert('Tehnicianul nu a fost gasit.');
         return;
     }
 
@@ -983,7 +754,7 @@ function openTeamDetails(id) {
     const team = teamsData[id];
 
     if (!team) {
-        alert('Echipa nu a fost gasita.');
+        alert('Tehnicianul nu a fost gasit.');
         return;
     }
 
@@ -993,7 +764,7 @@ function openTeamDetails(id) {
 
     document.getElementById('teamDetailsContent').innerHTML = `
         <div class="details-row">
-            <div class="details-label">Echipa</div>
+            <div class="details-label">Tehnician</div>
             <div class="details-value">${escHtml(team.name || '-')}</div>
         </div>
 
@@ -1018,17 +789,17 @@ function openTeamDetails(id) {
         </div>
 
         <div class="details-row">
-            <div class="details-label">Programari azi</div>
+            <div class="details-label">Programări azi</div>
             <div class="details-value">${escHtml(team.today_count || '0')}</div>
         </div>
 
         <div class="details-row">
-            <div class="details-label">Programari total</div>
+            <div class="details-label">Programări total</div>
             <div class="details-value">${escHtml(team.appointments_count || '0')}</div>
         </div>
 
         <div class="details-row">
-            <div class="details-label">Observatii</div>
+            <div class="details-label">Observații</div>
             <div class="details-value">${escHtml(team.notes || '-').replace(/\n/g, '<br>')}</div>
         </div>
     `;
@@ -1050,7 +821,7 @@ function deleteCurrentTeam() {
         return;
     }
 
-    if (confirm('Sigur vrei sa stergi aceasta echipa? Daca are programari, va fi dezactivata in loc sa fie stearsa.')) {
+    if (confirm('Sigur vrei sa stergi acest tehnician? Dacă are programări, va fi dezactivat in loc sa fie șters.')) {
         document.getElementById('delete_team_id').value = currentTeamId;
         document.getElementById('deleteTeamForm').submit();
     }

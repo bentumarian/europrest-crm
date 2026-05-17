@@ -4,6 +4,7 @@ require_login();
 require_once 'app_ui.php';
 require_once 'task_recurrence.php';
 require_once __DIR__ . '/notification_lib.php';
+require_once __DIR__ . '/smartbill_lib.php';
 
 if (function_exists('ensure_task_recurrence_schema')) {
     ensure_task_recurrence_schema($pdo);
@@ -50,7 +51,7 @@ function calendar_ensure_column(PDO $pdo, string $table, string $column, string 
         try {
             $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
         } catch (Throwable $e) {
-            // Nu blocam pagina daca ALTER nu poate rula.
+            // Nu blocam pagina dacă ALTER nu poate rula.
         }
     }
 }
@@ -69,12 +70,18 @@ function safe_view(?string $view): string {
 }
 
 /**
- * Citeste filtrul de echipe din request. Accepta atat `team_ids[]=1&team_ids[]=2`
+ * Citeste filtrul de tehnicieni din request. Accepta atat `team_ids[]=1&team_ids[]=2`
  * (form-checkbox), cat si `team=1,2,3` sau `team=all` (URL clasic). Intoarce
- * un array de ID-uri int. Array gol = "toate echipele".
+ * un array de ID-uri int. Array gol = "toti tehnicienii".
  */
 function calendar_request_team_ids(): array {
     $ids = [];
+    $rawTeam = array_key_exists('team', $_GET) ? trim((string)$_GET['team']) : null;
+
+    if ($rawTeam !== null && ($rawTeam === '' || strcasecmp($rawTeam, 'all') === 0)) {
+        return [];
+    }
+
     $rawIds = $_GET['team_ids'] ?? null;
     if (is_array($rawIds)) {
         foreach ($rawIds as $raw) {
@@ -83,9 +90,8 @@ function calendar_request_team_ids(): array {
         }
         return array_values($ids);
     }
-    $rawTeam = trim((string)($_GET['team'] ?? 'all'));
-    if ($rawTeam === '' || strcasecmp($rawTeam, 'all') === 0) { return []; }
-    foreach (explode(',', $rawTeam) as $part) {
+
+    foreach (explode(',', (string)($rawTeam ?? 'all')) as $part) {
         $id = (int)trim($part);
         if ($id > 0) { $ids[$id] = $id; }
     }
@@ -94,7 +100,7 @@ function calendar_request_team_ids(): array {
 
 /**
  * Transforma o lista de ID-uri intr-un CSV folosit pentru parametrul `team=`
- * din URL-uri (sau "all" daca nu e nimic selectat).
+ * din URL-uri (sau "all" dacă nu e nimic selectat).
  */
 function calendar_team_csv(array $teamIds): string {
     if (!$teamIds) { return 'all'; }
@@ -445,6 +451,19 @@ function calendar_get_client(PDO $pdo, int $clientId): ?array {
 }
 
 function calendar_client_address(array $client): string {
+    $line = trim((string)($client['billing_address_line'] ?? ''));
+    $county = trim((string)($client['billing_county'] ?? ''));
+    $city = trim((string)($client['billing_city'] ?? ''));
+    $country = trim((string)($client['billing_country'] ?? ''));
+    $postal = trim((string)($client['billing_postal_code'] ?? ''));
+    $address = trim(implode(', ', array_filter([$line, $county, $city, $country], static fn($value) => $value !== '')));
+    if ($postal !== '') {
+        $address .= ($address !== '' ? ', ' : '') . 'CP ' . $postal;
+    }
+    if ($address !== '') {
+        return $address;
+    }
+
     return trim((string)($client['registered_address'] ?? '')) ?: trim((string)($client['address'] ?? ''));
 }
 
@@ -640,7 +659,7 @@ $pdo->exec("
         notes TEXT NULL,
         active TINYINT(1) NOT NULL DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 
 calendar_ensure_column($pdo, 'clients', 'client_type', "VARCHAR(20) NOT NULL DEFAULT 'company'");
@@ -668,7 +687,7 @@ $pdo->exec("
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_client_locations_client_id (client_id),
         INDEX idx_client_locations_active (active)
-    )
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 
 calendar_ensure_column($pdo, 'client_locations', 'client_id', "INT NOT NULL");
@@ -712,9 +731,9 @@ if ($countTeams === 0) {
     $stmt = $pdo->prepare("INSERT INTO team_members (name, color, active) VALUES (?, ?, ?)");
 
     foreach ([
-        ['Echipa 1', '#163B63', 1],
-        ['Echipa 2', '#315B7D', 1],
-        ['Echipa 3', '#64748B', 1],
+        ['Tehnician 1', '#163B63', 1],
+        ['Tehnician 2', '#315B7D', 1],
+        ['Tehnician 3', '#64748B', 1],
     ] as $team) {
         $stmt->execute($team);
     }
@@ -756,6 +775,7 @@ calendar_ensure_column($pdo, 'appointments', 'contact_phone', "VARCHAR(60) NULL"
 calendar_ensure_column($pdo, 'appointments', 'notes', "TEXT NULL");
 calendar_ensure_column($pdo, 'appointments', 'completion_notes', "TEXT NULL");
 calendar_ensure_column($pdo, 'appointments', 'billing_amount', "DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+calendar_ensure_column($pdo, 'appointments', 'billing_vat_code', "VARCHAR(40) NOT NULL DEFAULT '21'");
 calendar_ensure_column($pdo, 'appointments', 'billing_status', "VARCHAR(30) NOT NULL DEFAULT 'de_facturat'");
 calendar_ensure_column($pdo, 'appointments', 'billing_note', "TEXT NULL");
 calendar_ensure_column($pdo, 'appointments', 'billing_updated_at', "DATETIME NULL");
@@ -864,21 +884,21 @@ if (calendar_table_exists($pdo, 'tasks')) {
 $currentDate = safe_date($_GET['date'] ?? date('Y-m-d'));
 $currentDateObj = new DateTime($currentDate);
 $view = safe_view($_GET['view'] ?? 'day');
-// Filtru de echipe: pentru user tehnician se fixeaza pe echipa lui;
+// Filtru de tehnicieni: pentru user tehnician se fixeaza pe id-ul lui;
 // pentru admin acceptam team_ids[] (multi-select) sau team= (CSV sau "all").
 $selectedTeamIds = $isTeamUser ? [(int)$currentTeamId] : calendar_request_team_ids();
 $selectedTeam = calendar_team_csv($selectedTeamIds); // CSV pentru URL-uri si redirect_team
 
 /*
 |--------------------------------------------------------------------------
-| Mesaj pentru echipa logata
+| Mesaj pentru tehnicianul logat
 |--------------------------------------------------------------------------
 */
 $teamTodayJobs = 0;
 $teamGreetingName = '';
 
 if ($isTeamUser) {
-    $teamGreetingName = $_SESSION['team_member_name'] ?? 'echipa ta';
+    $teamGreetingName = $_SESSION['team_member_name'] ?? 'tehnicianul tau';
 
     $stmt = $pdo->prepare("
         SELECT COUNT(DISTINCT a.id) AS total
@@ -920,14 +940,26 @@ $durationOptions = [
 ];
 
 $appointmentTimeOptions = [];
-for ($h = 0; $h < 24; $h++) {
+for ($h = 6; $h < 24; $h++) {
     $appointmentTimeOptions[] = sprintf('%02d:00', $h);
     $appointmentTimeOptions[] = sprintf('%02d:30', $h);
+}
+$appointmentTimeOptions[] = '00:00';
+
+$smartbillSettings = function_exists('pz_smartbill_settings') ? pz_smartbill_settings($pdo) : [];
+$smartbillVatOptions = function_exists('pz_smartbill_vat_options') ? pz_smartbill_vat_options() : ['21' => '21%'];
+$smartbillAllowedVatCodes = function_exists('pz_smartbill_allowed_vat_codes') ? pz_smartbill_allowed_vat_codes($smartbillSettings) : ['21'];
+$smartbillDefaultVatCode = (string)($smartbillSettings['smartbill.default_vat_code'] ?? '21');
+if (!isset($smartbillVatOptions[$smartbillDefaultVatCode])) {
+    $smartbillDefaultVatCode = '21';
+}
+if (!in_array($smartbillDefaultVatCode, $smartbillAllowedVatCodes, true)) {
+    $smartbillAllowedVatCodes[] = $smartbillDefaultVatCode;
 }
 
 /*
 |--------------------------------------------------------------------------
-| Clienti si locatii pentru formular
+| Clienți si locații pentru formular
 |--------------------------------------------------------------------------
 */
 $stmt = $pdo->query("
@@ -939,6 +971,11 @@ $stmt = $pdo->query("
         email,
         address,
         registered_address,
+        billing_country,
+        billing_county,
+        billing_city,
+        billing_address_line,
+        billing_postal_code,
         legal_representative_name,
         active
     FROM clients
@@ -1509,6 +1546,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $notes = trim($_POST['notes'] ?? '');
         $billingAmount = calendar_money_value($_POST['billing_amount'] ?? 0);
+        $billingVatCode = trim((string)($_POST['billing_vat_code'] ?? $smartbillDefaultVatCode));
+        if (!isset($smartbillVatOptions[$billingVatCode]) || !in_array($billingVatCode, $smartbillAllowedVatCodes, true)) {
+            $billingVatCode = $smartbillDefaultVatCode;
+        }
         $notInvoiceable = !empty($_POST['not_invoiceable']);
         $billingNote = trim($_POST['billing_note'] ?? '');
         $postedContractId = !empty($_POST['contract_id']) ? (int)$_POST['contract_id'] : null;
@@ -1686,6 +1727,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             contact_phone = ?,
                             notes = ?,
                             billing_amount = ?,
+                            billing_vat_code = ?,
                             billing_status = ?,
                             billing_note = ?,
                             billing_updated_at = NOW(),
@@ -1714,6 +1756,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $contactPhone ?: null,
                         $notes ?: null,
                         $billingAmount,
+                        $billingVatCode,
                         $billingStatus,
                         $billingNoteForDb,
                         current_user_id(),
@@ -1739,7 +1782,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $timeOrDateChanged = ($oldDate !== $appointmentDate || $oldStart !== $newStart || $oldEnd !== $newEnd);
 
                     // Regula noua: SMS-ul automat se trimite doar la programarea initiala.
-                    // La modificari de data/ora, utilizatorul trimite SMS manual din fisa programarii.
+                    // La modificari de data/ora, utilizatorul trimite SMS manual din fișa programării.
                     $updateRedirectParam = $timeOrDateChanged ? '&updated_time_changed=1' : '&updated=1';
 
                     header('Location: calendar.php?date=' . urlencode($appointmentDate) . '&view=' . urlencode($redirectView) . '&team=' . urlencode($redirectTeam) . $updateRedirectParam);
@@ -1781,6 +1824,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         notes,
                         completion_notes,
                         billing_amount,
+                        billing_vat_code,
                         billing_status,
                         billing_note,
                         billing_updated_at,
@@ -1795,7 +1839,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         document_id,
                         document_item_id
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmata', ?, ?, ?, ?, NULL, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmata', ?, ?, ?, ?, NULL, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ")->execute([
                     $clientId,
                     $clientLocationId ?: null,
@@ -1810,6 +1854,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $contactPhone ?: null,
                     $notes ?: null,
                     $billingAmount,
+                    $billingVatCode,
                     $billingStatus,
                     $billingNoteForDb,
                     current_user_id(),
@@ -1873,7 +1918,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 /*
 |--------------------------------------------------------------------------
-| Echipe
+| Tehnicieni
 |--------------------------------------------------------------------------
 */
 if ($isTeamUser) {
@@ -1905,7 +1950,7 @@ if (!$isTeamUser && $selectedTeamIds) {
     if ($filtered) {
         $teams = $filtered;
     } else {
-        // ID-uri necunoscute -> revert la "toate echipele"
+        // ID-uri necunoscute -> revert la "toti tehnicienii"
         $teams = $allTeams;
         $selectedTeamIds = [];
         $selectedTeam = 'all';
@@ -1953,7 +1998,7 @@ if ($view === 'week') {
 
 /*
 |--------------------------------------------------------------------------
-| Programari
+| Programări
 |--------------------------------------------------------------------------
 */
 $params = [$rangeStart, $rangeEnd];
@@ -2032,7 +2077,9 @@ foreach ($appointments as $appt) {
         'borderColor'     => $borderColor,
         'textColor'       => $textColor,
         'extendedProps'   => [
+            'team_id'  => (int)($appt['display_team_member_id'] ?? $appt['team_member_id'] ?? 0),
             'team'     => $appt['display_team_name'] ?? $appt['team_name'],
+            'team_color' => $teamColor,
             'primary_team' => $appt['team_name'] ?? '',
             'is_support' => ((int)($appt['appointment_team_is_primary'] ?? 1) === 0),
             'status'   => $appt['status'],
@@ -2065,20 +2112,21 @@ for ($h = $startHour; $h < $endHour; $h++) {
 |--------------------------------------------------------------------------
 */
 $prettyDate = ro_date_label($currentDate);
+$todayDate = date('Y-m-d');
 $teamCount = max(1, count($teams));
 
 $viewLabels = [
     'day'   => 'Zi',
-    'week'  => 'Saptamana',
-    'month' => 'Luna',
+    'week'  => 'Săptămână',
+    'month' => 'Lună',
 ];
 
 // FullCalendar este folosit doar pentru view=month. View=week este randerat
-// direct cu grila operationala (week-schedule-grid), iar view=day cu schedule-grid.
+// direct cu grila operaționala (week-schedule-grid), iar view=day cu schedule-grid.
 $fullCalendarView = 'dayGridMonth';
 
-$desktopMinTeamWidth = 220;
-$tabletMinTeamWidth = 112;
+$desktopMinTeamWidth = 96;
+$tabletMinTeamWidth = 72;
 $mobileMinTeamWidth = 52;
 $smallMobileMinTeamWidth = 46;
 
@@ -2091,7 +2139,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Calendar echipe - PestZone</title>
+<title>Calendar tehnicieni - PestZone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2101,18 +2149,20 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 <?php app_theme_css(); ?>
 
 <style>
-.calendar-topbar { align-items: center; padding: 12px 20px; overflow-x: hidden; }
+.calendar-topbar { align-items: center; padding: 12px 20px; overflow: visible; z-index: 500; }
 .calendar-toolbar { width: 100%; min-width: 0; display: grid; grid-template-columns: auto minmax(220px, 420px) auto; align-items: center; gap: 8px; }
 .calendar-line { min-width: 0; }
 .calendar-date-line { display: grid; grid-template-columns: 66px 42px 42px 155px; gap: 8px; align-items: center; }
 .calendar-date-line .btn, .calendar-action-line .btn { width: 100%; min-width: 0; justify-content: center; }
-.calendar-date-line .nav-today-btn { border-color: #D24726 !important; background: linear-gradient(180deg, #D24726 0%, #B83B1F 100%) !important; color: #fff !important; box-shadow: 0 10px 22px rgba(210, 71, 38, .22) !important; }
+.calendar-date-line .btn, .calendar-date-form .date-input, .calendar-filter-line .select, .cal-team-summary, .calendar-action-line .btn { border-radius: 999px !important; }
+.calendar-date-line .nav-arrow { width: 42px !important; height: 42px !important; min-width: 42px !important; padding: 0 !important; border-radius: 999px !important; }
+.calendar-date-line .nav-today-btn { height: 42px !important; border-radius: 999px !important; border-color: #D24726 !important; background: linear-gradient(180deg, #D24726 0%, #B83B1F 100%) !important; color: #fff !important; box-shadow: 0 10px 22px rgba(210, 71, 38, .22) !important; }
 .calendar-date-line .nav-today-btn:hover { background: #B83B1F !important; color: #fff !important; transform: translateY(-1px); }
 .calendar-date-form { min-width: 0; }
-.calendar-date-form .date-input { width: 100%; min-width: 0 !important; height: 42px; padding: 0 12px; font-size: 13px; font-weight: 750; text-align: center; border-radius: 12px; box-sizing: border-box; border: 1px solid #1160B7 !important; background: linear-gradient(180deg, #1160B7 0%, #0D4F98 100%) !important; color: #fff !important; box-shadow: 0 10px 22px rgba(17, 96, 183, .22); color-scheme: dark; }
+.calendar-date-form .date-input { width: 100%; min-width: 0 !important; height: 42px; padding: 0 14px; font-size: 13px; font-weight: 750; text-align: center; box-sizing: border-box; border: 1px solid #1160B7 !important; background: linear-gradient(180deg, #1160B7 0%, #0D4F98 100%) !important; color: #fff !important; box-shadow: 0 10px 22px rgba(17, 96, 183, .22); color-scheme: dark; }
 .calendar-date-form .date-input::-webkit-calendar-picker-indicator { filter: brightness(0) invert(1); opacity: .95; cursor: pointer; }
 .calendar-date-form .date-input:focus { outline: 3px solid rgba(177, 214, 240, .65) !important; outline-offset: 2px; }
-.calendar-filter-line { width: 100%; min-width: 0; display: grid; grid-template-columns: 118px minmax(120px, 1fr); gap: 8px; align-items: center; }
+.calendar-filter-line { width: 100%; min-width: 0; display: grid; grid-template-columns: 138px minmax(120px, 1fr); gap: 8px; align-items: center; }
 .calendar-filter-line .select { width: 100%; min-width: 0; height: 42px; font-weight: 650; text-align: center; padding-left: 8px; padding-right: 8px; }
 .calendar-filter-line .view-select {
     border: 1.5px solid rgba(29, 110, 193, .45) !important;
@@ -2124,7 +2174,13 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
     outline: none !important;
 }
 .calendar-action-line { min-width: 0; display: flex; justify-content: flex-end; }
-.calendar-action-line .btn { min-width: 168px; }
+.calendar-action-line .btn { min-width: 168px; height: 42px; }
+.calendar-team-legend { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin:0 0 12px; padding:0 2px; }
+.calendar-team-chip { display:inline-flex; align-items:center; gap:6px; max-width:150px; min-height:26px; padding:3px 9px 3px 4px; border-radius:999px; border:1px solid color-mix(in srgb,var(--team-color) 28%,rgba(0,32,80,.12)); background:color-mix(in srgb,var(--team-color) 8%,#fff); color:#002050; font-size:12px; font-weight:750; box-shadow:0 4px 12px rgba(0,32,80,.05), inset 0 1px 0 rgba(255,255,255,.75); }
+.calendar-team-chip-dot { width:20px; height:20px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; background:var(--team-color); color:#fff; font-size:8px; font-weight:900; box-shadow:0 4px 10px color-mix(in srgb,var(--team-color) 26%,transparent), inset 0 1px 0 rgba(255,255,255,.34); }
+.calendar-team-chip-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.today-calendar { outline:2px solid rgba(17,96,183,.38); outline-offset:2px; }
+.today-calendar .time-head, .today-calendar .team-head { background:color-mix(in srgb,#1160B7 7%,#fff); }
 .team-greeting { padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
 .team-greeting-title { font-size: 18px; font-weight: 650; color: var(--text); }
 .team-greeting-text { font-size: 14px; color: var(--muted); margin-top: 2px; }
@@ -2136,20 +2192,20 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 .schedule-scroll { width: 100%; max-width: 100%; overflow: auto; -webkit-overflow-scrolling: touch; max-height: calc(100vh - 155px); border: 1px solid rgba(0,32,80,.28); border-radius: var(--radius-lg); background: var(--surface); box-shadow: 0 16px 34px rgba(0,32,80,.06); }
 .schedule-grid { width: max(100%, <?= (int)$desktopGridWidth ?>px); min-width: max(100%, <?= (int)$desktopGridWidth ?>px); display: grid; grid-template-columns: 76px repeat(<?= (int)$teamCount ?>, minmax(<?= (int)$desktopMinTeamWidth ?>px, 1fr)); grid-template-rows: 68px repeat(<?= count($slots) ?>, 34px); position: relative; }
 .time-head { position: sticky; top: 0; left: 0; z-index: 25; background: rgba(255,255,255,.92); border-bottom: 1px solid rgba(0,32,80,.34); border-top-left-radius: var(--radius-lg); backdrop-filter: blur(14px); }
-.team-head { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.92); border-bottom: 1px solid rgba(0,32,80,.34); border-left: 1px solid rgba(0,32,80,.24); padding: 7px 8px; min-width: 0; backdrop-filter: blur(14px); }
-.team-head-card { position: relative; width: 100%; height: 100%; display: flex; align-items: center; gap: 12px; padding: 7px 14px; overflow: hidden; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--team-color) 28%, rgba(0,32,80,.16)); background: linear-gradient(135deg, color-mix(in srgb, var(--team-color) 16%, #ffffff) 0%, rgba(255,255,255,.90) 56%, color-mix(in srgb, var(--team-color) 20%, #DFE2E8) 100%); box-shadow: 0 10px 22px rgba(0,32,80,.08), inset 0 1px 0 rgba(255,255,255,.88); }
-.team-head-card::after { content: ''; position: absolute; right: -22px; bottom: -24px; width: 138px; height: 58px; border-radius: 999px; background: color-mix(in srgb, var(--team-color) 16%, transparent); transform: rotate(-12deg); pointer-events: none; }
-.team-dot { width: 38px; height: 38px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; font-weight: 900; letter-spacing: .02em; flex-shrink: 0; background: var(--team-color); box-shadow: 0 10px 20px color-mix(in srgb, var(--team-color) 34%, transparent), inset 0 1px 0 rgba(255,255,255,.35); position: relative; z-index: 1; }
-.team-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #002050; font-size: 16px; font-weight: 850; letter-spacing: -.01em; position: relative; z-index: 1; }
+.team-head { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb,var(--team-color) 18%,#fff); border-bottom: 1px solid rgba(0,32,80,.22); border-left: 1px solid rgba(0,32,80,.18); padding: 0; min-width: 0; box-shadow: inset 0 3px 0 var(--team-color); backdrop-filter: blur(14px); }
+.team-head-card { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; gap: 0; padding: 0; overflow: hidden; border-radius: 0; border: 0; background: transparent; box-shadow: none; }
+.team-head-card::after { content: none; }
+.team-dot { width: 24px; height: 24px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 900; letter-spacing: .02em; flex-shrink: 0; background: var(--team-color); box-shadow: 0 8px 18px color-mix(in srgb,var(--team-color) 30%,transparent), inset 0 1px 0 rgba(255,255,255,.32); position: relative; z-index: 1; }
+.team-name { display: none; }
 .time-cell { position: sticky; left: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid rgba(0,32,80,.24); border-right: 1px solid rgba(0,32,80,.30); padding: 0 10px; color: var(--muted); font-weight: 500; font-size: 11px; font-family: var(--mono); display: flex; align-items: center; justify-content: flex-end; }
 .time-cell.hour { color: var(--text); font-size: 12px; font-weight: 650; }
-.slot-cell { border-bottom: 1px solid rgba(0,32,80,.20); border-left: 1px solid rgba(0,32,80,.24); background: #fff; transition: background .1s; min-width: 0; }
-.slot-cell.work-hours { background: #fff; border-bottom-color: rgba(0,32,80,.20); border-left-color: rgba(0,32,80,.24); }
-.slot-cell.off-hours { background: #DFE2E8; border-bottom-color: rgba(0,32,80,.28); border-left-color: rgba(0,32,80,.30); box-shadow: inset 0 1px 0 rgba(255,255,255,.38); }
+.slot-cell { border-bottom: 1px solid rgba(0,32,80,.13); border-left: 1px solid rgba(0,32,80,.11); background: color-mix(in srgb,var(--team-color) 5%,#fff); transition: background .1s; min-width: 0; }
+.slot-cell.work-hours { background: color-mix(in srgb,var(--team-color) 5%,#fff); border-bottom-color: rgba(0,32,80,.13); border-left-color: rgba(0,32,80,.11); }
+.slot-cell.off-hours { background: color-mix(in srgb,var(--team-color) 8%,#DFE2E8); border-bottom-color: rgba(0,32,80,.18); border-left-color: rgba(0,32,80,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.38); }
 .time-cell.work-hours { background: #fff; border-bottom-color: rgba(0,32,80,.20); border-right-color: rgba(0,32,80,.30); }
 .time-cell.off-hours { background: #DFE2E8; color: #002050; border-bottom-color: rgba(0,32,80,.28); border-right-color: rgba(0,32,80,.34); }
-.slot-cell:hover { background: var(--accent-soft); }
-.slot-cell.off-hours:hover { background: #D4D9E2; }
+.slot-cell:hover { background: color-mix(in srgb,var(--team-color) 15%,#fff); }
+.slot-cell.off-hours:hover { background: color-mix(in srgb,var(--team-color) 14%,#D4D9E2); }
 .slot-cell.hour-line, .time-cell.hour-line { border-top: 1px solid rgba(0,32,80,.34) !important; }
 .slot-cell.hour-line { box-shadow: inset 0 1px 0 rgba(0,32,80,.06); }
 .slot-cell.drag-over { background: rgba(14, 116, 144, .16); outline: 2px dashed var(--accent); outline-offset: -3px; }
@@ -2173,11 +2229,27 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 .fc { font-family: var(--font) !important; }
 .fc .fc-toolbar-title { font-size: 18px !important; font-weight: 650 !important; }
 .fc-event { border-radius: 8px !important; font-size: 12px !important; font-weight: 550 !important; padding: 2px 4px !important; cursor: pointer !important; }
-.fc-event-month-box { min-height: 14px !important; height: 14px !important; padding: 0 !important; border-width: 1px !important; border-style: solid !important; border-radius: 8px !important; overflow: hidden !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 2px 6px rgba(0,32,80,.10) !important; }
-.fc-event-month-box .fc-event-main { min-height: 12px !important; height: 12px !important; padding: 0 !important; }
+.fc-event-month-box { width: 11px !important; min-width: 11px !important; max-width: 11px !important; min-height: 11px !important; height: 11px !important; padding: 0 !important; border-width: 1px !important; border-style: solid !important; border-radius: 999px !important; overflow: hidden !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 2px 6px rgba(0,32,80,.16) !important; display: inline-block !important; margin: 1px 2px !important; vertical-align: top !important; }
+.fc-event-month-box .fc-event-main { min-height: 9px !important; height: 9px !important; padding: 0 !important; }
 .fc-event-month-box.fc-event-finalizata { padding-right: 0 !important; }
 .fc-event-month-box .event-done-badge { display: none !important; }
-.fc-event-month-box .fc-event-main-frame { min-height: 12px !important; }
+.fc-event-month-box .fc-event-main-frame { min-height: 9px !important; }
+.fc .fc-daygrid-day-frame { background: #fff; transition: background .1s ease; }
+.fc .fc-daygrid-day:hover .fc-daygrid-day-frame { background: #F8FAFC; }
+.fc .fc-day-today .fc-daygrid-day-frame { background: color-mix(in srgb,#1160B7 7%,#fff) !important; box-shadow: inset 0 0 0 2px rgba(17,96,183,.42); }
+.fc .fc-day-today .fc-daygrid-day-number { color:#0D4F98; }
+.fc .fc-daygrid-day-number { color: #002050; font-weight: 800; font-size: 12px; padding: 6px 7px !important; }
+.fc .fc-daygrid-day-top { justify-content: flex-start; }
+.fc .fc-daygrid-event-harness { display: inline-block; margin-right: 0 !important; }
+.fc .fc-daygrid-day-events { display: none; }
+.month-mini-overview { --month-team-count: 1; display: grid; grid-template-columns: repeat(var(--month-team-count), minmax(6px, 1fr)); gap: 2px; padding: 0 5px 6px; min-height: 31px; }
+.month-mini-team { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.month-mini-team-bar { width: 100%; height: 5px; min-width: 0; border-radius: 999px; background: var(--team-color); box-shadow: 0 1px 4px color-mix(in srgb, var(--team-color) 22%, transparent), inset 0 1px 0 rgba(255,255,255,.35); opacity: .9; }
+.month-mini-dots { width: 100%; min-height: 21px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.month-mini-dot { width: 7px; height: 7px; min-width: 7px; padding: 0; border-radius: 999px; border: 1px solid rgba(0,32,80,.15); background: var(--team-color); box-shadow: 0 2px 6px color-mix(in srgb, var(--team-color) 28%, transparent), inset 0 1px 0 rgba(255,255,255,.42); cursor: pointer; }
+.month-mini-dot:hover { transform: scale(1.18); }
+.month-mini-dot.done { background: color-mix(in srgb, var(--team-color) 22%, #fff); border-color: color-mix(in srgb, var(--team-color) 55%, rgba(0,32,80,.12)); }
+@media(max-width:860px){.month-mini-overview{gap:1px;padding:0 3px 5px}.month-mini-team-bar{height:4px}.month-mini-dot{width:6px;height:6px;min-width:6px}}
 .readonly-box { background: var(--surface-soft, #F8FAFC); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; color: var(--text); font-size: 14px; line-height: 1.5; }
 .office-note-box { background: #F3F6FA; border: 1px solid var(--border2); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; color: var(--muted); font-size: 14px; line-height: 1.5; }
 .office-note-box strong { display:block; color: var(--text); margin-bottom: 4px; }
@@ -2208,7 +2280,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 .support-remove-btn { color: #B42318; border-color: rgba(244,63,94,.30); padding: 0; }
 .support-remove-btn:hover { background: #FFF1F2; }
 @media(min-width: 861px) and (max-width: 1350px) {
-    body.calendar-page .calendar-topbar { padding: 12px 18px !important; overflow-x: hidden !important; }
+    body.calendar-page .calendar-topbar { padding: 12px 18px !important; overflow: visible !important; }
     .calendar-toolbar { width: 100% !important; max-width: 100% !important; display: grid !important; grid-template-columns: 1fr !important; gap: 10px !important; align-items: stretch !important; }
     .calendar-date-line { width: 100% !important; display: grid !important; grid-template-columns: 84px 54px 54px minmax(180px, 1fr) !important; gap: 10px !important; }
     .calendar-filter-line { width: 100% !important; display: grid !important; grid-template-columns: 130px minmax(0, 1fr) !important; gap: 10px !important; }
@@ -2219,12 +2291,12 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 @media(min-width: 861px) and (max-width: 1180px) {
     .schedule-scroll { overflow-x: auto !important; overflow-y: auto !important; }
     .schedule-grid { width: max(100%, <?= (int)$tabletGridWidth ?>px) !important; min-width: max(100%, <?= (int)$tabletGridWidth ?>px) !important; max-width: none !important; grid-template-columns: 54px repeat(<?= (int)$teamCount ?>, minmax(<?= (int)$tabletMinTeamWidth ?>px, 1fr)) !important; grid-template-rows: 60px repeat(<?= count($slots) ?>, 32px) !important; }
-    .team-head { padding: 0 8px; font-size: 12px; }
+    .team-head { padding: 0; font-size: 12px; }
     .time-cell { padding: 0 6px; font-size: 10px; }
 }
 @media(max-width: 860px) {
     body.calendar-page { overflow-x: hidden !important; }
-    body.calendar-page .calendar-topbar { padding: 8px 10px 12px 10px !important; overflow-x: hidden !important; display: block !important; position: relative !important; top: auto !important; }
+    body.calendar-page .calendar-topbar { padding: 8px 10px 12px 10px !important; overflow: visible !important; display: block !important; position: relative !important; top: auto !important; }
     .calendar-toolbar { width: 100% !important; max-width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: 1fr !important; gap: 7px !important; align-items: stretch !important; justify-items: stretch !important; }
     .calendar-date-line { width: 100% !important; max-width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: 44px 38px 38px minmax(0, 1fr) !important; gap: 6px !important; margin: 0 !important; }
     .calendar-date-line .btn { width: 100% !important; min-width: 0 !important; max-width: 100% !important; height: 40px !important; padding: 0 5px !important; font-size: 12px !important; border-radius: 12px !important; }
@@ -2271,10 +2343,10 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 /* Modernizare vizuala - font mai fin, aliniat cu app_ui.php */
 
 @media (max-width: 760px) {
-    .team-head { padding: 5px 5px !important; }
-    .team-head-card { padding: 5px 8px !important; gap: 7px !important; border-radius: 12px !important; }
-    .team-dot { width: 30px !important; height: 30px !important; font-size: 10px !important; }
-    .team-name { font-size: 13px !important; }
+    .team-head { padding: 0 !important; }
+    .team-head-card { padding: 0 !important; gap: 0 !important; border-radius: 0 !important; }
+    .team-dot { width: 24px !important; height: 24px !important; font-size: 10px !important; }
+    .team-name { display: none !important; }
 }
 
 .calendar-page,
@@ -2345,7 +2417,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 }
 
 
-/* Compactare fisa editare programare - modul birou */
+/* Compactare fișa editare programare - modul birou */
 .calendar-page #editModal .office-edit-modal-box { max-width: 760px; }
 .calendar-page #editModal .office-edit-modal-box .modal-header { padding-bottom: 10px; margin-bottom: 10px; }
 .calendar-page #editModal .office-edit-modal-box .form-grid { gap: 10px 12px; }
@@ -2408,25 +2480,51 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
     flex-direction: column;
     gap: 8px;
     justify-content: flex-end;
+    align-items: flex-start;
 }
 .mini-check {
     display: inline-flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 8px;
+    width: max-content;
+    max-width: 100%;
     min-height: 44px;
     padding: 10px 12px;
     border: 1px solid var(--line);
     border-radius: 12px;
     background: #fff;
+    box-shadow: none;
     font-size: 12px;
     font-weight: 800;
     color: var(--ink);
     text-transform: none;
     letter-spacing: 0;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color .14s ease, background .14s ease;
+}
+.mini-check:hover {
+    border-color: var(--accent-soft-2);
+    background: var(--surface-soft);
 }
 .mini-check input {
     width: 16px;
     height: 16px;
+    margin: 0;
+    flex: 0 0 auto;
+    cursor: pointer;
+}
+.mini-check input[type="checkbox"],
+.mini-check input[type="checkbox"]:hover,
+.mini-check input[type="checkbox"]:focus,
+.mini-check input[type="checkbox"]:focus-visible,
+.mini-check input[type="checkbox"]:active {
+    outline: none !important;
+    box-shadow: none !important;
+}
+.mini-check input:focus-visible {
+    outline: none;
 }
 
 
@@ -2434,39 +2532,168 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 /* Filtru multi-tehnician (folosit pe toate view-urile) */
 /* Implementare cu <button>+<div> (nu <details>) pentru maxima
    compatibilitate intre browsere. Toggle-ul este controlat din JS. */
-.cal-team-picker{position:relative;min-width:0}
-.cal-team-summary{position:relative;display:block;width:100%;height:42px;padding:0 32px 0 14px;border-radius:12px;border:1.5px solid rgba(29,110,193,.45);background:#fff;color:#002050;font-weight:750;font-size:13px;line-height:38px;text-align:center;box-shadow:0 10px 24px rgba(29,110,193,.08), inset 0 1px 0 rgba(255,255,255,.86);user-select:none;cursor:pointer;font-family:inherit;-webkit-appearance:none;appearance:none}
-.cal-team-summary:hover{border-color:rgba(29,110,193,.65)}
-.cal-team-picker.open .cal-team-summary{border-color:rgba(29,110,193,.85);box-shadow:0 12px 28px rgba(29,110,193,.18), inset 0 1px 0 rgba(255,255,255,.86)}
+.cal-team-picker,.cal-view-picker{position:relative;min-width:0;z-index:510}
+.cal-team-summary,.cal-view-summary{position:relative;display:block;width:100%;height:42px;padding:0 32px 0 14px;border:1.5px solid rgba(29,110,193,.45);border-radius:999px;background:#fff;color:#002050;font-weight:750;font-size:13px;line-height:38px;text-align:center;box-shadow:0 10px 24px rgba(29,110,193,.08), inset 0 1px 0 rgba(255,255,255,.86);user-select:none;cursor:pointer;font-family:inherit;-webkit-appearance:none;appearance:none}
+.cal-team-summary:hover,.cal-view-summary:hover{border-color:rgba(29,110,193,.65)}
+.cal-team-picker.open .cal-team-summary,.cal-view-picker.open .cal-view-summary{border-color:rgba(29,110,193,.85);box-shadow:0 12px 28px rgba(29,110,193,.18), inset 0 1px 0 rgba(255,255,255,.86)}
 .cal-team-summary-label{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
-.cal-team-caret{position:absolute;right:12px;top:0;line-height:42px;font-size:11px;color:#5C6B85;pointer-events:none}
-.cal-team-menu{position:absolute;top:calc(100% + 6px);right:0;left:0;z-index:200;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-lg);padding:10px;max-height:380px;overflow:auto;min-width:220px}
-.cal-team-menu[hidden]{display:none}
-.cal-team-all{display:block;padding:9px 10px;border-radius:10px;text-decoration:none;color:#002050;font-weight:850;background:#F8FAFC;margin-bottom:6px;text-align:center;font-size:13px}
+.cal-view-summary-label{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
+.cal-team-caret,.cal-view-caret{position:absolute;right:12px;top:0;line-height:42px;font-size:11px;color:#5C6B85;pointer-events:none}
+.cal-team-menu,.cal-view-menu{position:absolute;top:calc(100% + 6px);right:0;left:auto;z-index:520;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:7px;max-height:280px;overflow:auto;width:230px;min-width:210px}
+.cal-view-menu{left:0;right:auto;width:180px;min-width:170px}
+.cal-team-menu[hidden],.cal-view-menu[hidden]{display:none}
+.cal-team-all{display:block;width:100%;padding:7px 9px;border:0;border-radius:9px;text-decoration:none;color:#002050;font-weight:800;background:#F8FAFC;margin-bottom:5px;text-align:center;font-size:12px;font-family:inherit;cursor:pointer}
 .cal-team-all:hover{background:#EEF2F7}
-.cal-team-option{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;font-size:13px;font-weight:700;color:#002050;cursor:pointer;user-select:none}
-.cal-team-option:hover{background:#F8FAFC}
-.cal-team-option input{width:16px;height:16px;flex-shrink:0}
-.cal-team-apply{width:100%;justify-content:center;margin-top:8px}
-@media(max-width:860px){.cal-team-menu{left:auto;right:0;min-width:210px}}
+.cal-view-option{display:block;width:100%;padding:7px 9px;border:0;border-radius:9px;text-decoration:none;color:#002050;font-weight:800;background:#fff;text-align:center;font-size:12px;font-family:inherit;cursor:pointer}
+.cal-view-option:hover,.cal-view-option.active{background:#F8FAFC}
+.cal-team-option{display:grid;grid-template-columns:14px 14px minmax(0,1fr);align-items:center;gap:7px;padding:6px 8px;border-radius:9px;font-size:12px;font-weight:750;color:#002050;cursor:pointer;user-select:none;min-height:30px}
+.cal-team-option:hover{background:color-mix(in srgb,var(--team-color) 10%,#F8FAFC)}
+.cal-team-option input{width:14px;height:14px;flex-shrink:0;margin:0;accent-color:var(--team-color)}
+.cal-team-color-dot{width:12px;height:12px;border-radius:999px;background:var(--team-color);box-shadow:0 2px 6px color-mix(in srgb,var(--team-color) 32%,transparent),inset 0 1px 0 rgba(255,255,255,.38)}
+.cal-team-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-team-apply{width:100%;justify-content:center;margin-top:6px;min-height:34px;padding:0 10px;font-size:12px}
+@media(max-width:860px){.cal-team-menu{left:auto;right:0;width:220px;min-width:200px;max-height:260px}.cal-view-menu{left:0;right:auto;width:150px;min-width:140px}}
+
+/* Finisare mobil: controale compacte si tehnicieni pe o singura linie */
+@media(max-width: 760px) {
+    body.calendar-page .calendar-topbar {
+        padding: 7px 10px 10px !important;
+    }
+    body.calendar-page .calendar-toolbar {
+        gap: 6px !important;
+    }
+    body.calendar-page .calendar-date-line {
+        grid-template-columns: 42px 34px 34px minmax(0, 1fr) !important;
+        gap: 5px !important;
+    }
+    body.calendar-page .calendar-date-line .btn,
+    body.calendar-page .calendar-date-form .date-input,
+    body.calendar-page .cal-view-summary,
+    body.calendar-page .cal-team-summary {
+        height: 34px !important;
+        min-height: 34px !important;
+        border-radius: 6px !important;
+        font-size: 11px !important;
+        line-height: 32px !important;
+        box-shadow: none !important;
+    }
+    body.calendar-page .calendar-date-line .nav-today-btn {
+        font-size: 12px !important;
+        font-weight: 800 !important;
+    }
+    body.calendar-page .calendar-date-form .date-input {
+        padding: 0 5px !important;
+        font-weight: 800 !important;
+    }
+    body.calendar-page .calendar-filter-line {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+    }
+    body.calendar-page .cal-view-summary,
+    body.calendar-page .cal-team-summary {
+        padding: 0 22px 0 8px !important;
+        font-weight: 800 !important;
+        font-size: 12px !important;
+    }
+    body.calendar-page .cal-team-summary {
+        padding-left: 8px !important;
+        padding-right: 22px !important;
+    }
+    body.calendar-page .cal-view-caret,
+    body.calendar-page .cal-team-caret {
+        right: 8px !important;
+        line-height: 34px !important;
+    }
+    body.calendar-page .calendar-action-line .btn {
+        height: 36px !important;
+        min-height: 36px !important;
+        border-radius: 6px !important;
+        font-size: 12px !important;
+        font-weight: 800 !important;
+        box-shadow: none !important;
+    }
+    body.calendar-page .calendar-team-legend {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 5px !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+        margin: 0 0 8px !important;
+        padding: 0 2px 2px !important;
+    }
+    body.calendar-page .calendar-team-legend::-webkit-scrollbar {
+        display: none !important;
+    }
+    body.calendar-page .calendar-team-chip {
+        flex: 0 0 auto !important;
+        gap: 4px !important;
+        min-height: 22px !important;
+        max-width: 70px !important;
+        padding: 2px 6px 2px 3px !important;
+        border-radius: 6px !important;
+        font-size: 10.5px !important;
+        font-weight: 800 !important;
+        box-shadow: none !important;
+    }
+    body.calendar-page .calendar-team-chip-dot {
+        width: 17px !important;
+        height: 17px !important;
+        font-size: 7px !important;
+        box-shadow: none !important;
+    }
+}
+
+@media(max-width: 390px) {
+    body.calendar-page .calendar-filter-line {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    body.calendar-page .cal-view-summary,
+    body.calendar-page .cal-team-summary {
+        font-size: 11px !important;
+    }
+    body.calendar-page .calendar-team-chip {
+        max-width: 62px !important;
+        font-size: 10px !important;
+        padding-right: 5px !important;
+    }
+    body.calendar-page .calendar-team-chip-dot {
+        width: 16px !important;
+        height: 16px !important;
+    }
+}
 
 .week-schedule-scroll{width:100%;max-width:100%;overflow:auto;-webkit-overflow-scrolling:touch;max-height:calc(100vh - 155px);border:1px solid rgba(0,32,80,.22);border-radius:var(--radius-lg);background:var(--surface);box-shadow:0 16px 34px rgba(0,32,80,.06)}
-.week-schedule-grid{width:max(100%,calc(62px + (var(--week-columns) * 48px)));min-width:max(100%,calc(62px + (var(--week-columns) * 48px)));display:grid;grid-template-columns:62px repeat(var(--week-columns),minmax(48px,1fr));grid-template-rows:34px 42px repeat(36,28px);position:relative}
+.week-schedule-grid{width:max(100%,calc(48px + (var(--week-columns) * 30px)));min-width:max(100%,calc(48px + (var(--week-columns) * 30px)));display:grid;grid-template-columns:48px repeat(var(--week-columns),minmax(30px,1fr));grid-template-rows:32px 38px repeat(36,28px);position:relative}
 .week-corner{position:sticky;top:0;left:0;z-index:42;background:rgba(255,255,255,.94);border-right:1px solid rgba(0,32,80,.25);border-bottom:1px solid rgba(0,32,80,.22);backdrop-filter:blur(14px)}
-.week-day-head{position:sticky;top:0;z-index:35;min-width:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#fff 0%,#F5F7FB 100%);border-left:1px solid rgba(0,32,80,.18);border-bottom:1px solid rgba(0,32,80,.22);color:#002050;font-size:11px;font-weight:850;letter-spacing:.045em}
-.week-team-head{position:sticky;top:34px;z-index:32;min-width:0;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--team-color) 18%,#fff);border-left:1px solid rgba(0,32,80,.18);border-bottom:1px solid rgba(0,32,80,.22);box-shadow:inset 0 3px 0 var(--team-color)}
-.week-team-dot{width:24px;height:24px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:var(--team-color);color:#fff;font-size:10px;font-weight:900;box-shadow:0 8px 18px color-mix(in srgb,var(--team-color) 30%,transparent),inset 0 1px 0 rgba(255,255,255,.32)}
-.week-time-cell{position:sticky;left:0;z-index:20;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;background:#fff;border-right:1px solid rgba(0,32,80,.25);border-bottom:1px solid rgba(0,32,80,.13);color:#002050;font-family:var(--mono);font-size:10px;font-weight:650}
+.week-day-head{position:sticky;top:0;z-index:35;min-width:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#fff 0%,#F5F7FB 100%);border-left:1px solid rgba(0,32,80,.18);border-bottom:1px solid rgba(0,32,80,.22);color:#002050;font-size:10px;font-weight:850;letter-spacing:.02em}
+.week-day-head.today{background:linear-gradient(180deg,color-mix(in srgb,#1160B7 12%,#fff) 0%,color-mix(in srgb,#1160B7 7%,#F5F7FB) 100%);box-shadow:inset 0 0 0 2px rgba(17,96,183,.28)}
+.week-day-head.week-day-start{border-left:3px solid rgba(0,32,80,.46);box-shadow:inset 3px 0 0 rgba(255,255,255,.68)}
+.week-day-head.today.week-day-start{box-shadow:inset 3px 0 0 rgba(255,255,255,.68),inset 0 0 0 2px rgba(17,96,183,.28)}
+.week-team-head{position:sticky;top:32px;z-index:32;min-width:0;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--team-color) 18%,#fff);border-left:1px solid rgba(0,32,80,.18);border-bottom:1px solid rgba(0,32,80,.22);box-shadow:inset 0 3px 0 var(--team-color)}
+.week-team-head.today{background:color-mix(in srgb,var(--team-color) 23%,color-mix(in srgb,#1160B7 8%,#fff));}
+.week-team-head.week-day-start{border-left:3px solid rgba(0,32,80,.46)}
+.week-team-dot{width:18px;height:18px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:var(--team-color);color:#fff;font-size:8px;font-weight:900;box-shadow:0 8px 18px color-mix(in srgb,var(--team-color) 30%,transparent),inset 0 1px 0 rgba(255,255,255,.32)}
+.week-time-cell{position:sticky;left:0;z-index:20;display:flex;align-items:center;justify-content:flex-end;padding:0 4px;background:#fff;border-right:1px solid rgba(0,32,80,.25);border-bottom:1px solid rgba(0,32,80,.13);color:#002050;font-family:var(--mono);font-size:9px;font-weight:650}
 .week-slot-cell{min-width:0;background:color-mix(in srgb,var(--team-color) 5%,#fff);border-left:1px solid rgba(0,32,80,.11);border-bottom:1px solid rgba(0,32,80,.11);cursor:pointer;transition:background .1s ease,outline .1s ease}
+.week-slot-cell.work-hours{background:color-mix(in srgb,var(--team-color) 5%,#fff);border-bottom-color:rgba(0,32,80,.11)}
+.week-slot-cell.off-hours{background:color-mix(in srgb,var(--team-color) 8%,#DFE2E8);border-bottom-color:rgba(0,32,80,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.38)}
+.week-time-cell.work-hours{background:#fff;border-bottom-color:rgba(0,32,80,.13)}
+.week-time-cell.off-hours{background:#DFE2E8;color:#002050;border-bottom-color:rgba(0,32,80,.24)}
+.week-slot-cell.week-day-start{border-left:3px solid rgba(0,32,80,.40);box-shadow:inset 2px 0 0 rgba(255,255,255,.52)}
+.week-slot-cell.today{box-shadow:inset 0 0 0 1px rgba(17,96,183,.16)}
+.week-slot-cell.today.week-day-start{box-shadow:inset 2px 0 0 rgba(255,255,255,.52),inset 0 0 0 1px rgba(17,96,183,.16)}
 .week-slot-cell.hour-line,.week-time-cell.hour-line{border-top:1px solid rgba(0,32,80,.24)}
 .week-slot-cell:hover{background:color-mix(in srgb,var(--team-color) 15%,#fff);outline:2px solid color-mix(in srgb,var(--team-color) 55%,transparent);outline-offset:-2px}
+.week-slot-cell.off-hours:hover{background:color-mix(in srgb,var(--team-color) 14%,#D4D9E2)}
 .week-slot-cell.drag-over{background:rgba(14,116,144,.16);outline:2px dashed var(--accent);outline-offset:-3px}
-.week-event{position:relative;z-index:25;margin:3px 4px;border-radius:9px;cursor:pointer;border:1px solid rgba(0,32,80,.16);box-shadow:0 8px 18px rgba(0,32,80,.14),inset 0 1px 0 rgba(255,255,255,.28);overflow:hidden;min-height:18px}
+.week-event{position:relative;z-index:25;margin:3px 1px;border-radius:8px;cursor:pointer;border:1px solid rgba(0,32,80,.16);box-shadow:0 8px 18px rgba(0,32,80,.14),inset 0 1px 0 rgba(255,255,255,.28);overflow:hidden;min-height:18px}
 .week-event:after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.25),transparent 55%);pointer-events:none}
 .week-event:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(0,32,80,.18),inset 0 1px 0 rgba(255,255,255,.32)}
 .week-event.done{box-shadow:inset 0 1px 0 rgba(255,255,255,.70),0 6px 14px rgba(0,32,80,.08)}
-.week-event.done:before{content:'✓';position:absolute;top:3px;right:4px;z-index:2;width:14px;height:14px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.85);color:#002050;font-size:9px;font-weight:900}
-@media(max-width:860px){.week-schedule-grid{width:max(100%,calc(46px + (var(--week-columns) * 38px)));min-width:max(100%,calc(46px + (var(--week-columns) * 38px)));grid-template-columns:46px repeat(var(--week-columns),minmax(38px,1fr));grid-template-rows:32px 38px repeat(36,24px)}.week-time-cell{padding:0 4px;font-size:8px;justify-content:center}.week-day-head{font-size:9px}.week-team-dot{width:22px;height:22px;font-size:9px}.week-event{margin:2px;border-radius:7px}}
+.week-event.done:before{content:'✓';position:absolute;top:3px;right:3px;z-index:2;width:12px;height:12px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.85);color:#002050;font-size:8px;font-weight:900}
+@media(max-width:860px){.week-schedule-grid{width:max(100%,calc(38px + (var(--week-columns) * 26px)));min-width:max(100%,calc(38px + (var(--week-columns) * 26px)));grid-template-columns:38px repeat(var(--week-columns),minmax(26px,1fr));grid-template-rows:30px 34px repeat(36,24px)}.week-team-head{top:30px}.week-time-cell{padding:0 2px;font-size:7px;justify-content:center}.week-day-head{font-size:8px}.week-team-dot{width:16px;height:16px;font-size:7px}.week-event{margin:2px 1px;border-radius:6px}}
 
 </style>
 </head>
@@ -2495,24 +2722,33 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 
                 <form method="get" id="filterForm" class="calendar-line calendar-filter-line">
                     <input type="hidden" name="date" value="<?= hcal($currentDate) ?>">
-                    <select class="select view-select" name="view" onchange="this.form.submit()">
-                        <?php foreach ($viewLabels as $v => $label): ?>
-                            <option value="<?= hcal($v) ?>" <?= $view === $v ? 'selected' : '' ?>><?= hcal($label) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <input type="hidden" name="view" id="calendarViewInput" value="<?= hcal($view) ?>">
+                    <div class="cal-view-picker" id="calViewPicker">
+                        <button type="button" class="cal-view-summary" onclick="calToggleViewPicker(event)" aria-haspopup="true" aria-expanded="false">
+                            <span class="cal-view-summary-label"><?= hcal($viewLabels[$view] ?? 'Zi') ?></span>
+                            <span class="cal-view-caret" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="cal-view-menu" id="calViewMenu" hidden>
+                            <?php foreach ($viewLabels as $v => $label): ?>
+                                <button class="cal-view-option <?= $view === $v ? 'active' : '' ?>" type="button" onclick="calSelectView(event, '<?= hcal($v) ?>')"><?= hcal($label) ?></button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
 
                     <?php if ($isAdmin): ?>
                         <div class="cal-team-picker" id="calTeamPicker">
                             <button type="button" class="cal-team-summary" onclick="calTogglePicker(event)" aria-haspopup="true" aria-expanded="false">
-                                <span class="cal-team-summary-label"><?= $selectedTeamIds ? (count($selectedTeamIds) . ' tehnicieni') : 'Toate echipele' ?></span>
+                                <span class="cal-team-summary-label"><?= $selectedTeamIds ? (count($selectedTeamIds) . ' tehnicieni') : 'Toți tehnicienii' ?></span>
                                 <span class="cal-team-caret" aria-hidden="true">▾</span>
                             </button>
                             <div class="cal-team-menu" id="calTeamMenu" hidden>
-                                <a class="cal-team-all" href="calendar.php?date=<?= urlencode($currentDate) ?>&view=<?= urlencode($view) ?>&team=all">Toate echipele</a>
+                                <button class="cal-team-all" type="button" onclick="calSelectAllTeams(event)">Toți tehnicienii</button>
                                 <?php foreach ($allTeams as $team): ?>
-                                    <label class="cal-team-option">
+                                    <?php $pickerTeamColor = calendar_clean_hex_color($team['color'] ?? null); ?>
+                                    <label class="cal-team-option" style="--team-color:<?= hcal($pickerTeamColor) ?>;">
                                         <input type="checkbox" name="team_ids[]" value="<?= (int)$team['id'] ?>" <?= in_array((int)$team['id'], $selectedTeamIds, true) ? 'checked' : '' ?>>
-                                        <span><?= hcal($team['name']) ?></span>
+                                        <span class="cal-team-color-dot" aria-hidden="true"></span>
+                                        <span class="cal-team-name"><?= hcal($team['name']) ?></span>
                                     </label>
                                 <?php endforeach; ?>
                                 <button class="btn accent cal-team-apply" type="submit">Aplica</button>
@@ -2523,26 +2759,26 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 
                 <?php if ($isAdmin): ?>
                     <div class="calendar-action-line">
-                        <button class="btn accent" type="button" onclick="openCreateModal('<?= hcal($currentDate) ?>', '09:00', '<?= (int)$defaultTeamId ?>')">+ Programare noua</button>
+                        <button class="btn accent" type="button" onclick="openCreateModal('<?= hcal($currentDate) ?>', '09:00', '<?= (int)$defaultTeamId ?>')">+ Programare nouă</button>
                     </div>
                 <?php endif; ?>
 
             </div>
         </div>
 
-        <?php if (isset($_GET['success'])): ?><div class="notice notice-success">Programarea a fost adaugata cu succes.</div><?php endif; ?>
+        <?php if (isset($_GET['success'])): ?><div class="notice notice-success">Programarea a fost adăugată cu succes.</div><?php endif; ?>
         <?php if (isset($_GET['sms_sent'])): ?><div class="notice notice-success">SMS-ul de confirmare a fost trimis.</div><?php endif; ?>
-        <?php if (isset($_GET['sms_skipped'])): ?><div class="notice notice-warning">SMS-ul nu a fost trimis deoarece clientul are notificarile SMS oprite.</div><?php endif; ?>
+        <?php if (isset($_GET['sms_skipped'])): ?><div class="notice notice-warning">SMS-ul nu a fost trimis deoarece clientul are notificările SMS oprite.</div><?php endif; ?>
         <?php if (isset($_GET['sms_error'])): ?><div class="notice notice-warning">Programarea a fost salvata, dar SMS-ul nu a putut fi trimis. Verifica logurile din Comunicare.</div><?php endif; ?>
-        <?php if (isset($_GET['drag_time_changed'])): ?><div class="notice notice-success">Programarea a fost mutata. SMS-ul nu se mai trimite automat la modificari; il poti trimite manual din fisa programarii.</div><?php endif; ?>
-        <?php if (isset($_GET['drag_no_sms'])): ?><div class="notice notice-success">Programarea a fost mutata. SMS netrimis automat.</div><?php endif; ?>
-        <?php if (isset($_GET['updated_time_changed'])): ?><div class="notice notice-success">Programarea a fost actualizata. SMS-ul nu se mai trimite automat la modificari; il poti trimite manual din fisa programarii.</div><?php endif; ?>
-        <?php if (isset($_GET['updated'])): ?><div class="notice notice-success">Programarea a fost actualizata.</div><?php endif; ?>
-        <?php if (isset($_GET['finished'])): ?><div class="notice notice-success">Lucrarea a fost finalizata. Acum poti emite PV, daca este necesar.</div><?php endif; ?>
+        <?php if (isset($_GET['drag_time_changed'])): ?><div class="notice notice-success">Programarea a fost mutată. SMS-ul nu se mai trimite automat la modificari; il poți trimite manual din fișa programării.</div><?php endif; ?>
+        <?php if (isset($_GET['drag_no_sms'])): ?><div class="notice notice-success">Programarea a fost mutată. SMS netrimis automat.</div><?php endif; ?>
+        <?php if (isset($_GET['updated_time_changed'])): ?><div class="notice notice-success">Programarea a fost actualizată. SMS-ul nu se mai trimite automat la modificari; il poți trimite manual din fișa programării.</div><?php endif; ?>
+        <?php if (isset($_GET['updated'])): ?><div class="notice notice-success">Programarea a fost actualizată.</div><?php endif; ?>
+        <?php if (isset($_GET['finished'])): ?><div class="notice notice-success">Lucrarea a fost finalizata. Acum poți emite PV, dacă este necesar.</div><?php endif; ?>
         <?php if (isset($_GET['pv_email_sent'])): ?><div class="notice notice-success">Emailul cu PV a fost trimis.</div><?php endif; ?>
         <?php if (isset($_GET['pv_email_error'])): ?><div class="notice notice-warning">Emailul cu PV nu a putut fi trimis.</div><?php endif; ?>
-        <?php if (isset($_GET['finish_error'])): ?><div class="notice notice-warning">Pentru finalizarea lucrarii trebuie sa completezi mentiunile de finalizare.</div><?php endif; ?>
-        <?php if (isset($_GET['deleted'])): ?><div class="notice notice-warning">Programarea a fost stearsa definitiv.</div><?php endif; ?>
+        <?php if (isset($_GET['finish_error'])): ?><div class="notice notice-warning">Pentru finalizarea lucrării trebuie sa completezi mențiunile de finalizare.</div><?php endif; ?>
+        <?php if (isset($_GET['deleted'])): ?><div class="notice notice-warning">Programarea a fost ștearsă definitiv.</div><?php endif; ?>
         <?php if (isset($_GET['conflict'])): ?><div class="notice notice-warning">Programarea nu a fost salvata. <?= hcal((string)($_GET['conflict_msg'] ?? 'Un operator este deja alocat in intervalul selectat.')) ?></div><?php endif; ?>
         <?php if (isset($_GET['error'])): ?><div class="notice notice-warning">Actiunea nu a putut fi procesata. Verifica datele introduse.</div><?php endif; ?>
 
@@ -2552,17 +2788,27 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                 <div class="team-greeting">
                     <div>
                         <div class="team-greeting-title">Salutare, <?= hcal($teamGreetingName) ?>!</div>
-                        <div class="team-greeting-text">Astazi ai programate <?= (int)$teamTodayJobs ?> <?= (int)$teamTodayJobs === 1 ? 'lucrare' : 'lucrari' ?>.</div>
+                        <div class="team-greeting-text">Astăzi ai programate <?= (int)$teamTodayJobs ?> <?= (int)$teamTodayJobs === 1 ? 'lucrare' : 'lucrări' ?>.</div>
                     </div>
                     <div class="team-greeting-count"><?= (int)$teamTodayJobs ?> azi</div>
                 </div>
             <?php endif; ?>
 
+            <div class="calendar-team-legend" aria-label="Legenda tehnicieni">
+                <?php foreach ($teams as $team): ?>
+                    <?php $legendTeamColor = calendar_clean_hex_color($team['color'] ?? null); ?>
+                    <span class="calendar-team-chip" style="--team-color:<?= hcal($legendTeamColor) ?>;" title="<?= hcal($team['name']) ?>">
+                        <span class="calendar-team-chip-dot"><?= hcal(calendar_initials($team['name'])) ?></span>
+                        <span class="calendar-team-chip-name"><?= hcal($team['name']) ?></span>
+                    </span>
+                <?php endforeach; ?>
+            </div>
+
             <div class="day-header">
                 <div class="day-text">
                     <h1><?= hcal($prettyDate) ?></h1>
                     <?php if ($view === 'day'): ?>
-                        <p><?= $isAdmin ? 'Calendar zi - echipe pe coloane' : 'Programarile tale de astazi' ?></p>
+                        <p><?= $isAdmin ? 'Calendar zi - tehnicieni pe coloane' : 'Programările tale de astăzi' ?></p>
                     <?php else: ?>
                         <p>Vizualizare <?= hcal($viewLabels[$view]) ?>: <?= hcal(ro_date_label($rangeStart)) ?> - <?= hcal(ro_date_label($rangeEnd)) ?></p>
                     <?php endif; ?>
@@ -2570,7 +2816,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
             </div>
 
             <?php if ($view === 'day'): ?>
-                <div class="schedule-scroll">
+                <div class="schedule-scroll <?= $currentDate === $todayDate ? 'today-calendar' : '' ?>">
                     <div class="schedule-grid">
                         <div class="time-head" style="grid-column:1;grid-row:1;"></div>
 
@@ -2588,7 +2834,8 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                             <?php $row = $slotIndex + 2; $isHour = substr($slot, -3) === ':00'; $isOffHours = ($slot < '08:00' || $slot >= '17:00'); $slotToneClass = $isOffHours ? ' off-hours' : ' work-hours'; ?>
                             <div class="time-cell<?= $isHour ? ' hour hour-line' : '' ?><?= $slotToneClass ?>" style="grid-column:1;grid-row:<?= $row ?>;"><?= $isHour ? hcal($slot) : '' ?></div>
                             <?php foreach ($teams as $i => $team): ?>
-                                <div class="slot-cell<?= $isHour ? ' hour-line' : '' ?><?= $slotToneClass ?>" style="grid-column:<?= $i + 2 ?>;grid-row:<?= $row ?>;" data-drop-date="<?= hcal($currentDate) ?>" data-drop-time="<?= hcal($slot) ?>" data-drop-team="<?= (int)$team['id'] ?>" <?php if ($isAdmin): ?>onclick="openCreateModal('<?= hcal($currentDate) ?>', '<?= hcal($slot) ?>', '<?= (int)$team['id'] ?>')" ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event)"<?php endif; ?>></div>
+                                <?php $slotTeamColor = calendar_clean_hex_color($team['color'] ?? null); ?>
+                                <div class="slot-cell<?= $isHour ? ' hour-line' : '' ?><?= $slotToneClass ?>" style="grid-column:<?= $i + 2 ?>;grid-row:<?= $row ?>;--team-color:<?= hcal($slotTeamColor) ?>;" data-drop-date="<?= hcal($currentDate) ?>" data-drop-time="<?= hcal($slot) ?>" data-drop-team="<?= (int)$team['id'] ?>" <?php if ($isAdmin): ?>onclick="openCreateModal('<?= hcal($currentDate) ?>', '<?= hcal($slot) ?>', '<?= (int)$team['id'] ?>')" ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event)"<?php endif; ?>></div>
                             <?php endforeach; ?>
                         <?php endforeach; ?>
 
@@ -2629,9 +2876,9 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
             <?php elseif ($view === 'week'): ?>
                 <?php
                 /*
-                 * Vizualizare Saptamana: grila operationala cu tehnicienii pe coloane si
+                 * Vizualizare Săptămâna: grila operaționala cu tehnicienii pe coloane si
                  * 7 zile × 36 sloturi de 30 minute. Reutilizeaza modalurile, drag-drop-ul
-                 * si filtrele paginii. Inlocuieste fostul fisier separat calendar_week.php.
+                 * si filtrele paginii.
                  */
                 $weekColumns = max(1, count($weekDates) * max(1, count($teams)));
                 $weekTeamIndexById = [];
@@ -2655,12 +2902,12 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                         <div class="week-corner" style="grid-column:1;grid-row:1 / span 2;"></div>
 
                         <?php foreach ($weekDates as $dIndex => $d): $weekStartCol = 2 + $dIndex * max(1, count($teams)); ?>
-                            <div class="week-day-head" style="grid-column:<?= $weekStartCol ?> / span <?= max(1, count($teams)) ?>;grid-row:1;"><?= hcal($d['label']) ?></div>
+                            <div class="week-day-head <?= $dIndex > 0 ? 'week-day-start' : '' ?> <?= $d['date'] === $todayDate ? 'today' : '' ?>" style="grid-column:<?= $weekStartCol ?> / span <?= max(1, count($teams)) ?>;grid-row:1;"><?= hcal($d['label']) ?></div>
                             <?php foreach ($teams as $tIndex => $team):
                                 $weekTeamColor = calendar_clean_hex_color($team['color'] ?? null);
                                 $weekTeamCol = $weekStartCol + $tIndex;
                             ?>
-                                <div class="week-team-head" style="grid-column:<?= $weekTeamCol ?>;grid-row:2;--team-color:<?= hcal($weekTeamColor) ?>;" title="<?= hcal($team['name']) ?>">
+                                <div class="week-team-head <?= ($dIndex > 0 && $tIndex === 0) ? 'week-day-start' : '' ?> <?= $d['date'] === $todayDate ? 'today' : '' ?>" style="grid-column:<?= $weekTeamCol ?>;grid-row:2;--team-color:<?= hcal($weekTeamColor) ?>;" title="<?= hcal($team['name']) ?>">
                                     <span class="week-team-dot"><?= hcal(calendar_initials($team['name'])) ?></span>
                                 </div>
                             <?php endforeach; ?>
@@ -2669,14 +2916,16 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                         <?php foreach ($slots as $slotIndex => $slot):
                             $weekRow = $slotIndex + 3;
                             $weekIsHour = substr($slot, -3) === ':00';
+                            $weekIsOffHours = ($slot < '08:00' || $slot >= '17:00');
+                            $weekSlotToneClass = $weekIsOffHours ? ' off-hours' : ' work-hours';
                         ?>
-                            <div class="week-time-cell <?= $weekIsHour ? 'hour-line' : '' ?>" style="grid-column:1;grid-row:<?= $weekRow ?>;"><?= $weekIsHour ? hcal($slot) : '' ?></div>
+                            <div class="week-time-cell <?= $weekIsHour ? 'hour-line' : '' ?><?= $weekSlotToneClass ?>" style="grid-column:1;grid-row:<?= $weekRow ?>;"><?= $weekIsHour ? hcal($slot) : '' ?></div>
                             <?php foreach ($weekDates as $dIndex => $d): $weekStartCol = 2 + $dIndex * max(1, count($teams)); ?>
                                 <?php foreach ($teams as $tIndex => $team):
                                     $weekTeamColor = calendar_clean_hex_color($team['color'] ?? null);
                                     $weekTeamCol = $weekStartCol + $tIndex;
                                 ?>
-                                    <div class="week-slot-cell <?= $weekIsHour ? 'hour-line' : '' ?>" style="grid-column:<?= $weekTeamCol ?>;grid-row:<?= $weekRow ?>;--team-color:<?= hcal($weekTeamColor) ?>;" data-drop-date="<?= hcal($d['date']) ?>" data-drop-time="<?= hcal($slot) ?>" data-drop-team="<?= (int)$team['id'] ?>" <?php if ($isAdmin): ?>onclick="openCreateModal('<?= hcal($d['date']) ?>', '<?= hcal($slot) ?>', '<?= (int)$team['id'] ?>')" ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event)"<?php endif; ?>></div>
+                                    <div class="week-slot-cell <?= $weekIsHour ? 'hour-line' : '' ?><?= $weekSlotToneClass ?> <?= ($dIndex > 0 && $tIndex === 0) ? 'week-day-start' : '' ?> <?= $d['date'] === $todayDate ? 'today' : '' ?>" style="grid-column:<?= $weekTeamCol ?>;grid-row:<?= $weekRow ?>;--team-color:<?= hcal($weekTeamColor) ?>;" data-drop-date="<?= hcal($d['date']) ?>" data-drop-time="<?= hcal($slot) ?>" data-drop-team="<?= (int)$team['id'] ?>" <?php if ($isAdmin): ?>onclick="openCreateModal('<?= hcal($d['date']) ?>', '<?= hcal($slot) ?>', '<?= (int)$team['id'] ?>')" ondragover="handleSlotDragOver(event)" ondragleave="handleSlotDragLeave(event)" ondrop="handleSlotDrop(event)"<?php endif; ?>></div>
                                 <?php endforeach; ?>
                             <?php endforeach; ?>
                         <?php endforeach; ?>
@@ -2717,7 +2966,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 <div class="modal" id="createModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h2>Programare noua</h2>
+            <h2>Programare nouă</h2>
             <button class="modal-close" type="button" onclick="closeModal('createModal')">&times;</button>
         </div>
 
@@ -2744,7 +2993,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                     <label>Client *</label>
                     <input type="hidden" name="client_id" id="create_existing_client_id" required value="">
                     <div class="pz-autocomplete" id="create_clientAutocomplete" data-prefix="create" data-onchange="handleClientChange">
-                        <input type="text" class="pz-autocomplete-input" id="create_clientSearchInput" placeholder="Cauta dupa nume, CUI, telefon, reprezentant…" autocomplete="off" autofocus>
+                        <input type="text" class="pz-autocomplete-input" id="create_clientSearchInput" placeholder="Caută după nume, CUI, telefon, reprezentant…" autocomplete="off" autofocus>
                         <div class="pz-autocomplete-selected" id="create_clientSelectedBox">
                             <div>
                                 <div class="ps-name"></div>
@@ -2754,20 +3003,20 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                         </div>
                         <div class="pz-autocomplete-results" id="create_clientResults" role="listbox"></div>
                     </div>
-                    <div class="location-hint">Clientii noi se adauga din modulul Clienti, pentru fisa completa.</div>
+                    <div class="location-hint">Clienții noi se adauga din modulul Clienți, pentru fișa completa.</div>
                 </div>
 
                 <div class="form-group full">
-                    <label>Locatie</label>
+                    <label>Locație</label>
                     <select name="client_location_id" id="create_client_location_id" onchange="handleLocationChange('create')" disabled>
                         <option value="">Alege mai intai clientul</option>
                     </select>
                     <div class="location-hint" id="create_location_hint"></div>
                 </div>
 
-                <div><label>Contact</label><input type="text" name="contact_person" id="create_contact_person" placeholder="Se preia automat din client / locatie"></div>
-                <div><label>Telefon</label><input type="tel" name="contact_phone" id="create_contact_phone" placeholder="Telefon pentru echipa de teren"></div>
-                <div><label>Adresa</label><input type="text" name="address" id="create_address" placeholder="Adresa completa / sediu / punct de lucru"></div>
+                <div><label>Contact</label><input type="text" name="contact_person" id="create_contact_person" placeholder="Se preia automat din client / locație"></div>
+                <div><label>Telefon</label><input type="tel" name="contact_phone" id="create_contact_phone" placeholder="Telefon pentru tehnician"></div>
+                <div><label>Adresa</label><input type="text" name="address" id="create_address" placeholder="Adresa completă / sediu / punct de lucru"></div>
 
                 <div>
                     <label>Serviciu *</label>
@@ -2792,7 +3041,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                 <div class="support-teams-box">
                     <label>Tehnician suplimentar</label>
                     <div id="create_support_teams" class="support-teams-list"></div>
-                    <button class="support-add-btn" type="button" onclick="addSupportTeamRow('create')">+ Adauga tehnician</button>
+                    <button class="support-add-btn" type="button" onclick="addSupportTeamRow('create')">+ Adaugă tehnician</button>
                 </div>
 
                 <div><label>Data *</label><input type="date" name="appointment_date" id="create_date" required value="<?= hcal($currentDate) ?>"></div>
@@ -2814,22 +3063,33 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                 </div>
 
                 <div>
-                    <label>Valoare fara TVA</label>
+                    <label>Valoare fără TVA</label>
                     <input type="number" name="billing_amount" id="create_billing_amount" step="0.01" min="0" value="0.00" inputmode="decimal" placeholder="0.00">
                 </div>
 
+                <div>
+                    <label>TVA factura</label>
+                    <select name="billing_vat_code" id="create_billing_vat_code">
+                        <?php foreach ($smartbillAllowedVatCodes as $vatCode): ?>
+                            <?php if (isset($smartbillVatOptions[$vatCode])): ?>
+                                <option value="<?= hcal($vatCode) ?>" <?= $vatCode === $smartbillDefaultVatCode ? 'selected' : '' ?>><?= hcal($smartbillVatOptions[$vatCode]) ?></option>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
                 <div class="billing-toggle-box">
-                    <label class="mini-check"><input type="checkbox" name="not_invoiceable" id="create_not_invoiceable" value="1" onchange="toggleNotInvoiceable('create')"> Nu se factureaza</label>
+                    <label class="mini-check"><input type="checkbox" name="not_invoiceable" id="create_not_invoiceable" value="1" onchange="toggleNotInvoiceable('create')"> Nu se facturează</label>
                     <input type="text" name="billing_note" id="create_billing_note" placeholder="Motiv nefacturare" style="display:none;">
                 </div>
 
                 <div class="form-group full">
-                    <label>Observatii pentru echipa</label>
-                    <textarea name="notes" placeholder="Ex: Sunati clientul cu 30 minute inainte, acces prin spate, chei la receptie..."></textarea>
+                    <label>Observații pentru tehnician</label>
+                    <textarea name="notes" placeholder="Ex: Sunati clientul cu 30 minute înainte, acces prin spate, chei la receptie..."></textarea>
                 </div>
             </div>
 
-            <div class="actions-row"><div></div><div class="actions-right"><button class="btn" type="button" onclick="closeModal('createModal')">Renunta</button><button class="btn accent" type="submit">Salveaza programarea</button></div></div>
+            <div class="actions-row"><div></div><div class="actions-right"><button class="btn" type="button" onclick="closeModal('createModal')">Renunță</button><button class="btn accent" type="submit">Salvează programarea</button></div></div>
         </form>
     </div>
 </div>
@@ -2837,7 +3097,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 <div class="modal" id="editModal">
     <div class="modal-box office-edit-modal-box">
         <div class="modal-header">
-            <h2>Editeaza programare</h2>
+            <h2>Editează programare</h2>
             <button class="modal-close" type="button" onclick="closeModal('editModal')">&times;</button>
         </div>
 
@@ -2864,7 +3124,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                     <label>Client *</label>
                     <input type="hidden" name="client_id" id="edit_existing_client_id" required value="">
                     <div class="pz-autocomplete" id="edit_clientAutocomplete" data-prefix="edit" data-onchange="handleClientChange">
-                        <input type="text" class="pz-autocomplete-input" id="edit_clientSearchInput" placeholder="Cauta dupa nume, CUI, telefon, reprezentant…" autocomplete="off">
+                        <input type="text" class="pz-autocomplete-input" id="edit_clientSearchInput" placeholder="Caută după nume, CUI, telefon, reprezentant…" autocomplete="off">
                         <div class="pz-autocomplete-selected" id="edit_clientSelectedBox">
                             <div>
                                 <div class="ps-name"></div>
@@ -2877,7 +3137,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                 </div>
 
                 <div class="form-group full">
-                    <label>Locatie</label>
+                    <label>Locație</label>
                     <select name="client_location_id" id="edit_client_location_id" onchange="handleLocationChange('edit')" disabled><option value="">Alege mai intai clientul</option></select>
                     <div class="location-hint" id="edit_location_hint"></div>
                 </div>
@@ -2907,7 +3167,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                 <div class="support-teams-box">
                     <label>Tehnician suplimentar</label>
                     <div id="edit_support_teams" class="support-teams-list"></div>
-                    <button class="support-add-btn" type="button" onclick="addSupportTeamRow('edit')">+ Adauga tehnician</button>
+                    <button class="support-add-btn" type="button" onclick="addSupportTeamRow('edit')">+ Adaugă tehnician</button>
                 </div>
 
                 <div><label>Data *</label><input type="date" name="appointment_date" id="edit_appointment_date" required></div>
@@ -2927,25 +3187,32 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                 </div>
 
                 <div class="billing-inline-box">
-                    <label>Valoare fara TVA</label>
+                    <label>Valoare fără TVA</label>
                     <div class="billing-inline-row">
                         <input type="number" name="billing_amount" id="edit_billing_amount" step="0.01" min="0" value="0.00" inputmode="decimal" placeholder="0.00">
-                        <label class="mini-check billing-inline-check"><input type="checkbox" name="not_invoiceable" id="edit_not_invoiceable" value="1" onchange="toggleNotInvoiceable('edit')"> Nu se factureaza</label>
+                        <label class="mini-check billing-inline-check"><input type="checkbox" name="not_invoiceable" id="edit_not_invoiceable" value="1" onchange="toggleNotInvoiceable('edit')"> Nu se facturează</label>
                     </div>
+                    <select name="billing_vat_code" id="edit_billing_vat_code" style="margin-top:8px;">
+                        <?php foreach ($smartbillAllowedVatCodes as $vatCode): ?>
+                            <?php if (isset($smartbillVatOptions[$vatCode])): ?>
+                                <option value="<?= hcal($vatCode) ?>" <?= $vatCode === $smartbillDefaultVatCode ? 'selected' : '' ?>><?= hcal($smartbillVatOptions[$vatCode]) ?></option>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    </select>
                     <input type="text" name="billing_note" id="edit_billing_note" placeholder="Motiv nefacturare" style="display:none;">
                 </div>
 
-                <div class="form-group full"><label>Observatii pentru echipa</label><textarea name="notes" id="edit_notes"></textarea></div>
+                <div class="form-group full"><label>Observații pentru tehnician</label><textarea name="notes" id="edit_notes"></textarea></div>
             </div>
 
             <div class="actions-row edit-actions-row">
                 <div class="actions-left edit-actions-line">
-                    <button class="btn danger" type="button" onclick="deleteAppointment()">Sterge</button>
+                    <button class="btn danger" type="button" onclick="deleteAppointment()">Șterge</button>
                     <button class="btn" type="button" id="edit_send_sms_btn" onclick="sendAppointmentSmsFromEdit()">Trimite SMS</button>
-                    <button class="btn accent" type="button" id="edit_finalize_btn" onclick="finalizeAppointmentFromEdit()">Finalizeaza</button>
+                    <button class="btn accent" type="button" id="edit_finalize_btn" onclick="finalizeAppointmentFromEdit()">Finalizează</button>
                     <button class="btn" type="button" id="edit_pv_btn" onclick="openPvFromEdit()" title="Emite PV din birou.">Emite PV</button>
                     <button class="btn" type="button" id="edit_pv_email_btn" onclick="sendPvEmailFromEdit(this)" style="display:none;" disabled>Trimite email</button>
-                    <button class="btn accent" type="submit">Salveaza</button>
+                    <button class="btn accent" type="submit">Salvează</button>
                 </div>
             </div>
         </form>
@@ -2973,7 +3240,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 <div class="modal" id="editModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h2 id="teamModalTitle">Finalizeaza lucrarea</h2>
+            <h2 id="teamModalTitle">Finalizează lucrarea</h2>
             <button class="modal-close" type="button" onclick="closeModal('editModal')">&times;</button>
         </div>
 
@@ -2991,12 +3258,12 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 
             <div class="form-grid">
                 <div class="form-group full">
-                    <label>Mentiuni finalizare lucrare *</label>
+                    <label>Mențiuni finalizare lucrare *</label>
                     <textarea name="completion_notes" id="team_completion_notes" required placeholder="Scrie ce s-a constatat si ce s-a executat la lucrare..."></textarea>
                 </div>
             </div>
 
-            <div class="actions-row"><div></div><div class="actions-right"><button class="btn" type="button" onclick="closeModal('editModal')">Renunta</button><button class="btn accent" type="submit">Finalizeaza lucrarea</button></div></div>
+            <div class="actions-row"><div></div><div class="actions-right"><button class="btn" type="button" onclick="closeModal('editModal')">Renunță</button><button class="btn accent" type="submit">Finalizează lucrarea</button></div></div>
         </form>
     </div>
 </div>
@@ -3009,7 +3276,8 @@ const currentView = '<?= hcal($view) ?>';
 const defaultTeamId = '<?= (int)$defaultTeamId ?>';
 const calendarEvents = <?= json_encode($calendarEvents, JSON_UNESCAPED_UNICODE) ?>;
 const serviceDurations = <?= json_encode($serviceDurations, JSON_UNESCAPED_UNICODE) ?>;
-const allTeamsData = <?= json_encode(array_map(function($team) { return ['id' => (int)$team['id'], 'name' => (string)$team['name']]; }, $allTeams), JSON_UNESCAPED_UNICODE) ?>;
+const allTeamsData = <?= json_encode(array_map(function($team) { return ['id' => (int)$team['id'], 'name' => (string)$team['name'], 'color' => calendar_clean_hex_color($team['color'] ?? null)]; }, $allTeams), JSON_UNESCAPED_UNICODE) ?>;
+const selectedTeamsData = <?= json_encode(array_map(function($team) { return ['id' => (int)$team['id'], 'name' => (string)$team['name'], 'color' => calendar_clean_hex_color($team['color'] ?? null)]; }, $teams), JSON_UNESCAPED_UNICODE) ?>;
 const clientsData = <?= json_encode($clientsForJs, JSON_UNESCAPED_UNICODE) ?>;
 const locationsByClient = <?= json_encode($locationsByClientForJs, JSON_UNESCAPED_UNICODE) ?>;
 const contractServicesByClientLocation = <?= json_encode($contractServicesByClientLocationForJs, JSON_UNESCAPED_UNICODE) ?>;
@@ -3037,6 +3305,76 @@ window.pzAppointmentWasDragged = false;
 function openModal(id) { document.getElementById(id)?.classList.add('open'); }
 function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
 function setField(id, value) { const field = document.getElementById(id); if (field) field.value = value || ''; }
+function eventDateKey(eventData) {
+    return String(eventData?.start || '').slice(0, 10);
+}
+function eventTimeLabel(eventData) {
+    return String(eventData?.start || '').slice(11, 16) || '';
+}
+function renderMonthMiniOverview() {
+    if (currentView !== 'month') return;
+    const calendarNode = document.getElementById('visualCalendar');
+    if (!calendarNode) return;
+
+    const teams = selectedTeamsData && selectedTeamsData.length ? selectedTeamsData : allTeamsData;
+    const eventsByDateTeam = new Map();
+
+    (calendarEvents || []).forEach(eventData => {
+        const dateKey = eventDateKey(eventData);
+        const teamId = Number(eventData?.extendedProps?.team_id || 0);
+        if (!dateKey || !teamId) return;
+        const mapKey = dateKey + '|' + teamId;
+        if (!eventsByDateTeam.has(mapKey)) eventsByDateTeam.set(mapKey, []);
+        eventsByDateTeam.get(mapKey).push(eventData);
+    });
+
+    calendarNode.querySelectorAll('.month-mini-overview').forEach(node => node.remove());
+    calendarNode.querySelectorAll('.fc-daygrid-day').forEach(dayNode => {
+        const dateKey = dayNode.getAttribute('data-date');
+        const frame = dayNode.querySelector('.fc-daygrid-day-frame');
+        if (!dateKey || !frame) return;
+
+        const overview = document.createElement('div');
+        overview.className = 'month-mini-overview';
+        overview.style.setProperty('--month-team-count', String(Math.max(1, teams.length)));
+
+        teams.forEach(team => {
+            const teamId = Number(team.id || 0);
+            const teamColor = team.color || '#163B63';
+            const column = document.createElement('div');
+            column.className = 'month-mini-team';
+            column.style.setProperty('--team-color', teamColor);
+            column.title = team.name || '';
+
+            const bar = document.createElement('span');
+            bar.className = 'month-mini-team-bar';
+            bar.setAttribute('aria-hidden', 'true');
+
+            const dots = document.createElement('div');
+            dots.className = 'month-mini-dots';
+
+            (eventsByDateTeam.get(dateKey + '|' + teamId) || []).forEach(eventData => {
+                const dot = document.createElement('button');
+                dot.type = 'button';
+                dot.className = 'month-mini-dot' + (eventData?.extendedProps?.status === 'finalizata' ? ' done' : '');
+                dot.title = [eventData?.extendedProps?.client || 'Client', eventTimeLabel(eventData)].filter(Boolean).join(' - ');
+                dot.style.setProperty('--team-color', teamColor);
+                dot.onclick = event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    loadAppointment(eventData.id);
+                };
+                dots.appendChild(dot);
+            });
+
+            column.appendChild(bar);
+            column.appendChild(dots);
+            overview.appendChild(column);
+        });
+
+        frame.appendChild(overview);
+    });
+}
 function normalizeHalfHourTime(value) {
     const match = String(value || '').match(/^(\d{1,2}):(\d{2})/);
     if (!match) return '';
@@ -3117,6 +3455,10 @@ function toggleNotInvoiceable(prefix) {
     if (amount) {
         amount.required = !checked;
         if (checked) amount.value = '0.00';
+    }
+    const vat = document.getElementById(prefix + '_billing_vat_code');
+    if (vat) {
+        vat.disabled = checked;
     }
     if (note) {
         note.style.display = checked ? 'block' : 'none';
@@ -3234,10 +3576,10 @@ function populateLocations(prefix, clientId, selectedLocationId = '') {
     if (locations.length === 0) {
         const option = document.createElement('option');
         option.value = '';
-        option.textContent = 'Nu exista puncte de lucru salvate';
+        option.textContent = 'Nu există puncte de lucru salvate';
         select.appendChild(option);
         select.disabled = true;
-        if (hint) hint.textContent = 'Adauga punctul de lucru in fisa clientului pentru programare corecta.';
+        if (hint) hint.textContent = 'Adaugă punctul de lucru in fișa clientului pentru programare corecta.';
         handleLocationChange(prefix);
         return;
     }
@@ -3327,6 +3669,7 @@ function openCreateModal(date, time, teamId, client = null, taskId = '', service
     const form = document.getElementById('createForm');
     if (form) form.reset();
     setField('create_billing_amount', '0.00');
+    setField('create_billing_vat_code', '<?= hcal($smartbillDefaultVatCode) ?>');
     setField('create_billing_note', '');
     setField('create_contract_id', '');
     setField('create_contract_service_id', '');
@@ -3385,7 +3728,7 @@ function configurePvButtons(data) {
     }
 
     if (editPvBtn) {
-        editPvBtn.textContent = hasPv ? ((data.pv_status === 'draft') ? 'Editeaza PV' : 'Vezi PV') : 'Emite PV';
+        editPvBtn.textContent = hasPv ? ((data.pv_status === 'draft') ? 'Editează PV' : 'Vezi PV') : 'Emite PV';
         editPvBtn.disabled = false;
         editPvBtn.style.display = 'inline-flex';
         editPvBtn.title = hasPv ? 'PV existent pentru aceasta programare.' : 'Emite PV din birou.';
@@ -3443,11 +3786,11 @@ async function sendPvEmail(documentId, btn) {
     }
 }
 function sendPvEmailFromEdit(btn) {
-    if (!currentLoadedAppointment?.pv_id) { alert('Nu exista PV emis pentru aceasta programare.'); return; }
+    if (!currentLoadedAppointment?.pv_id) { alert('Nu există PV emis pentru aceasta programare.'); return; }
     sendPvEmail(currentLoadedAppointment.pv_id, btn);
 }
 function sendPvEmailFromTeam(btn) {
-    if (!currentLoadedAppointment?.pv_id) { alert('Nu exista PV emis pentru aceasta programare.'); return; }
+    if (!currentLoadedAppointment?.pv_id) { alert('Nu există PV emis pentru aceasta programare.'); return; }
     sendPvEmail(currentLoadedAppointment.pv_id, btn);
 }
 function renderTeamPvActions(data) {
@@ -3463,7 +3806,7 @@ function renderTeamPvActions(data) {
         return;
     }
     const hasPv = Number(data.pv_id || 0) > 0;
-    const pvLabel = hasPv ? ((data.pv_status === 'draft') ? 'Editeaza PV' : 'Vezi PV') : 'Emite PV';
+    const pvLabel = hasPv ? ((data.pv_status === 'draft') ? 'Editează PV' : 'Vezi PV') : 'Emite PV';
     const emailEnabled = hasPv && data.pv_status === 'issued' && String(data.pv_client_email || '').trim() !== '';
     const emailDisabled = hasPv && data.pv_status === 'issued' && !emailEnabled;
     const pdfButton = hasPv && data.pv_status === 'issued'
@@ -3566,6 +3909,7 @@ async function loadAppointment(id) {
             setTimeField('edit_start_time', data.start_time || '');
             setField('edit_notes', data.notes || '');
             setField('edit_billing_amount', Number(data.billing_amount || 0).toFixed(2));
+            setField('edit_billing_vat_code', data.billing_vat_code || '<?= hcal($smartbillDefaultVatCode) ?>');
             setField('edit_billing_note', data.billing_note || '');
             setField('edit_contract_id', data.contract_id || '');
             setField('edit_contract_service_id', data.contract_service_id || '');
@@ -3590,13 +3934,13 @@ async function loadAppointment(id) {
             if (teamModalTitle) {
                 teamModalTitle.textContent = isSupportOnly
                     ? ('Responsabil: ' + (data.primary_team_name || '-'))
-                    : 'Finalizeaza lucrarea';
+                    : 'Finalizează lucrarea';
             }
             if (teamForm) teamForm.style.display = (isFinalized || isSupportOnly) ? 'none' : 'block';
             if (completionReadonly) {
                 if (isFinalized) {
                     completionReadonly.style.display = 'block';
-                    completionReadonly.innerHTML = `<strong>Mentiuni finalizare:</strong><br>${escHtml(existingCompletion || '-').replace(/\n/g, '<br>')}`;
+                    completionReadonly.innerHTML = `<strong>Mențiuni finalizare:</strong><br>${escHtml(existingCompletion || '-').replace(/\n/g, '<br>')}`;
                 } else {
                     completionReadonly.style.display = 'none';
                     completionReadonly.innerHTML = '';
@@ -3605,7 +3949,7 @@ async function loadAppointment(id) {
             renderTeamPvActions(isSupportOnly ? {...data, pv_actions_locked: true} : data);
             document.getElementById('teamReadonlyDetails').innerHTML = `
                 <div><strong>Client:</strong> ${escHtml(data.client_name || '-')}</div>
-                <div><strong>Locatie:</strong> ${escHtml(data.location_name || '-')}</div>
+                <div><strong>Locație:</strong> ${escHtml(data.location_name || '-')}</div>
                 <div><strong>Contact:</strong> ${escHtml(data.effective_contact_person || '-')}</div>
                 <div><strong>Telefon contact:</strong> ${escHtml(data.effective_contact_phone || '-')}</div>
                 <div><strong>Serviciu:</strong> ${escHtml(data.service_type || '-')}</div>
@@ -3618,7 +3962,7 @@ async function loadAppointment(id) {
             if (officeBox) {
                 if ((data.notes || '').trim() !== '') {
                     officeBox.style.display = 'block';
-                    officeBox.innerHTML = `<strong>Mentiuni birou / instructiuni:</strong>${escHtml(data.notes).replace(/\n/g, '<br>')}`;
+                    officeBox.innerHTML = `<strong>Mențiuni birou / instructiuni:</strong>${escHtml(data.notes).replace(/\n/g, '<br>')}`;
                 } else {
                     officeBox.style.display = 'none';
                     officeBox.innerHTML = '';
@@ -3628,7 +3972,7 @@ async function loadAppointment(id) {
         openModal('editModal');
     } catch (err) {
         console.error('loadAppointment error:', err);
-        alert('Eroare la incarcarea programarii.');
+        alert('Eroare la incarcarea programării.');
     }
 }
 
@@ -3685,7 +4029,7 @@ async function handleSlotDrop(event) {
         });
         const data = await res.json().catch(() => null);
         if (!res.ok || !data || !data.ok) {
-            alert((data && data.error) ? data.error : 'Programarea nu a putut fi mutata.');
+            alert((data && data.error) ? data.error : 'Programarea nu a putut fi mutată.');
             return;
         }
         const params = new URLSearchParams(window.location.search);
@@ -3696,7 +4040,7 @@ async function handleSlotDrop(event) {
         window.location.href = 'calendar.php?' + params.toString();
     } catch (err) {
         console.error('appointment drag update error:', err);
-        alert('Eroare la mutarea programarii. Reincearca.');
+        alert('Eroare la mutarea programării. Reincearca.');
     }
 }
 
@@ -3713,6 +4057,7 @@ function calTogglePicker(event){
     const menu = document.getElementById('calTeamMenu');
     const summary = picker.querySelector('.cal-team-summary');
     if (!menu) return;
+    closeViewPicker();
     const willOpen = menu.hasAttribute('hidden');
     if (willOpen){
         menu.removeAttribute('hidden');
@@ -3724,25 +4069,77 @@ function calTogglePicker(event){
         if (summary) summary.setAttribute('aria-expanded', 'false');
     }
 }
-document.addEventListener('click', event => {
+function closeTeamPicker(){
     const picker = document.getElementById('calTeamPicker');
-    if (!picker || !picker.classList.contains('open')) return;
-    if (picker.contains(event.target)) return;
+    if (!picker) return;
     const menu = document.getElementById('calTeamMenu');
     if (menu) menu.setAttribute('hidden', '');
     picker.classList.remove('open');
     const summary = picker.querySelector('.cal-team-summary');
     if (summary) summary.setAttribute('aria-expanded', 'false');
+}
+function closeViewPicker(){
+    const picker = document.getElementById('calViewPicker');
+    if (!picker) return;
+    const menu = document.getElementById('calViewMenu');
+    if (menu) menu.setAttribute('hidden', '');
+    picker.classList.remove('open');
+    const summary = picker.querySelector('.cal-view-summary');
+    if (summary) summary.setAttribute('aria-expanded', 'false');
+}
+function calToggleViewPicker(event){
+    if (event){ event.preventDefault(); event.stopPropagation(); }
+    const picker = document.getElementById('calViewPicker');
+    if (!picker) return;
+    const menu = document.getElementById('calViewMenu');
+    const summary = picker.querySelector('.cal-view-summary');
+    if (!menu) return;
+    closeTeamPicker();
+    const willOpen = menu.hasAttribute('hidden');
+    if (willOpen){
+        menu.removeAttribute('hidden');
+        picker.classList.add('open');
+        if (summary) summary.setAttribute('aria-expanded', 'true');
+    } else {
+        menu.setAttribute('hidden', '');
+        picker.classList.remove('open');
+        if (summary) summary.setAttribute('aria-expanded', 'false');
+    }
+}
+function calSelectView(event, view){
+    if (event){ event.preventDefault(); event.stopPropagation(); }
+    const input = document.getElementById('calendarViewInput');
+    const form = document.getElementById('filterForm');
+    if (!input || !form) return;
+    input.value = view || 'day';
+    form.submit();
+}
+function calSelectAllTeams(event){
+    if (event){ event.preventDefault(); event.stopPropagation(); }
+    const form = document.getElementById('filterForm');
+    if (!form) return;
+    form.querySelectorAll('input[name="team_ids[]"]').forEach(input => { input.checked = false; });
+
+    let teamInput = form.querySelector('input[name="team"]');
+    if (!teamInput) {
+        teamInput = document.createElement('input');
+        teamInput.type = 'hidden';
+        teamInput.name = 'team';
+        form.appendChild(teamInput);
+    }
+    teamInput.value = 'all';
+    form.submit();
+}
+document.addEventListener('click', event => {
+    const picker = document.getElementById('calTeamPicker');
+    const viewPicker = document.getElementById('calViewPicker');
+    if (picker && picker.classList.contains('open') && !picker.contains(event.target)) closeTeamPicker();
+    if (viewPicker && viewPicker.classList.contains('open') && !viewPicker.contains(event.target)) closeViewPicker();
 });
 document.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
-    const picker = document.getElementById('calTeamPicker');
-    if (!picker || !picker.classList.contains('open')) return;
-    const menu = document.getElementById('calTeamMenu');
-    if (menu) menu.setAttribute('hidden', '');
-    picker.classList.remove('open');
-    const summary = picker.querySelector('.cal-team-summary');
-    if (summary) summary.setAttribute('aria-expanded', 'false');
+    closeTeamPicker();
+    closeViewPicker();
 });
 
 function validateBillingBeforeSubmit(prefix) {
@@ -3751,14 +4148,14 @@ function validateBillingBeforeSubmit(prefix) {
     const note = String(document.getElementById(prefix + '_billing_note')?.value || '').trim();
     if (notInvoiceable) {
         if (!note) {
-            alert('Completeaza motivul pentru care lucrarea nu se factureaza.');
+            alert('Completează motivul pentru care lucrarea nu se factureaza.');
             document.getElementById(prefix + '_billing_note')?.focus();
             return false;
         }
         return true;
     }
     if (!amount || amount <= 0) {
-        alert('Completeaza valoarea lucrarii fara TVA sau bifeaza Nu se factureaza si trece motivul.');
+        alert('Completează valoarea lucrării fără TVA sau bifeaza Nu se facturează si trece motivul.');
         document.getElementById(prefix + '_billing_amount')?.focus();
         return false;
     }
@@ -4019,7 +4416,8 @@ document.addEventListener('DOMContentLoaded', () => {
             slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
             slotDuration: '00:30:00',
             snapDuration: '00:30:00',
-            events: calendarEvents,
+            events: currentView === 'month' ? [] : calendarEvents,
+            dayCellDidMount: () => setTimeout(renderMonthMiniOverview, 0),
             eventClassNames: info => {
                 const classes = [];
                 const currentView = '<?= hcal($view) ?>';
@@ -4058,6 +4456,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dateClick: info => { if (isAdmin) openCreateModal(info.dateStr.substring(0, 10), '09:00', defaultTeamId); }
         });
         calendar.render();
+        renderMonthMiniOverview();
     }
 });
 </script>

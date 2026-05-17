@@ -142,12 +142,12 @@ function pz_notify_init(): void
     $templates = [
         ['appointment_created_sms', 'sms', 'SMS confirmare programare', null,
             '{brand}: Programarea pentru {service} a fost efectuata pentru data de {date}, interval {time}, la locatia {location}.'],
-        ['task_expiring_7_sms', 'sms', 'SMS scadenta sarcina in 7 zile', null,
-            '{brand}: Buna ziua, va reamintim ca valabilitatea procesului verbal expira in 7 zile. Va rugam sa ne contactati pentru programarea urmatoarei interventii.'],
+        ['task_expiring_7_sms', 'sms', 'SMS scadență sarcina in 7 zile', null,
+            '{brand}: Bună ziua, va reamintim ca valabilitatea procesului verbal expira in 7 zile. Vă rugăm sa ne contactati pentru programarea urmatoarei intervenții.'],
         ['password_reset_email', 'email', 'Email resetare parola', 'Resetare parola PestZone',
-            '<p>Buna ziua,</p><p>Ati solicitat resetarea parolei pentru PestZone.</p><p><a href="{reset_link}">Resetare parola</a></p><p>Linkul este valabil 60 de minute.</p>'],
+            '<p>Bună ziua,</p><p>Ati solicitat resetarea parolei pentru PestZone.</p><p><a href="{reset_link}">Resetare parola</a></p><p>Linkul este valabil 60 de minute.</p>'],
         ['contract_send_email', 'email', 'Email trimitere contract', 'Contract {contract_number}',
-            '<p>Buna ziua,</p><p>Va transmitem contractul {contract_number}.</p><p>Cu stima,<br>PestZone</p>'],
+            '<p>Bună ziua,</p><p>Va transmitem contractul {contract_number}.</p><p>Cu stima,<br>PestZone</p>'],
     ];
 
     $stmt = $pdo->prepare("
@@ -335,7 +335,7 @@ function pz_smslink_send_sms(
     pz_notify_init();
 
     // GUARD #1 - clientId obligatoriu (fail-safe).
-    // Trimitere fara client se accepta DOAR daca apelantul a setat explicit
+    // Trimitere fara client se accepta DOAR dacă apelantul a setat explicit
     // $allowWithoutClient = true (cazuri: SMS de test din comm settings).
     // Asta previne accidente in cod nou care uita sa treaca clientId.
     if (($clientId === null || $clientId <= 0) && !$allowWithoutClient) {
@@ -345,7 +345,7 @@ function pz_smslink_send_sms(
     }
 
     // GUARD #2 - cand avem clientId, citim DIRECT din DB statusul sms_enabled.
-    // Nu folosim cache. Daca query-ul esueaza, NU trimitem (fail-safe).
+    // Nu folosim cache. Dacă query-ul esueaza, NU trimitem (fail-safe).
     if ($clientId !== null && $clientId > 0) {
         try {
             $stmt = pz_db()->prepare("SELECT sms_enabled FROM clients WHERE id = ? LIMIT 1");
@@ -419,8 +419,8 @@ function pz_send_appointment_confirmation_sms(int $appointmentId): array
     // PZ_FIX_TEMPLATE_ACTIVE_CHECK_pz_send_appointment_confirmation_sms
     $__tpl = pz_template_get('appointment_created_sms');
     if (!$__tpl) {
-        pz_notify_log('sms','smslink','',null,null,'skipped',null,'Sablonul SMS confirmare programare este dezactivat din Sabloane SMS.','appointment',null);
-        return ['ok'=>false, 'skipped'=>true, 'error'=>'Sablonul SMS confirmare programare este dezactivat din Sabloane SMS.'];
+        pz_notify_log('sms','smslink','',null,null,'skipped',null,'Șablonul SMS confirmare programare este dezactivat din Șabloane SMS.','appointment',null);
+        return ['ok'=>false, 'skipped'=>true, 'error'=>'Șablonul SMS confirmare programare este dezactivat din Șabloane SMS.'];
     }
 
     $pdo = pz_db();
@@ -621,8 +621,8 @@ function pz_send_task_expiring_7_sms(int $taskId): array
     // PZ_FIX_TEMPLATE_ACTIVE_CHECK_pz_send_task_expiring_7_sms
     $__tpl = pz_template_get('task_expiring_7_sms');
     if (!$__tpl) {
-        pz_notify_log('sms','smslink','',null,null,'skipped',null,'Sablonul SMS scadenta sarcina 7 zile este dezactivat din Sabloane SMS.','task',null);
-        return ['ok'=>false, 'skipped'=>true, 'error'=>'Sablonul SMS scadenta sarcina 7 zile este dezactivat din Sabloane SMS.'];
+        pz_notify_log('sms','smslink','',null,null,'skipped',null,'Șablonul SMS scadență sarcina 7 zile este dezactivat din Șabloane SMS.','task',null);
+        return ['ok'=>false, 'skipped'=>true, 'error'=>'Șablonul SMS scadență sarcina 7 zile este dezactivat din Șabloane SMS.'];
     }
 
     $pdo = pz_db();
@@ -630,7 +630,7 @@ function pz_send_task_expiring_7_sms(int $taskId): array
     $stmt = $pdo->prepare("SELECT * FROM tasks WHERE id = ? LIMIT 1");
     $stmt->execute([$taskId]);
     $t = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$t) return ['ok'=>false, 'error'=>'Sarcina nu există.'];
+    if (!$t) return ['ok'=>false, 'error'=>'Sarcină nu există.'];
 
     $clientId = (int)($t['client_id'] ?? 0);
     $client = [];
@@ -663,7 +663,7 @@ function pz_send_task_expiring_7_sms(int $taskId): array
     $due = (string)($t['due_date'] ?? '');
     if ($due && preg_match('/^\d{4}-\d{2}-\d{2}/', $due)) $due = date('d.m.Y', strtotime($due));
 
-    $body = pz_template_body('task_expiring_7_sms', '{brand}: Buna ziua, va reamintim ca valabilitatea procesului verbal expira in 7 zile. Va rugam sa ne contactati pentru programarea urmatoarei interventii.');
+    $body = pz_template_body('task_expiring_7_sms', '{brand}: Bună ziua, va reamintim ca valabilitatea procesului verbal expira in 7 zile. Vă rugăm sa ne contactati pentru programarea urmatoarei intervenții.');
     $msg = pz_render_template($body, [
         'client'=>$client['name'] ?? '',
         'service'=>$service,

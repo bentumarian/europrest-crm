@@ -81,7 +81,7 @@ function dview_print_cache_key(?array $document, ?array $template = null): strin
             }
         }
     }
-    $parts[] = (string)time(); // garanteaza pagina proaspata dupa refresh, fara cache vechi in browser
+    $parts[] = (string)time(); // garanteaza pagina proaspata după refresh, fara cache vechi in browser
     return substr(sha1(implode('|', $parts)), 0, 12);
 }
 
@@ -288,7 +288,7 @@ try {
                     pz_flow_sync_issued_contract($pdo, $documentId, true);
                     $syncStats = function_exists('pz_flow_last_sync_stats') ? pz_flow_last_sync_stats() : [];
                     if ((int)($syncStats['items'] ?? 0) > 0 && (int)($syncStats['tasks'] ?? 0) <= 0) {
-                        throw new RuntimeException('Contractul a fost emis, dar nu s-au generat sarcini. Verifica daca serviciile din contract au locatie si serviciu completat.');
+                        throw new RuntimeException('Contractul a fost emis, dar nu s-au generat sarcini. Verifica dacă serviciile din contract au locație si serviciu completat.');
                     }
                 }
             }
@@ -319,11 +319,11 @@ try {
 
         if ($action === 'toggle_stamp') {
             if (!is_admin()) {
-                throw new RuntimeException('Doar administratorul poate adauga / scoate stampila pe document.');
+                throw new RuntimeException('Doar administratorul poate adauga / scoate ștampila pe document.');
             }
             $stampType = pzdoc_normalize_document_type((string)($actionDocument['document_type'] ?? ''));
             if (!in_array($stampType, ['oferta', 'contract', 'proces_verbal'], true)) {
-                throw new RuntimeException('Stampila se aplica doar pe oferte, contracte si procese verbale.');
+                throw new RuntimeException('Ștampila se aplica doar pe oferte, contracte si procese verbale.');
             }
             $newValue = empty($actionDocument['apply_company_stamp']) ? 1 : 0;
             $stmt = $pdo->prepare("UPDATE documents SET apply_company_stamp = ? WHERE id = ?");
@@ -345,11 +345,11 @@ try {
         } elseif ($ok === 'email') {
             $success = 'Emailul a fost trimis.';
         } elseif ($ok === 'stamp_on') {
-            $success = 'Stampila firmei a fost aplicata pe document. pagina de print se va actualiza cu stampila.';
+            $success = 'Ștampila firmei a fost aplicata pe document. pagina de print se va actualiza cu ștampila.';
         } elseif ($ok === 'stamp_off') {
-            $success = 'Stampila firmei a fost scoasa de pe document.';
+            $success = 'Ștampila firmei a fost scoasa de pe document.';
         } elseif ($ok === 'signature') {
-            // Confirmarea este afisata in cardul de semnatura; evitam mesaj dublat.
+            // Confirmarea este afișata in cardul de semnătura; evitam mesaj dublat.
         }
     }
 
@@ -388,6 +388,8 @@ $hasClientEmail = dview_is_valid_email($clientEmail);
 $isAdmin = is_admin();
 $isTeamUser = is_team_user();
 $signaturePath = $document ? dview_signature_path($document) : '';
+$documentPayload = $document ? dview_payload($document) : [];
+$stockConsumptionDeferred = $document && ($type === 'proces_verbal') && (($documentPayload['stock_consumption_deferred'] ?? '') === '1');
 $hasClientSignature = $signaturePath !== '';
 $signatureSavedAt = $document ? dview_signature_saved_at($document) : '';
 $appointmentIdForSignature = $document ? dview_document_appointment_id($document) : 0;
@@ -500,11 +502,11 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
         <div class="topbar document-topbar">
             <?php if ($fieldPvCompact): ?>
                 <div class="document-toolbar">
-                    <a class="btn" href="<?= dview_h($backUrl) ?>">Inapoi la lista</a>
+                    <a class="btn" href="<?= dview_h($backUrl) ?>">Înapoi la lista</a>
                 </div>
                 <?php if ($document): ?>
                     <div class="document-toolbar">
-                        <a class="btn accent" target="_blank" href="document_pdf.php?id=<?= (int)$document['id'] ?>&mode=download">Descarca PDF</a>
+                        <a class="btn accent" target="_blank" href="document_pdf.php?id=<?= (int)$document['id'] ?>&mode=download">Descarcă PDF</a>
                         <?php if ($isIssued && $hasClientSignature): ?>
                             <?php if ($hasClientEmail): ?>
                                 <button class="btn accent" type="button" onclick="sendQuickDocumentEmail(<?= (int)$document['id'] ?>, this, '<?= dview_h($clientEmail) ?>')">Trimite email</button>
@@ -516,9 +518,9 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                 <?php endif; ?>
             <?php else: ?>
                 <div class="document-toolbar">
-                    <a class="btn" href="<?= dview_h($backUrl) ?>">Inapoi la lista</a>
+                    <a class="btn" href="<?= dview_h($backUrl) ?>">Înapoi la lista</a>
                     <?php if ($document && $isDraft): ?>
-                        <a class="btn" href="<?= dview_h($editUrl) ?>">Editeaza</a>
+                        <a class="btn" href="<?= dview_h($editUrl) ?>">Editează</a>
                     <?php elseif ($document): ?>
                         <span class="btn disabled">Document blocat</span>
                     <?php endif; ?>
@@ -526,16 +528,16 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
 
                 <?php if ($document): ?>
                     <div class="document-toolbar">
-                        <a class="btn accent" target="_blank" href="document_pdf.php?id=<?= (int)$document['id'] ?>&mode=download">Descarca PDF</a>
+                        <a class="btn accent" target="_blank" href="document_pdf.php?id=<?= (int)$document['id'] ?>&mode=download">Descarcă PDF</a>
                         <?php if ($isAdmin && in_array($type, ['oferta', 'contract', 'proces_verbal'], true)): ?>
                             <?php $hasStamp = !empty($document['apply_company_stamp']); ?>
                             <form method="post" style="display:inline;">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="toggle_stamp">
                                 <?php if ($hasStamp): ?>
-                                    <button class="btn" type="submit" title="Scoate stampila firmei de pe acest document">Scoate stampila</button>
+                                    <button class="btn" type="submit" title="Scoate ștampila firmei de pe acest document">Scoate ștampila</button>
                                 <?php else: ?>
-                                    <button class="btn accent" type="submit" title="Aplica stampila firmei pe acest document">Adauga stampila</button>
+                                    <button class="btn accent" type="submit" title="Aplica ștampila firmei pe acest document">Adaugă ștampila</button>
                                 <?php endif; ?>
                             </form>
                         <?php endif; ?>
@@ -547,15 +549,15 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                                     <span class="btn disabled">Email lipsa</span>
                                 <?php endif; ?>
                             <?php elseif (!$isAdmin && $teamEmailBlockedBySignature): ?>
-                                <span class="btn disabled">Email dupa semnatura</span>
+                                <span class="btn disabled">Email după semnătura</span>
                             <?php else: ?>
                                 <button class="btn accent" type="button" onclick="sendQuickDocumentEmail(<?= (int)$document['id'] ?>, this, '<?= dview_h($clientEmail) ?>')">Trimite email</button>
                                 <?php if ($isAdmin): ?>
-                                    <a class="link-muted" href="document_send_email.php?id=<?= (int)$document['id'] ?>" style="font-size:12px;align-self:center;text-decoration:none;">Editeaza &rarr;</a>
+                                    <a class="link-muted" href="document_send_email.php?id=<?= (int)$document['id'] ?>" style="font-size:12px;align-self:center;text-decoration:none;">Editează &rarr;</a>
                                 <?php endif; ?>
                             <?php endif; ?>
                         <?php elseif ($isDraft): ?>
-                            <span class="btn disabled">Email dupa emitere</span>
+                            <span class="btn disabled">Email după emitere</span>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
@@ -602,7 +604,12 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                         </div>
                     <?php elseif ($isCancelled): ?>
                         <div class="document-alert error">
-                            Document anulat. Numarul ramane in registru ca anulat.
+                            Document anulat. Numarul rămâne in registru ca anulat.
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($stockConsumptionDeferred): ?>
+                        <div class="document-alert warning">
+                            Consum stoc neînchis. PV-ul este emis, dar cantitatea nu a fost scăzută din gestiune și nu apare în registrul de consum.
                         </div>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -614,7 +621,7 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                         <div class="meta-value"><?= dview_h($document['client_name_snapshot'] ?: '-') ?></div>
                     </div>
                     <div class="meta-card">
-                        <div class="meta-label">Locatie</div>
+                        <div class="meta-label">Locație</div>
                         <div class="meta-value"><?= dview_h($document['location_name_snapshot'] ?: '-') ?></div>
                     </div>
                     <div class="meta-card">
@@ -622,14 +629,14 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                         <div class="meta-value"><?= dview_date_ro($document['document_date'] ?? null) ?><?= !empty($document['document_time']) ? ' / ' . dview_time_ro($document['document_time']) : '' ?></div>
                     </div>
                     <div class="meta-card">
-                        <div class="meta-label"><?= $type === 'oferta' ? 'Total fara TVA' : 'Total' ?></div>
-                        <div class="meta-value"><?= dview_money($document['total_amount'] ?? 0, $currency) ?><?= $type === 'oferta' ? ' fara TVA' : '' ?></div>
+                        <div class="meta-label"><?= $type === 'oferta' ? 'Total fără TVA' : 'Total' ?></div>
+                        <div class="meta-value"><?= dview_money($document['total_amount'] ?? 0, $currency) ?><?= $type === 'oferta' ? ' fără TVA' : '' ?></div>
                     </div>
                 </section>
 
                 <section class="document-card actions-card">
                     <div class="summary-list">
-                        <div><strong>Sablon:</strong> <?= dview_h($template['name'] ?? 'Sablon implicit') ?></div>
+                        <div><strong>Șablon:</strong> <?= dview_h($template['name'] ?? 'Șablon implicit') ?></div>
                         <div><strong>Linii servicii:</strong> <?= (int)dview_count_items($document) ?> | <strong>Materiale / biocide:</strong> <?= (int)dview_count_materials($document) ?></div>
                         <div><strong>Creat:</strong> <?= dview_date_ro($document['created_at'] ?? null) ?> | <strong>Emis:</strong> <?= !empty($document['issued_at']) ? dview_date_ro($document['issued_at']) : '-' ?></div>
                         <div><strong>Email:</strong> <?= dview_h(dview_email_info($document)) ?></div>
@@ -637,7 +644,7 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
 
                     <div class="document-toolbar">
                         <?php if ($isDraft): ?>
-                            <form method="post" onsubmit="return confirm('Emiti documentul? Dupa emitere va primi numar si va fi blocat.');">
+                            <form method="post" onsubmit="return confirm('Emiti documentul? După emitere va primi numar si va fi blocat.');">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="issue">
                                 <input type="hidden" name="document_id" value="<?= (int)$document['id'] ?>">
@@ -650,11 +657,11 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="action" value="delete_draft">
                                     <input type="hidden" name="document_id" value="<?= (int)$document['id'] ?>">
-                                    <button class="btn danger" type="submit">Sterge draft</button>
+                                    <button class="btn danger" type="submit">Șterge draft</button>
                                 </form>
                             <?php endif; ?>
                         <?php elseif ($isIssued && $isAdmin): ?>
-                            <form method="post" onsubmit="return confirm('Anulezi documentul emis? Numarul va ramane in registru ca anulat.');">
+                            <form method="post" onsubmit="return confirm('Anulezi documentul emis? Numarul va rămâne in registru ca anulat.');">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="cancel">
                                 <input type="hidden" name="document_id" value="<?= (int)$document['id'] ?>">
@@ -672,11 +679,11 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                     <section class="document-card signature-card" id="clientSignatureCard">
                         <div class="signature-title">
                             <div>
-                                <h2>Semnatura beneficiar</h2>
-                                <p>Semnatura se salveaza doar din modul Angajat / Teren si intra automat in PDF.</p>
+                                <h2>Semnătura beneficiar</h2>
+                                <p>Semnătura se salveaza doar din modul Angajat / Teren si intra automat in PDF.</p>
                             </div>
                             <?php if ($hasClientSignature): ?>
-                                <span class="badge issued">Semnatura salvata<?= $signatureSavedAt ? ' - ' . dview_h($signatureSavedAt) : '' ?></span>
+                                <span class="badge issued">Semnătura salvata<?= $signatureSavedAt ? ' - ' . dview_h($signatureSavedAt) : '' ?></span>
                             <?php else: ?>
                                 <span class="badge draft">Nesemnat</span>
                             <?php endif; ?>
@@ -684,9 +691,9 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
 
                         <?php if ($hasClientSignature): ?>
                             <div class="signature-existing">
-                                <img src="<?= dview_h($signaturePath) ?>?v=<?= time() ?>" alt="Semnatura beneficiar">
+                                <img src="<?= dview_h($signaturePath) ?>?v=<?= time() ?>" alt="Semnătura beneficiar">
                                 <?php if (!$fieldPvCompact): ?>
-                                    <div class="signature-help">Pentru refacere, clientul poate semna din nou mai jos si semnatura veche va fi inlocuita.</div>
+                                    <div class="signature-help">Pentru refacere, clientul poate semna din nou mai jos si semnătura veche va fi inlocuita.</div>
                                 <?php endif; ?>
                             </div>
                         <?php else: ?>
@@ -695,16 +702,16 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
 
                         <?php if (!$hasClientSignature): ?>
                             <div class="signature-pad-wrap">
-                                <canvas id="clientSignaturePad" class="signature-pad" tabindex="0" autofocus aria-label="Semnatura client"></canvas>
+                                <canvas id="clientSignaturePad" class="signature-pad" tabindex="0" autofocus aria-label="Semnătura client"></canvas>
                             </div>
                         <?php endif; ?>
 
                         <div class="signature-actions">
                             <?php if (!$hasClientSignature): ?>
-                                <button class="btn" type="button" id="clearClientSignature">Sterge semnatura</button>
-                                <button class="btn accent" type="button" id="saveClientSignature">Salveaza semnatura</button>
+                                <button class="btn" type="button" id="clearClientSignature">Șterge semnătura</button>
+                                <button class="btn accent" type="button" id="saveClientSignature">Salvează semnătura</button>
                             <?php endif; ?>
-                            <?php /* Dupa semnatura, actiunile principale raman doar in bara de sus: Inapoi, Descarca PDF, Trimite email. */ ?>
+                            <?php /* După semnătura, actiunile principale raman doar in bara de sus: Înapoi, Descarcă PDF, Trimite email. */ ?>
                         </div>
                     </section>
                 <?php endif; ?>
@@ -824,17 +831,17 @@ const currentDocumentId = <?= (int)($document['id'] ?? 0) ?>;
                 const res = await fetch('document_signature_save.php', { method:'POST', body:formData, credentials:'same-origin', headers:{'Accept':'application/json'} });
                 const data = await res.json().catch(() => null);
                 if (res.ok && data && data.ok) {
-                    alert('Semnatura a fost salvata.');
+                    alert('Semnătura a fost salvata.');
                     window.location.href = 'document_view.php?id=' + currentDocumentId + '&ok=signature#clientSignatureCard';
                 } else {
-                    alert((data && data.error) ? data.error : 'Semnatura nu a putut fi salvata.');
+                    alert((data && data.error) ? data.error : 'Semnătura nu a putut fi salvata.');
                 }
             } catch (err) {
                 console.error('signature save error:', err);
                 alert('Eroare la salvarea semnaturii. Reincearca.');
             } finally {
                 saveBtn.disabled = false;
-                saveBtn.textContent = oldText || 'Salveaza semnatura';
+                saveBtn.textContent = oldText || 'Salvează semnătura';
             }
         });
     }

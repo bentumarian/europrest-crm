@@ -10,10 +10,10 @@ if (file_exists(__DIR__ . '/settings_lib.php')) {
 |--------------------------------------------------------------------------
 | PestZone - document tokens
 |--------------------------------------------------------------------------
-| Transforma datele unui document in variabile pentru sabloane:
+| Transforma datele unui document in variabile pentru șabloane:
 | {{document_number}}, {{client_name}}, {{items_table}}, {{materials_table}}
 |
-| Acest fisier nu emite documente si nu genereaza PDF. El doar pregateste
+| Acest fișier nu emite documente si nu genereaza PDF. El doar pregateste
 | HTML-ul final care va fi trimis catre document_pdf_engine.php.
 |--------------------------------------------------------------------------
 */
@@ -289,13 +289,13 @@ if (!function_exists('pzdoc_appointment_tokens')) {
         $empty = [
             'programare_client' => '',
             'programare_reprezentant_client' => '',
-            'programare_locatie' => '',
-            'programare_adresa_locatie' => '',
+            'programare_locație' => '',
+            'programare_adresa_locație' => '',
             'programare_ora_inceput' => '',
             'programare_data' => '',
-            'programare_reprezentant_locatie' => '',
-            'programare_telefon_locatie' => '',
-            'programare_suprafata_locatie' => '',
+            'programare_reprezentant_locație' => '',
+            'programare_telefon_locație' => '',
+            'programare_suprafata_locație' => '',
             'appointment_client_name' => '',
             'appointment_client_representative' => '',
             'appointment_location_name' => '',
@@ -336,13 +336,13 @@ if (!function_exists('pzdoc_appointment_tokens')) {
             return [
                 'programare_client' => pzdoc_token_text($clientName, ''),
                 'programare_reprezentant_client' => pzdoc_token_text($clientRep, ''),
-                'programare_locatie' => pzdoc_token_text($locName, ''),
-                'programare_adresa_locatie' => pzdoc_token_multiline($locAddress, ''),
+                'programare_locație' => pzdoc_token_text($locName, ''),
+                'programare_adresa_locație' => pzdoc_token_multiline($locAddress, ''),
                 'programare_ora_inceput' => pzdoc_h(pzdoc_format_time_display($time, '')),
                 'programare_data' => pzdoc_h(pzdoc_format_date_display($date, '')),
-                'programare_reprezentant_locatie' => pzdoc_token_text($locContact, ''),
-                'programare_telefon_locatie' => pzdoc_token_text($locPhone, ''),
-                'programare_suprafata_locatie' => pzdoc_token_text($locSurface, ''),
+                'programare_reprezentant_locație' => pzdoc_token_text($locContact, ''),
+                'programare_telefon_locație' => pzdoc_token_text($locPhone, ''),
+                'programare_suprafata_locație' => pzdoc_token_text($locSurface, ''),
                 'appointment_client_name' => pzdoc_token_text($clientName, ''),
                 'appointment_client_representative' => pzdoc_token_text($clientRep, ''),
                 'appointment_location_name' => pzdoc_token_text($locName, ''),
@@ -624,9 +624,9 @@ if (!function_exists('pzdoc_items_table_html')) {
 
         $html = '<table class="pzdoc-table pzdoc-items-table" width="100%" cellspacing="0" cellpadding="0">';
         $html .= '<thead><tr>';
-        $html .= '<th>Nr.</th><th>Serviciu</th><th>Locatie</th><th>Detalii</th><th>Cant.</th>';
+        $html .= '<th>Nr.</th><th>Serviciu</th><th>Locație</th><th>Detalii</th><th>Cant.</th>';
         if ($type === 'contract') {
-            $html .= '<th>Frecventa</th>';
+            $html .= '<th>Frecvență</th>';
         }
         if ($showMoney) {
             $html .= '<th>Pret unitar</th><th>Total</th>';
@@ -785,37 +785,51 @@ if (!function_exists('pzdoc_materials_table_html')) {
         }
 
         $type = pzdoc_normalize_document_type((string)($document['document_type'] ?? ''));
+        $payload = is_array($document['payload'] ?? null) ? $document['payload'] : [];
+        if (!$payload && !empty($document['payload_json'])) {
+            $decodedPayload = json_decode((string)$document['payload_json'], true);
+            if (is_array($decodedPayload)) {
+                $payload = $decodedPayload;
+            }
+        }
+        $deferredConsumption = (($payload['stock_consumption_deferred'] ?? '') === '1');
 
         if ($type === 'proces_verbal') {
-            $html = '<table class="pzdoc-table pzdoc-materials-table" width="100%" cellspacing="0" cellpadding="0">';
+            $tableStyle = 'font-size:7.6pt;line-height:1.12;margin:4px 0 8px 0;';
+            $thStyle = 'font-size:7.3pt;line-height:1.08;padding:3px 4px;text-align:center;vertical-align:middle;';
+            $tdStyle = 'font-size:7.5pt;line-height:1.12;padding:3px 4px;text-align:center;vertical-align:middle;';
+            $html = '<table class="pzdoc-table pzdoc-materials-table" width="100%" cellspacing="0" cellpadding="0" style="' . $tableStyle . '">';
             $html .= '<thead><tr>';
-            $html .= '<th style="width:22%;">DENUMIRE PRODUS/MATERIAL</th>';
-            $html .= '<th style="width:14%;">NR. AVIZ</th>';
-            $html .= '<th style="width:13%;">LOT</th>';
-            $html .= '<th style="width:13%;">DATA VALABILITATE</th>';
-            $html .= '<th style="width:11%;">DILUTIE (%)</th>';
-            $html .= '<th style="width:14%;">CANTITATE UTILIZATA</th>';
-            $html .= '<th style="width:13%;">METODA APLICARE</th>';
+            $html .= '<th style="width:24%;' . $thStyle . '">DENUMIRE</th>';
+            $html .= '<th style="width:16%;' . $thStyle . '">NR. AVIZ</th>';
+            $html .= '<th style="width:10%;' . $thStyle . '">LOT</th>';
+            $html .= '<th style="width:15%;' . $thStyle . '">VALABILITATE</th>';
+            $html .= '<th style="width:11%;' . $thStyle . '">DILUȚIE %</th>';
+            $html .= '<th style="width:12%;' . $thStyle . '">CANTITATE</th>';
+            $html .= '<th style="width:12%;' . $thStyle . '">APLICARE</th>';
             $html .= '</tr></thead><tbody>';
 
             foreach ($materials as $m) {
-                $qty = pzdoc_format_qty_display($m['quantity'] ?? 0);
-                $unit = trim((string)($m['unit'] ?? ''));
-                $qtyText = trim($qty . ' ' . $unit);
-                $method = trim((string)($m['application_method'] ?? ''));
-                $methodCustom = trim((string)($m['application_method_custom'] ?? ''));
-                if ($methodCustom !== '') {
-                    $method = $methodCustom;
+                $method = '';
+                if (!$deferredConsumption) {
+                    $method = trim((string)($m['application_method'] ?? ''));
+                    $methodCustom = trim((string)($m['application_method_custom'] ?? ''));
+                    if ($methodCustom !== '') {
+                        $method = $methodCustom;
+                    }
                 }
+                $concentration = $deferredConsumption ? '' : (string)($m['work_concentration'] ?? '');
+                $rawQty = $m['quantity'] ?? null;
+                $qtyText = ($deferredConsumption || $rawQty === null || $rawQty === '') ? '' : pzdoc_format_qty_display($rawQty);
 
                 $html .= '<tr>';
-                $html .= '<td>' . pzdoc_token_text($m['material_name'] ?? '-') . '</td>';
-                $html .= '<td>' . pzdoc_token_text($m['aviz_no'] ?? '') . '</td>';
-                $html .= '<td>' . pzdoc_token_text($m['lot_number'] ?? '') . '</td>';
-                $html .= '<td>' . pzdoc_h(pzdoc_format_date_display($m['expiry_date'] ?? null)) . '</td>';
-                $html .= '<td>' . pzdoc_token_text($m['work_concentration'] ?? '') . '</td>';
-                $html .= '<td>' . pzdoc_h($qtyText !== '' ? $qtyText : '-') . '</td>';
-                $html .= '<td>' . pzdoc_token_text($method) . '</td>';
+                $html .= '<td style="' . $tdStyle . '">' . pzdoc_token_text($m['material_name'] ?? '-') . '</td>';
+                $html .= '<td style="' . $tdStyle . '">' . pzdoc_token_text($m['aviz_no'] ?? '') . '</td>';
+                $html .= '<td style="' . $tdStyle . '">' . pzdoc_token_text($m['lot_number'] ?? '') . '</td>';
+                $html .= '<td style="' . $tdStyle . '">' . pzdoc_h(pzdoc_format_date_display($m['expiry_date'] ?? null, '')) . '</td>';
+                $html .= '<td style="' . $tdStyle . '">' . pzdoc_token_text($concentration, '') . '</td>';
+                $html .= '<td style="' . $tdStyle . '">' . pzdoc_h($qtyText) . '</td>';
+                $html .= '<td style="' . $tdStyle . '">' . pzdoc_token_text($method, '') . '</td>';
                 $html .= '</tr>';
             }
 
@@ -825,7 +839,7 @@ if (!function_exists('pzdoc_materials_table_html')) {
 
         $html = '<table class="pzdoc-table pzdoc-materials-table" width="100%" cellspacing="0" cellpadding="0">';
         $html .= '<thead><tr>';
-        $html .= '<th>Nr.</th><th>Produs / material</th><th>Cant.</th><th>Lot</th><th>Valabilitate</th><th>Metoda</th><th>Zona</th><th>Observatii</th>';
+        $html .= '<th>Nr.</th><th>Produs / material</th><th>Cant.</th><th>Lot</th><th>Valabilitate</th><th>Metoda</th><th>Zona</th><th>Observații</th>';
         $html .= '</tr></thead><tbody>';
 
         $i = 1;
@@ -1040,12 +1054,12 @@ if (!function_exists('pzdoc_contract_services_table_html')) {
         $html = '<table class="pzdoc-table pzdoc-contract-services-table" width="100%" cellspacing="0" cellpadding="0">';
         $html .= '<thead><tr>';
         $html .= '<th style="width:6%;">Nr.</th>';
-        $html .= '<th style="width:17%;">Locatie</th>';
+        $html .= '<th style="width:17%;">Locație</th>';
         $html .= '<th style="width:23%;">Adresa</th>';
         $html .= '<th style="width:20%;">Serviciu contractat</th>';
         $html .= '<th style="width:9%;">m.p.</th>';
-        $html .= '<th style="width:13%;">Frecventa</th>';
-        $html .= '<th style="width:12%;">Pret / interventie</th>';
+        $html .= '<th style="width:13%;">Frecvență</th>';
+        $html .= '<th style="width:12%;">Pret / intervenție</th>';
         $html .= '</tr></thead><tbody>';
 
         $i = 1;
@@ -1180,7 +1194,7 @@ if (!function_exists('pzdoc_client_signature_html')) {
         $src = 'data:image/png;base64,' . base64_encode($data);
         // Container patrat 38mm x 38mm pentru documente/PDF.
         return '<span class="pzdoc-client-signature-box" style="display:inline-block;width:38mm;height:38mm;line-height:38mm;text-align:center;vertical-align:middle;">'
-            . '<img class="pzdoc-client-signature" src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8') . '" style="max-width:38mm;max-height:38mm;vertical-align:middle;" alt="Semnatura beneficiar">'
+            . '<img class="pzdoc-client-signature" src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8') . '" style="max-width:38mm;max-height:38mm;vertical-align:middle;" alt="Semnătura beneficiar">'
             . '</span>';
     }
 }
@@ -1218,8 +1232,8 @@ if (!function_exists('pzdoc_template_has_company_stamp_token')) {
 
 if (!function_exists('pzdoc_company_stamp_html')) {
     /**
-     * Returneaza tag-ul <img> pentru stampila firmei (data URI).
-     * Dimensiunile sunt citite din Setari -> Design documente:
+     * Returneaza tag-ul <img> pentru ștampila firmei (data URI).
+     * Dimensiunile sunt citite din Setări -> Design documente:
      * document.company_stamp_width_mm si document.company_stamp_height_mm.
      */
     function pzdoc_company_stamp_html(): string
@@ -1260,14 +1274,14 @@ if (!function_exists('pzdoc_company_stamp_html')) {
 
         $src = 'data:' . $mime . ';base64,' . base64_encode($bytes);
         return '<img src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8')
-            . '" style="width:' . $widthCss . 'mm;height:' . $heightCss . 'mm;display:inline-block;" alt="Stampila firmei">';
+            . '" style="width:' . $widthCss . 'mm;height:' . $heightCss . 'mm;display:inline-block;" alt="Ștampila firmei">';
     }
 }
 
 if (!function_exists('pzdoc_document_wants_stamp')) {
     /**
-     * Returneaza true daca documentul a fost marcat sa primeasca stampila (apply_company_stamp=1).
-     * Stampila este permisa pe oferta, contract si proces verbal.
+     * Returneaza true dacă documentul a fost marcat sa primeasca ștampila (apply_company_stamp=1).
+     * Ștampila este permisa pe oferta, contract si proces verbal.
      */
     function pzdoc_document_wants_stamp(array $document): bool
     {
@@ -1283,7 +1297,7 @@ if (!function_exists('pzdoc_document_wants_stamp')) {
 
 if (!function_exists('pzdoc_append_client_signature_if_needed')) {
     /**
-     * Pastrat pentru compatibilitate. Semnatura client se pune in sablon via {{client_signature}}.
+     * Pastrat pentru compatibilitate. Semnătura client se pune în șablon via {{client_signature}}.
      */
     function pzdoc_append_client_signature_if_needed(string $html, array $document, bool $signatureTokenPresent): string
     {
@@ -1293,8 +1307,8 @@ if (!function_exists('pzdoc_append_client_signature_if_needed')) {
 
 if (!function_exists('pzdoc_append_company_stamp_if_needed')) {
     /**
-     * Daca sablonul nu contine explicit {{company_stamp}}, dar documentul are stampila activata,
-     * adaugam o zona simpla la final. Astfel butonul functioneaza si pentru sabloanele vechi.
+     * Dacă sablonul nu contine explicit {{company_stamp}}, dar documentul are ștampila activata,
+     * adaugam o zona simpla la final. Astfel butonul functioneaza si pentru șabloanele vechi.
      */
     function pzdoc_append_company_stamp_if_needed(string $html, array $document, bool $stampTokenPresent): string
     {
@@ -1307,7 +1321,7 @@ if (!function_exists('pzdoc_append_company_stamp_if_needed')) {
         }
         return $html
             . '<div class="pzdoc-stamp-fallback" style="margin-top:12mm;page-break-inside:avoid;text-align:left;">'
-            . '<div style="font-weight:bold;margin-bottom:3mm;">Stampila prestatorului</div>'
+            . '<div style="font-weight:bold;margin-bottom:3mm;">Ștampila prestatorului</div>'
             . $stampHtml
             . '</div>';
     }
@@ -1522,9 +1536,9 @@ if (!function_exists('pzdoc_build_tokens')) {
             'vat_amount' => pzdoc_format_number_display($document['vat_amount'] ?? 0) . ' ' . pzdoc_h($currency),
             'document_total' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency),
             'total_amount' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency),
-            'subtotal_without_vat' => pzdoc_format_number_display($document['subtotal'] ?? 0) . ' ' . pzdoc_h($currency) . ' fara TVA',
-            'total_without_vat' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency) . ' fara TVA',
-            'total_fara_tva' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency) . ' fara TVA',
+            'subtotal_without_vat' => pzdoc_format_number_display($document['subtotal'] ?? 0) . ' ' . pzdoc_h($currency) . ' fără TVA',
+            'total_without_vat' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency) . ' fără TVA',
+            'total_fara_tva' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency) . ' fără TVA',
             'discount_label' => pzdoc_token_text($discountLabel),
             'discount_amount' => pzdoc_format_number_display($discountAmount) . ' ' . pzdoc_h($currency),
             'discount_block' => $discountBlock,
@@ -1536,7 +1550,7 @@ if (!function_exists('pzdoc_build_tokens')) {
             'delivery_terms' => pzdoc_token_multiline($payload['delivery_terms'] ?? ''),
             'offer_intro' => pzdoc_token_multiline($offerIntro),
             'offer_footer' => pzdoc_token_multiline($offerFooter),
-            'prices_without_vat_note' => 'Toate preturile din prezenta oferta sunt exprimate fara TVA. TVA se va aplica, daca este cazul, conform legislatiei in vigoare la data facturarii.',
+            'prices_without_vat_note' => 'Toate preturile din prezenta oferta sunt exprimate fără TVA. TVA se va aplica, dacă este cazul, conform legislatiei in vigoare la data facturarii.',
 
             'company_name' => pzdoc_token_text($company['name'] ?? ''),
             'company_legal_name' => pzdoc_token_text($company['legal_name'] ?? ''),
@@ -1548,7 +1562,7 @@ if (!function_exists('pzdoc_build_tokens')) {
             'company_email' => pzdoc_token_text($company['email'] ?? ''),
             'company_phone' => pzdoc_token_text($company['phone'] ?? ''),
             'company_website' => pzdoc_token_text($company['website'] ?? ''),
-            // PZ_PV_OPERATOR: pentru PV, daca avem operatori (workers_names) → ei devin reprezentant prestator.
+            // PZ_PV_OPERATOR: pentru PV, dacă avem operatori (workers_names) → ei devin reprezentant prestator.
             'company_representative' => pzdoc_token_text(
                 (function () use ($document, $company) {
                     $type = function_exists('pzdoc_normalize_document_type')
@@ -1598,7 +1612,7 @@ if (!function_exists('pzdoc_build_tokens')) {
             'location_phone' => pzdoc_token_text($document['location_phone_snapshot'] ?? ''),
             'location_surface' => pzdoc_token_text($locationSurface, ''),
             'location_area' => pzdoc_token_text($locationSurface, ''),
-            'suprafata_locatie' => pzdoc_token_text($locationSurface, ''),
+            'suprafata_locație' => pzdoc_token_text($locationSurface, ''),
             'surface_text' => pzdoc_token_text($locationSurface, ''),
             'location_block' => pzdoc_location_block_html($document),
 
@@ -1718,8 +1732,8 @@ if (!function_exists('pzdoc_render_document_html')) {
         $html = pzdoc_append_company_stamp_if_needed($html, $document, $hasStampToken);
 
         if ($includeBaseCss) {
-            // Injecteaza CSS de baza DOAR daca sablonul nu contine deja un bloc <style>.
-            // Astfel, font-size-ul setat in editor (sablon) nu este suprascris.
+            // Injecteaza CSS de baza DOAR dacă șablonul nu contine deja un bloc <style>.
+            // Astfel, font-size-ul setat in editor (șablon) nu este suprascris.
             if (stripos($html, '<style') === false) {
                 $html = pzdoc_base_document_css() . $html;
             }
@@ -1775,19 +1789,19 @@ if (!function_exists('pzdoc_available_tokens')) {
                 '{{client_block}}', '{{client_name}}', '{{client_cui}}', '{{client_identifier}}', '{{client_registry}}', '{{client_address}}',
                 '{{client_representative}}', '{{client_representative_role}}', '{{client_tax_id}}', '{{client_reg_com}}', '{{client_email}}', '{{client_phone}}', '{{client_signature}}', '{{client_signature_saved_at}}',
             ],
-            'Locatie' => [
-                '{{location_block}}', '{{location_name}}', '{{location_address}}', '{{location_contact}}', '{{location_phone}}', '{{location_surface}}', '{{suprafata_locatie}}', '{{surface_text}}',
+            'Locație' => [
+                '{{location_block}}', '{{location_name}}', '{{location_address}}', '{{location_contact}}', '{{location_phone}}', '{{location_surface}}', '{{suprafata_locație}}', '{{surface_text}}',
             ],
             'Programare' => [
-                '{{programare_client}}', '{{programare_reprezentant_client}}', '{{programare_locatie}}', '{{programare_adresa_locatie}}',
-                '{{programare_ora_inceput}}', '{{programare_data}}', '{{programare_reprezentant_locatie}}', '{{programare_telefon_locatie}}', '{{programare_suprafata_locatie}}',
+                '{{programare_client}}', '{{programare_reprezentant_client}}', '{{programare_locație}}', '{{programare_adresa_locație}}',
+                '{{programare_ora_inceput}}', '{{programare_data}}', '{{programare_reprezentant_locație}}', '{{programare_telefon_locație}}', '{{programare_suprafata_locație}}',
                 '{{appointment_client_name}}', '{{appointment_client_representative}}', '{{appointment_location_name}}', '{{appointment_location_address}}',
                 '{{appointment_start_time}}', '{{appointment_date}}', '{{appointment_location_contact}}', '{{appointment_location_phone}}', '{{appointment_location_surface}}',
             ],
             'Tabele' => [
                 '{{items_table}}', '{{services_table}}', '{{contract_services_table}}', '{{contract_items_table}}', '{{services_checks}}', '{{services_box}}', '{{materials_table}}', '{{biocides_table}}', '{{materials_safety}}', '{{safety_measures}}',
             ],
-            'Observatii' => [
+            'Observații' => [
                 '{{notes}}', '{{executor_notes}}', '{{recommendations}}', '{{client_notes}}', '{{internal_notes}}', '{{offer_intro}}', '{{offer_footer}}',
             ],
             'Date suplimentare' => [

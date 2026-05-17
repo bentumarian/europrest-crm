@@ -55,25 +55,25 @@ $demoLowUrl = ($autoBase !== '') ? ($autoBase . '/feedback.php?demo=low') : 'fee
 <div class="layout">
     <?php render_sidebar('settings', true); ?>
     <main class="main">
-        <div class="topbar" style="padding:12px 20px;"><strong>Review si satisfactie</strong></div>
+        <div class="topbar" style="padding:12px 20px;"><a class="btn ghost" href="settings.php">Înapoi la Setări</a></div>
         <div class="content page">
             <section class="hero">
-                <h1>Review si satisfactie clienti</h1>
-                <p>Prima interventie finalizata trimite SMS. Interventiile urmatoare trimit doar email pentru formularul intern de satisfactie. Google Review se afiseaza doar la prima interventie, daca nota este 5 stele.</p>
+                <h1>Review si satisfactie clienți</h1>
+                <p>Prima intervenție finalizata trimite SMS. Interventiile urmatoare trimit doar email pentru formularul intern de satisfactie. Google Review se afiseaza doar la prima intervenție, dacă nota este 5 stele.</p>
             </section>
 
-            <?php if (isset($_GET['saved'])): ?><div class="notice ok">Setarile au fost salvate.</div><?php endif; ?>
+            <?php if (isset($_GET['saved'])): ?><div class="notice ok">Setările au fost salvate.</div><?php endif; ?>
 
             <form method="post" class="card">
                 <?= csrf_field() ?>
                 <div class="grid">
                     <div class="check">
                         <input type="checkbox" name="review_enabled" value="1" <?= $enabled === '1' ? 'checked' : '' ?>>
-                        <div><strong>Activeaza trimiterea automata</strong><div class="help">Daca este activa, cronul/manualul trimite formularul de satisfactie dupa lucrarile finalizate.</div></div>
+                        <div><strong>Activeaza trimiterea automata</strong><div class="help">Dacă este activa, cronul/manualul trimite formularul de satisfactie după lucrările finalizate.</div></div>
                     </div>
                     <div class="check">
                         <input type="checkbox" name="review_only_first_appointment" value="1" <?= $onlyFirst === '1' ? 'checked' : '' ?>>
-                        <div><strong>Google Review doar la prima interventie</strong><div class="help">Recomandat: prima interventie trimite SMS; interventiile urmatoare trimit doar email si nu afiseaza Google Review.</div></div>
+                        <div><strong>Google Review doar la prima intervenție</strong><div class="help">Recomandat: prima intervenție trimite SMS; intervențiile urmatoare trimit doar email si nu afiseaza Google Review.</div></div>
                     </div>
                 </div>
 
@@ -81,7 +81,7 @@ $demoLowUrl = ($autoBase !== '') ? ($autoBase . '/feedback.php?demo=low') : 'fee
                     <div class="field">
                         <label>Link Google Review</label>
                         <input type="text" name="review_google_url" value="<?= pz_review_h($googleUrl) ?>" placeholder="https://g.page/r/...">
-                        <div class="help">Clientul este trimis aici doar la prima interventie, daca acorda 5 stele.</div>
+                        <div class="help">Clientul este trimis aici doar la prima intervenție, dacă acorda 5 stele.</div>
                     </div>
                     <div class="field">
                         <label>Email alerta interna</label>
@@ -91,46 +91,46 @@ $demoLowUrl = ($autoBase !== '') ? ($autoBase . '/feedback.php?demo=low') : 'fee
                     <div class="field">
                         <label>URL public platforma</label>
                         <input type="text" name="review_public_base_url" value="<?= pz_review_h($baseUrl) ?>" placeholder="<?= pz_review_h($autoBase) ?>">
-                        <div class="help">Optional. Daca ramane gol, platforma incearca sa il detecteze automat.</div>
+                        <div class="help">Optional. Dacă rămâne gol, platforma incearca sa il detecteze automat.</div>
                     </div>
                     <div class="field">
-                        <label>Lucrari scanate in ultimele X zile</label>
+                        <label>Lucrări scanate in ultimele X zile</label>
                         <input type="number" name="review_scan_days" min="1" max="365" value="<?= pz_review_h($scanDays) ?>">
-                        <div class="help">Previne trimiterea catre lucrari foarte vechi.</div>
+                        <div class="help">Previne trimiterea catre lucrări foarte vechi.</div>
                     </div>
                 </div>
 
                 <div class="field" style="margin-top:16px;">
-                    <label>Text SMS pentru prima interventie</label>
+                    <label>Text SMS pentru prima intervenție</label>
                     <textarea name="review_sms_template"><?= pz_review_h($smsTemplate) ?></textarea>
-                    <div class="help">Se foloseste doar la prima interventie finalizata. Variabile disponibile: {brand}, {client}, {feedback_link}</div>
+                    <div class="help">Se folosește doar la prima intervenție finalizata. Variabile disponibile: {brand}, {client}, {feedback_link}</div>
                 </div>
 
                 <div class="grid" style="margin-top:16px;">
                     <div class="field">
-                        <label>Subiect email pentru interventii ulterioare</label>
-                        <input type="text" name="review_email_subject" value="<?= pz_review_h($emailSubject) ?>" placeholder="Formular satisfactie interventie {brand}">
-                        <div class="help">Se foloseste dupa interventiile ulterioare. Variabile: {brand}, {client}, {feedback_link}</div>
+                        <label>Subiect email pentru intervenții ulterioare</label>
+                        <input type="text" name="review_email_subject" value="<?= pz_review_h($emailSubject) ?>" placeholder="Formular satisfactie intervenție {brand}">
+                        <div class="help">Se folosește după intervențiile ulterioare. Variabile: {brand}, {client}, {feedback_link}</div>
                     </div>
                     <div class="field">
-                        <label>Text email pentru interventii ulterioare</label>
+                        <label>Text email pentru intervenții ulterioare</label>
                         <textarea name="review_email_template"><?= pz_review_h($emailTemplate) ?></textarea>
                         <div class="help">Clientul primeste doar formular intern de satisfactie, fara Google Review.</div>
                     </div>
                 </div>
 
                 <div class="actions">
-                    <button class="btn" type="submit">Salveaza setarile</button>
-                    <a class="btn ghost" href="review_feedback.php">Vezi feedback clienti</a>
+                    <button class="btn" type="submit">Salvează setarile</button>
+                    <a class="btn ghost" href="review_feedback.php">Vezi feedback clienți</a>
                     <a class="btn ghost" target="_blank" href="<?= pz_review_h($demoLowUrl) ?>">Vezi formular client nemultumit</a>
                 </div>
             </form>
 
             <section class="card">
                 <h2 style="margin-top:0;">Cron automat</h2>
-                <p class="help">Pentru automatizare completa, seteaza un cron in cPanel care ruleaza periodic fisierul <strong>cron_review_requests.php</strong>. Daca il rulezi prin URL, foloseste cheia de mai jos.</p>
+                <p class="help">Pentru automatizare completa, seteaza un cron in cPanel care ruleaza periodic fișierul <strong>cron_review_requests.php</strong>. Dacă il rulezi prin URL, folosește cheia de mai jos.</p>
                 <div class="code"><?= pz_review_h($cronUrl) ?></div>
-                <p class="help">Recomandare: o data pe ora sau la 30 de minute. Alternativ, poti rula verificarea manual din pagina Feedback clienti. Regula de expediere este: prima interventie prin SMS, interventii urmatoare prin email.</p>
+                <p class="help">Recomandare: o data pe ora sau la 30 de minute. Alternativ, poți rula verificarea manual din pagina Feedback clienți. Regula de expediere este: prima intervenție prin SMS, intervenții urmatoare prin email.</p>
             </section>
         </div>
     </main>
