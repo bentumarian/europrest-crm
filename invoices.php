@@ -383,23 +383,32 @@ $statusLabels = [
                             <td>
                                 <div class="row-actions row-actions-icons">
                                     <?php $clientEmailRow = trim((string)($invoice['client_email'] ?? '')); ?>
+
                                     <?php if ($isIssuedRow): ?>
+                                        <!-- Facturi EMISE: Vizualizare PDF, Editare metadata, Email, Storno -->
                                         <a class="icon-btn" href="invoice_pdf.php?id=<?= (int)$invoice['id'] ?>" target="_blank" rel="noopener" title="Vizualizare PDF" aria-label="Vizualizare PDF"><?= app_icon_svg('eye') ?></a>
-                                    <?php else: ?>
-                                        <a class="icon-btn" href="invoice.php?id=<?= (int)$invoice['id'] ?>" title="Editează draft" aria-label="Editează draft"><?= app_icon_svg('edit') ?></a>
-                                    <?php endif; ?>
-
-                                    <?php if ($isIssuedRow && $clientEmailRow !== ''): ?>
-                                        <form method="post" action="invoice.php" style="display:inline;margin:0" onsubmit="return confirm(<?= bill_h(json_encode('Trimite factura ' . bill_invoice_ref($invoice) . ' pe email către ' . $clientEmailRow . '?', JSON_UNESCAPED_UNICODE)) ?>);">
+                                        <a class="icon-btn" href="invoice.php?id=<?= (int)$invoice['id'] ?>" title="Editează (note, observații)" aria-label="Editează"><?= app_icon_svg('edit') ?></a>
+                                        <?php if ($clientEmailRow !== ''): ?>
+                                            <form method="post" action="invoice.php" style="display:inline;margin:0" onsubmit="return confirm(<?= bill_h(json_encode('Trimite factura ' . bill_invoice_ref($invoice) . ' pe email către ' . $clientEmailRow . '?', JSON_UNESCAPED_UNICODE)) ?>);">
+                                                <?= function_exists('csrf_field') ? csrf_field() : '' ?>
+                                                <input type="hidden" name="action" value="send_invoice_email">
+                                                <input type="hidden" name="invoice_id" value="<?= (int)$invoice['id'] ?>">
+                                                <input type="hidden" name="email_to" value="<?= bill_h($clientEmailRow) ?>">
+                                                <button class="icon-btn" type="submit" title="Trimite pe email la <?= bill_h($clientEmailRow) ?>" aria-label="Trimite pe email"><?= app_icon_svg('send') ?></button>
+                                            </form>
+                                        <?php endif; ?>
+                                        <form method="post" action="invoice.php" style="display:inline;margin:0" onsubmit="return confirm(<?= bill_h(json_encode('STORNO factura ' . bill_invoice_ref($invoice) . "?\n\nSe va emite în SmartBill o factură de stornare cu valori negative, care anulează contabil această factură. Operațiunea NU poate fi anulată.\n\nContinui?", JSON_UNESCAPED_UNICODE)) ?>);">
                                             <?= function_exists('csrf_field') ? csrf_field() : '' ?>
-                                            <input type="hidden" name="action" value="send_invoice_email">
+                                            <input type="hidden" name="action" value="reverse_invoice">
                                             <input type="hidden" name="invoice_id" value="<?= (int)$invoice['id'] ?>">
-                                            <input type="hidden" name="email_to" value="<?= bill_h($clientEmailRow) ?>">
-                                            <button class="icon-btn" type="submit" title="Trimite pe email la <?= bill_h($clientEmailRow) ?>" aria-label="Trimite pe email"><?= app_icon_svg('send') ?></button>
+                                            <button class="icon-btn icon-btn-danger" type="submit" title="Emite factură de storno" aria-label="Storno"><?= app_icon_svg('undo') ?></button>
                                         </form>
-                                    <?php endif; ?>
-
-                                    <?php if (!$isIssuedRow): ?>
+                                        <?php if (pz_smartbill_money($invoice['remaining_amount'] ?? 0) > 0.005): ?>
+                                            <a class="btn accent" href="<?= bill_h(bill_payment_link($invoice)) ?>">Încasează</a>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <!-- Ciorne: Editare, Ștergere reală -->
+                                        <a class="icon-btn" href="invoice.php?id=<?= (int)$invoice['id'] ?>" title="Editează draft" aria-label="Editează draft"><?= app_icon_svg('edit') ?></a>
                                         <form method="post" action="invoice.php" style="display:inline;margin:0" onsubmit="return confirm(<?= bill_h(json_encode('Sigur dorești să ștergi draft-ul ' . bill_invoice_ref($invoice) . '?\n\nAcțiunea nu poate fi anulată.', JSON_UNESCAPED_UNICODE)) ?>);">
                                             <?= function_exists('csrf_field') ? csrf_field() : '' ?>
                                             <input type="hidden" name="action" value="delete_invoice">
@@ -407,10 +416,6 @@ $statusLabels = [
                                             <input type="hidden" name="return_to" value="invoices.php">
                                             <button class="icon-btn icon-btn-danger" type="submit" title="Șterge draft" aria-label="Șterge draft"><?= app_icon_svg('trash') ?></button>
                                         </form>
-                                    <?php endif; ?>
-
-                                    <?php if ($isIssuedRow && pz_smartbill_money($invoice['remaining_amount'] ?? 0) > 0.005): ?>
-                                        <a class="btn accent" href="<?= bill_h(bill_payment_link($invoice)) ?>">Încasează</a>
                                     <?php endif; ?>
                                 </div>
                             </td>
