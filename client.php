@@ -370,7 +370,7 @@ if ($client) {
                     </div>
                     <div class="dossier-actions">
                         <a class="btn" href="clients.php">Listă contacte</a>
-                        <a class="btn" href="clients.php?client_id=<?= (int)$clientId ?>">Editează</a>
+                        <a class="btn" href="clients.php?client_id=<?= (int)$clientId ?>&open_edit=1">Editează</a>
                         <a class="btn" href="contracts.php?new=1&client_id=<?= (int)$clientId ?>">Contract</a>
                         <a class="btn" href="tasks.php?client_id=<?= (int)$clientId ?>&open_create=1&return_to=client">Sarcină</a>
                         <a class="btn accent" href="calendar.php?client_id=<?= (int)$clientId ?>&open_create=1">Programare</a>
@@ -566,13 +566,22 @@ if ($client) {
                                 <?php else: ?>
                                     <div class="timeline-list">
                                         <?php foreach ($contracts as $contract): ?>
+                                            <?php
+                                                $contractIsDraft = (($contract['status'] ?? '') === 'draft');
+                                                $contractOpenUrl = $contractIsDraft
+                                                    ? ('contracts.php?edit=' . (int)$contract['id'])
+                                                    : ('document_view.php?id=' . (int)$contract['id']);
+                                            ?>
                                             <article class="timeline-item">
                                                 <div class="item-top">
                                                     <div>
                                                         <div class="item-title"><?= cd_h($contract['title'] ?: ('Contract ' . ($contract['contract_number'] ?: '#' . $contract['id']))) ?></div>
                                                         <div class="item-meta"><?= cd_date($contract['contract_date'] ?? '') ?> · <?= cd_h($contract['contract_number'] ?: '-') ?></div>
                                                     </div>
-                                                    <span class="mini-badge good"><?= cd_h(cd_status_label($contract['status'] ?? '')) ?></span>
+                                                    <div style="display:flex; gap:6px; align-items:center;">
+                                                        <span class="mini-badge good"><?= cd_h(cd_status_label($contract['status'] ?? '')) ?></span>
+                                                        <a class="mini-badge" href="<?= cd_h($contractOpenUrl) ?>"><?= $contractIsDraft ? 'Editează' : 'Deschide' ?></a>
+                                                    </div>
                                                 </div>
                                             </article>
                                         <?php endforeach; ?>

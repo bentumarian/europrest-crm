@@ -773,21 +773,13 @@ if ($selectedClientId > 0) {
     }
 }
 
-$clientsForJs = [];
-foreach ($clients as $client) {
-    $clientId = (int)$client['id'];
-
-    $stmt = $pdo->prepare("
-        SELECT *
-        FROM client_locations
-        WHERE client_id = ?
-        ORDER BY active DESC, sort_order ASC, location_name ASC, id ASC
-    ");
-    $stmt->execute([$clientId]);
-    $locations = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    $clientsForJs[$clientId] = [
-        'id' => $clientId,
+// Mapper unic pentru forma datelor de client folosite în JS (clientsData).
+// Folosit atât pentru lista paginată, cât și pentru clientul țintit prin
+// ?client_id=… (necesar ca să poată fi editat chiar dacă nu apare pe pagina curentă
+// din cauza paginării / filtrelor).
+$c_map_client_for_js = function (array $client, array $locations): array {
+    return [
+        'id' => (int)$client['id'],
         'client_type' => $client['client_type'] ?? 'company',
         'name' => $client['name'] ?? '',
         'fiscal_code' => $client['fiscal_code'] ?? '',
@@ -818,7 +810,7 @@ foreach ($clients as $client) {
         'appointments_count' => (int)($client['appointments_count'] ?? 0),
         'completed_appointments_count' => (int)($client['completed_appointments_count'] ?? 0),
         'active_tasks_count' => (int)($client['active_tasks_count'] ?? 0),
-        'locations' => array_map(function($location) {
+        'locations' => array_map(function ($location) {
             return [
                 'id' => (int)$location['id'],
                 'location_name' => $location['location_name'] ?? '',
@@ -832,6 +824,28 @@ foreach ($clients as $client) {
             ];
         }, $locations),
     ];
+};
+
+$clientsForJs = [];
+foreach ($clients as $client) {
+    $clientId = (int)$client['id'];
+
+    $stmt = $pdo->prepare("
+        SELECT *
+        FROM client_locations
+        WHERE client_id = ?
+        ORDER BY active DESC, sort_order ASC, location_name ASC, id ASC
+    ");
+    $stmt->execute([$clientId]);
+    $locations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $clientsForJs[$clientId] = $c_map_client_for_js($client, $locations);
+}
+
+// Injectează clientul țintit prin ?client_id=… în clientsData, chiar dacă nu apare
+// în lista paginată (pentru ca modalul de Editează să poată fi deschis de oriunde).
+if ($selectedClient && $selectedClientId > 0 && !isset($clientsForJs[$selectedClientId])) {
+    $clientsForJs[$selectedClientId] = $c_map_client_for_js($selectedClient, $selectedLocations);
 }
 
 $shouldOpenCreate = isset($_GET['open_create']) && $_GET['open_create'] === '1';
