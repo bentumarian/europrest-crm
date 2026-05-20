@@ -2502,35 +2502,13 @@ try {
 } catch (Throwable $e) { error_log('clients.php preview: ' . $e->getMessage()); }
 ?>
 <script>
-// DEBUG TEMPORAR: verificăm de ce nu apare dropdown la "Caută client".
 (function () {
-    var retries = 0;
     var go = function () {
-        if (!window.pzSearchPreview) {
-            retries++;
-            if (retries > 50) {
-                console.warn('[clientsSearchInput] window.pzSearchPreview NU s-a definit după 50 retries (1.5s).');
-                return;
-            }
-            setTimeout(go, 30);
-            return;
-        }
-        var input = document.getElementById('clientsSearchInput');
-        if (!input) {
-            console.warn('[clientsSearchInput] input element NU a fost găsit în DOM.');
-            return;
-        }
-        console.log('[clientsSearchInput] attach() apelat cu', <?= count($previewClientsList) ?>, 'clienți pentru preview.');
-        var data = <?= json_encode($previewClientsList, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
-        console.log('[clientsSearchInput] data primită:', Array.isArray(data) ? data.length : typeof data, 'items');
-        window.pzSearchPreview.attach('clientsSearchInput', data, { minChars: 1, maxResults: 8 });
-        // Verificăm că event listener-ul s-a atașat — tastăm "x" sintetic
-        input.addEventListener('input', function () {
-            var wrap = input.closest('.pz-search-wrap');
-            var preview = wrap ? wrap.querySelector('.pz-search-preview') : null;
-            console.log('[clientsSearchInput] input event, wrap:', !!wrap, 'preview:', !!preview, 'preview.open:', preview ? preview.classList.contains('open') : 'n/a');
-        });
-        console.log('[clientsSearchInput] setup complet.');
+        if (!window.pzSearchPreview) { setTimeout(go, 30); return; }
+        window.pzSearchPreview.attach('clientsSearchInput',
+            <?= json_encode($previewClientsList, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>,
+            { minChars: 1, maxResults: 8 }
+        );
     };
     go();
 })();
