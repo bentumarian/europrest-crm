@@ -184,6 +184,8 @@ if (!function_exists('pz_smartbill_ensure_schema')) {
             'smartbill_unpaid_amount' => "DECIMAL(12,2) NOT NULL DEFAULT 0.00",
             'efactura_xml_path' => "VARCHAR(255) NULL",
             'efactura_pdf_path' => "VARCHAR(255) NULL",
+            // Pentru facturi de storno: pointer la factura originala anulata.
+            'reverses_invoice_id' => "INT NULL",
         ];
         foreach ($invoiceColumns as $column => $definition) {
             if (!pz_smartbill_column_exists($pdo, 'smartbill_invoices', $column)) {
@@ -1906,6 +1908,84 @@ if (!function_exists('pz_smartbill_reverse_invoice')) {
         $response = is_array($result['response'] ?? null) ? $result['response'] : [];
         $error = (string)($result['error'] ?? '');
         $status = !empty($result['ok']) ? 'storno' : 'error';
+        $stornoSeries = pz_smartbill_response_value($response, 'series');
+        $stornoNumber = pz_smartbill_response_value($response, 'number');
+        $stornoUrl    = pz_smartbill_response_value($response, 'url');
+        $newInvoiceId = null;
+
+        // Daca storno-ul a fost emis cu succes in SmartBill, salvam un rand nou
+        // in smartbill_invoices ca factura storno sa apara si in lista din CRM.
+        if (!empty($result['ok'])) {
+            try {
+                $netNeg   = -pz_smartbill_money($invoice['net_amount']   ?? 0);
+                $vatNeg   = -pz_smartbill_money($invoice['vat_amount']   ?? 0);
+                $grossNeg = -pz_smartbill_money($invoice['gross_amount'] ?? 0);
+                $origRef  = trim($series . ' ' . $number);
+
+                $stmtIns = $pdo->prepare("
+                    INSERT INTO smartbill_invoices
+                        (source_type, appointment_id, client_id, client_location_id,
+                         client_name, client_fiscal_code, client_reg_com, client_contact,
+                         client_email, client_phone, client_bank, client_iban,
+                         client_country, client_county, client_city, client_address,
+                         invoice_date, due_date, currency,
+                         net_amount, vat_code, vat_amount, gross_amount,
+                         smartbill_series, smartbill_number, smartbill_url, smartbill_status,
+                         reverses_invoice_id, invoice_language, mentions, observations, notes,
+                         request_json, response_json, created_by, created_at)
+                    VALUES
+                        ('storno', ?, ?, ?,
+                         ?, ?, ?, ?,
+                         ?, ?, ?, ?,
+                         ?, ?, ?, ?,
+                         ?, ?, ?,
+                         ?, ?, ?, ?,
+                         ?, ?, ?, 'storno',
+                         ?, ?, ?, ?, ?,
+                         ?, ?, ?, NOW())
+                ");
+                $stmtIns->execute([
+                    !empty($invoice['appointment_id'])      ? (int)$invoice['appointment_id']      : null,
+                    !empty($invoice['client_id'])           ? (int)$invoice['client_id']           : null,
+                    !empty($invoice['client_location_id']) ? (int)$invoice['client_location_id'] : null,
+                    (string)($invoice['client_name']        ?? ''),
+                    (string)($invoice['client_fiscal_code'] ?? ''),
+                    (string)($invoice['client_reg_com']     ?? ''),
+                    (string)($invoice['client_contact']     ?? ''),
+                    (string)($invoice['client_email']       ?? ''),
+                    (string)($invoice['client_phone']       ?? ''),
+                    (string)($invoice['client_bank']        ?? ''),
+                    (string)($invoice['client_iban']        ?? ''),
+                    (string)($invoice['client_country']     ?? 'Romania'),
+                    (string)($invoice['client_county']      ?? ''),
+                    (string)($invoice['client_city']        ?? ''),
+                    (string)($invoice['client_address']     ?? ''),
+                    $date,
+                    $date,
+                    (string)($invoice['currency'] ?? 'RON'),
+                    $netNeg,
+                    (string)($invoice['vat_code'] ?? '21'),
+                    $vatNeg,
+                    $grossNeg,
+                    $stornoSeries ?: null,
+                    $stornoNumber ?: null,
+                    $stornoUrl    ?: null,
+                    $invoiceId,
+                    (string)($invoice['invoice_language'] ?? 'RO'),
+                    (string)($invoice['mentions']    ?? ''),
+                    'Factura de stornare pentru ' . $origRef,
+                    'Stornare factura ' . $origRef . ' din ' . (string)($invoice['invoice_date'] ?? ''),
+                    json_encode($payload,  JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    function_exists('current_user_id') ? current_user_id() : null,
+                ]);
+                $newInvoiceId = (int)$pdo->lastInsertId();
+            } catch (Throwable $e) {
+                // Storno-ul a fost emis cu succes in SmartBill, dar insert-ul local a esuat.
+                // Logam si continuam - storno-ul ramane valid contabil chiar daca lipseste in CRM.
+                error_log('SmartBill storno insert local error: ' . $e->getMessage());
+            }
+        }
 
         $pdo->prepare("
             INSERT INTO smartbill_invoice_logs
@@ -1915,17 +1995,18 @@ if (!function_exists('pz_smartbill_reverse_invoice')) {
             $invoiceId,
             !empty($invoice['appointment_id']) ? (int)$invoice['appointment_id'] : null,
             $status,
-            $error ?: 'Factura storno a fost adaugata in SmartBill.',
+            $error ?: ('Factura storno a fost adaugata in SmartBill' . ($newInvoiceId ? ' si in CRM (#' . $newInvoiceId . ').' : '.')),
             json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             function_exists('current_user_id') ? current_user_id() : null,
         ]);
 
         return [
-            'ok' => !empty($result['ok']),
-            'error' => $error,
-            'response' => $response,
-            'payload' => $payload,
+            'ok'                => !empty($result['ok']),
+            'error'             => $error,
+            'response'          => $response,
+            'payload'           => $payload,
+            'storno_invoice_id' => $newInvoiceId,
         ];
     }
 }

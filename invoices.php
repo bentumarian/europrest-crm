@@ -117,8 +117,11 @@ foreach ($rawInvoices as $raw) {
     $isOverdue = $isIssued && $remaining > 0.005 && !empty($invoice['due_date']) && (string)$invoice['due_date'] < $today;
 
     $rowStatus = $status;
+    $isStorno = ($status === 'storno') || ((string)($invoice['source_type'] ?? '') === 'storno');
     if ($status === 'error') {
         $rowStatus = 'error';
+    } elseif ($isStorno) {
+        $rowStatus = 'storno';
     } elseif (!$isIssued) {
         $rowStatus = 'draft';
     } elseif ($payStatus === 'paid') {
@@ -175,6 +178,7 @@ $statusLabels = [
     'overdue' => 'Depășită',
     'draft' => 'Ciornă',
     'error' => 'Eroare',
+    'storno' => 'Storno',
 ];
 ?>
 <!doctype html>
@@ -234,6 +238,8 @@ $statusLabels = [
         .status-unpaid { background:var(--pz-grs); color:var(--pz-gr); border:1px solid var(--pz-grb); }
         .status-draft { background:var(--pz-ors); color:var(--pz-or); border:1px solid var(--pz-orb); }
         .status-overdue, .status-error { background:var(--pz-res); color:var(--pz-re); border:1px solid var(--pz-reb); }
+        /* Storno = gri-roscat (e tot o factura valida, dar negativa) */
+        .status-storno { background:#F1F5F9; color:#475569; border:1px solid #CBD5E1; }
 
         /* e-Factura: verde = trimisă, portocaliu = netrimisă */
         .efactura-sent { background:var(--pz-grs); color:var(--pz-gr); border:1px solid var(--pz-grb); }
@@ -383,9 +389,10 @@ $statusLabels = [
                             <td>
                                 <div class="row-actions row-actions-icons">
                                     <?php $clientEmailRow = trim((string)($invoice['client_email'] ?? '')); ?>
+                                    <?php $isStornoRow = ($rowStatus === 'storno'); ?>
 
                                     <?php if ($isIssuedRow): ?>
-                                        <!-- Facturi EMISE: Vizualizare PDF, Editare metadata, Email, Storno -->
+                                        <!-- Facturi EMISE: Vizualizare PDF, Editare metadata, Email, (Storno doar daca nu e deja storno) -->
                                         <a class="icon-btn" href="invoice_pdf.php?id=<?= (int)$invoice['id'] ?>" target="_blank" rel="noopener" title="Vizualizare PDF" aria-label="Vizualizare PDF"><?= app_icon_svg('eye') ?></a>
                                         <a class="icon-btn" href="invoice.php?id=<?= (int)$invoice['id'] ?>" title="Editează (note, observații)" aria-label="Editează"><?= app_icon_svg('edit') ?></a>
                                         <?php if ($clientEmailRow !== ''): ?>
@@ -397,13 +404,15 @@ $statusLabels = [
                                                 <button class="icon-btn" type="submit" title="Trimite pe email la <?= bill_h($clientEmailRow) ?>" aria-label="Trimite pe email"><?= app_icon_svg('send') ?></button>
                                             </form>
                                         <?php endif; ?>
-                                        <form method="post" action="invoice.php" style="display:inline;margin:0" onsubmit="return confirm(<?= bill_h(json_encode('STORNO factura ' . bill_invoice_ref($invoice) . "?\n\nSe va emite în SmartBill o factură de stornare cu valori negative, care anulează contabil această factură. Operațiunea NU poate fi anulată.\n\nContinui?", JSON_UNESCAPED_UNICODE)) ?>);">
-                                            <?= function_exists('csrf_field') ? csrf_field() : '' ?>
-                                            <input type="hidden" name="action" value="reverse_invoice">
-                                            <input type="hidden" name="invoice_id" value="<?= (int)$invoice['id'] ?>">
-                                            <button class="icon-btn icon-btn-danger" type="submit" title="Emite factură de storno" aria-label="Storno"><?= app_icon_svg('undo') ?></button>
-                                        </form>
-                                        <?php if (pz_smartbill_money($invoice['remaining_amount'] ?? 0) > 0.005): ?>
+                                        <?php if (!$isStornoRow): ?>
+                                            <form method="post" action="invoice.php" style="display:inline;margin:0" onsubmit="return confirm(<?= bill_h(json_encode('STORNO factura ' . bill_invoice_ref($invoice) . "?\n\nSe va emite în SmartBill o factură de stornare cu valori negative, care anulează contabil această factură. Operațiunea NU poate fi anulată.\n\nContinui?", JSON_UNESCAPED_UNICODE)) ?>);">
+                                                <?= function_exists('csrf_field') ? csrf_field() : '' ?>
+                                                <input type="hidden" name="action" value="reverse_invoice">
+                                                <input type="hidden" name="invoice_id" value="<?= (int)$invoice['id'] ?>">
+                                                <button class="icon-btn icon-btn-danger" type="submit" title="Emite factură de storno" aria-label="Storno"><?= app_icon_svg('undo') ?></button>
+                                            </form>
+                                        <?php endif; ?>
+                                        <?php if (!$isStornoRow && pz_smartbill_money($invoice['remaining_amount'] ?? 0) > 0.005): ?>
                                             <a class="btn accent" href="<?= bill_h(bill_payment_link($invoice)) ?>">Încasează</a>
                                         <?php endif; ?>
                                     <?php else: ?>
