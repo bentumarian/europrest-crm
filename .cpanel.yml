@@ -1,0 +1,17 @@
+---
+deployment:
+  tasks:
+    # Doc root al aplicatiei pe server.
+    # $HOME = /home/r132680pest (username cPanel), deci DEPLOYPATH devine
+    # /home/r132680pest/app.pestzone.ro/
+    - export DEPLOYPATH=$HOME/app.pestzone.ro/
+
+    # Copiem toate fisierele PHP din repo in doc root (overwrite).
+    - /bin/cp -fR *.php $DEPLOYPATH
+
+    # .htaccess este versionat in repo - deploy si el (silentios daca lipseste).
+    - /bin/cp -f .htaccess $DEPLOYPATH 2>/dev/null || true
+
+    # NU se sterge nimic pe server. NU se copiaza /vendor, /node_modules, .git etc -
+    # acelea nici nu sunt in repo (vezi .gitignore).
+    # config.local.php ramane pe server (e in .gitignore).
