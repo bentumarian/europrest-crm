@@ -234,9 +234,26 @@ $statusLabels = [
         .status-unpaid { background:var(--pz-grs); color:var(--pz-gr); border:1px solid var(--pz-grb); }
         .status-draft { background:var(--pz-ors); color:var(--pz-or); border:1px solid var(--pz-orb); }
         .status-overdue, .status-error { background:var(--pz-res); color:var(--pz-re); border:1px solid var(--pz-reb); }
-        /* Buton icon-only (Email) */
-        .btn.icon-only { padding:5px 7px; line-height:0; }
-        .btn.icon-only svg { width:14px; height:14px; }
+
+        /* e-Factura: verde = trimisă, portocaliu = netrimisă */
+        .efactura-sent { background:var(--pz-grs); color:var(--pz-gr); border:1px solid var(--pz-grb); }
+        .efactura-notsent { background:var(--pz-ors); color:var(--pz-or); border:1px solid var(--pz-orb); }
+
+        /* Butoane icon-only pentru coloana de acțiuni */
+        .row-actions-icons { gap:2px; align-items:center; }
+        .icon-btn {
+            display:inline-flex; align-items:center; justify-content:center;
+            width:30px; height:30px; padding:0;
+            background:transparent; border:1px solid transparent;
+            border-radius:var(--pz-rs);
+            color:var(--pz-mu);
+            cursor:pointer;
+            transition:background .12s, color .12s, border-color .12s;
+        }
+        .icon-btn:hover { background:var(--pz-bls, #EFF6FF); color:var(--pz-bl, #1D4ED8); border-color:var(--pz-line); }
+        .icon-btn.icon-btn-danger:hover { background:var(--pz-res); color:var(--pz-re); border-color:var(--pz-reb); }
+        .icon-btn .nav-icon { width:16px; height:16px; flex:0 0 16px; }
+        .icon-btn .nav-icon svg { width:16px; height:16px; }
 
         .row-actions { display:flex; gap:5px; justify-content:flex-end; flex-wrap:wrap; }
         .row-actions .btn { min-height:28px; padding:5px 8px; font-size:11.5px; }
@@ -322,12 +339,13 @@ $statusLabels = [
                             <th class="amount">Încasat</th>
                             <th class="amount">Sold</th>
                             <th>Status</th>
+                            <th>e-Factura</th>
                             <th class="amount">Actiuni</th>
                         </tr>
                     </thead>
                     <tbody>
                     <?php if (!$rows): ?>
-                        <tr><td colspan="9" class="empty">Nu exista facturi pentru filtrele curente.</td></tr>
+                        <tr><td colspan="10" class="empty">Nu exista facturi pentru filtrele curente.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($rows as $invoice): ?>
                         <?php
@@ -346,26 +364,53 @@ $statusLabels = [
                             <td class="amount"><?= bill_h(bill_money($invoice['paid_amount'] ?? 0, $currency)) ?></td>
                             <td class="amount"><?= bill_h(bill_money($invoice['remaining_amount'] ?? 0, $currency)) ?></td>
                             <td><span class="status-pill status-<?= bill_h($rowStatus) ?>"><?= bill_h($statusLabels[$rowStatus] ?? $rowStatus) ?></span></td>
+                            <?php
+                                $isIssuedRow = trim((string)($invoice['smartbill_number'] ?? '')) !== '';
+                                $efacturaStatusRaw = trim((string)($invoice['efactura_status'] ?? ''));
+                                $efacturaSent = ($efacturaStatusRaw !== '');
+                            ?>
                             <td>
-                                <div class="row-actions">
-                                    <?php $isIssuedRow = trim((string)($invoice['smartbill_number'] ?? '')) !== ''; ?>
-                                    <?php if (!$isIssuedRow): ?>
-                                        <a class="btn ghost" href="invoice.php?id=<?= (int)$invoice['id'] ?>">Deschide</a>
+                                <?php if ($isIssuedRow): ?>
+                                    <?php if ($efacturaSent): ?>
+                                        <span class="status-pill efactura-sent" title="Status ANAF: <?= bill_h($efacturaStatusRaw) ?>">Trimisă</span>
                                     <?php else: ?>
-                                        <a class="btn ghost" href="invoice_pdf.php?id=<?= (int)$invoice['id'] ?>" target="_blank" rel="noopener">PDF</a>
-                                        <?php $clientEmailRow = trim((string)($invoice['client_email'] ?? '')); ?>
-                                        <?php if ($clientEmailRow !== ''): ?>
-                                            <form method="post" action="invoice.php" style="display:inline;margin:0" onsubmit="return confirm(<?= bill_h(json_encode('Trimite factura ' . bill_invoice_ref($invoice) . ' pe email către ' . $clientEmailRow . '?', JSON_UNESCAPED_UNICODE)) ?>);">
-                                                <?= function_exists('csrf_field') ? csrf_field() : '' ?>
-                                                <input type="hidden" name="action" value="send_invoice_email">
-                                                <input type="hidden" name="invoice_id" value="<?= (int)$invoice['id'] ?>">
-                                                <input type="hidden" name="email_to" value="<?= bill_h($clientEmailRow) ?>">
-                                                <button class="btn ghost icon-only" type="submit" title="Trimite pe email la <?= bill_h($clientEmailRow) ?>" aria-label="Trimite pe email"><?= app_icon_svg('mail') ?></button>
-                                            </form>
-                                        <?php endif; ?>
-                                        <?php if (pz_smartbill_money($invoice['remaining_amount'] ?? 0) > 0.005): ?>
-                                            <a class="btn accent" href="<?= bill_h(bill_payment_link($invoice)) ?>">Încasează</a>
-                                        <?php endif; ?>
+                                        <span class="status-pill efactura-notsent" title="Nu a fost trimisă la ANAF e-Factura">Netrimisă</span>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="muted">—</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <div class="row-actions row-actions-icons">
+                                    <?php $clientEmailRow = trim((string)($invoice['client_email'] ?? '')); ?>
+                                    <?php if ($isIssuedRow): ?>
+                                        <a class="icon-btn" href="invoice_pdf.php?id=<?= (int)$invoice['id'] ?>" target="_blank" rel="noopener" title="Vizualizare PDF" aria-label="Vizualizare PDF"><?= app_icon_svg('eye') ?></a>
+                                    <?php else: ?>
+                                        <a class="icon-btn" href="invoice.php?id=<?= (int)$invoice['id'] ?>" title="Editează draft" aria-label="Editează draft"><?= app_icon_svg('edit') ?></a>
+                                    <?php endif; ?>
+
+                                    <?php if ($isIssuedRow && $clientEmailRow !== ''): ?>
+                                        <form method="post" action="invoice.php" style="display:inline;margin:0" onsubmit="return confirm(<?= bill_h(json_encode('Trimite factura ' . bill_invoice_ref($invoice) . ' pe email către ' . $clientEmailRow . '?', JSON_UNESCAPED_UNICODE)) ?>);">
+                                            <?= function_exists('csrf_field') ? csrf_field() : '' ?>
+                                            <input type="hidden" name="action" value="send_invoice_email">
+                                            <input type="hidden" name="invoice_id" value="<?= (int)$invoice['id'] ?>">
+                                            <input type="hidden" name="email_to" value="<?= bill_h($clientEmailRow) ?>">
+                                            <button class="icon-btn" type="submit" title="Trimite pe email la <?= bill_h($clientEmailRow) ?>" aria-label="Trimite pe email"><?= app_icon_svg('send') ?></button>
+                                        </form>
+                                    <?php endif; ?>
+
+                                    <?php if (!$isIssuedRow): ?>
+                                        <form method="post" action="invoice.php" style="display:inline;margin:0" onsubmit="return confirm(<?= bill_h(json_encode('Sigur dorești să ștergi draft-ul ' . bill_invoice_ref($invoice) . '?\n\nAcțiunea nu poate fi anulată.', JSON_UNESCAPED_UNICODE)) ?>);">
+                                            <?= function_exists('csrf_field') ? csrf_field() : '' ?>
+                                            <input type="hidden" name="action" value="delete_invoice">
+                                            <input type="hidden" name="invoice_id" value="<?= (int)$invoice['id'] ?>">
+                                            <input type="hidden" name="return_to" value="invoices.php">
+                                            <button class="icon-btn icon-btn-danger" type="submit" title="Șterge draft" aria-label="Șterge draft"><?= app_icon_svg('trash') ?></button>
+                                        </form>
+                                    <?php endif; ?>
+
+                                    <?php if ($isIssuedRow && pz_smartbill_money($invoice['remaining_amount'] ?? 0) > 0.005): ?>
+                                        <a class="btn accent" href="<?= bill_h(bill_payment_link($invoice)) ?>">Încasează</a>
                                     <?php endif; ?>
                                 </div>
                             </td>

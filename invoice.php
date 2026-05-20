@@ -711,6 +711,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'delete_invoice') {
+        $invoiceId = max(0, (int)($_POST['invoice_id'] ?? 0));
+        $redirectTarget = (string)($_POST['return_to'] ?? 'invoices.php');
+        // Permitem doar URL-uri relative din aplicatie ca redirect
+        if (!preg_match('#^[A-Za-z0-9_./?=&-]+$#', $redirectTarget) || strpos($redirectTarget, '://') !== false) {
+            $redirectTarget = 'invoices.php';
+        }
+        if ($invoiceId <= 0) {
+            header('Location: ' . $redirectTarget . (strpos($redirectTarget, '?') === false ? '?' : '&') . 'delete_error=' . urlencode('Factură invalidă.'));
+            exit;
+        }
+        try {
+            $stmt = $pdo->prepare("SELECT id, smartbill_number FROM smartbill_invoices WHERE id = ? LIMIT 1");
+            $stmt->execute([$invoiceId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                header('Location: ' . $redirectTarget . (strpos($redirectTarget, '?') === false ? '?' : '&') . 'delete_error=' . urlencode('Factura nu există.'));
+                exit;
+            }
+            if (trim((string)($row['smartbill_number'] ?? '')) !== '') {
+                header('Location: ' . $redirectTarget . (strpos($redirectTarget, '?') === false ? '?' : '&') . 'delete_error=' . urlencode('Factura este deja emisă în SmartBill. Pentru anulare, folosește storno.'));
+                exit;
+            }
+            // Stergere fizica - factura este draft, nu a fost trimisa la SmartBill
+            $pdo->beginTransaction();
+            $pdo->prepare("DELETE FROM smartbill_invoice_payments WHERE smartbill_invoice_id = ?")->execute([$invoiceId]);
+            $pdo->prepare("DELETE FROM smartbill_invoices WHERE id = ?")->execute([$invoiceId]);
+            $pdo->commit();
+            header('Location: ' . $redirectTarget . (strpos($redirectTarget, '?') === false ? '?' : '&') . 'deleted=1');
+            exit;
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) { $pdo->rollBack(); }
+            error_log('delete_invoice error: ' . $e->getMessage());
+            header('Location: ' . $redirectTarget . (strpos($redirectTarget, '?') === false ? '?' : '&') . 'delete_error=' . urlencode('Factura nu a putut fi ștearsă.'));
+            exit;
+        }
+    }
+
     if ($action === 'check_payment_status') {
         $invoiceId = max(0, (int)($_POST['invoice_id'] ?? 0));
         if ($invoiceId <= 0) {
