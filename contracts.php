@@ -331,6 +331,46 @@ $clientsById = pz_contract_clients_by_id($clients);
 $services = pz_contract_fetch_services($pdo);
 $templates = pz_contract_fetch_templates($pdo);
 
+/**
+ * Notificare expirare contracte: aducem contractele active al caror end_date
+ * cade in urmatoarele 30 de zile si pentru care nu exista deja un act adițional
+ * emis. Folosim tabela operationala `contracts` (populata de pz_flow_sync_issued_contract).
+ */
+function pz_contract_fetch_expiring(PDO $pdo, int $days = 30): array
+{
+    if (!pzdoc_table_exists($pdo, 'contracts')) {
+        return [];
+    }
+    try {
+        $sql = "
+            SELECT c.id, c.contract_number, c.end_date, c.client_id,
+                   c.source_document_id, c.title,
+                   cl.name AS client_name
+            FROM contracts c
+            LEFT JOIN clients cl ON cl.id = c.client_id
+            LEFT JOIN documents adn
+                ON adn.document_type = 'act_aditional'
+                AND adn.status = 'issued'
+                AND adn.source_document_id = c.source_document_id
+            WHERE c.status = 'activ'
+              AND c.end_date IS NOT NULL
+              AND c.end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL :days DAY)
+              AND adn.id IS NULL
+            ORDER BY c.end_date ASC, c.id ASC
+            LIMIT 50
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindValue(':days', $days, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        error_log('PestZone contracts expiring fetch error: ' . $e->getMessage());
+        return [];
+    }
+}
+
+$expiringContracts = pz_contract_fetch_expiring($pdo, 30);
+
 /*
 |--------------------------------------------------------------------------
 | POST: salvare / emitere contract
@@ -566,26 +606,26 @@ foreach ($services as $service) {
 .contract-topbar { align-items:center; padding:12px 20px; }
 .contract-toolbar { width:100%; display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 .contract-hero {
-    background: linear-gradient(135deg, var(--accent-deep), var(--accent-strong));
-    color:#fff; border-radius:var(--radius-lg); padding:22px 24px; box-shadow:var(--shadow-lg);
+    background: var(--pz-brand);
+    color:#fff; border-radius:var(--pz-r); padding:18px 20px; box-shadow:none;
     margin-bottom:14px; display:flex; justify-content:space-between; gap:18px; flex-wrap:wrap; align-items:center;
 }
 .contract-hero h1 { font-size:24px; font-weight:900; letter-spacing:-.03em; margin:0; }
 .contract-hero p { color:rgba(255,255,255,.72); margin:4px 0 0; max-width:900px; }
 .hero-actions { display:flex; gap:8px; flex-wrap:wrap; }
-.panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow); margin-bottom:12px; }
+.panel { background:var(--pz-surf); border:1px solid var(--pz-line); border-radius:var(--pz-r); box-shadow:none; margin-bottom:12px; }
 .panel-head { padding:14px 16px; border-bottom:1px solid var(--border2); display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; }
 .panel-title { font-size:16px; font-weight:900; color:var(--text); }
 .panel-subtitle { font-size:12px; color:var(--muted); margin-top:2px; }
 .panel-body { padding:14px 16px; }
-.alert { border-radius:14px; padding:11px 13px; margin-bottom:12px; font-weight:800; font-size:13px; }
-.alert.error { background:var(--danger-soft); color:var(--danger); border:1px solid rgba(180,35,24,.16); }
-.alert.success { background:var(--success-soft); color:var(--success); border:1px solid rgba(31,111,84,.16); }
+.alert { border-radius:var(--pz-rs); padding:10px 13px; margin-bottom:12px; font-weight:600; font-size:12.5px; }
+.alert.error   { background:var(--pz-res); color:var(--pz-re); border:1px solid var(--pz-reb); }
+.alert.success { background:var(--pz-grs); color:var(--pz-gr); border:1px solid var(--pz-grb); }
 .filter-form { display:grid; grid-template-columns:minmax(220px,1fr) minmax(150px,.45fr) minmax(130px,.35fr) auto; gap:10px; align-items:end; }
 .contract-form-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; }
 .field label { display:block; font-size:12px; font-weight:850; color:var(--muted); margin-bottom:5px; }
-.field input, .field select, .field textarea { width:100%; border:1px solid var(--accent-soft-2); border-radius:12px; background:#fff; color:var(--text); padding:10px 11px; font-size:13px; outline:none; transition:border-color .14s ease, box-shadow .14s ease; }
-.field input:hover:not(:focus), .field select:hover:not(:focus), .field textarea:hover:not(:focus) { border-color:var(--accent); }
+.field input, .field select, .field textarea { width:100%; border:1px solid var(--pz-line); border-radius:var(--pz-rs); background:#fff; color:var(--pz-text); padding:7px 10px; font-size:12.5px; outline:none; transition:border-color .14s; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color:var(--pz-bl); }
 
 /* === AUTOCOMPLETE client + locație smart === */
 .pz-autocomplete { position:relative; }
@@ -629,7 +669,7 @@ foreach ($services as $service) {
 .row-total { font-weight:900; color:var(--text); text-align:right; padding-top:8px; white-space:nowrap; }
 .form-actions { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
 .form-actions .right { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-.btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:38px; border-radius:12px; padding:0 13px; border:1px solid var(--border); background:#fff; color:var(--text); font-size:13px; font-weight:900; text-decoration:none; cursor:pointer; white-space:nowrap; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:34px; border-radius:var(--pz-rs); padding:0 11px; border:1px solid var(--border); background:#fff; color:var(--text); font-size:12.5px; font-weight:600; text-decoration:none; cursor:pointer; white-space:nowrap; box-shadow:none; }
 .btn:hover { border-color:var(--accent); color:var(--accent-deep); }
 .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
 .btn.primary:hover { background:var(--accent-strong); color:#fff; }
@@ -638,15 +678,15 @@ foreach ($services as $service) {
 .btn.small { min-height:32px; padding:0 10px; font-size:12px; border-radius:10px; }
 .btn.ghost { background:transparent; }
 .docs-list { display:grid; gap:10px; }
-.doc-row { background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); padding:13px 14px; display:grid; grid-template-columns:minmax(260px,1.2fr) minmax(150px,.45fr) minmax(150px,.45fr) minmax(120px,.35fr) auto; gap:12px; align-items:center; }
-.doc-title { font-size:14px; font-weight:950; color:var(--text); overflow-wrap:anywhere; }
+.doc-row { background:var(--pz-surf); border:1px solid var(--pz-line); border-radius:var(--pz-r); box-shadow:none; padding:12px 14px; display:grid; grid-template-columns:minmax(260px,1.2fr) minmax(150px,.45fr) minmax(150px,.45fr) minmax(120px,.35fr) auto; gap:12px; align-items:center; }
+.doc-title { font-size:14px; font-weight:600; color:var(--pz-title); overflow-wrap:anywhere; }
 .doc-meta { color:var(--muted); font-size:12px; margin-top:4px; line-height:1.35; }
-.badge { display:inline-flex; align-items:center; justify-content:center; border-radius:999px; padding:6px 9px; font-size:11px; font-weight:900; border:1px solid var(--border2); background:var(--surface-soft); color:var(--muted); white-space:nowrap; }
-.badge.draft { background:var(--warning-soft); color:var(--warning); border-color:rgba(154,103,0,.18); }
-.badge.issued { background:var(--success-soft); color:var(--success); border-color:rgba(31,111,84,.18); }
-.badge.cancelled { background:var(--danger-soft); color:var(--danger); border-color:rgba(180,35,24,.16); }
+.badge { display:inline-flex; align-items:center; justify-content:center; border-radius:var(--pz-rs); padding:3px 8px; font-size:11px; font-weight:600; border:1px solid var(--pz-line); background:var(--pz-soft); color:var(--pz-mu); white-space:nowrap; }
+.badge.draft   { background:var(--pz-ors); color:var(--pz-or); border-color:var(--pz-orb); }
+.badge.issued  { background:var(--pz-grs); color:var(--pz-gr); border-color:var(--pz-grb); }
+.badge.cancelled { background:var(--pz-res); color:var(--pz-re); border-color:var(--pz-reb); }
 .doc-actions { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
-.empty-state { padding:22px; text-align:center; color:var(--muted); font-weight:800; border:1px dashed var(--border); border-radius:16px; background:var(--surface-soft); }
+.empty-state { padding:22px; text-align:center; color:var(--pz-mu); font-weight:600; border:1px dashed var(--pz-line); border-radius:var(--pz-r); background:var(--pz-soft); }
 .pagination { display:flex; gap:6px; justify-content:flex-end; align-items:center; flex-wrap:wrap; margin-top:12px; }
 .contract-steps { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; margin-bottom:12px; }
 .contract-step { border:1px solid var(--border2); background:var(--surface-soft); border-radius:14px; padding:10px 12px; }
@@ -654,6 +694,16 @@ foreach ($services as $service) {
 .contract-step span { display:block; font-size:11px; color:var(--muted); margin-top:2px; }
 .quick-note { background:var(--accent-soft); border:1px solid var(--accent-soft-2); color:var(--text); border-radius:14px; padding:10px 12px; font-size:12px; font-weight:800; margin-bottom:12px; }
 .row-location-address { margin-top:5px; color:var(--muted); font-size:11px; line-height:1.25; }
+.expiring-banner { border-color:var(--pz-orb); background:var(--pz-ors); }
+.expiring-banner .panel-head { border-bottom-color:var(--pz-orb); }
+.expiring-banner .panel-title { color:var(--pz-or); }
+.expiring-list { display:grid; gap:8px; }
+.expiring-row { display:flex; gap:12px; justify-content:space-between; align-items:center; flex-wrap:wrap; padding:10px 12px; background:#fff; border:1px solid var(--pz-orb); border-radius:12px; }
+.expiring-main { flex:1; min-width:220px; }
+.expiring-title { font-size:13px; font-weight:700; color:var(--text); }
+.expiring-meta { font-size:11.5px; color:var(--muted); margin-top:3px; }
+.expiring-meta strong { color:var(--pz-or); font-weight:800; }
+.expiring-actions { display:flex; gap:6px; flex-wrap:wrap; }
 @media (max-width: 980px) {
     .filter-form, .contract-form-grid, .contract-steps { grid-template-columns:1fr; }
     .field.span2 { grid-column:1; }
@@ -662,6 +712,7 @@ foreach ($services as $service) {
     .contract-hero { padding:18px; }
 }
 </style>
+<?php render_search_preview_assets(); ?>
 </head>
 <body>
 <div class="layout">
@@ -669,6 +720,53 @@ foreach ($services as $service) {
 
     <main class="main">
         <div class="content">
+            <?php if (!empty($expiringContracts)): ?>
+                <section class="panel expiring-banner">
+                    <div class="panel-head">
+                        <div>
+                            <div class="panel-title">
+                                <?= count($expiringContracts) ?>
+                                <?= count($expiringContracts) === 1 ? 'contract expira' : 'contracte expira' ?>
+                                in urmatoarele 30 de zile
+                            </div>
+                            <div class="panel-subtitle">Emite act adițional pentru fiecare contract pe care vrei sa-l prelungesti.</div>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="expiring-list">
+                            <?php foreach ($expiringContracts as $row): ?>
+                                <?php
+                                    $endDate = $row['end_date'] ?? null;
+                                    $daysLeft = $endDate ? (int)floor((strtotime($endDate) - strtotime(date('Y-m-d'))) / 86400) : null;
+                                    $daysLabel = $daysLeft === null ? '-' : ($daysLeft <= 0 ? 'expira azi' : ($daysLeft . ' ' . ($daysLeft === 1 ? 'zi' : 'zile')));
+                                    $sourceDocId = (int)($row['source_document_id'] ?? 0);
+                                ?>
+                                <div class="expiring-row">
+                                    <div class="expiring-main">
+                                        <div class="expiring-title">
+                                            <?= pz_contract_h($row['contract_number'] ?: ('Contract #' . $row['id'])) ?>
+                                            — <?= pz_contract_h($row['client_name'] ?: ($row['title'] ?: 'Client necunoscut')) ?>
+                                        </div>
+                                        <div class="expiring-meta">
+                                            Expira la <?= pz_contract_h(pz_contract_date_ro($endDate)) ?>
+                                            · ramas: <strong><?= pz_contract_h($daysLabel) ?></strong>
+                                        </div>
+                                    </div>
+                                    <div class="expiring-actions">
+                                        <?php if ($sourceDocId > 0): ?>
+                                            <a class="btn small primary" href="addenda.php?new=1&amp;parent=<?= $sourceDocId ?>">Emite act adițional</a>
+                                            <a class="btn small" href="document_view.php?id=<?= $sourceDocId ?>">Vezi contract</a>
+                                        <?php else: ?>
+                                            <span class="badge">Fara document sursa</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </section>
+            <?php endif; ?>
+
             <?php if ($errorMessage): ?>
                 <div class="alert error"><?= pz_contract_h($errorMessage) ?></div>
             <?php endif; ?>
@@ -693,7 +791,6 @@ foreach ($services as $service) {
 
                             <input type="hidden" name="currency" id="currency" value="<?= pz_contract_h($formDocument['currency'] ?? 'RON') ?>">
                             <input type="hidden" name="vat_percent" value="0">
-                            <input type="hidden" name="auto_renewal" value="1">
                             <input type="hidden" name="renewal_notice_days" value="30">
                             <input type="hidden" name="contract_value" id="contractValue" value="<?= pz_contract_h((string)($formPayload['contract_value_raw'] ?? 0)) ?>">
                             <input type="hidden" name="payment_terms" id="paymentTermsHidden" value="<?= pz_contract_h($formPayload['payment_terms'] ?? '') ?>">
@@ -869,7 +966,10 @@ foreach ($services as $service) {
                         <?php endif; ?>
                         <div class="field">
                             <label>Căutare</label>
-                            <input type="text" name="q" value="<?= pz_contract_h($filters['q']) ?>" placeholder="client, CUI, numar contract...">
+                            <div class="pz-search-wrap">
+                                <input type="text" id="contractsSearchInput" name="q" value="<?= pz_contract_h($filters['q']) ?>" placeholder="client, CUI, numar contract..." autocomplete="off">
+                                <div class="pz-search-preview"></div>
+                            </div>
                         </div>
                         <div class="field">
                             <label>Status</label>
@@ -1333,5 +1433,42 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-</body>
-</html>
+
+<?php
+// Preview live pentru bara „Caută contract".
+$previewContractsList = [];
+try {
+    if ($pdo->query("SHOW TABLES LIKE 'contracts'")->fetch()) {
+        $stmtPrev = $pdo->query("
+            SELECT con.id, con.contract_number, c.name AS client_name, c.fiscal_code
+            FROM contracts con
+            LEFT JOIN clients c ON c.id = con.client_id
+            ORDER BY con.id DESC LIMIT 2000
+        ");
+        while ($r = $stmtPrev->fetch(PDO::FETCH_ASSOC)) {
+            $nm  = html_entity_decode((string)($r['client_name'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $cf  = html_entity_decode((string)($r['fiscal_code'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $num = trim((string)($r['contract_number'] ?? ''));
+            $title = ($num !== '' ? ($num . ' · ') : '') . ($nm !== '' ? $nm : ('Contract #' . (int)$r['id']));
+            $previewContractsList[] = [
+                'title'  => $title,
+                'url'    => 'contracts.php?q=' . urlencode($num !== '' ? $num : $nm),
+                'type'   => 'contract',
+                'search' => $num . ' ' . $nm . ' ' . $cf,
+            ];
+        }
+    }
+} catch (Throwable $e) { error_log('contracts.php preview: ' . $e->getMessage()); }
+?>
+<script>
+(function(function () {
+    var go = function () {
+        if (!window.pzSearchPreview) { setTimeout(go, 30); return; }
+        window.pzSearchPreview.attach('contractsSearchInput',
+            <?= json_encode($previewContractsList, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>,
+            { minChars: 1, maxResults: 8 }
+        );
+    };
+    go();
+})();
+</script>

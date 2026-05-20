@@ -24,591 +24,9 @@ if (!$isAdmin) {
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Helpers
-|--------------------------------------------------------------------------
-*/
-function c_fix_encoding_issues($value): string {
-    $value = (string)$value;
-
-    if ($value === '') {
-        return '';
-    }
-
-    // Reparatie doar la afișare pentru cele mai comune texte romanesti salvate gresit in DB.
-    $map = [
-        'Äƒ' => 'ă', 'Ä‚' => 'Ă',
-        'Ã¢' => 'â', 'Ã‚' => 'Â',
-        'Ã®' => 'î', 'ÃŽ' => 'Î',
-        'È™' => 'ș', 'È˜' => 'Ș',
-        'È›' => 'ț', 'Èš' => 'Ț',
-        'ÅŸ' => 'ș', 'Åž' => 'Ș',
-        'Å£' => 'ț', 'Å¢' => 'Ț',
-    ];
-
-    $value = strtr($value, $map);
-    $value = str_replace("\xC2\xA0", ' ', $value);
-    $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
-
-    return trim($value);
-}
-
-function c_normalize_ro_text($value): string {
-    $value = c_fix_encoding_issues($value);
-
-    if ($value === '') {
-        return '';
-    }
-
-    $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
-
-    return trim($value);
-}
-
-function c_clean_address_display($value): string {
-    $value = c_normalize_ro_text($value);
-
-    if ($value === '' || $value === '-') {
-        return $value;
-    }
-
-    // Unele adrese vechi au fost deja salvate in baza de date cu semnul ? in locul literelor romanesti.
-    // Cand caracterul a fost inlocuit cu ?, litera originala nu mai poate fi recuperata 100%.
-    // Reparam aici cele mai frecvente cazuri din adrese si eliminam restul semnelor vizibile.
-    $value = str_replace(["�", "□", "¤"], "?", $value);
-
-    $exactMap = [
-        'CONSTAN?A' => 'CONSTANȚA',
-        'Constan?a' => 'Constanța',
-        'constan?a' => 'constanța',
-        'N?VODARI' => 'NĂVODARI',
-        'N?vodari' => 'Năvodari',
-        'n?vodari' => 'năvodari',
-        'VOD?' => 'VODĂ',
-        'Vod?' => 'Vodă',
-        'vod?' => 'vodă',
-        '?TEFAN' => 'ȘTEFAN',
-        '?tefan' => 'Ștefan',
-        '?OS.' => 'ȘOS.',
-        '?os.' => 'Șos.',
-        '?OSEAUA' => 'ȘOSEAUA',
-        '?oseaua' => 'Șoseaua',
-    ];
-
-    $value = strtr($value, $exactMap);
-
-    $regexMap = [
-        '/\bCONSTAN\?A\b/ui' => 'CONSTANȚA',
-        '/\bN\?VODARI\b/ui' => 'NĂVODARI',
-        '/\bVOD\?\b/ui' => 'VODĂ',
-        '/\bM\?R\?+E\?TI\b/ui' => 'MĂRĂȘEȘTI',
-        '/\bM\?R\?+S\?TI\b/ui' => 'MĂRĂȘEȘTI',
-        '/\bM\?R\?SE\?TI\b/ui' => 'MĂRĂȘEȘTI',
-        '/\bM\?R\?\?E\?TI\b/ui' => 'MĂRĂȘEȘTI',
-        '/\bD\?MBOVI\?A\b/ui' => 'DÂMBOVIȚA',
-        '/\bIALOMI\?A\b/ui' => 'IALOMIȚA',
-        '/\bTULCEA\b/ui' => 'TULCEA',
-    ];
-
-    foreach ($regexMap as $pattern => $replacement) {
-        $value = preg_replace($pattern, $replacement, $value) ?? $value;
-    }
-
-    // Ultima protectie: nu mai afișam niciun ? ramas in coloana adresa.
-    // Este mai curat vizual decat sa apara "CONSTAN?A" / "VOD?" in lista.
-    $value = str_replace('?', '', $value);
-    $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
-    $value = preg_replace('/\s+,/u', ',', $value) ?? $value;
-    $value = preg_replace('/,\s*,+/u', ',', $value) ?? $value;
-
-    return trim($value);
-}
-
-function c_h_address($value): string {
-    return htmlspecialchars(c_clean_address_display($value), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-}
-
-function c_h($value): string {
-    return htmlspecialchars(c_fix_encoding_issues($value), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-}
-
-function c_h_raw($value): string {
-    return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-}
-
-function c_fix_encoding_issues_recursive($value) {
-    if (is_array($value)) {
-        foreach ($value as $key => $item) {
-            $value[$key] = c_fix_encoding_issues_recursive($item);
-        }
-        return $value;
-    }
-
-    if (is_string($value)) {
-        return c_fix_encoding_issues($value);
-    }
-
-    return $value;
-}
-
-function c_table_exists(PDO $pdo, string $table): bool {
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) AS total
-        FROM INFORMATION_SCHEMA.TABLES
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = ?
-    ");
-    $stmt->execute([$table]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    return (int)($row['total'] ?? 0) > 0;
-}
-
-function c_column_exists(PDO $pdo, string $table, string $column): bool {
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) AS total
-        FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = ?
-          AND COLUMN_NAME = ?
-    ");
-    $stmt->execute([$table, $column]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    return (int)($row['total'] ?? 0) > 0;
-}
-
-function c_ensure_column(PDO $pdo, string $table, string $column, string $definition): void {
-    if (!c_column_exists($pdo, $table, $column)) {
-        try {
-            $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
-        } catch (Throwable $e) {
-            // Nu blocam pagina dacă ALTER nu poate rula.
-        }
-    }
-}
-
-function c_clean_text(?string $value): string {
-    $value = c_fix_encoding_issues(trim((string)$value));
-    $value = preg_replace('/\s+/', ' ', $value);
-
-    return trim((string)$value);
-}
-
-function c_clean_phone(?string $value): string {
-    return trim((string)$value);
-}
-
-function c_clean_fiscal_code(?string $value): string {
-    $value = strtoupper(trim((string)$value));
-    $value = preg_replace('/[^0-9A-Z]/', '', $value);
-    $value = preg_replace('/^RO/', '', (string)$value);
-
-    return trim((string)$value);
-}
-
-function c_first_anaf_value(array $sources, array $keys): string {
-    foreach ($sources as $source) {
-        if (!is_array($source)) {
-            continue;
-        }
-
-        foreach ($keys as $key) {
-            if (array_key_exists($key, $source)) {
-                $value = c_clean_text((string)($source[$key] ?? ''));
-                if ($value !== '') {
-                    return $value;
-                }
-            }
-        }
-    }
-
-    return '';
-}
-
-function c_anaf_address_line_from_full(string $fullAddress): string {
-    $parts = array_map('trim', explode(',', $fullAddress));
-    $kept = [];
-
-    foreach ($parts as $part) {
-        $part = c_clean_text($part);
-        if ($part === '') {
-            continue;
-        }
-
-        if (preg_match('/^(JUD\.?|JUDETUL)\b/i', $part)) {
-            continue;
-        }
-        if (preg_match('/^(MUN\.?|MUNICIPIUL|ORAS(?:UL)?|COM\.?|COMUNA|SAT(?:UL)?)\b/i', $part)) {
-            continue;
-        }
-        if (preg_match('/^SECTOR(?:UL)?\s*[1-6]\b/i', $part)) {
-            continue;
-        }
-        if (preg_match('/^(TARA\s*)?ROMANIA$/i', $part)) {
-            continue;
-        }
-
-        $kept[] = $part;
-    }
-
-    return c_clean_text(implode(', ', $kept));
-}
-
-function c_normalize_anaf_county(string $county): string {
-    $county = c_clean_text($county);
-    $county = preg_replace('/^(JUDETUL|JUD\.?)\s+/i', '', $county) ?? $county;
-    $county = preg_replace('/^MUNICIPIUL\s+/i', '', $county) ?? $county;
-    $county = trim($county);
-
-    if (preg_match('/BUCURE[ȘS]TI/i', $county)) {
-        return 'Bucuresti';
-    }
-
-    return $county;
-}
-
-function c_normalize_anaf_city(string $city): string {
-    $city = c_clean_text($city);
-    $city = preg_replace('/^(MUN\.?|MUNICIPIUL|ORAS(?:UL)?|ORAȘ(?:UL)?|COM\.?|COMUNA|SAT(?:UL)?)\s+/iu', '', $city) ?? $city;
-    $city = trim($city, " \t\n\r\0\x0B,.-");
-
-    if (preg_match('/^SECTOR(?:UL)?\s*([1-6])$/iu', $city, $m)) {
-        return 'Sector ' . c_clean_text($m[1] ?? '');
-    }
-
-    return $city;
-}
-
-function c_anaf_address_parts(array $item): array {
-    $general = is_array($item['date_generale'] ?? null) ? $item['date_generale'] : [];
-    $sediu = is_array($item['adresa_sediu_social'] ?? null) ? $item['adresa_sediu_social'] : [];
-    $domiciliu = is_array($item['adresa_domiciliu_fiscal'] ?? null) ? $item['adresa_domiciliu_fiscal'] : [];
-    $sources = [$sediu, $domiciliu, $general];
-    $fullAddress = c_clean_text((string)($general['adresa'] ?? ''));
-
-    $street = c_first_anaf_value($sources, [
-        'sdenumire_Strada', 'ddenumire_Strada', 'denumire_Strada',
-        'strada', 'street',
-    ]);
-    $number = c_first_anaf_value($sources, [
-        'snumar_Strada', 'dnumar_Strada', 'numar_Strada',
-        'numar', 'street_number',
-    ]);
-    $details = c_first_anaf_value($sources, [
-        'sdetalii_Adresa', 'ddetalii_Adresa', 'detalii_Adresa',
-        'detalii', 'address_details',
-    ]);
-
-    $lineParts = [];
-    if ($street !== '') {
-        $lineParts[] = trim($street . ($number !== '' ? ' nr. ' . $number : ''));
-    }
-    if ($details !== '') {
-        $lineParts[] = $details;
-    }
-
-    $addressLine = c_clean_text(implode(', ', array_filter($lineParts)));
-
-    $county = c_first_anaf_value($sources, [
-        'sdenumire_Județ', 'ddenumire_Județ', 'denumire_Județ',
-        'județ', 'county',
-    ]);
-    $city = c_first_anaf_value($sources, [
-        'sdenumire_Localitate', 'ddenumire_Localitate', 'denumire_Localitate',
-        'localitate', 'oraș', 'city',
-    ]);
-    $country = c_first_anaf_value($sources, [
-        'sțară', 'dțară', 'țară', 'country',
-    ]);
-    $postal = c_first_anaf_value($sources, [
-        'scod_Postal', 'dcod_Postal', 'cod_Postal', 'codPostal',
-        'cod_postal', 'postal_code', 'zip',
-    ]);
-
-    if ($county === '' && preg_match('/\bJUD\.?\s*([^,]+)/i', $fullAddress, $m)) {
-        $county = c_clean_text($m[1] ?? '');
-    }
-    $county = c_normalize_anaf_county($county);
-
-    if (preg_match('/\bSECTOR(?:UL)?\s*([1-6])\b/i', $fullAddress, $m)) {
-        $city = 'Sector ' . c_clean_text($m[1] ?? '');
-        if ($county === '' || preg_match('/BUCURESTI/i', $county . ' ' . $fullAddress)) {
-            $county = 'Bucuresti';
-        }
-    } elseif ($city === '' && preg_match('/\b(?:MUN\.?|MUNICIPIUL|ORAS(?:UL)?|COM\.?|COMUNA|SAT(?:UL)?)\s*([^,]+)/i', $fullAddress, $m)) {
-        $city = c_clean_text($m[1] ?? '');
-    }
-    $city = c_normalize_anaf_city($city);
-
-    if ($postal === '' && preg_match('/\b(?:CP|COD\s*POSTAL)\s*[:\-]?\s*([0-9]{4,10})\b/i', $fullAddress, $m)) {
-        $postal = c_clean_text($m[1] ?? '');
-    }
-
-    if ($addressLine === '') {
-        $addressLine = c_anaf_address_line_from_full($fullAddress);
-    }
-
-    return [
-        'billing_country' => $country !== '' ? $country : 'Romania',
-        'billing_county' => $county,
-        'billing_city' => $city,
-        'billing_sector' => '',
-        'billing_address_line' => $addressLine,
-        'billing_postal_code' => $postal,
-    ];
-}
-
-function c_decimal_nullable($value): ?float {
-    $value = trim((string)$value);
-    if ($value === '') {
-        return null;
-    }
-    $value = str_replace([' ', ','], ['', '.'], $value);
-    return is_numeric($value) ? (float)$value : null;
-}
-
-function c_clean_surface_unit($value): string {
-    $value = trim((string)$value);
-    return in_array($value, ['mp', 'ml', 'buc'], true) ? $value : 'mp';
-}
-
-function c_client_type_label(string $type): string {
-    return $type === 'individual' ? 'PF' : 'PJ';
-}
-
-function c_client_address(array $client): string {
-    $billingAddress = c_build_billing_address($client);
-    if ($billingAddress !== '') {
-        return $billingAddress;
-    }
-
-    return trim((string)($client['registered_address'] ?? '')) ?: trim((string)($client['address'] ?? ''));
-}
-
-function c_build_billing_address(array $parts): string {
-    $country = trim((string)($parts['billing_country'] ?? ''));
-    $county = trim((string)($parts['billing_county'] ?? ''));
-    $city = trim((string)($parts['billing_city'] ?? ''));
-    $sector = trim((string)($parts['billing_sector'] ?? ''));
-    $line = trim((string)($parts['billing_address_line'] ?? ''));
-    $postal = trim((string)($parts['billing_postal_code'] ?? ''));
-
-    $location = trim(implode(', ', array_filter([$county, $city, $sector], static fn($v) => $v !== '')));
-    $address = trim(implode(', ', array_filter([$line, $location, $country], static fn($v) => $v !== '')));
-    if ($postal !== '') {
-        $address .= ($address !== '' ? ', ' : '') . 'CP ' . $postal;
-    }
-
-    return $address;
-}
-
-function c_client_contact_person(array $client): string {
-    $type = (string)($client['client_type'] ?? 'company');
-    $name = trim((string)($client['name'] ?? ''));
-    $rep = trim((string)($client['legal_representative_name'] ?? ''));
-
-    if ($type === 'individual') {
-        return $name;
-    }
-
-    return $rep !== '' ? $rep : $name;
-}
-
-function c_client_status_class($status, int $active): string {
-    if ($active !== 1) {
-        return 'inactive';
-    }
-
-    $status = strtolower(trim((string)$status));
-
-    if (in_array($status, ['season', 'seasonal', 'sezonier'], true)) {
-        return 'season';
-    }
-
-    return 'active';
-}
-
-function c_client_status_label($status, int $active): string {
-    if ($active !== 1) {
-        return 'Inactiv';
-    }
-
-    $status = strtolower(trim((string)$status));
-
-    if (in_array($status, ['season', 'seasonal', 'sezonier'], true)) {
-        return 'Sezonier';
-    }
-
-    return 'Activ';
-}
-
-function c_normalize_anaf_item(array $item): array {
-    $general = is_array($item['date_generale'] ?? null) ? $item['date_generale'] : [];
-    $addressParts = c_anaf_address_parts($item);
-
-    return [
-        'client_type' => 'company',
-        'name' => c_clean_text($general['denumire'] ?? ''),
-        'fiscal_code' => c_clean_fiscal_code((string)($general['cui'] ?? '')),
-        'registry_number' => c_clean_text($general['nrRegCom'] ?? ''),
-        'registered_address' => c_clean_text($general['adresa'] ?? '') ?: c_build_billing_address($addressParts),
-        'billing_country' => $addressParts['billing_country'],
-        'billing_county' => $addressParts['billing_county'],
-        'billing_city' => $addressParts['billing_city'],
-        'billing_sector' => $addressParts['billing_sector'],
-        'billing_address_line' => $addressParts['billing_address_line'],
-        'billing_postal_code' => $addressParts['billing_postal_code'],
-        'phone' => '', // Nu preluam telefonul de la ANAF.
-        'email' => '',
-        'bank_name' => '',
-        'bank_account' => c_clean_text($general['iban'] ?? ''),
-        'legal_representative_name' => '',
-        'legal_representative_role' => '',
-        'anaf_last_lookup_at' => date('Y-m-d H:i:s'),
-        'tva' => [
-            'scpTVA' => (bool)($item['inregistrare_scop_Tva']['scpTVA'] ?? false),
-            'statusSplitTVA' => (bool)($item['inregistrare_SplitTVA']['statusSplitTVA'] ?? false),
-            'statusRO_e_Factura' => (bool)($general['statusRO_e_Factura'] ?? false),
-        ],
-        'inactive' => [
-            'statusInactivi' => (bool)($item['stare_inactiv']['statusInactivi'] ?? false),
-            'dataInactivare' => c_clean_text($item['stare_inactiv']['dataInactivare'] ?? ''),
-            'dataReactivare' => c_clean_text($item['stare_inactiv']['dataReactivare'] ?? ''),
-        ],
-    ];
-}
-
-function c_anaf_lookup(string $cui): array {
-    $cui = c_clean_fiscal_code($cui);
-
-    if ($cui === '') {
-        return [
-            'success' => false,
-            'message' => 'Introdu CUI-ul firmei.',
-        ];
-    }
-
-    $url = 'https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva';
-    $payload = json_encode([
-        [
-            'cui' => (int)$cui,
-            'data' => date('Y-m-d'),
-        ]
-    ], JSON_UNESCAPED_UNICODE);
-
-    $status = 0;
-    $contentType = '';
-    $raw = '';
-
-    if (function_exists('curl_init')) {
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $payload,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json; charset=utf-8',
-                'Accept: application/json',
-                'Content-Length: ' . strlen((string)$payload),
-            ],
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_TIMEOUT => 25,
-            CURLOPT_SSL_VERIFYPEER => true,
-        ]);
-
-        $raw = (string)curl_exec($ch);
-        $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $contentType = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-
-        if ($raw === '' && $curlError !== '') {
-            return [
-                'success' => false,
-                'message' => 'Nu s-a putut contacta ANAF: ' . $curlError,
-                'debug' => [
-                    'url' => $url,
-                    'http_status' => $status,
-                    'content_type' => $contentType,
-                ],
-            ];
-        }
-    } else {
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'POST',
-                'header' => "Content-Type: application/json; charset=utf-8\r\nAccept: application/json\r\n",
-                'content' => $payload,
-                'timeout' => 25,
-            ]
-        ]);
-
-        $raw = (string)@file_get_contents($url, false, $context);
-        $status = 0;
-
-        if (isset($http_response_header) && is_array($http_response_header)) {
-            foreach ($http_response_header as $header) {
-                if (preg_match('/HTTP\/\S+\s+(\d+)/', $header, $m)) {
-                    $status = (int)$m[1];
-                }
-                if (stripos($header, 'Content-Type:') === 0) {
-                    $contentType = trim(substr($header, 13));
-                }
-            }
-        }
-    }
-
-    $json = json_decode($raw, true);
-    if (!is_array($json) && function_exists('mb_convert_encoding')) {
-        $json = json_decode(mb_convert_encoding($raw, 'UTF-8', 'UTF-8'), true);
-    }
-
-    if (!is_array($json)) {
-        return [
-            'success' => false,
-            'message' => 'Raspuns invalid de la ANAF. Serverul a primit HTML/text in loc de JSON sau ANAF a returnat temporar o pagina de eroare.',
-            'debug' => [
-                'url' => $url,
-                'http_status' => $status,
-                'content_type' => $contentType,
-                'json_error' => json_last_error_msg(),
-                'response_preview' => substr($raw, 0, 600),
-            ],
-        ];
-    }
-
-    $found = $json['found'] ?? [];
-
-    if (!is_array($found) || empty($found[0]) || !is_array($found[0])) {
-        return [
-            'success' => false,
-            'message' => 'Firma nu a fost gasita la ANAF pentru CUI-ul introdus.',
-            'data' => null,
-            'debug' => [
-                'url' => $url,
-                'http_status' => $status,
-                'content_type' => $contentType,
-                'response' => $json,
-            ],
-        ];
-    }
-
-    $data = c_normalize_anaf_item($found[0]);
-    $data['anaf_raw_response'] = json_encode($json, JSON_UNESCAPED_UNICODE);
-
-    return [
-        'success' => true,
-        'message' => 'Datele firmei au fost gasite la ANAF.',
-        'data' => $data,
-        'debug' => [
-            'url' => $url,
-            'http_status' => $status,
-            'content_type' => $contentType,
-        ],
-    ];
-}
+// Helper-i extracși în module separate (text/DB/view + ANAF lookup).
+require_once __DIR__ . '/clients_helpers.php';
+require_once __DIR__ . '/clients_anaf_lib.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -1427,7 +845,7 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap" rel="stylesheet">
 
 <?php app_theme_css(); ?>
 
@@ -1931,7 +1349,68 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
     }
 }
 
+/* ══ Design System v2.4 fixes ══ */
+* { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
+
+/* Radius — max 8px conform DS */
+.info-box, .location-item, .history-item,
+.location-form-row, .type-option, .location-form-row,
+.quick-location, .quick-kpi, .quick-empty, .client-quick-card {
+    border-radius: var(--pz-r) !important;
+}
+.row-menu-dropdown, .client-status-badge, .type-pill,
+.status-pill, .clients-count-pill, .page-btn { border-radius: var(--pz-rs) !important; }
+.form-section { border-radius: 0 var(--pz-r) var(--pz-r) 0 !important; }
+.status-toggle .slider { border-radius: 99px !important; }
+
+/* Font-weight — max 700 */
+.client-name, .card-title, .profile-title, .clients-page-title h1,
+.info-label, .info-value, .section-title, .location-name, .history-title,
+.client-cell-title, .form-section-title, .status-toggle-label,
+.client-quick-title, .client-quick-card-title, .quick-kpi-value,
+.quick-kpi-label, .quick-label, .quick-value, .quick-location-name,
+.location-row-title, .clients-table th, .clients-table td,
+.card-subtitle, .location-meta, .history-meta, .client-meta,
+.quick-location-meta, .profile-sub, .clients-pagination {
+    font-weight: 700 !important;
+}
+.clients-table td, .client-cell-title { font-weight: 600 !important; }
+.clients-table th, .info-label, .quick-label, .quick-kpi-label { font-weight: 700 !important; }
+.profile-title, .clients-page-title h1, .client-quick-title { font-weight: 700 !important; font-size: inherit; }
+
+/* Culori corecte cu tokeni pz */
+.client-status-badge { background: var(--pz-grs) !important; border-color: var(--pz-grb) !important; color: var(--pz-gr) !important; }
+.client-status-badge.inactive { background: var(--pz-soft) !important; border-color: var(--pz-line) !important; color: var(--pz-mu) !important; }
+.client-status-badge.season { background: var(--pz-ors) !important; border-color: var(--pz-orb) !important; color: var(--pz-or) !important; }
+
+/* Status toggle: verde = --pz-gr-acc */
+.status-toggle input:checked + .slider { background: var(--pz-gr-acc) !important; }
+
+/* Fără gradient, fără shadow */
+.client-quick-header { background: var(--pz-soft) !important; }
+.client-quick-card { box-shadow: none !important; }
+.row-menu-dropdown { box-shadow: none !important; border: 1px solid var(--pz-line) !important; }
+
+/* Font ID coloană — monospace system */
+.client-id-cell { font-family: 'Courier New', ui-monospace, monospace !important; font-weight: 500 !important; }
+
+/* Icon actions — conform DS */
+.icon-action { background: var(--pz-surf) !important; border-color: var(--pz-line) !important; color: var(--pz-mu) !important; }
+.icon-action:hover { background: var(--pz-bls) !important; border-color: var(--pz-blb) !important; color: var(--pz-bl) !important; }
+.icon-action.is-primary { background: var(--pz-bls) !important; border-color: var(--pz-blb) !important; color: var(--pz-bl) !important; }
+.icon-action.is-primary:hover { background: var(--pz-bl) !important; border-color: var(--pz-bl) !important; color: #fff !important; }
+
+/* Search preview wrap în clients-toolbar (grid layout) */
+.clients-toolbar .pz-search-wrap { width: 100%; min-width: 0; }
+.clients-toolbar .pz-search-wrap input { width: 100%; }
+@media(max-width: 980px) {
+    .clients-toolbar .pz-search-wrap { grid-column: 1 / -1; }
+}
+@media(max-width: 760px) {
+    .clients-toolbar .pz-search-wrap { grid-column: 1 / -1; }
+}
 </style>
+<?php render_search_preview_assets(); ?>
 </head>
 
 <body>
@@ -1960,7 +1439,10 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
                 </select>
 
                 <button class="btn" type="submit">Filtrează</button>
-                <input class="search-input" type="text" name="q" value="<?= c_h($search) ?>" placeholder="Caută client">
+                <div class="pz-search-wrap">
+                    <input class="search-input" type="text" id="clientsSearchInput" name="q" value="<?= c_h($search) ?>" placeholder="Caută client" autocomplete="off">
+                    <div class="pz-search-preview"></div>
+                </div>
                 <a class="btn" href="clients.php" title="Resetare filtre" aria-label="Resetare filtre">↻</a>
                 <button class="btn accent add-client-btn" type="button" onclick="openClientModal()">+ Client nou</button>
             </form>
@@ -2987,5 +2469,55 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') rowMenuCloseAll();
 });
 </script>
-</body>
-</html>
+
+<?php
+// Preview live pentru bara „Caută client".
+$previewClientsList = [];
+try {
+    $stmtPrev = $pdo->query("SELECT id, name, fiscal_code FROM clients ORDER BY name ASC LIMIT 2000");
+    while ($cli = $stmtPrev->fetch(PDO::FETCH_ASSOC)) {
+        $nm = html_entity_decode((string)($cli['name'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $cf = html_entity_decode((string)($cli['fiscal_code'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $previewClientsList[] = [
+            'title'  => $nm,
+            'url'    => 'client.php?id=' . (int)$cli['id'],
+            'type'   => 'client',
+            'search' => $nm . ' ' . $cf,
+        ];
+    }
+} catch (Throwable $e) { error_log('clients.php preview: ' . $e->getMessage()); }
+?>
+<script>
+// DEBUG TEMPORAR: verificăm de ce nu apare dropdown la "Caută client".
+(function () {
+    var retries = 0;
+    var go = function () {
+        if (!window.pzSearchPreview) {
+            retries++;
+            if (retries > 50) {
+                console.warn('[clientsSearchInput] window.pzSearchPreview NU s-a definit după 50 retries (1.5s).');
+                return;
+            }
+            setTimeout(go, 30);
+            return;
+        }
+        var input = document.getElementById('clientsSearchInput');
+        if (!input) {
+            console.warn('[clientsSearchInput] input element NU a fost găsit în DOM.');
+            return;
+        }
+        console.log('[clientsSearchInput] attach() apelat cu', <?= count($previewClientsList) ?>, 'clienți pentru preview.');
+        var data = <?= json_encode($previewClientsList, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
+        console.log('[clientsSearchInput] data primită:', Array.isArray(data) ? data.length : typeof data, 'items');
+        window.pzSearchPreview.attach('clientsSearchInput', data, { minChars: 1, maxResults: 8 });
+        // Verificăm că event listener-ul s-a atașat — tastăm "x" sintetic
+        input.addEventListener('input', function () {
+            var wrap = input.closest('.pz-search-wrap');
+            var preview = wrap ? wrap.querySelector('.pz-search-preview') : null;
+            console.log('[clientsSearchInput] input event, wrap:', !!wrap, 'preview:', !!preview, 'preview.open:', preview ? preview.classList.contains('open') : 'n/a');
+        });
+        console.log('[clientsSearchInput] setup complet.');
+    };
+    go();
+})();
+</script>

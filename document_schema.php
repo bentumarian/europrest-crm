@@ -120,6 +120,7 @@ if (!function_exists('pzdoc_default_series_code')) {
             'oferta' => 'OF',
             'contract' => 'CTR',
             'proces_verbal' => 'PV',
+            'act_aditional' => 'ACT',
         ];
 
         return $map[$documentType] ?? 'DOC';
@@ -133,6 +134,7 @@ if (!function_exists('pzdoc_default_series_name')) {
             'oferta' => 'Oferte',
             'contract' => 'Contracte',
             'proces_verbal' => 'Procese verbale',
+            'act_aditional' => 'Acte adiționale',
         ];
 
         return $map[$documentType] ?? 'Documente';
@@ -173,6 +175,29 @@ if (!function_exists('pzdoc_default_template_content')) {
                 . '{{items_table}}\n'
                 . '<h2>Valoare contract</h2>\n'
                 . '<p>{{document_total}} {{currency}}</p>\n'
+                . '<h2>Observații</h2>\n'
+                . '<p>{{notes}}</p>\n'
+                . '<table width="100%" cellspacing="0" cellpadding="0" style="margin-top:25px;"><tr>'
+                . '<td width="50%"><strong>Prestator,</strong><br>{{company_name}}<br>{{company_representative}}<br>{{company_stamp}}</td>'
+                . '<td width="50%"><strong>Beneficiar,</strong><br>{{client_name}}<br>{{client_representative}}</td>'
+                . '</tr></table>';
+        }
+
+        if ($documentType === 'act_aditional') {
+            return '<h1 style="text-align:center;">ACT ADIȚIONAL</h1>\n'
+                . '<p style="text-align:center;"><strong>Nr. {{document_number}} din {{document_date}}</strong><br>la Contractul nr. {{parent_contract_number}} din {{parent_contract_date}}</p>\n'
+                . '<p><strong>Prestator:</strong> {{company_block}}</p>\n'
+                . '<p><strong>Beneficiar:</strong> {{client_block}}</p>\n'
+                . '<h2>Obiectul actului adițional</h2>\n'
+                . '<p>Părțile convin de comun acord prelungirea valabilității contractului mai sus menționat, precum si actualizarea condițiilor comerciale, conform celor stabilite mai jos.</p>\n'
+                . '<h2>Perioada de prelungire</h2>\n'
+                . '<p>Prezentul act adițional intra in vigoare la data de <strong>{{addendum_start_date}}</strong> si produce efecte pana la data de <strong>{{addendum_end_date}}</strong>.</p>\n'
+                . '<h2>Locații si servicii pentru perioada prelungita</h2>\n'
+                . '{{items_table}}\n'
+                . '<h2>Valoare</h2>\n'
+                . '<p>{{document_total}} {{currency}}</p>\n'
+                . '<h2>Clauze finale</h2>\n'
+                . '<p>Restul clauzelor contractului inițial raman neschimbate si pe deplin valabile. Prezentul act adițional face parte integranta din contract si se semneaza in 2 (doua) exemplare originale, cate unul pentru fiecare parte.</p>\n'
                 . '<h2>Observații</h2>\n'
                 . '<p>{{notes}}</p>\n'
                 . '<table width="100%" cellspacing="0" cellpadding="0" style="margin-top:25px;"><tr>'
@@ -456,7 +481,7 @@ if (!function_exists('pzdoc_ensure_document_schema')) {
 if (!function_exists('pzdoc_seed_document_defaults')) {
     function pzdoc_seed_document_defaults(PDO $pdo): void
     {
-        $types = ['oferta', 'contract', 'proces_verbal'];
+        $types = ['oferta', 'contract', 'proces_verbal', 'act_aditional'];
 
         foreach ($types as $type) {
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM document_series WHERE document_type = ?");
@@ -466,7 +491,7 @@ if (!function_exists('pzdoc_seed_document_defaults')) {
             if (!$exists) {
                 $seriesCode = pzdoc_default_series_code($type);
                 $seriesName = pzdoc_default_series_name($type);
-                $pattern = ($type === 'contract') ? '{N}/{DD}.{MM}.{YYYY}' : '{SERIE} {N}/{DD}.{MM}.{YYYY}';
+                $pattern = (in_array($type, ['contract', 'act_aditional'], true)) ? '{N}/{DD}.{MM}.{YYYY}' : '{SERIE} {N}/{DD}.{MM}.{YYYY}';
 
                 $insert = $pdo->prepare("\n                    INSERT INTO document_series\n                        (document_type, name, series_code, format_pattern, year, next_number, padding, reset_yearly, is_default, active, notes)\n                    VALUES\n                        (?, ?, ?, ?, NULL, 1, 1, 0, 1, 1, NULL)\n                ");
                 $insert->execute([$type, $seriesName, $seriesCode, $pattern]);

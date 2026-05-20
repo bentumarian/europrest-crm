@@ -156,7 +156,7 @@ if (!function_exists('pz_smartbill_ensure_schema')) {
             created_by INT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-            UNIQUE KEY uq_smartbill_appointment (appointment_id),
+            KEY idx_smartbill_appointment (appointment_id),
             KEY idx_smartbill_client (client_id),
             KEY idx_smartbill_status (smartbill_status),
             KEY idx_smartbill_efactura (efactura_status)
@@ -951,19 +951,17 @@ if (!function_exists('pz_smartbill_payment_payload')) {
     function pz_smartbill_payment_payload(array $invoice, array $settings, array $data, float $amount, string $paymentDate, string $type): array
     {
         $apiType = pz_smartbill_payment_api_type($type);
+        $hasInvoiceRef = trim((string)($invoice['smartbill_series'] ?? '')) !== ''
+            && trim((string)($invoice['smartbill_number'] ?? '')) !== '';
+
+        // Payload minimal când avem o factură existentă în SmartBill.
+        // SmartBill preia automat datele clientului de pe factura referită
+        // în invoicesList, fără să mai valideze client.* trimis aici.
+        // Eroarea „Ciful clientului de pe factura difera de ciful clientului incasarii"
+        // apare când trimitem și client.* — SmartBill compară strict cu factura
+        // și respinge orice diferență de format (RO prefix, spații, majuscule).
         $payload = [
             'companyVatCode' => trim((string)($settings['smartbill.company_vat_code'] ?? '')),
-            'client' => [
-                'name' => (string)($invoice['client_name'] ?? ''),
-                'vatCode' => (string)($invoice['client_fiscal_code'] ?? ''),
-                'address' => (string)($invoice['client_address'] ?? ''),
-                'isTaxPayer' => true,
-                'city' => (string)($invoice['client_city'] ?? ''),
-                'county' => (string)($invoice['client_county'] ?? ''),
-                'country' => (string)($invoice['client_country'] ?? 'Romania'),
-                'email' => (string)($invoice['client_email'] ?? ''),
-                'saveToDb' => true,
-            ],
             'issueDate' => $paymentDate,
             'currency' => (string)($invoice['currency'] ?? 'RON') ?: 'RON',
             'language' => 'RO',
@@ -976,12 +974,30 @@ if (!function_exists('pz_smartbill_payment_payload')) {
             'translatedText' => '',
             'isDraft' => false,
             'observation' => trim((string)($data['notes'] ?? '')),
-            'useInvoiceDetails' => false,
-            'invoicesList' => [[
+            'useInvoiceDetails' => true,
+            'invoicesList' => $hasInvoiceRef ? [[
                 'seriesName' => (string)($invoice['smartbill_series'] ?? ''),
                 'number' => (string)($invoice['smartbill_number'] ?? ''),
-            ]],
+            ]] : [],
         ];
+
+        // Doar dacă nu avem factura SmartBill (caz edge), adăugăm client.*
+        // ca să poată fi creată o încasare standalone.
+        if (!$hasInvoiceRef) {
+            $invoiceVatCode = preg_replace('/^\s*ro\s*/i', '', trim((string)($invoice['client_fiscal_code'] ?? '')));
+            $payload['client'] = [
+                'name' => (string)($invoice['client_name'] ?? ''),
+                'vatCode' => (string)$invoiceVatCode,
+                'address' => (string)($invoice['client_address'] ?? ''),
+                'isTaxPayer' => true,
+                'city' => (string)($invoice['client_city'] ?? ''),
+                'county' => (string)($invoice['client_county'] ?? ''),
+                'country' => (string)($invoice['client_country'] ?? 'Romania'),
+                'email' => (string)($invoice['client_email'] ?? ''),
+                'saveToDb' => true,
+            ];
+            $payload['useInvoiceDetails'] = false;
+        }
 
         if ($type === 'chitanta') {
             $receiptSeries = trim((string)($data['document_series'] ?? ''));
@@ -1192,11 +1208,17 @@ if (!function_exists('pz_smartbill_delete_receipt')) {
 if (!function_exists('pz_smartbill_standalone_receipt_payload')) {
     function pz_smartbill_standalone_receipt_payload(array $settings, array $data, float $amount, string $paymentDate): array
     {
+        $type = (string)($data['payment_type'] ?? 'chitanta');
+        $types = pz_smartbill_payment_types();
+        if (!isset($types[$type])) {
+            $type = 'chitanta';
+        }
         $payload = [
             'companyVatCode' => trim((string)($settings['smartbill.company_vat_code'] ?? '')),
             'client' => [
                 'name' => trim((string)($data['client_name'] ?? '')),
                 'vatCode' => trim((string)($data['client_fiscal_code'] ?? '')),
+                'regCom' => trim((string)($data['client_reg_com'] ?? '')),
                 'address' => trim((string)($data['client_address'] ?? '')),
                 'isTaxPayer' => true,
                 'city' => trim((string)($data['client_city'] ?? '')),
@@ -1211,20 +1233,22 @@ if (!function_exists('pz_smartbill_standalone_receipt_payload')) {
             'exchangeRate' => 1,
             'precision' => 2,
             'value' => $amount,
-            'type' => 'Chitanta',
-            'isCash' => true,
+            'type' => pz_smartbill_payment_api_type($type),
+            'isCash' => pz_smartbill_payment_is_cash($type),
             'text' => trim((string)($data['payment_text'] ?? 'Încasare fără factură')) ?: 'Încasare fără factură',
             'translatedText' => '',
             'isDraft' => false,
             'observation' => trim((string)($data['notes'] ?? '')),
         ];
 
-        $receiptSeries = trim((string)($data['document_series'] ?? ''));
-        if ($receiptSeries === '') {
-            $receiptSeries = trim((string)($settings['smartbill.receipt_series'] ?? ''));
-        }
-        if ($receiptSeries !== '') {
-            $payload['seriesName'] = $receiptSeries;
+        if ($type === 'chitanta') {
+            $receiptSeries = trim((string)($data['document_series'] ?? ''));
+            if ($receiptSeries === '') {
+                $receiptSeries = trim((string)($settings['smartbill.receipt_series'] ?? ''));
+            }
+            if ($receiptSeries !== '') {
+                $payload['seriesName'] = $receiptSeries;
+            }
         }
 
         return $payload;
@@ -1259,7 +1283,13 @@ if (!function_exists('pz_smartbill_issue_standalone_receipt')) {
         $clientCity = trim((string)($data['client_city'] ?? ''));
         $clientAddress = trim((string)($data['client_address'] ?? ''));
         if ($clientName === '' || $clientFiscalCode === '' || $clientCountry === '' || $clientCounty === '' || $clientCity === '' || $clientAddress === '') {
-            return ['ok' => false, 'error' => 'Completează datele clientului pentru chitanța.'];
+            return ['ok' => false, 'error' => 'Completează datele clientului pentru incasare.'];
+        }
+
+        $type = (string)($data['payment_type'] ?? 'chitanta');
+        $types = pz_smartbill_payment_types();
+        if (!isset($types[$type])) {
+            $type = 'chitanta';
         }
 
         $paymentDate = trim((string)($data['payment_date'] ?? date('Y-m-d')));
@@ -1278,47 +1308,52 @@ if (!function_exists('pz_smartbill_issue_standalone_receipt')) {
 
         $pdo->beginTransaction();
         try {
+            $invoiceInsert = [
+                'source_type' => 'receipt',
+                'appointment_id' => null,
+                'client_id' => max(0, (int)($data['client_id'] ?? 0)) ?: null,
+                'client_location_id' => null,
+                'client_name' => $clientName,
+                'client_fiscal_code' => $clientFiscalCode,
+                'client_reg_com' => trim((string)($data['client_reg_com'] ?? '')) ?: null,
+                'client_contact' => trim((string)($data['client_contact'] ?? '')) ?: null,
+                'client_email' => trim((string)($data['client_email'] ?? '')) ?: null,
+                'client_phone' => trim((string)($data['client_phone'] ?? '')) ?: null,
+                'client_country' => $clientCountry,
+                'client_county' => $clientCounty,
+                'client_city' => $clientCity,
+                'client_address' => $clientAddress,
+                'invoice_date' => $paymentDate,
+                'due_date' => $paymentDate,
+                'currency' => trim((string)($data['currency'] ?? 'RON')) ?: 'RON',
+                'net_amount' => $amount,
+                'vat_code' => '0',
+                'vat_amount' => 0.00,
+                'gross_amount' => $amount,
+                'smartbill_status' => $ok ? 'receipt_only' : 'error',
+                'notes' => trim((string)($data['notes'] ?? '')) ?: null,
+                'request_json' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'response_json' => json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'error_message' => $error ?: null,
+                'created_by' => function_exists('current_user_id') ? current_user_id() : null,
+            ];
+            $invoiceColumns = array_keys($invoiceInsert);
             $stmt = $pdo->prepare("
-                INSERT INTO smartbill_invoices
-                    (source_type, appointment_id, client_id, client_location_id, client_name, client_fiscal_code,
-                     client_contact, client_email, client_phone, client_country, client_county, client_city,
-                     client_address, invoice_date, due_date, currency, net_amount, vat_code, vat_amount,
-                     gross_amount, smartbill_status, notes, request_json, response_json, error_message, created_by)
-                VALUES ('receipt', NULL, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '0', 0.00, ?, ?, ?, ?, ?, ?)
+                INSERT INTO smartbill_invoices (`" . implode('`, `', $invoiceColumns) . "`)
+                VALUES (" . implode(', ', array_fill(0, count($invoiceColumns), '?')) . ")
             ");
-            $stmt->execute([
-                max(0, (int)($data['client_id'] ?? 0)) ?: null,
-                $clientName,
-                $clientFiscalCode,
-                trim((string)($data['client_contact'] ?? '')) ?: null,
-                trim((string)($data['client_email'] ?? '')) ?: null,
-                trim((string)($data['client_phone'] ?? '')) ?: null,
-                $clientCountry,
-                $clientCounty,
-                $clientCity,
-                $clientAddress,
-                $paymentDate,
-                $paymentDate,
-                trim((string)($data['currency'] ?? 'RON')) ?: 'RON',
-                $amount,
-                $amount,
-                $ok ? 'receipt_only' : 'error',
-                trim((string)($data['notes'] ?? '')) ?: null,
-                json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                $error ?: null,
-                function_exists('current_user_id') ? current_user_id() : null,
-            ]);
+            $stmt->execute(array_values($invoiceInsert));
             $invoiceId = (int)$pdo->lastInsertId();
 
             $stmt = $pdo->prepare("
                 INSERT INTO smartbill_invoice_payments
                     (smartbill_invoice_id, payment_type, payment_date, amount, currency, document_series,
                      document_number, notes, smartbill_status, request_json, response_json, error_message, synced_at, created_by)
-                VALUES (?, 'chitanta', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([
                 $invoiceId,
+                $type,
                 $paymentDate,
                 $amount,
                 trim((string)($data['currency'] ?? 'RON')) ?: 'RON',
@@ -1341,7 +1376,7 @@ if (!function_exists('pz_smartbill_issue_standalone_receipt')) {
             ")->execute([
                 $invoiceId,
                 $ok ? 'ok' : 'error',
-                $ok ? ('Chitanța emisa în SmartBill: ' . number_format($amount, 2, '.', '') . ' ' . (trim((string)($data['currency'] ?? 'RON')) ?: 'RON')) : ($error ?: 'Chitanța nu a putut fi emisă.'),
+                $ok ? (pz_smartbill_payment_label($type) . ' emisa in SmartBill: ' . number_format($amount, 2, '.', '') . ' ' . (trim((string)($data['currency'] ?? 'RON')) ?: 'RON')) : ($error ?: 'Incasarea nu a putut fi emisa.'),
                 json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 function_exists('current_user_id') ? current_user_id() : null,
@@ -1827,19 +1862,159 @@ if (!function_exists('pz_smartbill_issue_invoice')) {
             function_exists('current_user_id') ? current_user_id() : null,
         ]);
 
-        if (!empty($result['ok']) && !empty($invoice['appointment_id'])) {
-            try {
-                $pdo->prepare("
-                    UPDATE appointments
-                    SET billing_status = 'facturata',
-                        billing_updated_at = NOW(),
-                        billing_updated_by = ?
-                    WHERE id = ?
-                ")->execute([function_exists('current_user_id') ? current_user_id() : null, (int)$invoice['appointment_id']]);
-            } catch (Throwable $e) {
-                error_log('SmartBill appointment billing status update error: ' . $e->getMessage());
+        // NOTĂ: Nu mai modificăm `appointments.billing_status` aici.
+        // Marcajul „facturat" se face acum centralizat pe `billing_items`
+        // prin orchestratorul `pz_billing_issue_invoice()` → `pz_billing_mark_invoiced()`.
+
+        return [
+            'ok' => !empty($result['ok']),
+            'error' => $error,
+            'series' => $series,
+            'number' => $number,
+            'response' => $response,
+            'payload' => $payload,
+        ];
+    }
+}
+
+if (!function_exists('pz_smartbill_reverse_invoice')) {
+    function pz_smartbill_reverse_invoice(PDO $pdo, int $invoiceId, ?string $issueDate = null): array
+    {
+        pz_smartbill_ensure_schema($pdo);
+        $settings = pz_smartbill_settings($pdo);
+        $invoice = pz_smartbill_fetch_invoice($pdo, $invoiceId);
+        if (!$invoice) {
+            return ['ok' => false, 'error' => 'Factura nu exista.'];
+        }
+        $series = trim((string)($invoice['smartbill_series'] ?? ''));
+        $number = trim((string)($invoice['smartbill_number'] ?? ''));
+        if ($series === '' || $number === '') {
+            return ['ok' => false, 'error' => 'Factura trebuie emisa in SmartBill inainte de storno.'];
+        }
+        $date = $issueDate ?: date('Y-m-d');
+        $payload = [
+            'companyVatCode' => trim((string)($settings['smartbill.company_vat_code'] ?? '')),
+            'seriesName' => $series,
+            'number' => $number,
+            'issueDate' => $date,
+        ];
+        if ($payload['companyVatCode'] === '') {
+            return ['ok' => false, 'error' => 'CIF firma SmartBill lipsa.'];
+        }
+
+        $result = pz_smartbill_api_post($settings, '/invoice/reverse', $payload);
+        $response = is_array($result['response'] ?? null) ? $result['response'] : [];
+        $error = (string)($result['error'] ?? '');
+        $status = !empty($result['ok']) ? 'storno' : 'error';
+
+        $pdo->prepare("
+            INSERT INTO smartbill_invoice_logs
+                (smartbill_invoice_id, appointment_id, action, status, message, request_json, response_json, created_by)
+            VALUES (?, ?, 'reverse_invoice', ?, ?, ?, ?, ?)
+        ")->execute([
+            $invoiceId,
+            !empty($invoice['appointment_id']) ? (int)$invoice['appointment_id'] : null,
+            $status,
+            $error ?: 'Factura storno a fost adaugata in SmartBill.',
+            json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            function_exists('current_user_id') ? current_user_id() : null,
+        ]);
+
+        return [
+            'ok' => !empty($result['ok']),
+            'error' => $error,
+            'response' => $response,
+            'payload' => $payload,
+        ];
+    }
+}
+
+if (!function_exists('pz_smartbill_issue_invoice_from_estimate')) {
+    function pz_smartbill_issue_invoice_from_estimate(PDO $pdo, int $invoiceId, string $estimateSeries, string $estimateNumber): array
+    {
+        pz_smartbill_ensure_schema($pdo);
+        $settings = pz_smartbill_settings($pdo);
+        $invoice = pz_smartbill_fetch_invoice($pdo, $invoiceId);
+        if (!$invoice) {
+            return ['ok' => false, 'error' => 'Factura draft nu exista.'];
+        }
+        if (trim((string)($invoice['smartbill_number'] ?? '')) !== '') {
+            return ['ok' => false, 'error' => 'Factura este deja emisa.'];
+        }
+        $estimateSeries = trim($estimateSeries);
+        $estimateNumber = trim($estimateNumber);
+        if ($estimateSeries === '' || $estimateNumber === '') {
+            return ['ok' => false, 'error' => 'Completeaza seria si numarul proformei.'];
+        }
+
+        $payload = pz_smartbill_invoice_payload($invoice, $settings, false);
+        $payload['useEstimateDetails'] = true;
+        $payload['useStock'] = false;
+        $payload['estimate'] = [
+            'seriesName' => $estimateSeries,
+            'number' => $estimateNumber,
+        ];
+        unset($payload['products']);
+
+        $errors = [];
+        foreach ([
+            'smartbill.api_email' => 'Email API SmartBill lipsa.',
+            'smartbill.api_token' => 'Token API SmartBill lipsa.',
+            'smartbill.company_vat_code' => 'CIF firma SmartBill lipsa.',
+            'smartbill.invoice_series' => 'Serie factura SmartBill lipsa.',
+        ] as $key => $message) {
+            if (trim((string)($settings[$key] ?? '')) === '') {
+                $errors[] = $message;
             }
         }
+        if ($errors) {
+            return ['ok' => false, 'error' => implode(' ', $errors), 'payload' => $payload];
+        }
+
+        $result = pz_smartbill_api_post($settings, '/invoice', $payload);
+        $response = is_array($result['response'] ?? null) ? $result['response'] : [];
+        $status = !empty($result['ok']) ? 'issued' : 'error';
+        $series = pz_smartbill_response_value($response, 'series');
+        $number = pz_smartbill_response_value($response, 'number');
+        $url = pz_smartbill_response_value($response, 'url');
+        $error = (string)($result['error'] ?? '');
+
+        $pdo->prepare("
+            UPDATE smartbill_invoices
+            SET smartbill_status = ?,
+                smartbill_series = ?,
+                smartbill_number = ?,
+                smartbill_url = ?,
+                request_json = ?,
+                response_json = ?,
+                error_message = ?,
+                updated_at = NOW()
+            WHERE id = ?
+        ")->execute([
+            $status,
+            $series ?: null,
+            $number ?: null,
+            $url ?: null,
+            json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $error ?: null,
+            $invoiceId,
+        ]);
+
+        $pdo->prepare("
+            INSERT INTO smartbill_invoice_logs
+                (smartbill_invoice_id, appointment_id, action, status, message, request_json, response_json, created_by)
+            VALUES (?, ?, 'issue_from_estimate', ?, ?, ?, ?, ?)
+        ")->execute([
+            $invoiceId,
+            !empty($invoice['appointment_id']) ? (int)$invoice['appointment_id'] : null,
+            $status,
+            $error ?: 'Factura a fost emisa in SmartBill pe baza proformei ' . $estimateSeries . ' ' . $estimateNumber . '.',
+            json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            function_exists('current_user_id') ? current_user_id() : null,
+        ]);
 
         return [
             'ok' => !empty($result['ok']),

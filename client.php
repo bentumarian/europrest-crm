@@ -380,13 +380,13 @@ if ($client) {
                 <nav class="dossier-tabs" aria-label="Dosar client">
                     <a class="dossier-tab" href="#profil"><?= app_icon_svg('clients') ?><span>Profil</span></a>
                     <a class="dossier-tab" href="#locatii"><?= app_icon_svg('calendar') ?><span>Locații</span><span class="tab-count"><?= (int)$counts['locations'] ?></span></a>
-                    <a class="dossier-tab" href="oferte.php?client_id=<?= (int)$clientId ?>"><?= app_icon_svg('offers') ?><span>Oferte</span><span class="tab-count"><?= (int)$counts['offers'] ?></span></a>
+                    <a class="dossier-tab" href="offers?client_id=<?= (int)$clientId ?>"><?= app_icon_svg('offers') ?><span>Oferte</span><span class="tab-count"><?= (int)$counts['offers'] ?></span></a>
                     <a class="dossier-tab" href="contracts.php?client_id=<?= (int)$clientId ?>"><?= app_icon_svg('contracts') ?><span>Contracte</span><span class="tab-count"><?= (int)$counts['contracts'] ?></span></a>
                     <a class="dossier-tab" href="#sarcini"><?= app_icon_svg('tasks') ?><span>Sarcini</span><span class="tab-count"><?= (int)$counts['tasks'] ?></span></a>
                     <a class="dossier-tab" href="#programari"><?= app_icon_svg('calendar') ?><span>Programări</span><span class="tab-count"><?= (int)$counts['appointments'] ?></span></a>
-                    <a class="dossier-tab" href="procese_verbale.php?client_id=<?= (int)$clientId ?>"><?= app_icon_svg('processes') ?><span>Proc. verb.</span><span class="tab-count"><?= (int)$counts['processes'] ?></span></a>
-                    <a class="dossier-tab" href="facturi.php?client_id=<?= (int)$clientId ?>"><?= app_icon_svg('invoice') ?><span>Facturi</span><span class="tab-count"><?= (int)$counts['invoices'] ?></span></a>
-                    <a class="dossier-tab" href="incasari.php?client_id=<?= (int)$clientId ?>"><?= app_icon_svg('invoice') ?><span>Încasări</span><span class="tab-count"><?= (int)$counts['payments'] ?></span></a>
+                    <a class="dossier-tab" href="service-reports?client_id=<?= (int)$clientId ?>"><?= app_icon_svg('processes') ?><span>Proc. verb.</span><span class="tab-count"><?= (int)$counts['processes'] ?></span></a>
+                    <a class="dossier-tab" href="invoices.php?client_id=<?= (int)$clientId ?>"><?= app_icon_svg('invoice') ?><span>Facturi</span><span class="tab-count"><?= (int)$counts['invoices'] ?></span></a>
+                    <a class="dossier-tab" href="payments.php?client_id=<?= (int)$clientId ?>"><?= app_icon_svg('invoice') ?><span>Încasări</span><span class="tab-count"><?= (int)$counts['payments'] ?></span></a>
                     <a class="dossier-tab" href="#fisiere"><?= app_icon_svg('documents') ?><span>Fișiere</span></a>
                     <a class="dossier-tab" href="#note"><?= app_icon_svg('star') ?><span>Note</span></a>
                     <a class="dossier-tab" href="#rezumat"><?= app_icon_svg('reports') ?><span>Rezumat</span></a>
@@ -532,7 +532,7 @@ if ($client) {
                         <section class="dossier-card" id="oferte">
                             <div class="dossier-card-head">
                                 <div class="dossier-card-title">Oferte</div>
-                                <a class="muted-link" href="oferte.php?client_id=<?= (int)$clientId ?>">Vezi toate</a>
+                                <a class="muted-link" href="offers?client_id=<?= (int)$clientId ?>">Vezi toate</a>
                             </div>
                             <div class="dossier-card-body">
                                 <?php if (!$offers): ?>
@@ -584,7 +584,7 @@ if ($client) {
                         <section class="dossier-card" id="procese">
                             <div class="dossier-card-head">
                                 <div class="dossier-card-title">Procese verbale</div>
-                                <a class="muted-link" href="procese_verbale.php?client_id=<?= (int)$clientId ?>">Vezi toate</a>
+                                <a class="muted-link" href="service-reports?client_id=<?= (int)$clientId ?>">Vezi toate</a>
                             </div>
                             <div class="dossier-card-body">
                                 <?php if (!$processes): ?>
@@ -613,7 +613,7 @@ if ($client) {
                         <section class="dossier-card" id="facturi">
                             <div class="dossier-card-head">
                                 <div class="dossier-card-title">Facturi</div>
-                                <a class="muted-link" href="facturi.php?client_id=<?= (int)$clientId ?>">Vezi toate</a>
+                                <a class="muted-link" href="invoices.php?client_id=<?= (int)$clientId ?>">Vezi toate</a>
                             </div>
                             <div class="dossier-card-body">
                                 <?php if (!$invoices): ?>
@@ -627,7 +627,7 @@ if ($client) {
                                                         <div class="item-title"><?= cd_h(trim(($invoice['smartbill_series'] ?? '') . ' ' . ($invoice['smartbill_number'] ?? '')) ?: 'Factură') ?></div>
                                                         <div class="item-meta"><?= cd_date($invoice['invoice_date'] ?? '') ?> · <?= cd_money($invoice['gross_amount'] ?? 0) ?></div>
                                                     </div>
-                                                    <a class="mini-badge" href="facturi.php?id=<?= (int)$invoice['id'] ?>">Deschide</a>
+                                                    <a class="mini-badge" href="invoice.php?id=<?= (int)$invoice['id'] ?>">Deschide</a>
                                                 </div>
                                             </article>
                                         <?php endforeach; ?>
@@ -700,10 +700,10 @@ if ($client) {
                             </div>
                             <div class="dossier-card-body">
                                 <div class="danger-zone">
-                                    <a class="btn" href="oferte.php?new=1&client_id=<?= (int)$clientId ?>">Ofertă</a>
-                                    <a class="btn" href="procese_verbale.php?new=1&client_id=<?= (int)$clientId ?>">PV</a>
-                                    <a class="btn" href="facturi.php?client_id=<?= (int)$clientId ?>">Factură</a>
-                                    <a class="btn" href="incasari.php?client_id=<?= (int)$clientId ?>">Încasare</a>
+                                    <a class="btn" href="offers?new=1&client_id=<?= (int)$clientId ?>">Ofertă</a>
+                                    <a class="btn" href="service-reports?new=1&client_id=<?= (int)$clientId ?>">PV</a>
+                                    <a class="btn" href="invoice.php?client_id=<?= (int)$clientId ?>">Factură</a>
+                                    <a class="btn" href="payment.php?client_id=<?= (int)$clientId ?>">Încasare</a>
                                 </div>
                             </div>
                         </section>

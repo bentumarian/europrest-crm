@@ -8,7 +8,6 @@ config.local.php
 node_modules/
 
 # Logs and databases
-error_log
 *.log
 *.sql
 *.sqlite
@@ -27,7 +26,6 @@ error_log
 # IDEs and editors
 /.idea/
 /.vscode/
-*_stricat.php
 
 # OS files
 .DS_Store

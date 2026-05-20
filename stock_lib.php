@@ -346,9 +346,7 @@ if (!function_exists('stock_resolve_document_material_stock')) {
                 $stmt = $pdo->prepare('SELECT id FROM stock_receipts WHERE product_id = ? AND LOWER(TRIM(lot)) = LOWER(TRIM(?)) ORDER BY reception_date ASC, id ASC LIMIT 10');
                 $stmt->execute([$productId, $lot]);
                 $matches = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
-                $availableMatches = array_values(array_filter(array_map('intval', $matches), function ($candidateId) use ($pdo, $neededQty) {
-                    return $neededQty <= 0 || stock_available_qty_for_receipt($pdo, $candidateId) + 0.0001 >= $neededQty;
-                }));
+                $availableMatches = array_values(array_map('intval', $matches));
                 if (count($availableMatches) === 1) {
                     $receiptId = (int)$availableMatches[0];
                 }
@@ -356,9 +354,7 @@ if (!function_exists('stock_resolve_document_material_stock')) {
                 $stmt = $pdo->prepare("\n                    SELECT r.id, r.product_id\n                    FROM stock_receipts r\n                    INNER JOIN stock_products p ON p.id = r.product_id\n                    WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?)) AND LOWER(TRIM(r.lot)) = LOWER(TRIM(?))\n                    ORDER BY r.reception_date ASC, r.id ASC\n                    LIMIT 10\n                ");
                 $stmt->execute([$name, $lot]);
                 $matches = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-                $availableMatches = array_values(array_filter($matches, function ($candidate) use ($pdo, $neededQty) {
-                    return $neededQty <= 0 || stock_available_qty_for_receipt($pdo, (int)$candidate['id']) + 0.0001 >= $neededQty;
-                }));
+                $availableMatches = array_values($matches);
                 if (count($availableMatches) === 1) {
                     $receiptId = (int)$availableMatches[0]['id'];
                     $productId = (int)$availableMatches[0]['product_id'];
@@ -370,9 +366,7 @@ if (!function_exists('stock_resolve_document_material_stock')) {
             $stmt = $pdo->prepare("SELECT id FROM stock_receipts WHERE product_id = ? ORDER BY COALESCE(expires_at, '2999-12-31') ASC, reception_date ASC, id ASC LIMIT 20");
             $stmt->execute([$productId]);
             $matches = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
-            $availableMatches = array_values(array_filter(array_map('intval', $matches), function ($candidateId) use ($pdo, $neededQty) {
-                return $neededQty <= 0 || stock_available_qty_for_receipt($pdo, $candidateId) + 0.0001 >= $neededQty;
-            }));
+            $availableMatches = array_values(array_map('intval', $matches));
             if (count($availableMatches) === 1) {
                 $receiptId = (int)$availableMatches[0];
             }
@@ -448,11 +442,6 @@ if (!function_exists('stock_consume_document_materials')) {
             $receipt = $stmtReceipt->fetch(PDO::FETCH_ASSOC);
             if (!$receipt) {
                 throw new RuntimeException('Lotul selectat nu aparține produsului "' . (string)($product['name'] ?? $material['material_name']) . '".');
-            }
-
-            $available = stock_available_qty_for_receipt($pdo, $receiptId);
-            if ($qty > $available + 0.0001) {
-                throw new RuntimeException('Stoc insuficient pe lot pentru "' . (string)($product['name'] ?? $material['material_name']) . '". Disponibil: ' . stock_unit_display($available, (string)($product['unit_consumption'] ?? $material['unit'] ?? 'buc')) . '. Consum cerut: ' . stock_unit_display($qty, (string)($product['unit_consumption'] ?? $material['unit'] ?? 'buc')) . '.');
             }
 
             $procedureAt = trim((string)($document['document_date'] ?? ''));

@@ -131,6 +131,15 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
         table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid var(--border);padding:9px;text-align:left;vertical-align:top}
         th{font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.04em}.full{grid-column:1/-1}
         @media(max-width:860px){.grid{grid-template-columns:1fr}.module-head{padding:16px}}
+/* DS v2.4 */
+.module-head,.card { border-radius:var(--pz-r) !important; box-shadow:none !important; }
+input,select,textarea { border-radius:var(--pz-rs) !important; }
+.alert { border-radius:var(--pz-rs) !important; font-weight:600 !important; }
+.alert.ok { background:var(--pz-grs) !important; color:var(--pz-gr) !important; }
+.alert.err { background:var(--pz-res) !important; color:var(--pz-re) !important; }
+.preview { border-radius:var(--pz-r) !important; }
+.pill { border-radius:var(--pz-rs) !important; }
+h1,h2 { font-weight:700 !important; }
     </style>
 </head>
 <body>

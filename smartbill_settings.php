@@ -90,6 +90,15 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
         .info-list li{padding-left:18px;position:relative;color:var(--muted);font-weight:750;line-height:1.45}
         .info-list li:before{content:"";position:absolute;left:0;top:.62em;width:7px;height:7px;border-radius:99px;background:var(--accent)}
         @media(max-width:860px){.grid,.row,.check-grid{grid-template-columns:1fr}.module-head{padding:16px}}
+        /* DS v2.4 */
+        .module-head,.card { border-radius:var(--pz-r) !important; box-shadow:none !important; }
+        input,select,textarea { border-radius:var(--pz-rs) !important; }
+        .alert { border-radius:var(--pz-rs) !important; font-weight:600 !important; }
+        .alert.ok { background:var(--pz-grs) !important; color:var(--pz-gr) !important; }
+        .alert.err { background:var(--pz-res) !important; color:var(--pz-re) !important; }
+        .check-item { border-radius:var(--pz-r) !important; font-weight:600 !important; }
+        .pill { font-weight:600 !important; font-size:11.5px !important; }
+        h1,h2 { font-weight:700 !important; }
     </style>
 </head>
 <body>

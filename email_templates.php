@@ -184,6 +184,15 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{border-bottom:1px solid var(--border2);padding:9px;text-align:left;vertical-align:top}
 th{font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.04em}
 @media(max-width:900px){.grid{grid-template-columns:1fr}.email-template-page{padding:0}}
+/* DS v2.4 */
+.card { border-radius:var(--pz-r) !important; box-shadow:none !important; }
+input,textarea { border-radius:var(--pz-rs) !important; }
+.notice { border-radius:var(--pz-rs) !important; font-weight:600 !important; }
+.notice.ok { background:var(--pz-grs) !important; color:var(--pz-gr) !important; }
+.notice.err { background:var(--pz-res) !important; color:var(--pz-re) !important; }
+.preview { border-radius:var(--pz-r) !important; }
+.pill { border-radius:var(--pz-rs) !important; font-weight:600 !important; }
+h1,h2 { font-weight:700 !important; }
 </style>
 </head>
 <body>

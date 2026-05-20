@@ -121,6 +121,16 @@ try {
     .sa-row { grid-template-columns: 1fr; gap: 4px; }
     .sa-header { display: none; }
 }
+/* DS v2.4 */
+.sa-stat-card,.sa-table { border-radius:var(--pz-r) !important; box-shadow:none !important; }
+.sa-filter { border-radius:var(--pz-r) !important; }
+.sa-status { border-radius:var(--pz-rs) !important; }
+.sa-status.sent    { background:var(--pz-grs) !important; color:var(--pz-gr) !important; border-color:var(--pz-grb) !important; }
+.sa-status.skipped { background:var(--pz-ors) !important; color:var(--pz-or) !important; border-color:var(--pz-orb) !important; }
+.sa-status.failed  { background:var(--pz-res) !important; color:var(--pz-re) !important; border-color:var(--pz-reb) !important; }
+.sa-stat-card.tone-success .val { color:var(--pz-gr) !important; }
+.sa-stat-card.tone-warning .val { color:var(--pz-or) !important; }
+.sa-stat-card.tone-danger .val  { color:var(--pz-re) !important; }
 </style>
 </head>
 <body>

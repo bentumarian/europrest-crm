@@ -81,667 +81,8 @@ if (isset($_GET['last_pv_for_client'])) {
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Helpers locale pentru Procese verbale
-|--------------------------------------------------------------------------
-*/
-function pz_pv_h($value): string {
-    return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-}
-
-function pz_pv_str($value, int $max = 0): string {
-    $value = trim((string)$value);
-    if ($max > 0) {
-        if (function_exists('mb_substr')) {
-            $value = mb_substr($value, 0, $max, 'UTF-8');
-        } else {
-            $value = substr($value, 0, $max);
-        }
-    }
-    return $value;
-}
-
-function pz_pv_decimal($value, float $default = 0.0): float {
-    if ($value === null || $value === '') {
-        return $default;
-    }
-    if (is_string($value)) {
-        $value = str_replace([' ', ','], ['', '.'], $value);
-    }
-    return is_numeric($value) ? (float)$value : $default;
-}
-
-function pz_pv_date_ro(?string $date): string {
-    if (!$date) {
-        return '-';
-    }
-    $ts = strtotime($date);
-    return $ts ? date('d.m.Y', $ts) : '-';
-}
-
-function pz_pv_date_for_storage($value): string {
-    $value = trim((string)$value);
-    if ($value === '') {
-        return '';
-    }
-
-    $ts = strtotime($value);
-    return $ts ? date('Y-m-d', $ts) : '';
-}
-
-function pz_pv_time_ro(?string $time): string {
-    if (!$time) {
-        return '-';
-    }
-    $ts = strtotime($time);
-    return $ts ? date('H:i', $ts) : substr((string)$time, 0, 5);
-}
-
-function pz_pv_status_label(string $status): string {
-    return [
-        'draft' => 'Draft',
-        'issued' => 'Emis',
-        'cancelled' => 'Anulat',
-    ][$status] ?? $status;
-}
-
-function pz_pv_status_class(string $status): string {
-    return [
-        'draft' => 'draft',
-        'issued' => 'issued',
-        'cancelled' => 'cancelled',
-    ][$status] ?? 'draft';
-}
-
-function pz_pv_current_url(array $extra = []): string {
-    $params = $_GET;
-    foreach ($extra as $key => $value) {
-        if ($value === null) {
-            unset($params[$key]);
-        } else {
-            $params[$key] = $value;
-        }
-    }
-    return 'procese_verbale.php' . ($params ? '?' . http_build_query($params) : '');
-}
-
-function pz_pv_fetch_clients(PDO $pdo): array {
-    if (!pzdoc_table_exists($pdo, 'clients')) {
-        return [];
-    }
-
-    $stmt = $pdo->query("\n        SELECT *\n        FROM clients\n        WHERE COALESCE(active, 1) = 1\n        ORDER BY name ASC\n        LIMIT 1500\n    ");
-
-    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-}
-
-function pz_pv_client_address(array $client): string {
-    $line = trim((string)($client['billing_address_line'] ?? ''));
-    $county = trim((string)($client['billing_county'] ?? ''));
-    $city = trim((string)($client['billing_city'] ?? ''));
-    $country = trim((string)($client['billing_country'] ?? ''));
-    $postal = trim((string)($client['billing_postal_code'] ?? ''));
-    $address = trim(implode(', ', array_filter([$line, $county, $city, $country], static fn($value) => $value !== '')));
-    if ($postal !== '') {
-        $address .= ($address !== '' ? ', ' : '') . 'CP ' . $postal;
-    }
-    if ($address !== '') {
-        return $address;
-    }
-
-    return trim((string)(($client['registered_address'] ?? '') ?: ($client['address'] ?? '')));
-}
-
-function pz_pv_fetch_locations(PDO $pdo): array {
-    if (!pzdoc_table_exists($pdo, 'client_locations')) {
-        return [];
-    }
-
-    $stmt = $pdo->query("\n        SELECT id, client_id, location_name, address, contact_person, phone,\n               surface_value, surface_unit, active, sort_order\n        FROM client_locations\n        WHERE COALESCE(active, 1) = 1\n        ORDER BY client_id ASC, sort_order ASC, location_name ASC\n        LIMIT 5000\n    ");
-
-    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-}
-
-function pz_pv_fetch_services(PDO $pdo): array {
-    if (!pzdoc_table_exists($pdo, 'services')) {
-        return [];
-    }
-
-    $stmt = $pdo->query("\n        SELECT id, name, description, active, sort_order\n        FROM services\n        WHERE COALESCE(active, 1) = 1\n        ORDER BY sort_order ASC, name ASC\n        LIMIT 500\n    ");
-
-    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-}
-
-function pz_pv_fetch_templates(PDO $pdo): array {
-    $stmt = $pdo->prepare("\n        SELECT id, name, is_default\n        FROM document_templates\n        WHERE document_type = 'proces_verbal'\n          AND is_active = 1\n        ORDER BY is_default DESC, name ASC\n    ");
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-}
-
-
-function pz_pv_fetch_contracts(PDO $pdo): array {
-    if (!pzdoc_table_exists($pdo, 'documents')) {
-        return [];
-    }
-
-    try {
-        $stmt = $pdo->query("\n            SELECT id, client_id, client_location_id, document_number, document_date, title, status, payload_json\n            FROM documents\n            WHERE document_type = 'contract'\n              AND status IN ('issued', 'sent', 'emitted', 'finalized')\n            ORDER BY document_date DESC, id DESC\n            LIMIT 2500\n        ");
-        $contracts = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        if (!$contracts) {
-            return [];
-        }
-
-        $contractsById = [];
-        $ids = [];
-        foreach ($contracts as $idx => $contract) {
-            $id = (int)($contract['id'] ?? 0);
-            if ($id <= 0) {
-                continue;
-            }
-            $ids[] = $id;
-            $contracts[$idx]['location_ids'] = [];
-            if (!empty($contract['client_location_id'])) {
-                $contracts[$idx]['location_ids'][] = (int)$contract['client_location_id'];
-            }
-            $contractsById[$id] = $idx;
-        }
-
-        if ($ids && pzdoc_table_exists($pdo, 'document_items')) {
-            $in = implode(',', array_map('intval', $ids));
-            $itemStmt = $pdo->query("\n                SELECT document_id, client_location_id\n                FROM document_items\n                WHERE document_id IN ($in)\n                  AND client_location_id IS NOT NULL\n                  AND client_location_id > 0\n            ");
-            foreach (($itemStmt->fetchAll(PDO::FETCH_ASSOC) ?: []) as $row) {
-                $docId = (int)($row['document_id'] ?? 0);
-                $locId = (int)($row['client_location_id'] ?? 0);
-                if ($docId > 0 && $locId > 0 && isset($contractsById[$docId])) {
-                    $idx = $contractsById[$docId];
-                    if (!in_array($locId, $contracts[$idx]['location_ids'], true)) {
-                        $contracts[$idx]['location_ids'][] = $locId;
-                    }
-                }
-            }
-        }
-
-        foreach ($contracts as $idx => $contract) {
-            $number = trim((string)($contract['document_number'] ?? ''));
-            if ($number === '') {
-                $number = 'Contract #' . (int)$contract['id'];
-            }
-            $date = pz_pv_date_ro($contract['document_date'] ?? null);
-            $contracts[$idx]['contract_number_label'] = $number;
-            $contracts[$idx]['contract_label'] = 'Contract nr. ' . $number . ($date !== '-' ? ' / ' . $date : '');
-            $contracts[$idx]['location_ids'] = array_values(array_unique(array_map('intval', $contracts[$idx]['location_ids'] ?? [])));
-        }
-
-        return $contracts;
-    } catch (Throwable $e) {
-        error_log('PestZone PV contracts fetch error: ' . $e->getMessage());
-        return [];
-    }
-}
-
-function pz_pv_contracts_by_id(array $contracts): array {
-    $map = [];
-    foreach ($contracts as $contract) {
-        $id = (int)($contract['id'] ?? 0);
-        if ($id > 0) {
-            $map[$id] = $contract;
-        }
-    }
-    return $map;
-}
-
-function pz_pv_find_default_contract_id(array $contracts, int $clientId, int $locationId = 0): int {
-    if ($clientId <= 0) {
-        return 0;
-    }
-
-    $firstForClient = 0;
-    foreach ($contracts as $contract) {
-        if ((int)($contract['client_id'] ?? 0) !== $clientId) {
-            continue;
-        }
-        $contractId = (int)($contract['id'] ?? 0);
-        if ($contractId <= 0) {
-            continue;
-        }
-        if ($firstForClient <= 0) {
-            $firstForClient = $contractId;
-        }
-        $locationIds = array_map('intval', $contract['location_ids'] ?? []);
-        if ($locationId > 0 && in_array($locationId, $locationIds, true)) {
-            return $contractId;
-        }
-    }
-
-    return $firstForClient;
-}
-
-function pz_pv_resolve_basis_from_post(array $post, array $contracts, array $contractsById, int $clientId, int $locationId): array {
-    $basisType = pz_pv_str($post['basis_type'] ?? '', 60);
-    $contractId = !empty($post['contract_id']) ? (int)$post['contract_id'] : 0;
-    $manualText = pz_pv_str($post['basis_manual_text'] ?? '', 220);
-
-    if ($basisType === '' || $basisType === 'auto') {
-        if ($contractId <= 0) {
-            $contractId = pz_pv_find_default_contract_id($contracts, $clientId, $locationId);
-        }
-        $basisType = $contractId > 0 ? 'contract' : 'nota_comanda';
-    }
-
-    if ($basisType === 'contract' && $contractId <= 0) {
-        $contractId = pz_pv_find_default_contract_id($contracts, $clientId, $locationId);
-    }
-
-    if ($basisType === 'contract' && $contractId > 0 && isset($contractsById[$contractId])) {
-        $contract = $contractsById[$contractId];
-        $number = trim((string)($contract['contract_number_label'] ?? $contract['document_number'] ?? ''));
-        if ($number === '') {
-            $number = 'Contract #' . $contractId;
-        }
-        return [
-            'contract_id' => $contractId,
-            'basis_type' => 'contract',
-            'basis_document' => 'Contract nr. ' . $number,
-            'basis_manual_text' => '',
-            'contract_number' => $number,
-        ];
-    }
-
-    if ($basisType === 'achizitie_directa') {
-        return [
-            'contract_id' => 0,
-            'basis_type' => 'achizitie_directa',
-            'basis_document' => $manualText !== '' ? $manualText : 'Achizitie directa',
-            'basis_manual_text' => $manualText,
-            'contract_number' => '',
-        ];
-    }
-
-    if ($basisType === 'manual') {
-        return [
-            'contract_id' => 0,
-            'basis_type' => 'manual',
-            'basis_document' => $manualText !== '' ? $manualText : 'Alta baza',
-            'basis_manual_text' => $manualText,
-            'contract_number' => '',
-        ];
-    }
-
-    return [
-        'contract_id' => 0,
-        'basis_type' => 'nota_comanda',
-        'basis_document' => $manualText !== '' ? $manualText : 'Nota de comanda',
-        'basis_manual_text' => $manualText,
-        'contract_number' => '',
-    ];
-}
-
-function pz_pv_fetch_products(PDO $pdo): array {
-    if (!pzdoc_table_exists($pdo, 'stock_products')) {
-        return [];
-    }
-
-    $stmt = $pdo->query("\n        SELECT id, name, product_group, unit_consumption, aviz_no, aviz_valid_until,\n               default_application_method, safety_measures, product_concentration, is_active\n        FROM stock_products\n        WHERE COALESCE(is_active, 1) = 1\n        ORDER BY product_group ASC, name ASC\n        LIMIT 1000\n    ");
-
-    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-}
-
-function pz_pv_fetch_receipts(PDO $pdo): array {
-    if (!pzdoc_table_exists($pdo, 'stock_receipts')) {
-        return [];
-    }
-
-    $stmt = $pdo->query("\n        SELECT id, product_id, lot, expires_at, qty, reception_date\n        FROM stock_receipts\n        ORDER BY product_id ASC, COALESCE(expires_at, '2999-12-31') ASC, reception_date ASC, id ASC\n        LIMIT 5000\n    ");
-
-    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-}
-
-function pz_pv_fetch_appointment(PDO $pdo, int $appointmentId): ?array {
-    if ($appointmentId <= 0 || !pzdoc_table_exists($pdo, 'appointments')) {
-        return null;
-    }
-
-    try {
-        $stmt = $pdo->prepare("\n            SELECT a.id, a.client_id, a.client_location_id, a.appointment_date, a.start_time, a.end_time,
-                   a.service_type, a.title, a.status, a.notes, a.address, a.contact_person, a.contact_phone,
-                   c.name AS client_name, c.legal_representative_name AS client_representative,
-                   l.location_name, l.address AS location_address, l.contact_person AS location_contact_person,
-                   l.phone AS location_phone, l.surface_value, l.surface_unit,
-                   t.name AS team_member_name
-            FROM appointments a
-            LEFT JOIN clients c ON c.id = a.client_id
-            LEFT JOIN client_locations l ON l.id = a.client_location_id
-            LEFT JOIN team_members t ON t.id = a.team_member_id
-            WHERE a.id = ?
-            LIMIT 1
-        ");
-        $stmt->execute([$appointmentId]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row ?: null;
-    } catch (Throwable $e) {
-        error_log('PestZone PV appointment fetch error: ' . $e->getMessage());
-        return null;
-    }
-}
-
-function pz_pv_fetch_appointments(PDO $pdo, ?int $teamMemberId = null): array {
-    if (!pzdoc_table_exists($pdo, 'appointments')) {
-        return [];
-    }
-
-    try {
-        $where = '';
-        $params = [];
-        if ($teamMemberId !== null && $teamMemberId > 0) {
-            $where = "WHERE a.team_member_id = ? AND a.status = 'finalizata'";
-            $params[] = (int)$teamMemberId;
-        }
-
-        $stmt = $pdo->prepare("\n            SELECT a.id, a.client_id, a.client_location_id, a.appointment_date, a.start_time, a.end_time,\n                   a.service_type, a.title, a.status, a.notes, a.address, a.contact_person, a.contact_phone,\n                   c.name AS client_name, c.legal_representative_name AS client_representative,\n                   l.location_name, l.address AS location_address, l.contact_person AS location_contact_person,\n                   l.phone AS location_phone, l.surface_value, l.surface_unit,\n                   t.name AS team_member_name\n            FROM appointments a\n            LEFT JOIN clients c ON c.id = a.client_id\n            LEFT JOIN client_locations l ON l.id = a.client_location_id\n            LEFT JOIN team_members t ON t.id = a.team_member_id\n            {$where}\n            ORDER BY a.appointment_date DESC, a.start_time DESC, a.id DESC\n            LIMIT 600\n        ");
-        $stmt->execute($params);
-        return $stmt ? ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []) : [];
-    } catch (Throwable $e) {
-        error_log('PestZone PV appointments list error: ' . $e->getMessage());
-        return [];
-    }
-}
-
-function pz_pv_service_from_appointment(array $appointment): string {
-    $service = trim((string)($appointment['service_type'] ?? ''));
-    if ($service === '') {
-        $service = trim((string)($appointment['title'] ?? ''));
-    }
-    return $service;
-}
-
-function pz_pv_service_choices(): array {
-    return [
-        'dezinsectie' => 'DEZINSECTIE',
-        'dezinfectie' => 'DEZINFECTIE',
-        'deratizare' => 'DERATIZARE',
-        'monitorizare' => 'MONITORIZARE',
-    ];
-}
-
-function pz_pv_service_key_from_text(string $text): string {
-    $text = strtolower(trim($text));
-    $text = str_replace(['ă','â','î','ș','ş','ț','ţ'], ['a','a','i','s','s','t','t'], $text);
-    if ($text === '') {
-        return '';
-    }
-    if (strpos($text, 'dezinsect') !== false || strpos($text, 'gandac') !== false || strpos($text, 'plosnit') !== false || strpos($text, 'puric') !== false || strpos($text, 'mus') !== false || strpos($text, 'tantar') !== false || strpos($text, 'viesp') !== false) {
-        return 'dezinsectie';
-    }
-    if (strpos($text, 'dezinfect') !== false || strpos($text, 'dezinfect') !== false) {
-        return 'dezinfectie';
-    }
-    if (strpos($text, 'derat') !== false || strpos($text, 'rozator') !== false || strpos($text, 'soarece') !== false || strpos($text, 'sobolan') !== false) {
-        return 'deratizare';
-    }
-    if (strpos($text, 'monitor') !== false || strpos($text, 'inspect') !== false || strpos($text, 'capcan') !== false) {
-        return 'monitorizare';
-    }
-    return '';
-}
-
-function pz_pv_normalize_selected_services($value): array {
-    $choices = pz_pv_service_choices();
-    $input = is_array($value) ? $value : [$value];
-    $selected = [];
-    foreach ($input as $raw) {
-        $raw = is_scalar($raw) ? (string)$raw : '';
-        $key = array_key_exists($raw, $choices) ? $raw : pz_pv_service_key_from_text($raw);
-        if ($key !== '' && array_key_exists($key, $choices) && !in_array($key, $selected, true)) {
-            $selected[] = $key;
-        }
-    }
-    return $selected;
-}
-
-function pz_pv_selected_services_from_items(array $items): array {
-    $selected = [];
-    foreach ($items as $item) {
-        if (!is_array($item)) {
-            continue;
-        }
-        $key = pz_pv_service_key_from_text((string)($item['service_name'] ?? ''));
-        if ($key !== '' && !in_array($key, $selected, true)) {
-            $selected[] = $key;
-        }
-    }
-    return $selected;
-}
-
-function pz_pv_build_service_items_from_selected(array $selectedServices, ?int $mainLocationId, string $surfaceText = ''): array {
-    $choices = pz_pv_service_choices();
-    $items = [];
-    $sort = 0;
-    foreach ($selectedServices as $key) {
-        if (!isset($choices[$key])) {
-            continue;
-        }
-        $items[] = [
-            'item_type' => 'pv_service',
-            'service_id' => null,
-            'service_name' => $choices[$key],
-            'description' => '',
-            'client_location_id' => $mainLocationId ?: null,
-            'location_name' => null,
-            'location_address' => null,
-            'quantity' => 1,
-            'unit' => '',
-            'unit_price' => 0,
-            'vat_percent' => 0,
-            'total_price' => 0,
-            'currency' => 'RON',
-            'frequency_text' => $surfaceText,
-            'planned_date' => null,
-            'sort_order' => $sort,
-        ];
-        $sort++;
-    }
-    return $items;
-}
-
-function pz_pv_surface_from_appointment(array $appointment): string {
-    $surface = trim((string)($appointment['surface_value'] ?? ''));
-    if ($surface !== '') {
-        $surface .= ' ' . trim((string)($appointment['surface_unit'] ?? ''));
-    }
-    return trim($surface);
-}
-
-function pz_pv_locations_by_id(array $locations): array {
-    $map = [];
-    foreach ($locations as $location) {
-        $map[(int)$location['id']] = $location;
-    }
-    return $map;
-}
-
-function pz_pv_products_by_id(array $products): array {
-    $map = [];
-    foreach ($products as $product) {
-        $map[(int)$product['id']] = $product;
-    }
-    return $map;
-}
-
-function pz_pv_receipts_by_id(array $receipts): array {
-    $map = [];
-    foreach ($receipts as $receipt) {
-        $map[(int)$receipt['id']] = $receipt;
-    }
-    return $map;
-}
-
-function pz_pv_build_items_from_post(array $postItems, array $locationsById, ?int $mainLocationId, string $defaultSurfaceText = ''): array {
-    $items = [];
-    $sort = 0;
-
-    foreach ($postItems as $row) {
-        if (!is_array($row)) {
-            continue;
-        }
-
-        $serviceId = !empty($row['service_id']) ? (int)$row['service_id'] : null;
-        $serviceName = pz_pv_str($row['service_name'] ?? '', 220);
-        $description = pz_pv_str($row['description'] ?? '');
-
-        if (!$serviceId && $serviceName === '' && $description === '') {
-            continue;
-        }
-
-        $locationId = !empty($row['client_location_id']) ? (int)$row['client_location_id'] : ($mainLocationId ?: null);
-        $location = ($locationId && isset($locationsById[$locationId])) ? $locationsById[$locationId] : null;
-
-        $surfaceText = pz_pv_str($row['surface_text'] ?? '', 180);
-        if ($surfaceText === '') {
-            $surfaceText = pz_pv_str($defaultSurfaceText, 180);
-        }
-
-        $items[] = [
-            'item_type' => 'pv_service',
-            'service_id' => $serviceId,
-            'service_name' => $serviceName,
-            'description' => $description,
-            'client_location_id' => $locationId,
-            'location_name' => $location ? ($location['location_name'] ?? null) : null,
-            'location_address' => $location ? ($location['address'] ?? null) : null,
-            'quantity' => 1,
-            'unit' => '',
-            'unit_price' => 0,
-            'vat_percent' => 0,
-            'total_price' => 0,
-            'currency' => 'RON',
-            'frequency_text' => $surfaceText,
-            'planned_date' => null,
-            'sort_order' => $sort,
-        ];
-        $sort++;
-    }
-
-    return $items;
-}
-
-function pz_pv_build_materials_from_post(array $postMaterials, array $productsById, array $receiptsById, bool $deferStockConsumption = false): array {
-    $materials = [];
-    $sort = 0;
-
-    foreach ($postMaterials as $row) {
-        if (!is_array($row)) {
-            continue;
-        }
-
-        $productId = !empty($row['stock_product_id']) ? (int)$row['stock_product_id'] : null;
-        $receiptId = !empty($row['stock_receipt_id']) ? (int)$row['stock_receipt_id'] : null;
-        $product = ($productId && isset($productsById[$productId])) ? $productsById[$productId] : null;
-        $receipt = ($receiptId && isset($receiptsById[$receiptId])) ? $receiptsById[$receiptId] : null;
-
-        $manualName = pz_pv_str($row['manual_material_name'] ?? '', 255);
-        $manualLot = pz_pv_str($row['manual_lot_number'] ?? '', 120);
-        $manualQuantityRaw = $row['manual_quantity'] ?? '';
-        $manualQuantity = $manualQuantityRaw !== '' ? pz_pv_decimal($manualQuantityRaw, 0) : '';
-        $manualAviz = pz_pv_str($row['manual_aviz_no'] ?? '', 120);
-        $manualExpiry = pz_pv_date_for_storage($row['manual_expiry_date'] ?? '');
-        $manualConcentration = pz_pv_str($row['manual_work_concentration'] ?? '', 120);
-        $manualApplicationMethod = pz_pv_str($row['manual_application_method'] ?? '', 160);
-        $legacyName = pz_pv_str($row['material_name'] ?? '', 255);
-        $productName = $product ? pz_pv_str($product['name'] ?? '', 255) : '';
-        $name = $productName !== '' ? $productName : ($manualName !== '' ? $manualName : $legacyName);
-
-        if ($name === '' && !$product) {
-            continue;
-        }
-
-        $quantity = pz_pv_decimal($row['quantity'] ?? 0, 0);
-        $applicationMethod = pz_pv_str($row['application_method'] ?? '', 160);
-        $applicationMethodCustom = pz_pv_str($row['application_method_custom'] ?? '', 255);
-        $isBiocide = $product && function_exists('stock_is_biocide_group') && stock_is_biocide_group((string)($product['product_group'] ?? ''));
-
-        if (!$deferStockConsumption && $product && $quantity <= 0) {
-            throw new RuntimeException('Completează cantitatea utilizată pentru produsul "' . $name . '".');
-        }
-
-        if (!$deferStockConsumption && $isBiocide && !$receiptId) {
-            throw new RuntimeException('Selectează lotul pentru produsul "' . $name . '".');
-        }
-
-        $materials[] = [
-            'stock_product_id' => $product ? $productId : null,
-            'stock_receipt_id' => $receipt ? $receiptId : null,
-            'material_name' => $name,
-            'product_group' => pz_pv_str($row['product_group'] ?? ($product['product_group'] ?? ''), 50),
-            'aviz_no' => $product ? pz_pv_str($row['aviz_no'] ?? ($product['aviz_no'] ?? ''), 120) : ($manualAviz !== '' ? $manualAviz : pz_pv_str($row['aviz_no'] ?? '', 120)),
-            'quantity' => $product ? $quantity : ($manualQuantityRaw !== '' ? $manualQuantity : (($row['quantity'] ?? '') !== '' ? $quantity : '')),
-            'unit' => pz_pv_str($row['unit'] ?? ($product['unit_consumption'] ?? ''), 30),
-            'lot_number' => $product ? pz_pv_str($row['lot_number'] ?? ($receipt['lot'] ?? ''), 120) : $manualLot,
-            'expiry_date' => $product ? pz_pv_str($row['expiry_date'] ?? ($receipt['expires_at'] ?? ''), 40) : ($manualExpiry !== '' ? $manualExpiry : pz_pv_str($row['expiry_date'] ?? '', 40)),
-            'application_method' => $product ? $applicationMethod : ($manualApplicationMethod !== '' ? $manualApplicationMethod : $applicationMethod),
-            'application_method_custom' => $applicationMethodCustom,
-            'application_area' => pz_pv_str($row['application_area'] ?? '', 160),
-            'work_concentration' => $product ? pz_pv_str($row['work_concentration'] ?? '', 120) : ($manualConcentration !== '' ? $manualConcentration : pz_pv_str($row['work_concentration'] ?? '', 120)),
-            'safety_measures' => pz_pv_str($row['safety_measures'] ?? ($product['safety_measures'] ?? '')),
-            'notes' => pz_pv_str($row['notes'] ?? ''),
-            'sort_order' => $sort,
-        ];
-        $sort++;
-
-        if ($product && $manualName !== '') {
-            $materials[] = [
-                'stock_product_id' => null,
-                'stock_receipt_id' => null,
-                'material_name' => $manualName,
-                'product_group' => '',
-                'aviz_no' => $manualAviz,
-                'quantity' => $manualQuantity,
-                'unit' => '',
-                'lot_number' => $manualLot,
-                'expiry_date' => $manualExpiry,
-                'application_method' => $manualApplicationMethod,
-                'application_method_custom' => '',
-                'application_area' => '',
-                'work_concentration' => $manualConcentration,
-                'safety_measures' => '',
-                'notes' => '',
-                'sort_order' => $sort,
-            ];
-            $sort++;
-        }
-    }
-
-    return $materials;
-}
-
-function pz_pv_build_payload_from_post(array $post): array {
-    return [
-        'pv_type' => pz_pv_str($post['pv_type'] ?? 'executie', 80),
-        'pv_services' => pz_pv_normalize_selected_services($post['pv_services'] ?? []),
-        'workers_names' => pz_pv_str($post['workers_names'] ?? ''),
-        'surface_text' => pz_pv_str($post['surface_text'] ?? '', 160),
-        'start_time' => pz_pv_str($post['start_time'] ?? '', 20),
-        'end_time' => pz_pv_str($post['end_time'] ?? '', 20),
-        'basis_type' => pz_pv_str($post['basis_type'] ?? '', 60),
-        'basis_manual_text' => pz_pv_str($post['basis_manual_text'] ?? '', 220),
-        'basis_document' => '',
-        'contract_number' => '',
-        'materials_enabled' => !empty($post['materials_enabled']) ? '1' : '0',
-        'stock_consumption_deferred' => !empty($post['stock_consumption_deferred']) ? '1' : '0',
-    ];
-}
-
-function pz_pv_redirect_with_error(string $message, int $editId = 0): void {
-    $_SESSION['pz_pv_error'] = $message;
-    $url = 'procese_verbale.php';
-    if ($editId > 0) {
-        $url .= '?edit=' . (int)$editId;
-    } else {
-        $url .= '?new=1';
-    }
-    header('Location: ' . $url);
-    exit;
-}
+// Helper-i pz_pv_* extracși în pv_helpers.php (36 funcții).
+require_once __DIR__ . '/pv_helpers.php';
 
 $clients = pz_pv_fetch_clients($pdo);
 $locations = pz_pv_fetch_locations($pdo);
@@ -827,8 +168,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $materialsEnabled = !empty($_POST['materials_enabled']);
         $deferStockConsumption = $isAdmin && !empty($_POST['stock_consumption_deferred']);
+        $skipMaterialStrictValidation = $deferStockConsumption || $action === 'save_draft';
         try {
-            $materials = $materialsEnabled ? pz_pv_build_materials_from_post($_POST['materials'] ?? [], $productsById, $receiptsById, $deferStockConsumption) : [];
+            $materials = $materialsEnabled ? pz_pv_build_materials_from_post($_POST['materials'] ?? [], $productsById, $receiptsById, $skipMaterialStrictValidation) : [];
         } catch (Throwable $e) {
             pz_pv_redirect_with_error($e->getMessage(), $documentId);
         }
@@ -841,8 +183,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             pz_pv_redirect_with_error('Selectează o locație / punct de lucru din fișa clientului. Dacă serviciul se face la sediu, adauga sediul ca locație in fișa clientului.', $documentId);
         }
 
-        if (!$items) {
+        if ($action === 'issue' && !$items) {
             pz_pv_redirect_with_error('Selectează cel puțin un serviciu prestat.', $documentId);
+        }
+
+        if ($action === 'issue' && !$materials) {
+            pz_pv_redirect_with_error('Adaugă cel puțin un produs biocid / material utilizat.', $documentId);
+        }
+
+        if ($action === 'issue' && trim($surfaceText) === '') {
+            pz_pv_redirect_with_error('Completează suprafața tratată.', $documentId);
+        }
+
+        if ($action === 'issue' && pz_pv_str($_POST['treated_areas'] ?? '') === '') {
+            pz_pv_redirect_with_error('Completează zona/zonele tratate.', $documentId);
         }
 
         $basis = pz_pv_resolve_basis_from_post($_POST, $contracts, $contractsById, $clientId, $locationId);
@@ -1204,7 +558,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 <style>
 .pv-topbar { align-items:center; padding:12px 20px; }
 .pv-toolbar { width:100%; display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
-.pv-hero { background:linear-gradient(135deg, var(--accent-deep), var(--accent-strong)); color:#fff; border-radius:var(--radius-lg); padding:22px 24px; box-shadow:var(--shadow-lg); margin-bottom:14px; display:flex; justify-content:space-between; gap:18px; flex-wrap:wrap; align-items:center; }
+.pv-hero { background: var(--pz-bld, var(--accent-deep)); color:#fff; border-radius:var(--radius-lg); padding:22px 24px; box-shadow:var(--shadow-lg); margin-bottom:14px; display:flex; justify-content:space-between; gap:18px; flex-wrap:wrap; align-items:center; }
 .pv-hero h1 { font-size:24px; font-weight:900; letter-spacing:-.03em; margin:0; }
 .pv-hero p { color:rgba(255,255,255,.72); margin:4px 0 0; max-width:900px; }
 .hero-actions { display:flex; gap:8px; flex-wrap:wrap; }
@@ -1214,7 +568,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 .panel-subtitle { font-size:12px; color:var(--muted); margin-top:2px; }
 .pv-form-compact .panel-subtitle, .pv-form-compact .client-help { display:none !important; }
 .pv-close-btn { width:40px; height:40px; min-width:40px; min-height:40px; padding:0; border-radius:999px; border:1.5px solid var(--accent-soft-2); background:rgba(255,255,255,.78); color:var(--accent-deep); box-shadow:0 8px 22px rgba(15,23,42,.08); font-size:20px; font-weight:900; line-height:1; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; transition:all .14s ease; }
-.pv-close-btn:hover { border-color:rgba(210,71,38,.42); background:rgba(255,255,255,.96); color:var(--tone-danger); transform:translateY(-1px); box-shadow:0 12px 28px rgba(15,23,42,.12); }
+.pv-close-btn:hover { border-color:var(--pz-reb, #FECACA); background:var(--pz-res, #FEF2F2); color:var(--tone-danger); box-shadow:none; }
 .panel-body { padding:14px 16px; }
 .alert { border-radius:14px; padding:11px 13px; margin-bottom:12px; font-weight:800; font-size:13px; }
 .alert.error { background:var(--danger-soft); color:var(--danger); border:1px solid rgba(180,35,24,.16); }
@@ -1260,6 +614,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 .pz-pill.is-active::before { background:var(--accent); border-color:var(--accent); }
 .pz-pill.is-active::after { content:''; position:absolute; left:16px; top:50%; transform:translateY(-58%) rotate(45deg); width:4px; height:8px; border-right:2px solid #fff; border-bottom:2px solid #fff; }
 .pz-pills.is-invalid .pz-pill { border-color:rgba(220, 38, 38, .36); }
+#materialsPanel.is-invalid { outline:2px solid rgba(220,38,38,.55); outline-offset:6px; border-radius:12px; }
 
 /* === LOCATIE smart - cazul cu o singura locație === */
 .pz-location-info { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--surface-soft); border:1px solid var(--border2); border-radius:12px; color:var(--text); font-size:13px; font-weight:600; }
@@ -1285,13 +640,13 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 .client-help { margin-top:6px; color:var(--muted); font-size:12px; line-height:1.4; }
 .items-wrap { overflow-x:auto; }
 .items-table { width:100%; border-collapse:separate; border-spacing:0 8px; min-width:980px; }
-.materials-table { min-width:1180px; }
+.materials-table { min-width:1260px; }
 .pv-material-cards { display:grid; gap:12px; }
-.pv-material-card { border:1px solid rgba(17,96,183,.16); background:linear-gradient(135deg, rgba(255,255,255,.96), rgba(177,214,240,.14)); border-radius:18px; padding:12px; box-shadow:0 14px 32px rgba(0,32,80,.07), inset 0 1px 0 rgba(255,255,255,.85); }
+.pv-material-card { border:1px solid var(--pz-line, #E2E8F0); background:var(--pz-surf, #FFFFFF); border-radius:18px; padding:12px; box-shadow:none; }
 .pv-material-card-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
 .pv-material-card-title { font-size:13px; font-weight:950; color:var(--accent-deep); }
 .pv-material-grid { display:grid; grid-template-columns:1.4fr 1fr; gap:10px; }
-.pv-material-mini-grid { display:grid; grid-template-columns:1fr .85fr 1fr; gap:10px; margin-top:10px; }
+.pv-material-mini-grid { display:grid; grid-template-columns:1fr .8fr .58fr 1fr; gap:10px; margin-top:10px; }
 .pv-manual-extra { margin-top:12px; padding-top:12px; border-top:1px dashed rgba(100,116,139,.28); }
 .pv-manual-extra-title { font-size:11px; font-weight:950; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px; }
 .pv-material-card label { display:block; font-size:11px; font-weight:900; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.035em; }
@@ -1332,7 +687,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 .pagination { display:flex; gap:6px; justify-content:flex-end; align-items:center; flex-wrap:wrap; margin-top:12px; }
 #materialsPanel.disabled { display:none; }
 .pv-quick-hidden { display:none !important; }
-.pv-quick-summary { border:1px solid rgba(17,96,183,.18); background:linear-gradient(135deg, rgba(255,255,255,.94), rgba(177,214,240,.22)); border-radius:20px; padding:14px 16px; box-shadow:0 18px 45px rgba(0,32,80,.08), inset 0 1px 0 rgba(255,255,255,.75); margin-bottom:14px; }
+.pv-quick-summary { border:1px solid var(--pz-blb, #BFDBFE); background:var(--pz-bls, #EFF6FF); border-radius:20px; padding:14px 16px; box-shadow:none; margin-bottom:14px; }
 .pv-quick-summary-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
 .pv-quick-summary-title { font-size:15px; font-weight:950; color:var(--accent-deep); }
 .pv-quick-badge { display:inline-flex; align-items:center; justify-content:center; border-radius:999px; padding:6px 10px; background:rgba(17,96,183,.08); color:var(--accent); border:1px solid rgba(17,96,183,.16); font-size:11px; font-weight:900; white-space:nowrap; }
@@ -1459,6 +814,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 }
 
 </style>
+<?php render_search_preview_assets(); ?>
 </head>
 <body>
 <div class="layout">
@@ -1489,10 +845,10 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                             <div class="panel-title"><?= !empty($isQuickPvFromAppointment) ? 'PV rapid din programare' : ($editingDocument ? 'Editează proces verbal draft' : 'Proces verbal nou') ?></div>
                             <div class="panel-subtitle"><?= !empty($isQuickPvFromAppointment) ? 'Completează produsele/materialele utilizate si observatiile. Datele lucrării sunt preluate automat.' : 'Completează datele PV, clientul, locatia, serviciile si materialele utilizate.' ?></div>
                         </div>
-                        <a class="pv-close-btn" href="<?= $isTeamUser ? 'calendar.php' : 'procese_verbale.php' ?>" title="Inchide formularul" aria-label="Inchide formularul">&times;</a>
+                        <a class="pv-close-btn" href="<?= $isTeamUser ? 'calendar.php' : 'service-reports' ?>" title="Inchide formularul" aria-label="Inchide formularul">&times;</a>
                     </div>
                     <div class="panel-body">
-                        <form method="post" id="pvForm" <?= !empty($isQuickPvFromAppointment) ? 'novalidate' : '' ?>>
+                        <form method="post" id="pvForm" novalidate>
                             <?= csrf_field() ?>
                             <input type="hidden" name="document_id" value="<?= (int)($formDocument['id'] ?? 0) ?>">
                             <input type="hidden" name="title" value="<?= pz_pv_h($formDocument['title'] ?? '') ?>">
@@ -1613,7 +969,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                 </div>
                             </div>
 
-                            <div class="panel <?= !empty($isQuickPvFromAppointment) ? 'pv-quick-hidden' : '' ?>" style="box-shadow:none; margin-top:14px;">
+                            <div class="panel" style="box-shadow:none; margin-top:14px;">
                                 <div class="panel-head">
                                     <div>
                                         <div class="panel-title">2. Client si locație</div>
@@ -1659,8 +1015,12 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                             <div class="client-help" id="locationHelp">Selectează un client mai intai.</div>
                                         </div>
                                         <div class="field span2">
-                                            <label>Suprafață / zona tratata</label>
-                                            <input type="text" name="surface_text" id="surfaceText" value="<?= pz_pv_h($editingPayload['surface_text'] ?? '') ?>" placeholder="ex: 250 mp interior + exterior">
+                                            <label>Zona/e tratate *</label>
+                                            <input type="text" name="treated_areas" id="treatedAreas" value="<?= pz_pv_h($editingPayload['treated_areas'] ?? '') ?>" placeholder="ex: bucătărie, depozit, grupuri sanitare" required>
+                                        </div>
+                                        <div class="field span2">
+                                            <label>Suprafață *</label>
+                                            <input type="text" name="surface_text" id="surfaceText" value="<?= pz_pv_h($editingPayload['surface_text'] ?? '') ?>" placeholder="ex: 250 mp interior + exterior" required>
                                         </div>
                                         <div class="field full">
                                             <label>Operatori / executanti</label>
@@ -1670,7 +1030,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                 </div>
                             </div>
 
-                            <div class="panel <?= !empty($isQuickPvFromAppointment) ? 'pv-quick-hidden' : '' ?>" style="box-shadow:none; margin-top:14px;">
+                            <div class="panel" style="box-shadow:none; margin-top:14px;">
                                 <div class="panel-head">
                                     <div>
                                         <div class="panel-title">3. Servicii prestate</div>
@@ -1681,7 +1041,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                     <div class="form-grid">
                                         <div class="field full">
                                             <label>Servicii executate</label>
-                                            <div class="pz-pills" id="servicesPills">
+                                            <div class="pz-pills" id="servicesPills" tabindex="-1">
                                                 <?php foreach ($pvServiceChoices as $serviceKey => $serviceLabel):
                                                     $isActive = in_array($serviceKey, $selectedPvServices, true);
                                                 ?>
@@ -1722,7 +1082,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                         </label>
                                     <?php endif; ?>
                                 </div>
-                                <div class="panel-body" id="materialsPanel">
+                                <div class="panel-body" id="materialsPanel" tabindex="-1">
                                     <?php if ($isAdmin): ?>
                                         <label class="pv-defer-consumption">
                                             <input type="checkbox" name="stock_consumption_deferred" value="1" <?= $stockConsumptionDeferred ? 'checked' : '' ?>>
@@ -1775,6 +1135,14 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                             <input type="text" inputmode="decimal" class="quantity-input" name="materials[<?= (int)$index ?>][manual_quantity]" value="<?= pz_pv_h($material['manual_quantity'] ?? ($material['quantity'] ?? '')) ?>" placeholder="cant.">
                                                         </div>
                                                         <div>
+                                                            <label>UM</label>
+                                                            <select name="materials[<?= (int)$index ?>][manual_unit]" class="manual-unit">
+                                                                <?php foreach (['' => 'Alege', 'ml' => 'ml', 'l' => 'l', 'g' => 'g', 'kg' => 'kg', 'buc' => 'buc', 'plic' => 'plic', 'capcana' => 'capcana', 'doza' => 'doza', 'set' => 'set'] as $value => $label): ?>
+                                                                    <option value="<?= pz_pv_h($value) ?>" <?= (($material['manual_unit'] ?? ($material['unit'] ?? '')) === $value) ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
+                                                                <?php endforeach; ?>
+                                                            </select>
+                                                        </div>
+                                                        <div>
                                                             <label>Aplicare</label>
                                                             <select name="materials[<?= (int)$index ?>][manual_application_method]">
                                                                 <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare'] as $value => $label): ?>
@@ -1782,7 +1150,6 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                                 <?php endforeach; ?>
                                                             </select>
                                                         </div>
-                                                        <div></div>
                                                     </div>
                                                     <input type="hidden" name="materials[<?= (int)$index ?>][application_method_custom]" value="">
                                                     <input type="hidden" name="materials[<?= (int)$index ?>][application_area]" value="">
@@ -1800,7 +1167,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                             <select name="materials[<?= (int)$index ?>][stock_product_id]" class="product-select" data-selected="<?= (int)($material['stock_product_id'] ?? 0) ?>" onchange="syncProductRow(this)"></select>
                                                             <input type="hidden" name="materials[<?= (int)$index ?>][product_group]" class="product-group" value="<?= pz_pv_h($material['product_group'] ?? '') ?>">
                                                             <input type="hidden" name="materials[<?= (int)$index ?>][safety_measures]" class="safety-measures" value="<?= pz_pv_h($material['safety_measures'] ?? '') ?>">
-                                                            <input type="hidden" name="materials[<?= (int)$index ?>][unit]" class="material-unit" value="<?= pz_pv_h($material['unit'] ?? '') ?>">
+                                                            <input type="hidden" class="material-unit-cache" value="<?= pz_pv_h($material['unit'] ?? '') ?>">
                                                             <input type="hidden" name="materials[<?= (int)$index ?>][aviz_no]" class="aviz-no" value="<?= pz_pv_h($material['aviz_no'] ?? '') ?>">
                                                             <input type="hidden" name="materials[<?= (int)$index ?>][expiry_date]" class="expiry-date" value="<?= pz_pv_h($material['expiry_date'] ?? '') ?>">
                                                         </div>
@@ -1818,6 +1185,10 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                         <div>
                                                             <label>Cantitate</label>
                                                             <input type="text" inputmode="decimal" class="quantity-input" name="materials[<?= (int)$index ?>][quantity]" value="<?= pz_pv_h(!empty($material['stock_product_id']) ? ($material['quantity'] ?? '') : '') ?>" placeholder="cant.">
+                                                        </div>
+                                                        <div>
+                                                            <label>UM</label>
+                                                            <input type="text" name="materials[<?= (int)$index ?>][unit]" class="material-unit" value="<?= pz_pv_h($material['unit'] ?? '') ?>" readonly placeholder="-">
                                                         </div>
                                                         <div>
                                                             <label>Metoda aplicare</label>
@@ -1845,7 +1216,8 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                         <th style="width:190px;">Lot</th>
                                                         <th style="width:145px;">Data valabilitate</th>
                                                         <th style="width:130px;">Dilutie</th>
-                                                        <th style="width:155px;">Cantitate utilizată</th>
+                                                        <th style="width:125px;">Cantitate utilizata</th>
+                                                        <th style="width:80px;">UM</th>
                                                         <th style="width:170px;">Metoda aplicare</th>
                                                         <th style="width:70px;"></th>
                                                     </tr>
@@ -1871,6 +1243,13 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                                 <td><input type="text" name="materials[<?= (int)$index ?>][manual_work_concentration]" value="<?= pz_pv_h($material['manual_work_concentration'] ?? ($material['work_concentration'] ?? '')) ?>" placeholder="ex: 1%"></td>
                                                                 <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[<?= (int)$index ?>][manual_quantity]" value="<?= pz_pv_h($material['manual_quantity'] ?? ($material['quantity'] ?? '')) ?>" placeholder="cant."></td>
                                                                 <td>
+                                                                    <select name="materials[<?= (int)$index ?>][manual_unit]" class="manual-unit">
+                                                                        <?php foreach (['' => 'Alege', 'ml' => 'ml', 'l' => 'l', 'g' => 'g', 'kg' => 'kg', 'buc' => 'buc', 'plic' => 'plic', 'capcana' => 'capcana', 'doza' => 'doza', 'set' => 'set'] as $value => $label): ?>
+                                                                            <option value="<?= pz_pv_h($value) ?>" <?= (($material['manual_unit'] ?? ($material['unit'] ?? '')) === $value) ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
+                                                                        <?php endforeach; ?>
+                                                                    </select>
+                                                                </td>
+                                                                <td>
                                                                     <select name="materials[<?= (int)$index ?>][manual_application_method]">
                                                                         <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare'] as $value => $label): ?>
                                                                             <option value="<?= pz_pv_h($value) ?>" <?= (($material['manual_application_method'] ?? ($material['application_method'] ?? '')) === $value) ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
@@ -1890,13 +1269,14 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                                     <select name="materials[<?= (int)$index ?>][stock_product_id]" class="product-select" data-selected="<?= (int)($material['stock_product_id'] ?? 0) ?>" onchange="syncProductRow(this)"></select>
                                                                     <input type="hidden" name="materials[<?= (int)$index ?>][product_group]" class="product-group" value="<?= pz_pv_h($material['product_group'] ?? '') ?>">
                                                                     <input type="hidden" name="materials[<?= (int)$index ?>][safety_measures]" class="safety-measures" value="<?= pz_pv_h($material['safety_measures'] ?? '') ?>">
-                                                                    <input type="hidden" name="materials[<?= (int)$index ?>][unit]" class="material-unit" value="<?= pz_pv_h($material['unit'] ?? '') ?>">
+                                                                    <input type="hidden" class="material-unit-cache" value="<?= pz_pv_h($material['unit'] ?? '') ?>">
                                                                 </td>
                                                                 <td><input type="text" name="materials[<?= (int)$index ?>][aviz_no]" class="aviz-no" value="<?= pz_pv_h($material['aviz_no'] ?? '') ?>"></td>
                                                                 <td><select name="materials[<?= (int)$index ?>][stock_receipt_id]" class="receipt-select" data-selected="<?= (int)($material['stock_receipt_id'] ?? 0) ?>" onchange="syncLotRow(this)"></select></td>
                                                                 <td><input type="date" name="materials[<?= (int)$index ?>][expiry_date]" class="expiry-date" value="<?= pz_pv_h($material['expiry_date'] ?? '') ?>"></td>
                                                                 <td><input type="text" name="materials[<?= (int)$index ?>][work_concentration]" class="work-concentration" value="<?= pz_pv_h($material['work_concentration'] ?? '') ?>" placeholder="ex: 1%"></td>
                                                                 <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[<?= (int)$index ?>][quantity]" value="<?= pz_pv_h($material['quantity'] ?? '') ?>" placeholder="cant."></td>
+                                                                <td><input type="text" name="materials[<?= (int)$index ?>][unit]" class="material-unit" value="<?= pz_pv_h($material['unit'] ?? '') ?>" readonly placeholder="-"></td>
                                                                 <td>
                                                                     <select name="materials[<?= (int)$index ?>][application_method]" class="application-method">
                                                                         <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare'] as $value => $label): ?>
@@ -1933,7 +1313,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                 <div class="panel-body">
                                     <div class="pv-form-grid">
                                         <div class="field full">
-                                            <label>Observații executant</label>
+                                            <label>Observatii executant</label>
                                             <textarea name="executor_notes" placeholder="Ce a constatat / efectuat tehnicianul"><?= pz_pv_h($formDocument['executor_notes'] ?? '') ?></textarea>
                                         </div>
                                     </div>
@@ -1964,12 +1344,12 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                             <?php endif; ?>
 
                             <div class="form-actions">
-                                <a class="btn" href="<?= $isTeamUser ? 'calendar.php' : 'procese_verbale.php' ?>">Renunță</a>
+                                <a class="btn" href="<?= $isTeamUser ? 'calendar.php' : 'service-reports' ?>">Renunță</a>
                                 <div class="right">
                                     <?php if ($isAdmin): ?>
                                         <button class="btn" type="submit" name="action" value="save_draft">Salvează draft</button>
                                     <?php endif; ?>
-                                    <button class="btn primary" type="submit" name="action" value="issue" onclick="return confirm('Emiti procesul verbal si generezi numar?');">Emite PV</button>
+                                    <button class="btn primary" type="submit" name="action" value="issue" data-confirm-issue="Emiti procesul verbal si generezi numar?">Emite PV</button>
                                 </div>
                             </div>
                         </form>
@@ -1985,7 +1365,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                         <div class="panel-subtitle">Drafturi, PV emise si PV anulate.</div>
                     </div>
                 
-                    <a class="btn primary" href="procese_verbale.php?new=1<?= $filterClientId > 0 ? '&client_id=' . (int)$filterClientId : '' ?>">+ PV nou</a>
+                    <a class="btn primary" href="service-reports?new=1<?= $filterClientId > 0 ? '&client_id=' . (int)$filterClientId : '' ?>">+ PV nou</a>
                 </div>
                 <div class="panel-body">
                     <form class="filter-form" method="get">
@@ -1994,7 +1374,10 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                         <?php endif; ?>
                         <div class="field">
                             <label>Căutare</label>
-                            <input type="text" name="q" value="<?= pz_pv_h($q) ?>" placeholder="Client, CUI, numar PV, titlu">
+                            <div class="pz-search-wrap">
+                                <input type="text" id="pvSearchInput" name="q" value="<?= pz_pv_h($q) ?>" placeholder="Client, CUI, numar PV, titlu" autocomplete="off">
+                                <div class="pz-search-preview"></div>
+                            </div>
                         </div>
                         <div class="field">
                             <label>Status</label>
@@ -2049,7 +1432,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                             <div class="doc-actions">
                                 <a class="btn small" href="document_view.php?id=<?= (int)$doc['id'] ?>">Vezi</a>
                                 <?php if (($doc['status'] ?? '') === 'draft'): ?>
-                                    <a class="btn small" href="procese_verbale.php?edit=<?= (int)$doc['id'] ?>">Editează</a>
+                                    <a class="btn small" href="service-reports?edit=<?= (int)$doc['id'] ?>">Editează</a>
                                 <?php endif; ?>
                                 <a class="btn small" href="document_pdf.php?id=<?= (int)$doc['id'] ?>&mode=inline" target="_blank">PDF</a>
                             </div>
@@ -2483,6 +1866,77 @@ function pzSyncServicesHidden() {
     });
 }
 
+function pzHasMaterialRows() {
+    const enabledInput = document.getElementById('materialsEnabled');
+    const enabled = enabledInput ? (enabledInput.type === 'hidden' ? String(enabledInput.value || '') === '1' : enabledInput.checked) : true;
+    if (!enabled) return false;
+
+    let hasMaterial = false;
+    document.querySelectorAll('#materialsBody .material-row').forEach(row => {
+        const productSelect = row.querySelector('.product-select');
+        const manualName = row.querySelector('.manual-material-name');
+        if (productSelect && Number(productSelect.value || productSelect.dataset.selected || 0) > 0) {
+            hasMaterial = true;
+        }
+        if (manualName && manualName.value.trim() !== '') {
+            hasMaterial = true;
+        }
+    });
+    return hasMaterial;
+}
+
+function pzFocusPvTarget(target) {
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => {
+        if (typeof target.focus === 'function') {
+            target.focus({ preventScroll: true });
+        }
+    }, 220);
+}
+
+function pzFirstMissingTarget() {
+    const clientSelect = document.getElementById('clientSelect');
+    const clientBox = document.getElementById('clientAutocomplete');
+    const locationSelect = document.getElementById('locationSelect');
+    const locationField = document.getElementById('locationField');
+    const treatedAreas = document.getElementById('treatedAreas');
+    const surfaceText = document.getElementById('surfaceText');
+    const servicesPills = document.getElementById('servicesPills');
+    const materialsEnabled = document.getElementById('materialsEnabled');
+    const materialsPanel = document.getElementById('materialsPanel');
+    const firstProductSelect = document.querySelector('#materialsBody .product-select');
+    const firstManualName = document.querySelector('#materialsBody .manual-material-name');
+
+    if (clientSelect && !clientSelect.value) return clientBox || clientSelect;
+    if (locationSelect && locationSelect.required && !locationSelect.value) return locationSelect.offsetParent ? locationSelect : locationField;
+    if (treatedAreas && treatedAreas.required && treatedAreas.value.trim() === '') return treatedAreas;
+    if (surfaceText && surfaceText.required && surfaceText.value.trim() === '') return surfaceText;
+    if (servicesPills && document.querySelectorAll('#servicesHidden input[name="pv_services[]"]').length === 0) return servicesPills;
+    if (materialsEnabled && materialsEnabled.type !== 'hidden' && !materialsEnabled.checked) return materialsEnabled;
+    if (!pzHasMaterialRows()) return firstProductSelect || firstManualName || materialsPanel;
+    return null;
+}
+
+function pzValidateBeforeSubmit(event) {
+    const submitter = event && event.submitter ? event.submitter : null;
+    const action = submitter && submitter.name === 'action' ? submitter.value : '';
+    if (action && action !== 'issue') return true;
+
+    pzValidateForm();
+    const target = pzFirstMissingTarget();
+    if (!target) {
+        const message = submitter ? submitter.getAttribute('data-confirm-issue') : '';
+        return message ? confirm(message) : true;
+    }
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    pzFocusPvTarget(target);
+    return false;
+}
+
 /* === Wrappers vechi pentru compatibilitate cu codul existent === */
 function populateClients() {
     initClientAutocomplete();
@@ -2496,7 +1950,7 @@ let pzAutofillData = null;
 
 function pzCheckLastPv(clientId) {
     if (!clientId) return;
-    fetch('procese_verbale.php?last_pv_for_client=' + encodeURIComponent(clientId), {
+    fetch('service-reports?last_pv_for_client=' + encodeURIComponent(clientId), {
         headers: {'X-Requested-With': 'XMLHttpRequest'}
     })
     .then(r => r.ok ? r.json() : null)
@@ -2562,19 +2016,26 @@ function pzDismissAutofill() {
 /* === VALIDARE simpla - dezactiveaza Emite PV dacă lipsesc campuri obligatorii === */
 function pzValidateForm() {
     const clientId = document.getElementById('clientSelect') ? document.getElementById('clientSelect').value : '';
+    const treatedAreas = document.getElementById('treatedAreas');
+    const surfaceText = document.getElementById('surfaceText');
     const hasServices = document.querySelectorAll('#servicesHidden input[name="pv_services[]"]').length > 0;
-    const isQuickPv = !!document.getElementById('pvQuickMode');
+    const hasMaterials = pzHasMaterialRows();
+    const hasTreatedAreas = !treatedAreas || !treatedAreas.required || treatedAreas.value.trim() !== '';
+    const hasSurface = !surfaceText || !surfaceText.required || surfaceText.value.trim() !== '';
     const servicesPills = document.getElementById('servicesPills');
-    if (servicesPills) servicesPills.classList.toggle('is-invalid', !hasServices && !isQuickPv);
+    const materialsPanel = document.getElementById('materialsPanel');
+    if (servicesPills) servicesPills.classList.toggle('is-invalid', !hasServices);
+    if (materialsPanel) materialsPanel.classList.toggle('is-invalid', !hasMaterials);
 
     const issueBtn = document.querySelector('button[name="action"][value="issue"]');
     if (!issueBtn) return;
 
-    const valid = clientId && (hasServices || isQuickPv);
-    issueBtn.disabled = !valid;
-    issueBtn.style.opacity = valid ? '1' : '.5';
-    issueBtn.style.cursor = valid ? 'pointer' : 'not-allowed';
-    issueBtn.title = valid ? '' : 'Selectează un client si cel puțin un serviciu pentru a emite PV-ul.';
+    const valid = clientId && hasTreatedAreas && hasSurface && hasServices && hasMaterials;
+    issueBtn.disabled = false;
+    issueBtn.setAttribute('aria-disabled', valid ? 'false' : 'true');
+    issueBtn.style.opacity = '1';
+    issueBtn.style.cursor = 'pointer';
+    issueBtn.title = valid ? '' : 'Completează clientul, zona/zonele tratate, suprafața, cel puțin un serviciu și cel puțin un produs/material.';
 }
 
 function updateClientHelp(client) {
@@ -2770,6 +2231,7 @@ function syncProductRow(select) {
     const receiptSelect = row.querySelector('.receipt-select');
     if (receiptSelect) receiptSelect.dataset.selected = '0';
     populateReceiptSelect(row);
+    pzValidateForm();
 }
 function syncLotRow(select) {
     const row = select.closest('.material-row');
@@ -2796,28 +2258,31 @@ function addMaterialRow() {
         row.innerHTML = `
             <div class="pv-material-card-head"><div class="pv-material-card-title">Produs utilizat #${i + 1}</div><button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button></div>
             <div class="pv-material-grid">
-                <div><label>Produs / material</label><select name="materials[${i}][stock_product_id]" class="product-select" data-selected="0" onchange="syncProductRow(this)"></select><input type="hidden" name="materials[${i}][product_group]" class="product-group"><input type="hidden" name="materials[${i}][safety_measures]" class="safety-measures"><input type="hidden" name="materials[${i}][unit]" class="material-unit"><input type="hidden" name="materials[${i}][aviz_no]" class="aviz-no"><input type="hidden" name="materials[${i}][expiry_date]" class="expiry-date"></div>
+                <div><label>Produs / material</label><select name="materials[${i}][stock_product_id]" class="product-select" data-selected="0" onchange="syncProductRow(this)"></select><input type="hidden" name="materials[${i}][product_group]" class="product-group"><input type="hidden" name="materials[${i}][safety_measures]" class="safety-measures"><input type="hidden" class="material-unit-cache"><input type="hidden" name="materials[${i}][aviz_no]" class="aviz-no"><input type="hidden" name="materials[${i}][expiry_date]" class="expiry-date"></div>
                 <div><label>Lot / stoc</label><select name="materials[${i}][stock_receipt_id]" class="receipt-select" data-selected="0" onchange="syncLotRow(this)"></select><div class="pv-stock-hint">Datele din stoc se preiau automat: aviz, lot, valabilitate si UM.</div></div>
             </div>
             <div class="pv-material-mini-grid">
                 <div><label>Dilutie</label><input type="text" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></div>
                 <div><label>Cantitate</label><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][quantity]" placeholder="cant."></div>
+                <div><label>UM</label><input type="text" name="materials[${i}][unit]" class="material-unit" readonly placeholder="-"></div>
                 <div><label>Metoda aplicare</label><select name="materials[${i}][application_method]" class="application-method"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directa</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option></select></div>
             </div>
             <input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value="">`;
     } else {
         row.innerHTML = `
-            <td><select name="materials[${i}][stock_product_id]" class="product-select" data-selected="0" onchange="syncProductRow(this)"></select><input type="hidden" name="materials[${i}][product_group]" class="product-group"><input type="hidden" name="materials[${i}][safety_measures]" class="safety-measures"><input type="hidden" name="materials[${i}][unit]" class="material-unit"></td>
+            <td><select name="materials[${i}][stock_product_id]" class="product-select" data-selected="0" onchange="syncProductRow(this)"></select><input type="hidden" name="materials[${i}][product_group]" class="product-group"><input type="hidden" name="materials[${i}][safety_measures]" class="safety-measures"><input type="hidden" class="material-unit-cache"></td>
             <td><input type="text" name="materials[${i}][aviz_no]" class="aviz-no"></td>
             <td><select name="materials[${i}][stock_receipt_id]" class="receipt-select" data-selected="0" onchange="syncLotRow(this)"></select></td>
             <td><input type="date" name="materials[${i}][expiry_date]" class="expiry-date"></td>
             <td><input type="text" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></td>
             <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][quantity]" placeholder="cant."></td>
+            <td><input type="text" name="materials[${i}][unit]" class="material-unit" readonly placeholder="-"></td>
             <td><select name="materials[${i}][application_method]" class="application-method"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directa</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option></select></td>
             <td><input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value=""><button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button></td>`;
     }
     body.appendChild(row);
     populateProductSelects();
+    pzValidateForm();
 }
 function addManualMaterialRow() {
     const body = document.getElementById('materialsBody');
@@ -2842,8 +2307,8 @@ function addManualMaterialRow() {
             </div>
             <div class="pv-material-mini-grid">
                 <div><label>Cantitate</label><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][manual_quantity]" placeholder="cant."></div>
+                <div><label>UM</label><select name="materials[${i}][manual_unit]" class="manual-unit"><option value="">Alege</option><option value="ml">ml</option><option value="l">l</option><option value="g">g</option><option value="kg">kg</option><option value="buc">buc</option><option value="plic">plic</option><option value="capcana">capcana</option><option value="doza">doza</option><option value="set">set</option></select></div>
                 <div><label>Aplicare</label><select name="materials[${i}][manual_application_method]"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directă</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option></select></div>
-                <div></div>
             </div>
             <input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value="">`;
     } else {
@@ -2854,10 +2319,12 @@ function addManualMaterialRow() {
             <td><input type="text" name="materials[${i}][manual_expiry_date]" placeholder="ex: 31.12.2027"></td>
             <td><input type="text" name="materials[${i}][manual_work_concentration]" placeholder="ex: 1%"></td>
             <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][manual_quantity]" placeholder="cant."></td>
+            <td><select name="materials[${i}][manual_unit]" class="manual-unit"><option value="">Alege</option><option value="ml">ml</option><option value="l">l</option><option value="g">g</option><option value="kg">kg</option><option value="buc">buc</option><option value="plic">plic</option><option value="capcana">capcana</option><option value="doza">doza</option><option value="set">set</option></select></td>
             <td><select name="materials[${i}][manual_application_method]"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directă</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option></select></td>
             <td><input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value=""><button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button></td>`;
     }
     body.appendChild(row);
+    pzValidateForm();
 }
 function removeMaterialRow(button) {
     const rows = document.querySelectorAll('#materialsBody .material-row');
@@ -2867,10 +2334,12 @@ function removeMaterialRow(button) {
             row.querySelectorAll('input, textarea').forEach(input => input.value = '');
             row.querySelectorAll('select').forEach(select => { select.value = ''; select.dataset.selected = '0'; });
         }
+        pzValidateForm();
         return;
     }
     const row = button.closest('.material-row');
     if (row) row.remove();
+    pzValidateForm();
 }
 function toggleMaterialsPanel() {
     const checkbox = document.getElementById('materialsEnabled');
@@ -2878,6 +2347,7 @@ function toggleMaterialsPanel() {
     if (!panel || !checkbox) return;
     const enabled = checkbox.type === 'hidden' ? String(checkbox.value || '') === '1' : checkbox.checked;
     panel.classList.toggle('disabled', !enabled);
+    pzValidateForm();
 }
 
 function pvServiceKeyFromText(text) {
@@ -2942,6 +2412,13 @@ function syncAppointment(select) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    const pvForm = document.getElementById('pvForm');
+    if (pvForm) pvForm.addEventListener('submit', pzValidateBeforeSubmit);
+    ['treatedAreas', 'surfaceText'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.addEventListener('input', pzValidateForm);
+    });
+
     const appointmentSelect = document.getElementById('appointmentSelect');
     if (appointmentSelect) appointmentSelect.addEventListener('change', function() { syncAppointment(this); });
 
@@ -2960,10 +2437,56 @@ document.addEventListener('DOMContentLoaded', function() {
     populateProductSelects();
     toggleMaterialsPanel();
 
+    const materialsBody = document.getElementById('materialsBody');
+    if (materialsBody) {
+        materialsBody.addEventListener('input', pzValidateForm);
+        materialsBody.addEventListener('change', pzValidateForm);
+    }
+
     // Sync initial pentru servicii pills + valideaza form
     pzSyncServicesHidden();
     pzValidateForm();
 });
 </script>
-</body>
-</html>
+
+<?php
+// Preview live pentru bara „Caută PV".
+$previewPvList = [];
+try {
+    if ($pdo->query("SHOW TABLES LIKE 'documents'")->fetch()) {
+        $stmtPrev = $pdo->query("
+            SELECT d.id, d.document_number, d.title, c.name AS client_name, c.fiscal_code
+            FROM documents d
+            LEFT JOIN clients c ON c.id = d.client_id
+            WHERE d.document_type = 'proces_verbal'
+            ORDER BY d.id DESC LIMIT 2000
+        ");
+        while ($r = $stmtPrev->fetch(PDO::FETCH_ASSOC)) {
+            $nm  = html_entity_decode((string)($r['client_name'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $cf  = html_entity_decode((string)($r['fiscal_code'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $num = trim((string)($r['document_number'] ?? ''));
+            $ttl = html_entity_decode((string)($r['title'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $base = $num !== '' ? $num : ($ttl !== '' ? $ttl : ('PV #' . (int)$r['id']));
+            $title = $base . ($nm !== '' ? ' · ' . $nm : '');
+            $previewPvList[] = [
+                'title'  => $title,
+                'url'    => 'document_view.php?id=' . (int)$r['id'],
+                'type'   => 'pv',
+                'search' => $num . ' ' . $ttl . ' ' . $nm . ' ' . $cf,
+            ];
+        }
+    }
+} catch (Throwable $e) { error_log('procese_verbale.php preview: ' . $e->getMessage()); }
+?>
+<script>
+(function () {
+    var go = function () {
+        if (!window.pzSearchPreview) { setTimeout(go, 30); return; }
+        window.pzSearchPreview.attach('pvSearchInput',
+            <?= json_encode($previewPvList, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>,
+            { minChars: 1, maxResults: 8 }
+        );
+    };
+    go();
+})();
+</script>

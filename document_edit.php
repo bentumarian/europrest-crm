@@ -10,9 +10,9 @@ require_login();
 |--------------------------------------------------------------------------
 | Acest fișier nu editeaza direct documentul.
 | El citeste tipul documentului si trimite utilizatorul catre pagina corecta:
-| - oferta          -> oferte.php?edit=ID
+| - oferta          -> offers?edit=ID
 | - contract        -> contracts.php?edit=ID
-| - proces_verbal   -> procese_verbale.php?edit=ID
+| - proces_verbal   -> service-reports?edit=ID
 |
 | Regula importanta:
 | - doar documentele draft se pot edita
@@ -33,13 +33,13 @@ function pz_document_edit_back_url(array $document): string
     $type = (string)($document['document_type'] ?? '');
 
     if ($type === 'oferta') {
-        return 'oferte.php';
+        return 'offers';
     }
     if ($type === 'contract') {
         return 'contracts.php';
     }
     if ($type === 'proces_verbal') {
-        return 'procese_verbale.php';
+        return 'service-reports';
     }
 
     return 'dashboard.php';
@@ -51,13 +51,13 @@ function pz_document_edit_target_url(array $document): string
     $type = (string)($document['document_type'] ?? '');
 
     if ($type === 'oferta') {
-        return 'oferte.php?edit=' . $id;
+        return 'offers?edit=' . $id;
     }
     if ($type === 'contract') {
         return 'contracts.php?edit=' . $id;
     }
     if ($type === 'proces_verbal') {
-        return 'procese_verbale.php?edit=' . $id;
+        return 'service-reports?edit=' . $id;
     }
 
     return 'document_view.php?id=' . $id;

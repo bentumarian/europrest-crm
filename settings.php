@@ -30,7 +30,6 @@ function st_setting_icon(string $name): string
         </svg>';
     }
 
-    
     if ($name === 'invoice') {
         return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-3 2-3-2-3 2V5a2 2 0 0 1 2-2Z"></path>
@@ -39,7 +38,8 @@ function st_setting_icon(string $name): string
             <path d="M9 16h4"></path>
         </svg>';
     }
-if ($name === 'sms') {
+
+    if ($name === 'sms') {
         return '<span style="font-size:12px;font-weight:700;letter-spacing:-.02em;">SMS</span>';
     }
 
@@ -65,43 +65,49 @@ $isSuperAdmin = function_exists('pz_is_super_admin') ? pz_is_super_admin() : is_
 $cards = [
     [
         'title' => 'Utilizatori',
-        'desc' => 'Conturi de birou si acces administrativ',
+        'desc' => 'Conturi de birou și acces administrativ',
         'url' => 'users.php',
         'icon' => 'users',
     ],
     [
         'title' => 'Import date',
-        'desc' => 'Încarcă clienți si locații din Excel',
+        'desc' => 'Încarcă clienți și locații din Excel',
         'url' => 'data_import.php',
         'icon' => 'clients',
     ],
     [
         'title' => 'Serii documente',
-        'desc' => 'Numerotare pentru oferte, contracte si procese verbale',
+        'desc' => 'Numerotare pentru oferte, contracte și procese verbale',
         'url' => 'document_series.php',
         'icon' => 'series',
     ],
     [
         'title' => 'Design documente',
-        'desc' => 'Configureaza antetul, footerul, marginile si fontul documentelor',
+        'desc' => 'Configurează antetul, footerul, marginile și fontul documentelor',
         'url' => 'document_design.php',
         'icon' => 'design',
     ],
     [
+        'title' => 'Identitate platformă',
+        'desc' => 'Paleta de culori, fontul Inter și regulile generale de UI',
+        'url' => 'ui_template.php',
+        'icon' => 'design',
+    ],
+    [
         'title' => 'Șabloane documente',
-        'desc' => 'Gestioneaza continutul pentru oferte, contracte si procese verbale',
+        'desc' => 'Gestionează conținutul pentru oferte, contracte și procese verbale',
         'url' => 'document_templates.php',
         'icon' => 'templates',
     ],
     [
         'title' => 'Servicii',
-        'desc' => 'Serviciile DDD folosite in contracte, sarcini si programări',
+        'desc' => 'Serviciile DDD folosite în contracte, sarcini și programări',
         'url' => 'services.php',
         'icon' => 'services',
     ],
     [
         'title' => 'Tehnicieni',
-        'desc' => 'Adaugă tehnicieni, parole de acces si culori in calendar',
+        'desc' => 'Adaugă tehnicieni, parole de acces și culori în calendar',
         'url' => 'team.php',
         'icon' => 'team',
     ],
@@ -110,19 +116,19 @@ $cards = [
 $superAdminCards = [
     [
         'title' => 'SmartBill',
-        'desc' => 'Configureaza facturarea, cotele TVA, seria si statusul e-Factura / SPV',
+        'desc' => 'Configurează facturarea, cotele TVA, seria și statusul e-Factura / SPV',
         'url' => 'smartbill_settings.php',
         'icon' => 'invoice',
     ],
     [
         'title' => 'Canale comunicare',
-        'desc' => 'Conectare SendGrid si SMSLink.ro',
+        'desc' => 'Conectare SendGrid și SMSLink.ro',
         'url' => 'communication_settings.php',
         'icon' => 'mail',
     ],
     [
         'title' => 'Review clienți',
-        'desc' => 'Link Google si formular intern de satisfacție',
+        'desc' => 'Link Google și formular intern de satisfacție',
         'url' => 'review_settings.php',
         'icon' => 'star',
     ],
@@ -134,7 +140,7 @@ $superAdminCards = [
     ],
     [
         'title' => 'Șabloane SMS',
-        'desc' => 'Mesaje pentru programări si remindere',
+        'desc' => 'Mesaje pentru programări și remindere',
         'url' => 'sms_templates.php',
         'icon' => 'sms',
     ],
@@ -236,12 +242,12 @@ $superAdminCards = [
     <main class="main">
         <div class="content settings-page">
             <div class="settings-head">
-                <div class="settings-eyebrow">Administrare platforma</div>
+                <div class="settings-eyebrow">Administrare platformă</div>
                 <h1>Setări</h1>
-                <p>Zona centrala pentru utilizatori, documente, servicii, tehnicieni, comunicare si integrari.</p>
+                <p>Zona centrală pentru utilizatori, documente, servicii, tehnicieni, comunicare și integrări.</p>
             </div>
 
-            <div class="section-label">Administrare operaționala</div>
+            <div class="section-label">Administrare operațională</div>
             <section class="settings-list">
                 <?php foreach ($cards as $card): ?>
                     <a class="setting-row" href="<?= st_h($card['url']) ?>">
@@ -256,7 +262,7 @@ $superAdminCards = [
             </section>
 
             <?php if ($isSuperAdmin): ?>
-                <div class="section-label">Comunicare si integrari</div>
+                <div class="section-label">Comunicare și integrări</div>
                 <section class="settings-list">
                     <?php foreach ($superAdminCards as $card): ?>
                         <a class="setting-row" href="<?= st_h($card['url']) ?>">
@@ -274,8 +280,8 @@ $superAdminCards = [
                     <a class="setting-row" href="platform_reset.php">
                         <span class="setting-icon"><?= st_setting_icon('settings') ?></span>
                         <span>
-                            <span class="setting-title">Reset platforma</span>
-                            <span class="setting-desc">Șterge datele operaționale de test: clienți, contracte, sarcini, programări si numere generate</span>
+                            <span class="setting-title">Reset platformă</span>
+                            <span class="setting-desc">Șterge datele operaționale de test; contactele se păstrează dacă nu bifezi ștergerea lor separată</span>
                         </span>
                         <span class="setting-arrow">›</span>
                     </a>
@@ -287,7 +293,7 @@ $superAdminCards = [
                     <div class="company-logo"><?= st_h($logoText) ?></div>
                     <div style="min-width:0">
                         <div class="company-name"><?= st_h($companyName) ?></div>
-                        <div class="company-sub">Datele prestatorului folosite in contracte si documente</div>
+                        <div class="company-sub">Datele prestatorului folosite în contracte și documente</div>
                     </div>
                 </div>
 
@@ -299,8 +305,8 @@ $superAdminCards = [
             </section>
 
             <div class="admin-note">
-                Comunicarea, datele companiei si resetarea platformei sunt disponibile doar pentru super administrator.
-                Administratorii obisnuiti nu pot face aceste modificari sensibile.
+                Comunicarea, datele companiei și resetarea platformei sunt disponibile doar pentru super administrator.
+                Administratorii obișnuiți nu pot face aceste modificări sensibile.
             </div>
         </div>
     </main>

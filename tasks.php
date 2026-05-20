@@ -13,219 +13,10 @@ if (!$isAdmin) {
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Helpers
-|--------------------------------------------------------------------------
-*/
-function h($value): string {
-    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
-}
+// Helper-i extracși în tasks_helpers.php (15 funcții).
+require_once __DIR__ . '/tasks_helpers.php';
 
-function task_page_url(array $params): string {
-    $clean = [];
-    foreach ($params as $key => $value) {
-        if ($value === null || $value === '') {
-            continue;
-        }
-        $clean[$key] = $value;
-    }
-    return 'tasks.php' . ($clean ? '?' . http_build_query($clean) : '');
-}
-
-function table_exists_tasks(PDO $pdo, string $table): bool {
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) AS total
-        FROM INFORMATION_SCHEMA.TABLES
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = ?
-    ");
-
-    $stmt->execute([$table]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    return (int)($row['total'] ?? 0) > 0;
-}
-
-function column_exists_tasks(PDO $pdo, string $table, string $column): bool {
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) AS total
-        FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = ?
-          AND COLUMN_NAME = ?
-    ");
-
-    $stmt->execute([$table, $column]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    return (int)($row['total'] ?? 0) > 0;
-}
-
-function ensure_column_tasks(PDO $pdo, string $table, string $column, string $definition): void {
-    if (!column_exists_tasks($pdo, $table, $column)) {
-        try {
-            $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
-        } catch (Throwable $e) {
-            // Nu blocam pagina dacă ALTER-ul nu poate rula.
-        }
-    }
-}
-
-function safe_date_tasks(?string $date, ?string $fallback = null): string {
-    $fallback = $fallback ?: date('Y-m-d');
-
-    if (!$date) {
-        return $fallback;
-    }
-
-    $d = DateTime::createFromFormat('Y-m-d', $date);
-
-    return ($d && $d->format('Y-m-d') === $date) ? $date : $fallback;
-}
-
-function safe_task_view(string $view): string {
-    return in_array($view, ['month', 'year'], true) ? $view : 'month';
-}
-
-function recurrence_label_tasks(string $type, ?int $days = null): string {
-    return [
-        'none'         => 'Fara recurenta',
-        'days'         => 'La ' . max(1, (int)$days) . ' zile',
-        'weekly'       => 'Saptamanal',
-        'monthly'      => 'Lunar',
-        'three_months' => 'Trimestrial',
-        'six_months'   => 'Semestrial',
-    ][$type] ?? 'Fara recurenta';
-}
-
-function task_add_months(DateTime $date, int $months): DateTime {
-    $day = (int)$date->format('d');
-    $result = (clone $date)->modify('first day of this month')->modify('+' . $months . ' months');
-    $lastDay = (int)$result->format('t');
-    $result->setDate((int)$result->format('Y'), (int)$result->format('m'), min($day, $lastDay));
-
-    return $result;
-}
-
-function task_next_due_date(string $dueDate, string $recurrenceType, ?int $recurrenceDays = null): string {
-    $date = DateTime::createFromFormat('Y-m-d', $dueDate) ?: new DateTime($dueDate ?: 'now');
-
-    if ($recurrenceType === 'days') {
-        return $date->modify('+' . max(1, (int)$recurrenceDays) . ' days')->format('Y-m-d');
-    }
-
-    if ($recurrenceType === 'weekly') {
-        return $date->modify('+7 days')->format('Y-m-d');
-    }
-
-    if ($recurrenceType === 'monthly') {
-        return task_add_months($date, 1)->format('Y-m-d');
-    }
-
-    if ($recurrenceType === 'three_months') {
-        return task_add_months($date, 3)->format('Y-m-d');
-    }
-
-    if ($recurrenceType === 'six_months') {
-        return task_add_months($date, 6)->format('Y-m-d');
-    }
-
-    return $date->format('Y-m-d');
-}
-
-function task_client_address(array $client): string {
-    $line = trim((string)($client['billing_address_line'] ?? ''));
-    $county = trim((string)($client['billing_county'] ?? ''));
-    $city = trim((string)($client['billing_city'] ?? ''));
-    $country = trim((string)($client['billing_country'] ?? ''));
-    $postal = trim((string)($client['billing_postal_code'] ?? ''));
-    $address = trim(implode(', ', array_filter([$line, $county, $city, $country], static fn($value) => $value !== '')));
-    if ($postal !== '') {
-        $address .= ($address !== '' ? ', ' : '') . 'CP ' . $postal;
-    }
-    if ($address !== '') {
-        return $address;
-    }
-
-    return trim((string)($client['registered_address'] ?? '')) ?: trim((string)($client['address'] ?? ''));
-}
-
-function task_client_contact_person(array $client): string {
-    $clientType = (string)($client['client_type'] ?? 'company');
-    $name = trim((string)($client['name'] ?? ''));
-    $representative = trim((string)($client['legal_representative_name'] ?? ''));
-
-    if ($clientType === 'individual') {
-        return $name;
-    }
-
-    return $representative !== '' ? $representative : $name;
-}
-
-function task_client_contact_phone(array $client): string {
-    return trim((string)($client['phone'] ?? ''));
-}
-
-function task_get_location(PDO $pdo, int $clientId, int $locationId): ?array {
-    if ($clientId <= 0 || $locationId <= 0) {
-        return null;
-    }
-
-    $stmt = $pdo->prepare("
-        SELECT id, client_id, location_name, address, contact_person, phone, notes, active
-        FROM client_locations
-        WHERE id = ?
-          AND client_id = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$locationId, $clientId]);
-    $location = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    return $location ?: null;
-}
-
-function task_snapshot_address(array $client, ?array $location, string $postedAddress): string {
-    $postedAddress = trim($postedAddress);
-
-    if ($postedAddress !== '') {
-        return $postedAddress;
-    }
-
-    if ($location && trim((string)($location['address'] ?? '')) !== '') {
-        return trim((string)$location['address']);
-    }
-
-    return task_client_address($client);
-}
-
-function task_snapshot_contact_person(array $client, ?array $location, string $postedContact): string {
-    $postedContact = trim($postedContact);
-
-    if ($postedContact !== '') {
-        return $postedContact;
-    }
-
-    if ($location && trim((string)($location['contact_person'] ?? '')) !== '') {
-        return trim((string)$location['contact_person']);
-    }
-
-    return task_client_contact_person($client);
-}
-
-function task_snapshot_contact_phone(array $client, ?array $location, string $postedPhone): string {
-    $postedPhone = trim($postedPhone);
-
-    if ($postedPhone !== '') {
-        return $postedPhone;
-    }
-
-    if ($location && trim((string)($location['phone'] ?? '')) !== '') {
-        return trim((string)$location['phone']);
-    }
-
-    return task_client_contact_phone($client);
-}
+// h() este definit global în app_helpers.php (inclus prin app_ui.php).
 
 /*
 |--------------------------------------------------------------------------
@@ -424,483 +215,9 @@ foreach ($clientLocations as $location) {
     $locationsById[$locationId] = $location;
 }
 
-/*
-|--------------------------------------------------------------------------
-| POST handler
-|--------------------------------------------------------------------------
-*/
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    csrf_require();
 
-    $action = $_POST['action'] ?? '';
-
-    if ($action === 'create' || $action === 'update') {
-        $taskId = (int)($_POST['task_id'] ?? 0);
-        $clientId = (int)($_POST['client_id'] ?? 0);
-        $clientLocationId = !empty($_POST['client_location_id']) ? (int)$_POST['client_location_id'] : null;
-        $serviceType = trim($_POST['service_type'] ?? '');
-        $address = trim($_POST['address'] ?? '');
-        $contactPerson = trim($_POST['contact_person'] ?? '');
-        $contactPhone = trim($_POST['contact_phone'] ?? '');
-        $dueDate = safe_date_tasks($_POST['due_date'] ?? null);
-        $recurrenceType = $_POST['recurrence_type'] ?? 'none';
-        $recurrenceDays = !empty($_POST['recurrence_days']) ? max(1, (int)$_POST['recurrence_days']) : null;
-        $recurrenceTotal = max(1, (int)($_POST['recurrence_total'] ?? 1));
-        $notes = trim($_POST['notes'] ?? '');
-        $returnToPost = $_POST['return_to'] ?? '';
-
-        if (!in_array($recurrenceType, ['none', 'days', 'weekly', 'monthly', 'three_months', 'six_months'], true)) {
-            $recurrenceType = 'none';
-        }
-
-        if ($recurrenceType !== 'days') {
-            $recurrenceDays = null;
-        }
-
-        if ($recurrenceType === 'none') {
-            $recurrenceTotal = 1;
-        }
-
-        $client = $clientsById[$clientId] ?? null;
-        $location = null;
-
-        if ($clientLocationId) {
-            $location = task_get_location($pdo, $clientId, $clientLocationId);
-
-            if (!$location) {
-                $clientLocationId = null;
-            }
-        }
-
-        $clientName = $client['name'] ?? '';
-        $title = trim($serviceType . ' - ' . $clientName);
-
-        if ($clientId > 0 && $client && $serviceType !== '' && $dueDate !== '') {
-            $snapshotAddress = task_snapshot_address($client, $location, $address);
-            $snapshotContactPerson = task_snapshot_contact_person($client, $location, $contactPerson);
-            $snapshotContactPhone = task_snapshot_contact_phone($client, $location, $contactPhone);
-
-            if ($action === 'create') {
-                $recurrenceGroup = make_task_recurrence_group();
-
-                $stmt = $pdo->prepare("
-                    INSERT INTO tasks
-                    (
-                        client_id,
-                        client_location_id,
-                        title,
-                        service_type,
-                        address,
-                        contact_person,
-                        contact_phone,
-                        due_date,
-                        recurrence_type,
-                        recurrence_days,
-                        recurrence_group,
-                        recurrence_total,
-                        recurrence_remaining,
-                        recurrence_stopped,
-                        recurrence_index,
-                        generated_from_task_id,
-                        generated_next_task_id,
-                        status,
-                        appointment_id,
-                        notes
-                    )
-                    VALUES
-                    (
-                        ?, ?, ?, ?, ?,
-                        ?, ?, ?, ?, ?,
-                        ?, ?, ?, 0, 1,
-                        NULL, NULL, 'de_programat', NULL, ?
-                    )
-                ");
-
-                $stmt->execute([
-                    $clientId,
-                    $clientLocationId ?: null,
-                    $title,
-                    $serviceType,
-                    $snapshotAddress ?: null,
-                    $snapshotContactPerson ?: null,
-                    $snapshotContactPhone ?: null,
-                    $dueDate,
-                    $recurrenceType,
-                    $recurrenceDays,
-                    $recurrenceGroup,
-                    $recurrenceTotal,
-                    $recurrenceTotal,
-                    $notes ?: null
-                ]);
-
-                if ($returnToPost === 'client') {
-                    header("Location: clients.php?client_id=" . (int)$clientId . "&task_added=1#sarcini-client");
-                    exit;
-                }
-
-                header("Location: tasks.php?success=1&date=" . urlencode($dueDate));
-                exit;
-            }
-
-            if ($action === 'update' && $taskId > 0) {
-                $stmt = $pdo->prepare("
-                    SELECT *
-                    FROM tasks
-                    WHERE id = ?
-                    LIMIT 1
-                ");
-                $stmt->execute([$taskId]);
-                $existingTask = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                if ($existingTask && $existingTask['status'] !== 'programat') {
-                    $recurrenceGroup = $existingTask['recurrence_group'] ?: make_task_recurrence_group();
-
-                    $newRemaining = calculate_remaining_after_task_update(
-                        $existingTask,
-                        $recurrenceTotal,
-                        $recurrenceType
-                    );
-
-                    $stmt = $pdo->prepare("
-                        UPDATE tasks
-                        SET client_id = ?,
-                            client_location_id = ?,
-                            title = ?,
-                            service_type = ?,
-                            address = ?,
-                            contact_person = ?,
-                            contact_phone = ?,
-                            due_date = ?,
-                            recurrence_type = ?,
-                            recurrence_days = ?,
-                            recurrence_group = ?,
-                            recurrence_total = ?,
-                            recurrence_remaining = ?,
-                            notes = ?
-                        WHERE id = ?
-                          AND status != 'programat'
-                    ");
-
-                    $stmt->execute([
-                        $clientId,
-                        $clientLocationId ?: null,
-                        $title,
-                        $serviceType,
-                        $snapshotAddress ?: null,
-                        $snapshotContactPerson ?: null,
-                        $snapshotContactPhone ?: null,
-                        $dueDate,
-                        $recurrenceType,
-                        $recurrenceDays,
-                        $recurrenceGroup,
-                        $recurrenceTotal,
-                        $newRemaining,
-                        $notes ?: null,
-                        $taskId
-                    ]);
-
-                    header("Location: tasks.php?updated=1&date=" . urlencode($dueDate));
-                    exit;
-                }
-            }
-        }
-
-        header("Location: tasks.php?error=1");
-        exit;
-    }
-
-    if ($action === 'extend_recurrence') {
-        $taskId = (int)($_POST['task_id'] ?? 0);
-        $extraCycles = max(1, (int)($_POST['extra_cycles'] ?? 0));
-        $extensionNote = trim($_POST['extension_note'] ?? '');
-
-        if ($taskId > 0 && $extraCycles > 0) {
-            $stmt = $pdo->prepare("
-                SELECT *
-                FROM tasks
-                WHERE id = ?
-                LIMIT 1
-            ");
-            $stmt->execute([$taskId]);
-            $task = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (
-                $task &&
-                in_array($task['status'], ['de_programat', 'contactat', 'amanat'], true) &&
-                (int)($task['recurrence_stopped'] ?? 0) === 0 &&
-                ($task['recurrence_type'] ?? 'none') !== 'none'
-            ) {
-                $oldTotal = max(1, (int)($task['recurrence_total'] ?? 1));
-                $oldRemaining = max(0, (int)($task['recurrence_remaining'] ?? 0));
-
-                $newTotal = $oldTotal + $extraCycles;
-                $newRemaining = $oldRemaining + $extraCycles;
-
-                $appendNote = "Prelungire recurenta: +" . $extraCycles . " cicluri";
-                $appendNote .= " (" . date('d.m.Y H:i') . ")";
-
-                if ($extensionNote !== '') {
-                    $appendNote .= "\nObservații prelungire: " . $extensionNote;
-                }
-
-                $oldNotes = trim((string)($task['notes'] ?? ''));
-                $newNotes = $oldNotes !== ''
-                    ? $oldNotes . "\n\n" . $appendNote
-                    : $appendNote;
-
-                $stmt = $pdo->prepare("
-                    UPDATE tasks
-                    SET recurrence_total = ?,
-                        recurrence_remaining = ?,
-                        notes = ?
-                    WHERE id = ?
-                      AND status IN ('de_programat', 'contactat', 'amanat')
-                      AND recurrence_type != 'none'
-                      AND recurrence_stopped = 0
-                ");
-                $stmt->execute([
-                    $newTotal,
-                    $newRemaining,
-                    $newNotes,
-                    $taskId
-                ]);
-
-                header("Location: tasks.php?extended=1&date=" . urlencode($task['due_date']));
-                exit;
-            }
-        }
-
-        header("Location: tasks.php?extend_error=1");
-        exit;
-    }
-
-    if ($action === 'skip_task') {
-        $taskId = (int)($_POST['task_id'] ?? 0);
-        $reasonPreset = trim($_POST['skip_reason_preset'] ?? '');
-        $reasonCustom = trim($_POST['skip_reason_custom'] ?? '');
-        $skipReason = $reasonCustom !== '' ? $reasonCustom : $reasonPreset;
-
-        if ($skipReason === '') {
-            $skipReason = 'Clientul nu doreste intervenția luna aceasta';
-        }
-
-        if ($taskId > 0) {
-            $stmt = $pdo->prepare("
-                SELECT *
-                FROM tasks
-                WHERE id = ?
-                LIMIT 1
-            ");
-            $stmt->execute([$taskId]);
-            $task = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if ($task && in_array($task['status'], ['de_programat', 'contactat', 'amanat'], true)) {
-                $oldNotes = trim((string)($task['notes'] ?? ''));
-                $skipNote = "Sarcină omisa: " . $skipReason . " (" . date('d.m.Y H:i') . ")";
-                $newNotes = $oldNotes !== '' ? $oldNotes . "
-
-" . $skipNote : $skipNote;
-
-                $stmt = $pdo->prepare("
-                    UPDATE tasks
-                    SET status = 'skipped',
-                        skipped_at = NOW(),
-                        skipped_reason = ?,
-                        notes = ?
-                    WHERE id = ?
-                      AND status IN ('de_programat', 'contactat', 'amanat')
-                ");
-                $stmt->execute([$skipReason, $newNotes, $taskId]);
-
-                $recurrenceType = $task['recurrence_type'] ?? 'none';
-                $recurrenceRemaining = max(1, (int)($task['recurrence_remaining'] ?? 1));
-
-                if (
-                    $recurrenceType !== 'none' &&
-                    (int)($task['recurrence_stopped'] ?? 0) === 0 &&
-                    $recurrenceRemaining > 1
-                ) {
-                    $recurrenceGroup = $task['recurrence_group'] ?: make_task_recurrence_group();
-
-                    if (!$task['recurrence_group']) {
-                        $stmt = $pdo->prepare("
-                            UPDATE tasks
-                            SET recurrence_group = ?
-                            WHERE id = ?
-                        ");
-                        $stmt->execute([$recurrenceGroup, $taskId]);
-                    }
-
-                    $stmt = $pdo->prepare("
-                        SELECT id
-                        FROM tasks
-                        WHERE recurrence_group = ?
-                          AND id != ?
-                          AND due_date > ?
-                        ORDER BY due_date ASC, id ASC
-                        LIMIT 1
-                    ");
-                    $stmt->execute([$recurrenceGroup, $taskId, $task['due_date']]);
-                    $futureTask = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                    if (!$futureTask && empty($task['generated_next_task_id'])) {
-                        $nextDueDate = task_next_due_date(
-                            $task['due_date'],
-                            $recurrenceType,
-                            $task['recurrence_days'] ? (int)$task['recurrence_days'] : null
-                        );
-
-                        if ($nextDueDate > $task['due_date']) {
-                            $nextRemaining = max(1, $recurrenceRemaining - 1);
-                            $nextIndex = max(1, (int)($task['recurrence_index'] ?? 1)) + 1;
-
-                            $stmt = $pdo->prepare("
-                                INSERT INTO tasks
-                                (
-                                    client_id,
-                                    client_location_id,
-                                    title,
-                                    service_type,
-                                    address,
-                                    contact_person,
-                                    contact_phone,
-                                    due_date,
-                                    recurrence_type,
-                                    recurrence_days,
-                                    recurrence_group,
-                                    recurrence_total,
-                                    recurrence_remaining,
-                                    recurrence_stopped,
-                                    recurrence_index,
-                                    generated_from_task_id,
-                                    generated_next_task_id,
-                                    status,
-                                    appointment_id,
-                                    notes
-                                )
-                                VALUES
-                                (
-                                    ?, ?, ?, ?, ?,
-                                    ?, ?, ?, ?, ?,
-                                    ?, ?, ?, 0, ?,
-                                    ?, NULL, 'de_programat', NULL, ?
-                                )
-                            ");
-                            $stmt->execute([
-                                $task['client_id'] ?: null,
-                                $task['client_location_id'] ?: null,
-                                $task['title'] ?: null,
-                                $task['service_type'] ?: null,
-                                $task['address'] ?: null,
-                                $task['contact_person'] ?: null,
-                                $task['contact_phone'] ?: null,
-                                $nextDueDate,
-                                $recurrenceType,
-                                $task['recurrence_days'] ? (int)$task['recurrence_days'] : null,
-                                $recurrenceGroup,
-                                max(1, (int)($task['recurrence_total'] ?? 1)),
-                                $nextRemaining,
-                                $nextIndex,
-                                $taskId,
-                                $oldNotes !== '' ? $oldNotes : null
-                            ]);
-
-                            $nextTaskId = (int)$pdo->lastInsertId();
-
-                            $stmt = $pdo->prepare("
-                                UPDATE tasks
-                                SET generated_next_task_id = ?,
-                                    recurrence_remaining = 1
-                                WHERE id = ?
-                            ");
-                            $stmt->execute([$nextTaskId, $taskId]);
-                        }
-                    }
-                }
-
-                header("Location: tasks.php?skipped=1&date=" . urlencode($task['due_date']));
-                exit;
-            }
-        }
-
-        header("Location: tasks.php?skip_error=1");
-        exit;
-    }
-
-    if ($action === 'delete') {
-        $taskId = (int)($_POST['task_id'] ?? 0);
-
-        if ($taskId > 0) {
-            $stmt = $pdo->prepare("
-                DELETE FROM tasks
-                WHERE id = ?
-                  AND status != 'programat'
-            ");
-            $stmt->execute([$taskId]);
-
-            header("Location: tasks.php?deleted=1");
-            exit;
-        }
-
-        header("Location: tasks.php?error=1");
-        exit;
-    }
-
-    if ($action === 'stop_future') {
-        $taskId = (int)($_POST['task_id'] ?? 0);
-
-        if ($taskId > 0) {
-            $stmt = $pdo->prepare("
-                SELECT id, recurrence_group, due_date
-                FROM tasks
-                WHERE id = ?
-                LIMIT 1
-            ");
-            $stmt->execute([$taskId]);
-            $task = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if ($task) {
-                $recurrenceGroup = $task['recurrence_group'] ?: make_task_recurrence_group();
-
-                if (!$task['recurrence_group']) {
-                    $stmt = $pdo->prepare("
-                        UPDATE tasks
-                        SET recurrence_group = ?
-                        WHERE id = ?
-                    ");
-                    $stmt->execute([$recurrenceGroup, $taskId]);
-                }
-
-                $stmt = $pdo->prepare("
-                    DELETE FROM tasks
-                    WHERE recurrence_group = ?
-                      AND id != ?
-                      AND due_date >= ?
-                      AND status IN ('de_programat', 'contactat', 'amanat')
-                ");
-                $stmt->execute([
-                    $recurrenceGroup,
-                    $taskId,
-                    $task['due_date']
-                ]);
-
-                $stmt = $pdo->prepare("
-                    UPDATE tasks
-                    SET recurrence_stopped = 1,
-                        recurrence_remaining = 1
-                    WHERE recurrence_group = ?
-                ");
-                $stmt->execute([$recurrenceGroup]);
-
-                header("Location: tasks.php?stopped=1&date=" . urlencode($task['due_date']));
-                exit;
-            }
-        }
-
-        header("Location: tasks.php?error=1");
-        exit;
-    }
-}
+// POST handler extras în tasks_post_handler.php (CRUD task-uri).
+require __DIR__ . '/tasks_post_handler.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -1215,7 +532,7 @@ foreach ($tasks as $task) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap" rel="stylesheet">
 
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 
@@ -1727,7 +1044,6 @@ foreach ($tasks as $task) {
 }
 
 
-
 /* Final mobile alignment fix: center compact task controls and keep KPI pills away from left accent line */
 @media (max-width: 720px) {
     .tasks-toolbar {
@@ -1872,7 +1188,6 @@ foreach ($tasks as $task) {
         flex-basis: 15px !important;
     }
 }
-
 
 
 /* Final fix 14.05: mobile centering for Tasks top controls and KPI chips */
@@ -2333,6 +1648,69 @@ foreach ($tasks as $task) {
         letter-spacing: 0 !important;
     }
 }
+/* ══ Design System v2.4 fixes ══ */
+* { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
+
+/* Hero: fără gradient, fără shadow, simplu și clar */
+.tasks-hero {
+    background: var(--pz-surf) !important;
+    border: 1px solid var(--pz-line) !important;
+    border-left: 4px solid var(--pz-bl) !important;
+    border-radius: var(--pz-r) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    color: var(--pz-title) !important;
+    padding: 16px 20px !important;
+}
+.tasks-hero::before, .tasks-hero::after { display: none !important; }
+.tasks-hero-copy { padding-left: 0 !important; }
+.tasks-hero h1 { font-size: 22px !important; font-weight: 700 !important; letter-spacing: -.01em !important; color: var(--pz-title) !important; }
+.tasks-hero p  { font-size: 13px !important; color: var(--pz-mu) !important; margin-top: 5px !important; }
+
+/* Stat pills: fără glas/blur */
+.stat-pill {
+    background: var(--pz-soft) !important;
+    border: 1px solid var(--pz-line) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    color: var(--pz-text) !important;
+    border-radius: var(--pz-rs) !important;
+}
+.stat-pill.stat-overdue { background: var(--pz-res) !important; border-color: var(--pz-reb) !important; color: var(--pz-re) !important; }
+.stat-pill.stat-today   { background: var(--pz-bls) !important; border-color: var(--pz-blb) !important; color: var(--pz-bld) !important; }
+.stat-pill.stat-active  { background: var(--pz-grs) !important; border-color: var(--pz-grb) !important; color: var(--pz-gr) !important; }
+
+/* Calendar card: fără shadow */
+.tasks-calendar-card { box-shadow: none !important; border-radius: var(--pz-r) !important; }
+
+/* Filter select: conform DS */
+.tasks-filter-line select, .tasks-filter-line input {
+    border: 1px solid var(--pz-line) !important;
+    border-radius: var(--pz-rs) !important;
+    background: var(--pz-surf) !important;
+    color: var(--pz-text) !important;
+    box-shadow: none !important;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
+}
+
+/* Border radii */
+.pz-autocomplete-results, .pz-autocomplete-input, .pz-autocomplete-selected { border-radius: var(--pz-rs) !important; }
+.pz-autocomplete-result { border-radius: var(--pz-rs) !important; }
+.tasks-status-legend span { border-radius: var(--pz-rs) !important; }
+.task-view-btn { border-radius: var(--pz-rs) !important; }
+.tasks-action-line .btn { border-radius: var(--pz-rs) !important; }
+.tasks-filter-line .btn { border-radius: var(--pz-rs) !important; }
+.task-details-section { border-radius: var(--pz-rs) !important; background: var(--pz-soft) !important; border: 1px solid var(--pz-lines) !important; color: var(--pz-mu) !important; }
+
+/* Font weights max 700 */
+.tasks-hero h1, .tasks-view-switcher .task-view-btn, .stat-pill,
+.fc .fc-toolbar-title, .fc-event { font-weight: 700 !important; }
+.fc .fc-daygrid-day-number { font-weight: 600 !important; }
+
+/* Culori hardcodate → tokeni */
+.tasks-filter-line select, .tasks-filter-line input { color: var(--pz-text) !important; }
 </style>
 </head>
 

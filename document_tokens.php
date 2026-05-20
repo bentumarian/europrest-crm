@@ -795,18 +795,20 @@ if (!function_exists('pzdoc_materials_table_html')) {
         $deferredConsumption = (($payload['stock_consumption_deferred'] ?? '') === '1');
 
         if ($type === 'proces_verbal') {
-            $tableStyle = 'font-size:7.6pt;line-height:1.12;margin:4px 0 8px 0;';
-            $thStyle = 'font-size:7.3pt;line-height:1.08;padding:3px 4px;text-align:center;vertical-align:middle;';
-            $tdStyle = 'font-size:7.5pt;line-height:1.12;padding:3px 4px;text-align:center;vertical-align:middle;';
+            $tableStyle = 'font-size:7.6pt;line-height:1.12;margin:4px 0 8px 0;table-layout:auto;';
+            $thStyle = 'font-size:7.3pt;line-height:1.08;padding:3px 5px;text-align:center;vertical-align:middle;white-space:nowrap;';
+            $tdStyle = 'font-size:7.5pt;line-height:1.12;padding:3px 5px;text-align:center;vertical-align:middle;white-space:normal;overflow-wrap:break-word;';
+            $tdCompactStyle = 'font-size:7.5pt;line-height:1.12;padding:3px 5px;text-align:center;vertical-align:middle;white-space:nowrap;';
             $html = '<table class="pzdoc-table pzdoc-materials-table" width="100%" cellspacing="0" cellpadding="0" style="' . $tableStyle . '">';
             $html .= '<thead><tr>';
-            $html .= '<th style="width:24%;' . $thStyle . '">DENUMIRE</th>';
-            $html .= '<th style="width:16%;' . $thStyle . '">NR. AVIZ</th>';
-            $html .= '<th style="width:10%;' . $thStyle . '">LOT</th>';
-            $html .= '<th style="width:15%;' . $thStyle . '">VALABILITATE</th>';
-            $html .= '<th style="width:11%;' . $thStyle . '">DILUȚIE %</th>';
-            $html .= '<th style="width:12%;' . $thStyle . '">CANTITATE</th>';
-            $html .= '<th style="width:12%;' . $thStyle . '">APLICARE</th>';
+            $html .= '<th style="' . $thStyle . '">DENUMIRE</th>';
+            $html .= '<th style="' . $thStyle . '">NR. AVIZ</th>';
+            $html .= '<th style="' . $thStyle . '">LOT</th>';
+            $html .= '<th style="' . $thStyle . '">VALABILITATE</th>';
+            $html .= '<th style="' . $thStyle . '">DILUTIE %</th>';
+            $html .= '<th style="' . $thStyle . '">CANTITATE</th>';
+            $html .= '<th style="' . $thStyle . '">UM</th>';
+            $html .= '<th style="' . $thStyle . '">APLICARE</th>';
             $html .= '</tr></thead><tbody>';
 
             foreach ($materials as $m) {
@@ -821,15 +823,17 @@ if (!function_exists('pzdoc_materials_table_html')) {
                 $concentration = $deferredConsumption ? '' : (string)($m['work_concentration'] ?? '');
                 $rawQty = $m['quantity'] ?? null;
                 $qtyText = ($deferredConsumption || $rawQty === null || $rawQty === '') ? '' : pzdoc_format_qty_display($rawQty);
+                $unitText = $deferredConsumption ? '' : trim((string)($m['unit'] ?? ''));
 
                 $html .= '<tr>';
                 $html .= '<td style="' . $tdStyle . '">' . pzdoc_token_text($m['material_name'] ?? '-') . '</td>';
-                $html .= '<td style="' . $tdStyle . '">' . pzdoc_token_text($m['aviz_no'] ?? '') . '</td>';
-                $html .= '<td style="' . $tdStyle . '">' . pzdoc_token_text($m['lot_number'] ?? '') . '</td>';
-                $html .= '<td style="' . $tdStyle . '">' . pzdoc_h(pzdoc_format_date_display($m['expiry_date'] ?? null, '')) . '</td>';
-                $html .= '<td style="' . $tdStyle . '">' . pzdoc_token_text($concentration, '') . '</td>';
-                $html .= '<td style="' . $tdStyle . '">' . pzdoc_h($qtyText) . '</td>';
-                $html .= '<td style="' . $tdStyle . '">' . pzdoc_token_text($method, '') . '</td>';
+                $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_token_text($m['aviz_no'] ?? '') . '</td>';
+                $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_token_text($m['lot_number'] ?? '') . '</td>';
+                $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_h(pzdoc_format_date_display($m['expiry_date'] ?? null, '')) . '</td>';
+                $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_token_text($concentration, '') . '</td>';
+                $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_h($qtyText) . '</td>';
+                $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_h($unitText) . '</td>';
+                $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_token_text($method, '') . '</td>';
                 $html .= '</tr>';
             }
 
@@ -1457,6 +1461,30 @@ if (!function_exists('pzdoc_pv_services_compact_html')) {
     }
 }
 
+if (!function_exists('pzdoc_public_url')) {
+    function pzdoc_public_url(string $path = ''): string
+    {
+        $path = ltrim($path, '/');
+        if (defined('APP_URL') && APP_URL) {
+            return rtrim((string)APP_URL, '/') . '/' . $path;
+        }
+
+        $isHttps = (
+            (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off') ||
+            (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string)$_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https') ||
+            (!empty($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443)
+        );
+        $scheme = $isHttps ? 'https' : 'http';
+        $host = (string)($_SERVER['HTTP_HOST'] ?? 'app.pestzone.ro');
+        $baseDir = rtrim(str_replace('\\', '/', dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/'))), '/');
+        if ($baseDir === '' || $baseDir === '.') {
+            $baseDir = '';
+        }
+
+        return $scheme . '://' . $host . $baseDir . '/' . $path;
+    }
+}
+
 if (!function_exists('pzdoc_build_tokens')) {
     function pzdoc_build_tokens(PDO $pdo, array $document): array
     {
@@ -1469,6 +1497,7 @@ if (!function_exists('pzdoc_build_tokens')) {
         $basisDocument = pzdoc_basis_document_text($pdo, $document, $payload);
         $clientRepresentativeRole = pzdoc_client_representative_role_text($pdo, $document, $payload);
         $contractFirstItemTokens = pzdoc_contract_first_item_tokens($document);
+        $publicAvizeUrl = pzdoc_public_url('avize_sanitare.php');
 
         $validDays = (int)($payload['valid_days'] ?? 0);
         if ($validDays <= 0) {
@@ -1547,6 +1576,15 @@ if (!function_exists('pzdoc_build_tokens')) {
             'payment_terms' => pzdoc_token_multiline($paymentTerms),
             'payment_due_days' => pzdoc_token_text($paymentDueDays),
             'termen_plata_zile' => pzdoc_token_text($paymentDueDays),
+            // Datele perioadei contractului: formatate explicit (RO: dd.mm.yyyy) ca sa
+            // bata valoarea raw injectata automat de pzdoc_payload_tokens($payload).
+            'contract_start_date' => pzdoc_h(pzdoc_format_date_display($payload['contract_start_date'] ?? null)),
+            'contract_end_date' => pzdoc_h(pzdoc_format_date_display($payload['contract_end_date'] ?? null)),
+            // Tokeni pentru act adițional (pop. din payload de addenda.php; goale pentru alte tipuri)
+            'parent_contract_number' => pzdoc_token_text($payload['parent_contract_number'] ?? '', '-'),
+            'parent_contract_date' => pzdoc_h(pzdoc_format_date_display($payload['parent_contract_date'] ?? null)),
+            'addendum_start_date' => pzdoc_h(pzdoc_format_date_display($payload['addendum_start_date'] ?? null)),
+            'addendum_end_date' => pzdoc_h(pzdoc_format_date_display($payload['addendum_end_date'] ?? null)),
             'delivery_terms' => pzdoc_token_multiline($payload['delivery_terms'] ?? ''),
             'offer_intro' => pzdoc_token_multiline($offerIntro),
             'offer_footer' => pzdoc_token_multiline($offerFooter),
@@ -1614,6 +1652,9 @@ if (!function_exists('pzdoc_build_tokens')) {
             'location_area' => pzdoc_token_text($locationSurface, ''),
             'suprafata_locație' => pzdoc_token_text($locationSurface, ''),
             'surface_text' => pzdoc_token_text($locationSurface, ''),
+            'treated_areas' => pzdoc_token_multiline($payload['treated_areas'] ?? ''),
+            'zone_tratate' => pzdoc_token_multiline($payload['treated_areas'] ?? ''),
+            'pv_treated_areas' => pzdoc_token_multiline($payload['treated_areas'] ?? ''),
             'location_block' => pzdoc_location_block_html($document),
 
             'items_table' => pzdoc_items_table_html($document),
@@ -1626,6 +1667,10 @@ if (!function_exists('pzdoc_build_tokens')) {
             'biocides_table' => pzdoc_materials_table_html($document),
             'materials_safety' => pzdoc_materials_safety_html($document),
             'safety_measures' => pzdoc_materials_safety_html($document),
+            'avize_sanitare_url' => pzdoc_h($publicAvizeUrl),
+            'avize_sanitare_link' => '<a href="' . pzdoc_h($publicAvizeUrl) . '" target="_blank" rel="noopener">Descarcă avizele sanitare ale produselor</a>',
+            'product_avize_url' => pzdoc_h($publicAvizeUrl),
+            'product_avize_link' => '<a href="' . pzdoc_h($publicAvizeUrl) . '" target="_blank" rel="noopener">Descarcă avizele sanitare ale produselor</a>',
 
             'notes' => pzdoc_token_multiline($document['notes'] ?? ''),
             'executor_notes' => pzdoc_token_multiline($document['executor_notes'] ?? ''),
@@ -1790,7 +1835,7 @@ if (!function_exists('pzdoc_available_tokens')) {
                 '{{client_representative}}', '{{client_representative_role}}', '{{client_tax_id}}', '{{client_reg_com}}', '{{client_email}}', '{{client_phone}}', '{{client_signature}}', '{{client_signature_saved_at}}',
             ],
             'Locație' => [
-                '{{location_block}}', '{{location_name}}', '{{location_address}}', '{{location_contact}}', '{{location_phone}}', '{{location_surface}}', '{{suprafata_locație}}', '{{surface_text}}',
+                '{{location_block}}', '{{location_name}}', '{{location_address}}', '{{location_contact}}', '{{location_phone}}', '{{location_surface}}', '{{suprafata_locație}}', '{{surface_text}}', '{{treated_areas}}', '{{zone_tratate}}', '{{pv_treated_areas}}',
             ],
             'Programare' => [
                 '{{programare_client}}', '{{programare_reprezentant_client}}', '{{programare_locație}}', '{{programare_adresa_locație}}',
@@ -1804,9 +1849,15 @@ if (!function_exists('pzdoc_available_tokens')) {
             'Observații' => [
                 '{{notes}}', '{{executor_notes}}', '{{recommendations}}', '{{client_notes}}', '{{internal_notes}}', '{{offer_intro}}', '{{offer_footer}}',
             ],
+            'Avize sanitare' => [
+                '{{avize_sanitare_link}}', '{{avize_sanitare_url}}', '{{product_avize_link}}', '{{product_avize_url}}',
+            ],
             'Date suplimentare' => [
                 '{{contract_number}}', '{{numar_contract}}', '{{document_baza}}', '{{basis_document}}', '{{in_baza}}', '{{pv_basis}}',
                 '{{contract_start_date}}', '{{contract_end_date}}', '{{contract_value}}', '{{auto_renewal_text}}', '{{payment_terms}}', '{{payment_due_days}}', '{{termen_plata_zile}}', '{{valid_days}}', '{{valid_until}}', '{{delivery_terms}}', '{{discount_label}}', '{{discount_amount}}', '{{discount_block}}', '{{prices_without_vat_note}}',
+            ],
+            'Act adițional' => [
+                '{{parent_contract_number}}', '{{parent_contract_date}}', '{{addendum_start_date}}', '{{addendum_end_date}}',
             ],
         ];
     }

@@ -234,6 +234,50 @@ textarea:focus,select:focus{border-color:#93C5FD;box-shadow:0 0 0 4px rgba(29,78
 @media(max-width:680px){
     body{padding:12px;align-items:flex-start}.shell{max-width:100%}.card{border-radius:24px}.hero,.body{padding:22px 18px}.hero-top{flex-direction:column}.badge{align-self:flex-start}h1{font-size:27px}.stars{gap:7px}.star-option span{min-height:62px;border-radius:16px}.star-option span b{font-size:23px}.star-option span small{font-size:11px}.score-row{gap:6px}.score-row label span{height:40px}.client-box{align-items:flex-start;flex-direction:column}.actions .btn{width:100%}
 }
+
+/* ══ DS v2.4 fixes — feedback (flat, fara glassmorphism) ══ */
+body{
+    background: #F8FAFC !important;
+}
+.card{
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+.hero{
+    background: #FFFFFF !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+}
+.hero:before{ display: none !important; }
+.logo{
+    background: #2563EB !important;
+    box-shadow: none !important;
+}
+.body{ background: #FFFFFF !important; }
+.btn{
+    background: #2563EB !important;
+    box-shadow: none !important;
+    border-radius: 8px !important;
+}
+.btn:hover{ background: #1E3A8A !important; filter: none !important; }
+.btn.secondary{ background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; }
+.google-box{
+    background: #EFF6FF !important;
+    border: 1px solid #BFDBFE !important;
+    border-radius: 8px !important;
+}
+.question-card{ box-shadow: none !important; border-radius: 8px !important; }
+.star-option span{ border-radius: 8px !important; }
+.star-option input:checked+span{ box-shadow: none !important; background: #EFF6FF !important; border-color: #2563EB !important; }
+.star-option span:hover{ box-shadow: none !important; transform: none !important; border-color: #BFDBFE !important; }
+.score-row input:checked+span{ box-shadow: none !important; }
+.notice{ border-radius: 4px !important; }
+.client-box{ border-radius: 8px !important; }
+textarea, select{ border-radius: 4px !important; }
+textarea:focus, select:focus{ box-shadow: 0 0 0 3px #EFF6FF !important; border-color: #2563EB !important; }
 </style>
 </head>
 <body>

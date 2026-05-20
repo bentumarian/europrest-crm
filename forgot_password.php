@@ -219,6 +219,57 @@ input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(17,96,183
     .brand-badge img { width: 48px; height: 48px; }
     .login-title { font-size: 23px; }
 }
+
+/* ══ Design System v2.4 fixes — forgot_password ══ */
+/* Aliniere cu login.php: flat, fara glassmorphism */
+
+body.login {
+    background: var(--pz-soft, #F8FAFC) !important;
+}
+body.login::before { display: none !important; }
+body.login::after { display: none !important; }
+
+.login-card {
+    background: var(--pz-surf, #FFFFFF) !important;
+    border: 1px solid var(--pz-line, #E2E8F0) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+.login-card::before { display: none !important; }
+.login-card::after { display: none !important; }
+
+.brand-badge {
+    background: var(--pz-bl, #2563EB) !important;
+    box-shadow: none !important;
+}
+.brand-badge::before { display: none !important; }
+
+.login-form input,
+.login-form .input {
+    background: var(--pz-surf, #FFFFFF) !important;
+    border: 1px solid var(--pz-line, #E2E8F0) !important;
+    box-shadow: none !important;
+}
+.login-form input:focus,
+.login-form .input:focus {
+    border-color: var(--pz-bl, #2563EB) !important;
+    box-shadow: 0 0 0 3px var(--pz-bls, #EFF6FF) !important;
+    background: var(--pz-surf, #FFFFFF) !important;
+}
+
+.btn-primary, .login-form .btn, button[type="submit"] {
+    background: var(--pz-bl, #2563EB) !important;
+    border: 1px solid var(--pz-bl, #2563EB) !important;
+    box-shadow: none !important;
+    color: #fff !important;
+}
+.btn-primary:hover, .login-form .btn:hover, button[type="submit"]:hover {
+    background: var(--pz-bld, #1E3A8A) !important;
+    border-color: var(--pz-bld, #1E3A8A) !important;
+    transform: none !important;
+}
+
 </style>
 </head>
 <body>

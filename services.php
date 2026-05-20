@@ -15,9 +15,7 @@ if (!$isAdmin) {
 | Helpers
 |--------------------------------------------------------------------------
 */
-function h($value): string {
-    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
-}
+// h() este definit global în app_helpers.php (inclus prin app_ui.php).
 
 function table_exists_services(PDO $pdo, string $table): bool {
     $stmt = $pdo->prepare("
@@ -321,7 +319,7 @@ $durationOptions = [
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap" rel="stylesheet">
 
 <?php app_theme_css(); ?>
 

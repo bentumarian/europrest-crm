@@ -35,74 +35,58 @@ function di_download_import_template(): void
     }
 
     $headers = [
-        '# ID',
-        'Companie',
-        'CUI/Serie și nr CI',
-        'Nr. reg. com./CNP',
-        'Telefon contact',
-        'E-mail contact',
-        'Județ livrare',
-        'Oraș livrare',
-        'Județ facturare',
-        'Oraș facturare',
-        'Stradă facturare',
-        'Stradă livrare',
-        'Nume contact',
-        'Funcție contact',
-        'Responsabili client',
+        'DENUMIRE',
+        'CUI',
+        'NUMAR REGISTRU COMERTULUI',
+        'TARA',
+        'JUDET',
+        'ORAS/SECTOR',
+        'ADRESA',
+        'REPREZENTANT',
+        'FUNCTIE',
+        'EMAIL',
+        'NUMAR DE TELEFON',
     ];
 
     $rows = [
         [
-            '1',
             'CLIENT EXEMPLU S.R.L.',
             'RO12345678',
             'J13/123/2024',
-            '0722123456',
-            'office@client-exemplu.ro',
-            '',
-            '',
+            'Romania',
             'Constanta',
             'Constanta',
             'Str. Exemplu nr. 10',
-            '',
             'Popescu Ion',
             'Administrator',
-            'Marian',
+            'office@client-exemplu.ro',
+            '0722123456',
         ],
         [
-            '2',
-            'CLIENT CU PUNCT DE LUCRU S.R.L.',
+            'CLIENT CU SEDIU IN BUCURESTI S.R.L.',
             'RO87654321',
             'J40/999/2023',
-            '0733123456',
-            'contact@client.ro',
-            'Ilfov',
-            'Voluntari',
+            'Romania',
             'Bucuresti',
-            'Bucuresti',
+            'Sector 2',
             'Str. Sediu Social nr. 1',
-            'Bld. Pipera nr. 26',
             'Ionescu Maria',
-            'Manager',
-            'Birou Bucuresti',
+            'Administrator',
+            'contact@client.ro',
+            '0733123456',
         ],
         [
-            '3',
             'PERSOANA FIZICA EXEMPLU',
             'CT123456',
             '',
-            '0744123456',
-            '',
-            '',
-            '',
+            'Romania',
             'Constanta',
             'Constanta',
             'Str. Client PF nr. 5',
-            '',
             'Georgescu Andrei',
             '',
             '',
+            '0744123456',
         ],
     ];
 
@@ -124,7 +108,7 @@ function di_download_import_template(): void
 
     $colsXml = '';
     for ($i = 1; $i <= count($headers); $i++) {
-        $width = in_array($i, [2, 11, 12, 13, 15], true) ? 28 : 18;
+        $width = in_array($i, [1, 3, 7, 8, 10], true) ? 30 : 18;
         $colsXml .= '<col min="' . $i . '" max="' . $i . '" width="' . $width . '" customWidth="1"/>';
     }
 
@@ -207,8 +191,99 @@ function di_download_import_template(): void
     exit;
 }
 
+function di_import_template_headers(): array
+{
+    return [
+        'DENUMIRE',
+        'CUI',
+        'NUMAR REGISTRU COMERTULUI',
+        'TARA',
+        'JUDET',
+        'ORAS/SECTOR',
+        'ADRESA',
+        'REPREZENTANT',
+        'FUNCTIE',
+        'EMAIL',
+        'NUMAR DE TELEFON',
+    ];
+}
+
+function di_import_template_rows(): array
+{
+    return [
+        [
+            'CLIENT EXEMPLU S.R.L.',
+            'RO12345678',
+            'J13/123/2024',
+            'Romania',
+            'Constanta',
+            'Constanta',
+            'Str. Exemplu nr. 10',
+            'Popescu Ion',
+            'Administrator',
+            'office@client-exemplu.ro',
+            '0722123456',
+        ],
+        [
+            'CLIENT CU SEDIU IN BUCURESTI S.R.L.',
+            'RO87654321',
+            'J40/999/2023',
+            'Romania',
+            'Bucuresti',
+            'Sector 2',
+            'Str. Sediu Social nr. 1',
+            'Ionescu Maria',
+            'Administrator',
+            'contact@client.ro',
+            '0733123456',
+        ],
+        [
+            'PERSOANA FIZICA EXEMPLU',
+            'CT123456',
+            '',
+            'Romania',
+            'Constanta',
+            'Constanta',
+            'Str. Client PF nr. 5',
+            'Georgescu Andrei',
+            '',
+            '',
+            '0744123456',
+        ],
+    ];
+}
+
+function di_download_import_template_xls(): void
+{
+    $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><table border="1"><thead><tr>';
+
+    foreach (di_import_template_headers() as $header) {
+        $html .= '<th style="mso-number-format:\@;">' . di_h($header) . '</th>';
+    }
+
+    $html .= '</tr></thead><tbody>';
+
+    foreach (di_import_template_rows() as $row) {
+        $html .= '<tr>';
+        foreach ($row as $cell) {
+            $html .= '<td style="mso-number-format:\@;">' . di_h($cell) . '</td>';
+        }
+        $html .= '</tr>';
+    }
+
+    $html .= '</tbody></table></body></html>';
+
+    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="sablon_import_clienti_pestzone.xls"');
+    header('Content-Length: ' . strlen($html));
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+
+    echo $html;
+    exit;
+}
+
 if (isset($_GET['download_template']) && (string)$_GET['download_template'] === '1') {
-    di_download_import_template();
+    di_download_import_template_xls();
 }
 
 
@@ -287,6 +362,7 @@ function di_norm_header(string $s): string
     $from = ['ă','â','î','ș','ş','ț','ţ'];
     $to   = ['a','a','i','s','s','t','t'];
     $s = str_replace($from, $to, $s);
+    $s = str_replace(['ă','â','î','ș','ş','ț','ţ'], ['a','a','i','s','s','t','t'], $s);
 
     $s = preg_replace('/[^a-z0-9]+/u', '_', $s);
     $s = trim($s, '_');
@@ -360,6 +436,21 @@ function di_join_address($street, $city, $county): string
     $parts = [];
 
     foreach ([$street, $city, $county] as $part) {
+        $part = trim((string)$part);
+
+        if ($part !== '') {
+            $parts[] = $part;
+        }
+    }
+
+    return implode(', ', $parts);
+}
+
+function di_join_fiscal_address($addressLine, $city, $county, $country): string
+{
+    $parts = [];
+
+    foreach ([$addressLine, $city, $county, $country] as $part) {
         $part = trim((string)$part);
 
         if ($part !== '') {
@@ -519,22 +610,42 @@ function di_read_xlsx(string $file): array
     */
     $knownHeaders = [
         'id',
+        'old_id',
         'companie',
+        'firma',
+        'client',
+        'denumire',
         'cui_serie_si_nr_ci',
+        'cui_serie_nr_ci',
         'cui',
         'nr_reg_com_cnp',
+        'nr_reg_com',
+        'numar_registru_comertului',
+        'numar_de_registru_comertului',
+        'tara',
+        'judet',
+        'judet_facturare',
+        'oras_sector',
+        'oras_localitate',
+        'oras_facturare',
+        'adresa',
+        'strada_facturare',
         'telefon_contact',
+        'numar_de_telefon',
+        'telefon',
         'e_mail_contact',
         'email_contact',
-        'județ_livrare',
-        'oraș_livrare',
-        'județ_facturare',
-        'oraș_facturare',
-        'strada_facturare',
-        'strada_livrare',
+        'email',
+        'administrator_reprezentant',
+        'administrator',
+        'reprezentant',
         'nume_contact',
         'functie_contact',
+        'functie',
         'responsabili_client',
+        'judet_livrare',
+        'oras_livrare',
+        'strada_livrare',
     ];
 
     $headerIndex = 0;
@@ -587,6 +698,161 @@ function di_read_xlsx(string $file): array
     ];
 }
 
+function di_csv_delimiter(string $line): string
+{
+    $delimiters = [';' => substr_count($line, ';'), ',' => substr_count($line, ','), "\t" => substr_count($line, "\t")];
+    arsort($delimiters);
+
+    return (string)array_key_first($delimiters);
+}
+
+function di_read_csv(string $file): array
+{
+    $handle = fopen($file, 'r');
+
+    if ($handle === false) {
+        throw new RuntimeException('Fisierul CSV nu poate fi deschis.');
+    }
+
+    $firstLine = fgets($handle);
+
+    if ($firstLine === false) {
+        fclose($handle);
+        throw new RuntimeException('CSV-ul nu contine randuri.');
+    }
+
+    $delimiter = di_csv_delimiter($firstLine);
+    rewind($handle);
+
+    $allRows = [];
+
+    while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+        if (!$row) {
+            continue;
+        }
+
+        $row = array_map(static function ($value): string {
+            $value = preg_replace('/^\xEF\xBB\xBF/', '', (string)$value);
+            return trim($value);
+        }, $row);
+
+        $firstCell = strtolower(trim((string)($row[0] ?? '')));
+        if ($firstCell === 'sep=;' || $firstCell === 'sep=' || strpos($firstCell, 'sep=') === 0) {
+            continue;
+        }
+
+        $hasValue = false;
+        foreach ($row as $cell) {
+            if (trim((string)$cell) !== '') {
+                $hasValue = true;
+                break;
+            }
+        }
+
+        if ($hasValue) {
+            $allRows[] = $row;
+        }
+    }
+
+    fclose($handle);
+
+    if (!$allRows) {
+        throw new RuntimeException('CSV-ul nu contine randuri.');
+    }
+
+    $headers = array_shift($allRows);
+    $headerCount = count($headers);
+
+    foreach ($allRows as &$row) {
+        for ($i = 0; $i < $headerCount; $i++) {
+            if (!isset($row[$i])) {
+                $row[$i] = '';
+            }
+        }
+
+        $row = array_slice($row, 0, $headerCount);
+    }
+    unset($row);
+
+    return [
+        'headers' => $headers,
+        'rows' => $allRows,
+    ];
+}
+
+function di_read_html_xls(string $file): array
+{
+    $html = file_get_contents($file);
+
+    if ($html === false || trim($html) === '') {
+        throw new RuntimeException('Fisierul XLS nu poate fi deschis.');
+    }
+
+    libxml_use_internal_errors(true);
+    $dom = new DOMDocument();
+    $loaded = $dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+    libxml_clear_errors();
+
+    if (!$loaded) {
+        throw new RuntimeException('Fisierul XLS nu poate fi citit.');
+    }
+
+    $rows = [];
+    foreach ($dom->getElementsByTagName('tr') as $tr) {
+        $row = [];
+
+        foreach ($tr->childNodes as $cell) {
+            if (!in_array(strtolower($cell->nodeName), ['td', 'th'], true)) {
+                continue;
+            }
+
+            $row[] = trim((string)$cell->textContent);
+        }
+
+        if ($row) {
+            $rows[] = $row;
+        }
+    }
+
+    if (!$rows) {
+        throw new RuntimeException('Fisierul XLS nu contine randuri.');
+    }
+
+    $headers = array_shift($rows);
+    $headerCount = count($headers);
+
+    foreach ($rows as &$row) {
+        for ($i = 0; $i < $headerCount; $i++) {
+            if (!isset($row[$i])) {
+                $row[$i] = '';
+            }
+        }
+
+        $row = array_slice($row, 0, $headerCount);
+    }
+    unset($row);
+
+    return [
+        'headers' => $headers,
+        'rows' => $rows,
+    ];
+}
+
+function di_read_import_file(string $file): array
+{
+    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+
+    if ($ext === 'csv') {
+        return di_read_csv($file);
+    }
+
+    if ($ext === 'xls') {
+        return di_read_html_xls($file);
+    }
+
+    return di_read_xlsx($file);
+}
+
 
 
 function di_default_mapping(array $headers): array
@@ -597,17 +863,18 @@ function di_default_mapping(array $headers): array
         'old_id' => ['id', 'old_id'],
         'name' => ['companie', 'firma', 'client', 'denumire'],
         'fiscal_code' => ['cui_serie_si_nr_ci', 'cui_serie_nr_ci', 'cui', 'serie_si_nr_ci'],
-        'registry_number' => ['nr_reg_com_cnp', 'nr_reg_com', 'cnp'],
-        'phone' => ['telefon_contact', 'telefon'],
+        'registry_number' => ['nr_reg_com_cnp', 'nr_reg_com', 'numar_registru_comertului', 'numar_de_registru_comertului', 'registru_comertului', 'cnp'],
+        'phone' => ['telefon_contact', 'telefon', 'numar_de_telefon', 'numar_telefon', 'telefon_client'],
         'email' => ['e_mail_contact', 'email_contact', 'email', 'mail'],
-        'billing_county' => ['județ_facturare'],
-        'billing_city' => ['oraș_facturare'],
-        'billing_street' => ['strada_facturare'],
-        'delivery_county' => ['județ_livrare'],
-        'delivery_city' => ['oraș_livrare'],
+        'billing_country' => ['tara', 'tara_facturare'],
+        'billing_county' => ['judet', 'judet_facturare'],
+        'billing_city' => ['oras_sector', 'oras_localitate', 'oras', 'sector', 'localitate', 'oras_facturare'],
+        'billing_address_line' => ['adresa', 'adresa_facturare', 'strada_facturare', 'strada'],
+        'delivery_county' => ['judet_livrare'],
+        'delivery_city' => ['oras_livrare'],
         'delivery_street' => ['strada_livrare'],
-        'contact_person' => ['nume_contact', 'contact'],
-        'contact_role' => ['functie_contact', 'functie'],
+        'contact_person' => ['administrator_reprezentant', 'administrator', 'reprezentant', 'nume_contact', 'contact'],
+        'contact_role' => ['functie', 'functie_contact', 'rol_contact', 'calitate', 'calitate_reprezentant'],
         'responsible' => ['responsabili_client', 'responsabil'],
     ];
 
@@ -630,10 +897,18 @@ function di_default_mapping(array $headers): array
 
 function di_map_client_data(array $row, array $mapping): array
 {
-    $billingAddress = di_join_address(
-        di_value($row, $mapping, 'billing_street'),
-        di_value($row, $mapping, 'billing_city'),
-        di_value($row, $mapping, 'billing_county')
+    $billingCountry = di_value($row, $mapping, 'billing_country') ?: 'Romania';
+    $billingCounty = di_value($row, $mapping, 'billing_county');
+    $billingCity = di_value($row, $mapping, 'billing_city');
+    $billingAddressLine = di_value($row, $mapping, 'billing_address_line');
+    $contactPerson = di_value($row, $mapping, 'contact_person');
+    $contactRole = di_value($row, $mapping, 'contact_role');
+
+    $billingAddress = di_join_fiscal_address(
+        $billingAddressLine,
+        $billingCity,
+        $billingCounty,
+        $billingCountry
     );
 
     $deliveryAddress = di_join_address(
@@ -663,10 +938,15 @@ function di_map_client_data(array $row, array $mapping): array
         'phone' => di_clean_phone(di_value($row, $mapping, 'phone')),
         'email' => di_clean_email(di_value($row, $mapping, 'email')),
         'registered_address' => $billingAddress,
-        'city' => di_value($row, $mapping, 'billing_city'),
-        'contact_person' => di_value($row, $mapping, 'contact_person'),
-        'legal_representative_name' => di_value($row, $mapping, 'contact_person'),
-        'legal_representative_role' => di_value($row, $mapping, 'contact_role'),
+        'billing_country' => $billingCountry,
+        'billing_county' => $billingCounty,
+        'billing_city' => $billingCity,
+        'billing_sector' => '',
+        'billing_address_line' => $billingAddressLine,
+        'city' => $billingCity,
+        'contact_person' => $contactPerson,
+        'legal_representative_name' => $contactPerson,
+        'legal_representative_role' => $contactRole ?: ($contactPerson !== '' ? 'Administrator' : ''),
         'notes' => implode("\n", $notes),
         'delivery_address' => $deliveryAddress,
         'delivery_city' => di_value($row, $mapping, 'delivery_city'),
@@ -725,11 +1005,16 @@ function di_client_insert(PDO $pdo, array $data): int
     $cols = di_columns($pdo, 'clients');
 
     $candidate = [
-        'client_type' => 'PJ',
+        'client_type' => 'company',
         'name' => $data['name'],
         'fiscal_code' => $data['fiscal_code'],
         'registry_number' => $data['registry_number'],
         'registered_address' => $data['registered_address'],
+        'billing_country' => $data['billing_country'],
+        'billing_county' => $data['billing_county'],
+        'billing_city' => $data['billing_city'],
+        'billing_sector' => $data['billing_sector'],
+        'billing_address_line' => $data['billing_address_line'],
         'address' => $data['registered_address'],
         'city' => $data['city'],
         'phone' => $data['phone'],
@@ -770,6 +1055,11 @@ function di_client_update_missing(PDO $pdo, int $clientId, array $existing, arra
         'fiscal_code' => $data['fiscal_code'],
         'registry_number' => $data['registry_number'],
         'registered_address' => $data['registered_address'],
+        'billing_country' => $data['billing_country'],
+        'billing_county' => $data['billing_county'],
+        'billing_city' => $data['billing_city'],
+        'billing_sector' => $data['billing_sector'],
+        'billing_address_line' => $data['billing_address_line'],
         'address' => $data['registered_address'],
         'city' => $data['city'],
         'phone' => $data['phone'],
@@ -909,12 +1199,12 @@ function di_save_uploaded_file(): string
     $name = (string)($_FILES['import_file']['name'] ?? '');
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
 
-    if ($ext !== 'xlsx') {
-        throw new RuntimeException('Momentan importul accepta doar fișiere .xlsx.');
+    if (!in_array($ext, ['xlsx', 'xls', 'csv'], true)) {
+        throw new RuntimeException('Momentan importul accepta doar fisiere .xlsx, .xls sau .csv.');
     }
 
     $token = bin2hex(random_bytes(12));
-    $path = di_upload_dir() . '/' . $token . '.xlsx';
+    $path = di_upload_dir() . '/' . $token . '.' . $ext;
 
     if (!move_uploaded_file($_FILES['import_file']['tmp_name'], $path)) {
         throw new RuntimeException('Fisierul nu a putut fi salvat.');
@@ -926,13 +1216,20 @@ function di_save_uploaded_file(): string
 function di_file_from_token(string $token): string
 {
     $token = preg_replace('/[^a-f0-9]/', '', strtolower($token));
-    $path = di_upload_dir() . '/' . $token . '.xlsx';
 
-    if ($token === '' || !is_file($path)) {
+    if ($token === '') {
         throw new RuntimeException('Fisierul de import nu mai există. Incarca din nou Excelul.');
     }
 
-    return $path;
+    foreach (['xlsx', 'xls', 'csv'] as $ext) {
+        $path = di_upload_dir() . '/' . $token . '.' . $ext;
+
+        if (is_file($path)) {
+            return $path;
+        }
+    }
+
+    throw new RuntimeException('Fisierul de import nu mai există. Incarca din nou Excelul.');
 }
 
 function di_preview_rows(PDO $pdo, array $rows, array $mapping, int $limit = 30): array
@@ -1035,7 +1332,7 @@ try {
 
         if (in_array($action, ['upload', 'preview', 'import'], true)) {
             $file = di_file_from_token($token);
-            $data = di_read_xlsx($file);
+            $data = di_read_import_file($file);
             $headers = $data['headers'];
             $rows = $data['rows'];
 
@@ -1060,21 +1357,17 @@ try {
 }
 
 $fields = [
-    'old_id' => 'ID vechi',
-    'name' => 'Denumire client',
-    'fiscal_code' => 'CUI / CI',
-    'registry_number' => 'Reg. Com. / CNP',
-    'phone' => 'Telefon',
+    'name' => 'DENUMIRE',
+    'fiscal_code' => 'CUI',
+    'registry_number' => 'Număr Registru Comerțului',
+    'billing_country' => 'Țară',
+    'billing_county' => 'Județ',
+    'billing_city' => 'Oraș / Sector',
+    'billing_address_line' => 'Adresă',
+    'contact_person' => 'REPREZENTANT',
+    'contact_role' => 'FUNCTIE',
     'email' => 'Email',
-    'billing_county' => 'Județ facturare',
-    'billing_city' => 'Oraș facturare',
-    'billing_street' => 'Strada facturare',
-    'delivery_county' => 'Județ livrare',
-    'delivery_city' => 'Oraș livrare',
-    'delivery_street' => 'Strada livrare',
-    'contact_person' => 'Nume contact',
-    'contact_role' => 'Functie contact',
-    'responsible' => 'Responsabili client',
+    'phone' => 'Număr de telefon',
 ];
 ?>
 <!DOCTYPE html>
@@ -1155,8 +1448,8 @@ th { background:var(--surface-soft); color:var(--muted); font-size:11px; text-tr
                     <?= di_csrf_field() ?>
                     <input type="hidden" name="action" value="upload">
                     <div>
-                        <label>Fisier Excel .xlsx</label>
-                        <input type="file" name="import_file" accept=".xlsx" required>
+                        <label>Fișier Excel .xls/.xlsx sau CSV</label>
+                        <input type="file" name="import_file" accept=".xls,.xlsx,.csv" required>
                     </div>
                     <button class="btn accent" type="submit">Incarca si citeste coloanele</button>
                 </form>
@@ -1210,10 +1503,14 @@ th { background:var(--surface-soft); color:var(--muted); font-size:11px; text-tr
                                     <th>Status</th>
                                     <th>Client</th>
                                     <th>CUI / CI</th>
-                                    <th>Telefon</th>
+                                    <th>Țară</th>
+                                    <th>Județ</th>
+                                    <th>Oraș / Sector</th>
+                                    <th>Adresă</th>
+                                    <th>Administrator / Reprezentant</th>
+                                    <th>Functie</th>
                                     <th>Email</th>
-                                    <th>Sediu</th>
-                                    <th>Locație separata</th>
+                                    <th>Telefon</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1227,10 +1524,14 @@ th { background:var(--surface-soft); color:var(--muted); font-size:11px; text-tr
                                     </td>
                                     <td><?= di_h($d['name']) ?></td>
                                     <td><?= di_h($d['fiscal_code']) ?></td>
-                                    <td><?= di_h($d['phone']) ?></td>
+                                    <td><?= di_h($d['billing_country']) ?></td>
+                                    <td><?= di_h($d['billing_county']) ?></td>
+                                    <td><?= di_h($d['billing_city']) ?></td>
+                                    <td><?= di_h($d['billing_address_line']) ?></td>
+                                    <td><?= di_h($d['legal_representative_name']) ?></td>
+                                    <td><?= di_h($d['legal_representative_role']) ?></td>
                                     <td><?= di_h($d['email']) ?></td>
-                                    <td><?= di_h($d['registered_address']) ?></td>
-                                    <td><?= $p['will_location'] ? di_h($d['delivery_address']) : '-' ?></td>
+                                    <td><?= di_h($d['phone']) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                             </tbody>

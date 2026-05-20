@@ -527,12 +527,23 @@ function reports_short_service_label(string $name): string {
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap" rel="stylesheet">
 
 <?php app_theme_css(); ?>
 
 <style>
-.reports-topbar { align-items: center; padding: 12px 20px; position: relative; z-index: 80; overflow: visible; }
+.reports-hero { background: var(--pz-brand) !important; color: #fff !important; border: none !important; box-shadow: none !important; border-radius: var(--pz-r) !important; }
+.reports-hero h1, .reports-hero p { font-weight: 700 !important; }
+.reports-hero p { color: rgba(255,255,255,.75) !important; }
+.reports-choice-menu { box-shadow: none !important; border: 1px solid var(--pz-line) !important; border-radius: var(--pz-rs) !important; }
+.kpi-card, .report-card, .table-card { box-shadow: none !important; border-radius: var(--pz-r) !important; }
+.status-pill { border-radius: var(--pz-rs) !important; font-weight: 600 !important; }
+.kpi-value { font-size: 26px !important; font-weight: 700 !important; }
+.kpi-label, .report-card h2, .report-table th, .report-table td { font-weight: 700 !important; }
+.report-table th { font-weight: 700 !important; font-size: 11px !important; }
+.reports-choice-toggle { font-weight: 600 !important; border-radius: var(--pz-rs) !important; }
+.reports-choice-option { font-weight: 600 !important; border-radius: var(--pz-rs) !important; }
+* { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
 .reports-toolbar { width: 100%; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; position: relative; z-index: 81; overflow: visible; }
 .reports-filters { width: 100%; min-width: 0; display: grid; grid-template-columns: 140px 140px minmax(130px, 1fr) minmax(150px, 1fr) minmax(130px, 1fr) auto; gap: 8px; align-items: center; position: relative; z-index: 82; overflow: visible; }
 .reports-filters input, .reports-filters select { height: 42px; min-width: 0; font-weight: 800; }

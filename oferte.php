@@ -112,7 +112,7 @@ function pz_offer_current_url(array $extra = []): string {
             $params[$key] = $value;
         }
     }
-    return 'oferte.php' . ($params ? '?' . http_build_query($params) : '');
+    return 'offers' . ($params ? '?' . http_build_query($params) : '');
 }
 
 function pz_offer_fetch_clients(PDO $pdo): array {
@@ -349,7 +349,7 @@ function pz_offer_ensure_default_template(PDO $pdo): void {
 
 function pz_offer_redirect_with_error(string $message, int $editId = 0): void {
     $_SESSION['pz_offer_error'] = $message;
-    $url = 'oferte.php';
+    $url = 'offers';
     if ($editId > 0) {
         $url .= '?edit=' . (int)$editId;
     }
@@ -587,7 +587,7 @@ foreach ($services as $service) {
 .offer-topbar { align-items:center; padding:12px 20px; }
 .offer-toolbar { width:100%; display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 .offer-hero {
-    background: linear-gradient(135deg, var(--accent-deep), var(--accent-strong));
+    background: var(--pz-bld, var(--accent-deep));
     color:#fff; border-radius:var(--radius-lg); padding:22px 24px; box-shadow:var(--shadow-lg);
     margin-bottom:14px; display:flex; justify-content:space-between; gap:18px; flex-wrap:wrap; align-items:center;
 }
@@ -697,6 +697,7 @@ foreach ($services as $service) {
     .offer-fill-map { grid-template-columns:1fr; }
 }
 </style>
+<?php render_search_preview_assets(); ?>
 </head>
 <body>
 <div class="layout">
@@ -719,7 +720,7 @@ foreach ($services as $service) {
                             <div class="panel-title"><?= $editingDocument ? 'Editează oferta draft' : 'Ofertă nouă' ?></div>
                             <div class="panel-subtitle">Completează oferta in ordinea șablonului: date, client, servicii, discount si conditii de plata.</div>
                         </div>
-                        <a class="btn small" href="oferte.php">Inchide formularul</a>
+                        <a class="btn small" href="offers">Inchide formularul</a>
                     </div>
                     <div class="panel-body">
                         <form method="post" id="offerForm">
@@ -918,7 +919,7 @@ foreach ($services as $service) {
                         <div class="panel-subtitle">Caută după numar, client, CUI sau titlu.</div>
                     </div>
                 
-                    <a class="btn primary" href="oferte.php?new=1<?= !empty($filters['client_id']) ? '&client_id=' . (int)$filters['client_id'] : '' ?>">+ Ofertă nouă</a>
+                    <a class="btn primary" href="offers?new=1<?= !empty($filters['client_id']) ? '&client_id=' . (int)$filters['client_id'] : '' ?>">+ Ofertă nouă</a>
                 </div>
                 <div class="panel-body">
                     <form class="filter-form" method="get">
@@ -927,7 +928,10 @@ foreach ($services as $service) {
                         <?php endif; ?>
                         <div class="field">
                             <label>Căutare</label>
-                            <input type="text" name="q" value="<?= pz_offer_h($filters['q']) ?>" placeholder="Client, CUI, numar oferta">
+                            <div class="pz-search-wrap">
+                                <input type="text" id="oferteSearchInput" name="q" value="<?= pz_offer_h($filters['q']) ?>" placeholder="Client, CUI, numar oferta" autocomplete="off">
+                                <div class="pz-search-preview"></div>
+                            </div>
                         </div>
                         <div class="field">
                             <label>Status</label>
@@ -982,7 +986,7 @@ foreach ($services as $service) {
                             <div class="doc-actions">
                                 <a class="btn small" href="document_view.php?id=<?= (int)$doc['id'] ?>">Vezi</a>
                                 <?php if (($doc['status'] ?? '') === 'draft'): ?>
-                                    <a class="btn small" href="oferte.php?edit=<?= (int)$doc['id'] ?>">Editează</a>
+                                    <a class="btn small" href="offers?edit=<?= (int)$doc['id'] ?>">Editează</a>
                                 <?php endif; ?>
                                 <a class="btn small" href="document_pdf.php?id=<?= (int)$doc['id'] ?>&mode=inline" target="_blank">PDF</a>
                             </div>
@@ -1369,5 +1373,42 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-</body>
-</html>
+
+<?php
+// Preview live pentru bara „Caută oferta".
+$previewOfferList = [];
+try {
+    if ($pdo->query("SHOW TABLES LIKE 'offers'")->fetch()) {
+        $stmtPrev = $pdo->query("
+            SELECT o.id, o.offer_number, c.name AS client_name, c.fiscal_code
+            FROM offers o
+            LEFT JOIN clients c ON c.id = o.client_id
+            ORDER BY o.id DESC LIMIT 2000
+        ");
+        while ($r = $stmtPrev->fetch(PDO::FETCH_ASSOC)) {
+            $nm  = html_entity_decode((string)($r['client_name'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $cf  = html_entity_decode((string)($r['fiscal_code'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $num = trim((string)($r['offer_number'] ?? ''));
+            $title = ($num !== '' ? ($num . ' · ') : '') . ($nm !== '' ? $nm : ('Ofertă #' . (int)$r['id']));
+            $previewOfferList[] = [
+                'title'  => $title,
+                'url'    => 'oferte.php?q=' . urlencode($num !== '' ? $num : $nm),
+                'type'   => 'offer',
+                'search' => $num . ' ' . $nm . ' ' . $cf,
+            ];
+        }
+    }
+} catch (Throwable $e) { error_log('oferte.php preview: ' . $e->getMessage()); }
+?>
+<script>
+(function () {
+    var go = function () {
+        if (!window.pzSearchPreview) { setTimeout(go, 30); return; }
+        window.pzSearchPreview.attach('oferteSearchInput',
+            <?= json_encode($previewOfferList, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>,
+            { minChars: 1, maxResults: 8 }
+        );
+    };
+    go();
+})();
+</script>

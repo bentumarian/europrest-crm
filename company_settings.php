@@ -84,7 +84,7 @@ function cs_textarea($name, $label, $settings) {
     <title>Date companie - PestZone</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap" rel="stylesheet">
     <?php app_theme_css(); ?>
     <style>
         .top{
@@ -213,11 +213,14 @@ function cs_textarea($name, $label, $settings) {
             resize:vertical;
             line-height:1.45;
         }
-        .notice{
-            border-radius:14px;
-            padding:12px 14px;
-            font-weight:900;
-        }
+        .head, .card { border-radius: var(--pz-r) !important; box-shadow: none !important; }
+        .card-icon { border-radius: var(--pz-rs) !important; background: var(--pz-bls) !important; color: var(--pz-bl) !important; }
+        input, textarea { border-radius: var(--pz-rs) !important; min-height: 34px; }
+        input:focus, textarea:focus { border-color: var(--pz-bl) !important; box-shadow: 0 0 0 3px var(--pz-bls) !important; }
+        .notice { border-radius: var(--pz-rs) !important; font-weight: 600 !important; }
+        .notice.ok  { background: var(--pz-grs) !important; color: var(--pz-gr) !important; }
+        .notice.err { background: var(--pz-res) !important; color: var(--pz-re) !important; }
+        * { font-family: 'Inter', system-ui, sans-serif !important; }
         .notice.ok{
             background:var(--success-soft);
             color:var(--success);

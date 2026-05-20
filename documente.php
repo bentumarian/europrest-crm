@@ -65,10 +65,10 @@ function pz_docs_type_class(?string $type): string
 function pz_docs_type_new_url(string $type): string
 {
     return [
-        'oferta' => 'oferte.php?new=1',
+        'oferta' => 'offers?new=1',
         'contract' => 'contracts.php?new=1',
-        'proces_verbal' => 'procese_verbale.php?new=1',
-    ][$type] ?? 'documente.php';
+        'proces_verbal' => 'service-reports?new=1',
+    ][$type] ?? 'documents';
 }
 
 function pz_docs_status_label(?string $status): string
@@ -122,7 +122,7 @@ function pz_docs_current_url(array $extra = []): string
             $params[$key] = $value;
         }
     }
-    return 'documente.php' . ($params ? '?' . http_build_query($params) : '');
+    return 'documents' . ($params ? '?' . http_build_query($params) : '');
 }
 
 function pz_docs_filter_type(string $type): string
@@ -311,6 +311,7 @@ foreach ($stats as $stat) {
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Documente - PestZone</title>
 <?php app_theme_css(); ?>
+<?php render_search_preview_assets(); ?>
 </head>
 <body>
 <div class="layout">
@@ -319,7 +320,7 @@ foreach ($stats as $stat) {
     <main class="main">
         <header class="topbar docs-topbar">
             <div class="docs-toolbar">
-                <a class="btn primary" href="oferte.php?new=1">Ofertă nouă</a>
+                <a class="btn primary" href="offers?new=1">Ofertă nouă</a>
                 <a class="btn primary" href="contracts.php?new=1">Contract nou</a>
             </div>
         </header>
@@ -370,13 +371,16 @@ foreach ($stats as $stat) {
                         <div class="panel-title">Filtrare documente</div>
                         <div class="panel-subtitle">Caută după client, CUI, reprezentant, numar document, titlu sau locație.</div>
                     </div>
-                    <a class="btn small" href="documente.php">Reset</a>
+                    <a class="btn small" href="documents">Reset</a>
                 </div>
                 <div class="panel-body">
                     <form method="get" class="filter-form">
                         <div class="field">
                             <label>Căutare</label>
-                            <input type="search" name="q" value="<?= pz_docs_h($q) ?>" placeholder="Client, CUI, numar, locație">
+                            <div class="pz-search-wrap">
+                                <input type="search" id="documenteSearchInput" name="q" value="<?= pz_docs_h($q) ?>" placeholder="Client, CUI, numar, locație" autocomplete="off">
+                                <div class="pz-search-preview"></div>
+                            </div>
                         </div>
                         <div class="field">
                             <label>Tip</label>
@@ -511,5 +515,45 @@ foreach ($stats as $stat) {
         </div>
     </main>
 </div>
-</body>
-</html>
+
+<?php
+// Preview live pentru bara „Caută document".
+$previewDocsList = [];
+try {
+    if ($pdo->query("SHOW TABLES LIKE 'documents'")->fetch()) {
+        $stmtPrev = $pdo->query("
+            SELECT d.id, d.document_number, d.title, c.name AS client_name, c.fiscal_code
+            FROM documents d
+            LEFT JOIN clients c ON c.id = d.client_id
+            ORDER BY d.id DESC LIMIT 2000
+        ");
+        while ($r = $stmtPrev->fetch(PDO::FETCH_ASSOC)) {
+            $nm  = html_entity_decode((string)($r['client_name'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $cf  = html_entity_decode((string)($r['fiscal_code'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $num = trim((string)($r['document_number'] ?? ''));
+            $ttl = html_entity_decode((string)($r['title'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $base = $num !== '' ? $num : ($ttl !== '' ? $ttl : ('Document #' . (int)$r['id']));
+            $title = $base . ($nm !== '' ? ' · ' . $nm : '');
+            $previewDocsList[] = [
+                'title'  => $title,
+                'url'    => 'document_view.php?id=' . (int)$r['id'],
+                'type'   => 'document',
+                'search' => $num . ' ' . $ttl . ' ' . $nm . ' ' . $cf,
+            ];
+        }
+    }
+} catch (Throwable $e) { error_log('documente.php preview: ' . $e->getMessage()); }
+?>
+<script>
+(
+(function () {
+    var go = function () {
+        if (!window.pzSearchPreview) { setTimeout(go, 30); return; }
+        window.pzSearchPreview.attach('documenteSearchInput',
+            <?= json_encode($previewDocsList, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>,
+            { minChars: 1, maxResults: 8 }
+        );
+    };
+    go();
+})();
+</script>

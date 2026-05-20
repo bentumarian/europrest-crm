@@ -258,18 +258,53 @@ if (!function_exists('pz_flow_frequency_label')) {
 }
 
 if (!function_exists('pz_flow_guess_recurrence')) {
+    /**
+     * Calculează tipul de recurență și numărul total de sarcini generate pentru un
+     * serviciu contractat. Rezultatul ține cont de start_date si end_date al
+     * contractului:
+     *   - daca avem start si end: calculam numarul de luni intre ele si impartim
+     *     la intervalul frecventei (1 / 3 / 6);
+     *   - daca lipseste end_date (contract pe durata nedeterminata): plafon de 12
+     *     luni inainte (lunar=12, trimestrial=4, semestrial=2);
+     *   - plafon de siguranta de 120 luni (10 ani lunar) ca sa nu generam un numar
+     *     accidental urias daca cineva introduce date gresite.
+     */
     function pz_flow_guess_recurrence(string $frequency, ?string $startDate = null, ?string $endDate = null): array
     {
         $key = pz_flow_normalize_frequency($frequency);
 
+        if ($key === 'int_unica') {
+            return ['none', null, 1];
+        }
+
+        // Plafon implicit cand nu avem end_date (contract pe durata nedeterminata).
+        $months = 12;
+
+        $startTs = $startDate ? strtotime($startDate) : false;
+        $endTs = $endDate ? strtotime($endDate) : false;
+        if ($startTs && $endTs && $endTs >= $startTs) {
+            try {
+                $startDt = (new DateTime())->setTimestamp($startTs);
+                $endDt = (new DateTime())->setTimestamp($endTs);
+                $diff = $startDt->diff($endDt);
+                $months = ($diff->y * 12) + $diff->m + ($diff->d > 0 ? 1 : 0);
+            } catch (Throwable $e) {
+                $months = 12;
+            }
+        }
+
+        // Plafon de siguranta: maxim 120 luni (10 ani lunar) ca sa evitam recurente
+        // explozive in caz de date eronate.
+        $months = max(1, min($months, 120));
+
         if ($key === 'lunar') {
-            return ['monthly', null, 12];
+            return ['monthly', null, $months];
         }
         if ($key === 'trimestrial') {
-            return ['three_months', null, 4];
+            return ['three_months', null, max(1, (int)ceil($months / 3))];
         }
         if ($key === 'semestrial') {
-            return ['six_months', null, 2];
+            return ['six_months', null, max(1, (int)ceil($months / 6))];
         }
 
         return ['none', null, 1];
@@ -591,5 +626,232 @@ if (!function_exists('pz_flow_ensure_task_for_contract_service')) {
         $updService->execute([$taskId, $contractServiceId]);
 
         return $taskId;
+    }
+}
+
+if (!function_exists('pz_flow_sync_issued_addendum')) {
+    /**
+     * Sincronizare la emiterea unui act adițional:
+     *   1. Extinde contracts.end_date la addendum_end_date (daca e mai mare).
+     *   2. Pentru fiecare serviciu din actul adițional:
+     *      a. Identifica contract_service-ul existent (match dupa location_id + service_id).
+     *      b. Calculeaza cate intervale noi incap in perioada actului (lunar, trim., sem.).
+     *      c. Bumpeaza recurrence_total pe contract_services si pe toate sarcinile din serie.
+     *      d. Daca ultima sarcina din serie este inca "vie" (status de_programat / programat) →
+     *         mareste recurrence_remaining pe ea, astfel incat mecanismul rolling sa genereze
+     *         sarcinile noi pe rand la finalizare (varianta aleasa de utilizator).
+     *      e. Daca seria este complet finalizata/anulata → creeaza o sarcina noua
+     *         de_programat cu due_date = addendum_start_date, legata de ultima prin
+     *         generated_from_task_id.
+     */
+    function pz_flow_sync_issued_addendum(PDO $pdo, int $documentId, bool $throwErrors = false): ?int
+    {
+        $GLOBALS['pz_flow_last_addendum_sync'] = [
+            'document_id' => $documentId,
+            'extended_services' => 0,
+            'updated_tasks' => 0,
+            'new_tasks' => 0,
+            'error' => '',
+        ];
+
+        try {
+            if ($documentId <= 0 || !function_exists('pzdoc_get_document')) {
+                return null;
+            }
+
+            pz_flow_ensure_schema($pdo);
+
+            $document = pzdoc_get_document($pdo, $documentId, true);
+            if (!$document || ($document['document_type'] ?? '') !== 'act_aditional') {
+                return null;
+            }
+
+            $payload = function_exists('pzdoc_json_decode') ? pzdoc_json_decode($document['payload_json'] ?? null) : [];
+            $parentDocumentId = (int)($document['source_document_id'] ?? ($payload['parent_document_id'] ?? 0));
+            if ($parentDocumentId <= 0) {
+                return null;
+            }
+
+            $addendumStart = pz_flow_date_or_null($payload['addendum_start_date'] ?? null);
+            $addendumEnd = pz_flow_date_or_null($payload['addendum_end_date'] ?? null);
+            if (!$addendumStart || !$addendumEnd) {
+                return null;
+            }
+
+            // Identific contract_id operational (tabela `contracts`) legat de documentul-mama.
+            $stmt = $pdo->prepare('SELECT id, end_date, client_id FROM contracts WHERE source_document_id = ? LIMIT 1');
+            $stmt->execute([$parentDocumentId]);
+            $contractRow = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$contractRow) {
+                return null;
+            }
+            $contractId = (int)$contractRow['id'];
+            $clientId = (int)($contractRow['client_id'] ?? ($document['client_id'] ?? 0));
+
+            // 1) Extindem end_date la addendum_end_date, dar nu micsoram daca e deja mai mare.
+            $newEndDate = $addendumEnd;
+            if (!empty($contractRow['end_date']) && $contractRow['end_date'] > $addendumEnd) {
+                $newEndDate = $contractRow['end_date'];
+            }
+            $updEnd = $pdo->prepare('UPDATE contracts SET end_date = ? WHERE id = ?');
+            $updEnd->execute([$newEndDate, $contractId]);
+
+            // 2) Iteram serviciile actului adițional
+            $items = is_array($document['items'] ?? null) ? $document['items'] : [];
+            foreach ($items as $item) {
+                $locationId = !empty($item['client_location_id']) ? (int)$item['client_location_id'] : null;
+                $serviceId = !empty($item['service_id']) ? (int)$item['service_id'] : null;
+                $serviceName = pz_flow_str($item['service_name'] ?? '', 255);
+                $frequency = pz_flow_str($item['frequency_text'] ?? 'int_unica', 120);
+                $frequencyKey = pz_flow_normalize_frequency($frequency);
+
+                [$recurrenceType, $recurrenceDays, $additionalTotal] = pz_flow_guess_recurrence($frequencyKey, $addendumStart, $addendumEnd);
+                if ($additionalTotal < 1) {
+                    continue;
+                }
+
+                // 2a) Identific contract_service - match pe (contractId, locationId, serviceId).
+                // Fallback: daca service_id e null, match doar pe location_id si nume serviciu.
+                if ($serviceId) {
+                    $svcStmt = $pdo->prepare('SELECT id, recurrence_total FROM contract_services WHERE contract_id = ? AND client_location_id <=> ? AND service_id <=> ? ORDER BY id ASC LIMIT 1');
+                    $svcStmt->execute([$contractId, $locationId, $serviceId]);
+                } else {
+                    $svcStmt = $pdo->prepare('SELECT id, recurrence_total FROM contract_services WHERE contract_id = ? AND client_location_id <=> ? AND service_name = ? ORDER BY id ASC LIMIT 1');
+                    $svcStmt->execute([$contractId, $locationId, $serviceName]);
+                }
+                $contractService = $svcStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$contractService) {
+                    continue;
+                }
+                $contractServiceId = (int)$contractService['id'];
+
+                // Date economice / cantitative din actul adițional, care trebuie
+                // propagate pe sarcinile viitoare (acopera cazul "Preț actualizat").
+                $itemPrice = is_numeric($item['unit_price'] ?? null) ? (float)$item['unit_price'] : 0.0;
+                $itemSurface = is_numeric($item['quantity'] ?? null) ? (float)$item['quantity'] : null;
+                $itemSurfaceUnit = pz_flow_str($item['unit'] ?? 'mp', 30) ?: 'mp';
+                $itemCurrency = pz_flow_str($item['currency'] ?? ($document['currency'] ?? 'RON'), 10) ?: 'RON';
+
+                // 2b) Bumpez recurrence_total pe contract_services + sincronizez pret/cantitate.
+                $newTotal = (int)$contractService['recurrence_total'] + $additionalTotal;
+                $updCs = $pdo->prepare('UPDATE contract_services SET recurrence_total = ?, price = ?, currency = ?, surface_value = ?, surface_unit = ?, status = IF(status = \'finalizat\', \'neprogramat\', status) WHERE id = ?');
+                $updCs->execute([$newTotal, $itemPrice, $itemCurrency, $itemSurface, $itemSurfaceUnit, $contractServiceId]);
+
+                // 2c) Bumpez recurrence_total pe TOATE sarcinile din serie (istoric + viitor).
+                $updAllTasks = $pdo->prepare('UPDATE tasks SET recurrence_total = ? WHERE contract_service_id = ?');
+                $updAllTasks->execute([$newTotal, $contractServiceId]);
+
+                // 2c-bis) Actualizez pret / cantitate DOAR pe sarcinile vii (nu atingem
+                // istoricul facturat pe sarcinile finalizate / anulate). Rolling-ul va
+                // copia aceste valori in sarcinile noi generate la finalizare.
+                $updLiveTasks = $pdo->prepare('UPDATE tasks SET billing_amount = ?, currency = ?, surface_value = ?, surface_unit = ? WHERE contract_service_id = ? AND status NOT IN (\'finalizat\', \'anulat\')');
+                $updLiveTasks->execute([$itemPrice, $itemCurrency, $itemSurface, $itemSurfaceUnit, $contractServiceId]);
+
+                // 2d/2e) Caut ultima sarcina din serie
+                $taskStmt = $pdo->prepare('SELECT id, status, recurrence_index, recurrence_remaining, due_date FROM tasks WHERE contract_service_id = ? ORDER BY recurrence_index DESC, id DESC LIMIT 1');
+                $taskStmt->execute([$contractServiceId]);
+                $lastTask = $taskStmt->fetch(PDO::FETCH_ASSOC);
+
+                $closedStatuses = ['finalizat', 'anulat'];
+                if ($lastTask && !in_array((string)$lastTask['status'], $closedStatuses, true)) {
+                    // 2d) Sarcina inca vie - bumpez remaining + asigur recurrence_type valid
+                    $newRemaining = max(0, (int)$lastTask['recurrence_remaining']) + $additionalTotal;
+                    $updLast = $pdo->prepare('UPDATE tasks SET recurrence_remaining = ?, recurrence_type = ?, recurrence_days = ?, recurrence_stopped = 0 WHERE id = ?');
+                    $updLast->execute([$newRemaining, $recurrenceType, $recurrenceDays, (int)$lastTask['id']]);
+                    $GLOBALS['pz_flow_last_addendum_sync']['updated_tasks']++;
+                } else {
+                    // 2e) Seria e inchisa sau nu exista - cream o sarcina noua "vie"
+                    $group = function_exists('make_task_recurrence_group') ? make_task_recurrence_group() : uniqid('task_', true);
+                    $previousId = $lastTask ? (int)$lastTask['id'] : null;
+                    $nextIndex = $lastTask ? ((int)$lastTask['recurrence_index'] + 1) : 1;
+                    $locationName = pz_flow_str($item['location_name'] ?? '', 220);
+                    $locationAddress = pz_flow_str($item['location_address'] ?? '');
+
+                    // Preluam contact_person / contact_phone din client_locations (la fel
+                    // ca pz_flow_sync_issued_contract). Daca lipseste, lasam NULL.
+                    $locSnapshot = pz_flow_location_snapshot($pdo, $locationId);
+                    $contactPerson = pz_flow_str($locSnapshot['contact_person'] ?? '', 220);
+                    $contactPhone = pz_flow_str($locSnapshot['phone'] ?? '', 80);
+                    if ($locationName === '') {
+                        $locationName = pz_flow_str($locSnapshot['location_name'] ?? '', 220);
+                    }
+                    if ($locationAddress === '') {
+                        $locationAddress = pz_flow_str($locSnapshot['address'] ?? '');
+                    }
+
+                    $title = pz_flow_str(($serviceName ?: 'Serviciu contractat') . ' - act adițional', 255);
+                    $notes = 'Generata din act adițional. Frecvență: ' . pz_flow_frequency_label($frequencyKey);
+
+                    $ins = $pdo->prepare('INSERT INTO tasks (client_id, client_location_id, title, service_type, address, contact_person, contact_phone, location_name, service_id, surface_value, surface_unit, billing_amount, currency, document_id, document_item_id, due_date, recurrence_type, recurrence_days, recurrence_group, recurrence_total, recurrence_remaining, recurrence_stopped, recurrence_index, generated_from_task_id, generated_next_task_id, status, appointment_id, contract_id, contract_service_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, NULL, \'de_programat\', NULL, ?, ?, ?)');
+                    $ins->execute([
+                        $clientId,
+                        $locationId,
+                        $title,
+                        $serviceName ?: 'Serviciu contractat',
+                        $locationAddress ?: null,
+                        $contactPerson ?: null,
+                        $contactPhone ?: null,
+                        $locationName ?: null,
+                        $serviceId,
+                        $itemSurface,
+                        $itemSurfaceUnit,
+                        $itemPrice,
+                        $itemCurrency,
+                        $documentId,
+                        !empty($item['id']) ? (int)$item['id'] : null,
+                        $addendumStart,
+                        $recurrenceType,
+                        $recurrenceDays,
+                        $group,
+                        $additionalTotal,
+                        $additionalTotal,
+                        $nextIndex,
+                        $previousId,
+                        $contractId,
+                        $contractServiceId,
+                        $notes,
+                    ]);
+                    $newTaskId = (int)$pdo->lastInsertId();
+
+                    // Daca exista sarcina anterioara, leag-o de cea noua pentru lant.
+                    if ($previousId) {
+                        $linkPrev = $pdo->prepare('UPDATE tasks SET generated_next_task_id = ? WHERE id = ?');
+                        $linkPrev->execute([$newTaskId, $previousId]);
+                    }
+
+                    // Updatez contract_services.task_id daca era gol sau pointa la o sarcina finalizata
+                    $updSvcLink = $pdo->prepare('UPDATE contract_services SET task_id = ?, status = \'neprogramat\' WHERE id = ? AND (task_id IS NULL OR task_id = ?)');
+                    $updSvcLink->execute([$newTaskId, $contractServiceId, $previousId ?: 0]);
+
+                    $GLOBALS['pz_flow_last_addendum_sync']['new_tasks']++;
+                }
+
+                $GLOBALS['pz_flow_last_addendum_sync']['extended_services']++;
+            }
+
+            // Link documentul act adițional la contract_id pentru rapoarte/filtre
+            try {
+                $linkUpd = $pdo->prepare('UPDATE documents SET contract_id = ? WHERE id = ?');
+                $linkUpd->execute([$contractId, $documentId]);
+            } catch (Throwable $e) {
+                error_log('PestZone addendum document link error: ' . $e->getMessage());
+            }
+
+            return $contractId;
+        } catch (Throwable $e) {
+            $GLOBALS['pz_flow_last_addendum_sync']['error'] = $e->getMessage();
+            error_log('PestZone addendum sync error: document ' . $documentId . ' - ' . $e->getMessage());
+            if ($throwErrors) {
+                throw $e;
+            }
+            return null;
+        }
+    }
+}
+
+if (!function_exists('pz_flow_last_addendum_sync_stats')) {
+    function pz_flow_last_addendum_sync_stats(): array
+    {
+        return is_array($GLOBALS['pz_flow_last_addendum_sync'] ?? null) ? $GLOBALS['pz_flow_last_addendum_sync'] : [];
     }
 }

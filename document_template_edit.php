@@ -40,6 +40,7 @@ function dte_types(): array
     return [
         'oferta' => 'Oferta',
         'contract' => 'Contract',
+        'act_aditional' => 'Act adițional',
         'proces_verbal' => 'Proces verbal',
     ];
 }
@@ -182,11 +183,18 @@ function dte_demo_tokens(): array
         'location_address' => 'Bucuresti, Str. Punctului nr. 10',
         'location_contact' => 'Ionescu Maria',
         'location_phone' => '0700 222 222',
+        'treated_areas' => 'Bucatarie, depozit marfa, hol acces si zona perimetrala.',
+        'zone_tratate' => 'Bucatarie, depozit marfa, hol acces si zona perimetrala.',
+        'pv_treated_areas' => 'Bucatarie, depozit marfa, hol acces si zona perimetrala.',
 
         'items_table' => $itemsTable,
         'services_table' => $itemsTable,
         'materials_table' => $materialsTable,
         'biocides_table' => $materialsTable,
+        'avize_sanitare_url' => 'https://app.pestzone.ro/avize_sanitare.php',
+        'avize_sanitare_link' => '<a href="https://app.pestzone.ro/avize_sanitare.php" target="_blank" rel="noopener">Descarcă avizele sanitare ale produselor</a>',
+        'product_avize_url' => 'https://app.pestzone.ro/avize_sanitare.php',
+        'product_avize_link' => '<a href="https://app.pestzone.ro/avize_sanitare.php" target="_blank" rel="noopener">Descarcă avizele sanitare ale produselor</a>',
         'materials_safety' => '<p>Masuri de siguranta demo: aerisire, evitarea contactului direct, respectarea recomandarilor prestatorului.</p>',
         'safety_measures' => '<p>Masuri de siguranta demo: aerisire, evitarea contactului direct, respectarea recomandarilor prestatorului.</p>',
 
@@ -371,250 +379,88 @@ $isNew = (int)$form['id'] <= 0;
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap" rel="stylesheet">
 
 <?php app_theme_css(); ?>
 
 <style>
-.template-topbar {
-    align-items: center;
-    padding: 12px 20px;
-}
+/* Shell aliniat cu contracts.php / addenda.php (paleta noua pz-*) */
+.template-topbar { align-items:center; padding:12px 20px; }
+.template-toolbar { width:100%; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+.template-toolbar-left, .template-toolbar-right { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
-.template-toolbar {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
+.panel { background:var(--pz-surf); border:1px solid var(--pz-line); border-radius:var(--pz-r); box-shadow:none; margin-bottom:12px; }
+.panel-head { padding:14px 16px; border-bottom:1px solid var(--pz-lines); display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; }
+.panel-title { font-size:16px; font-weight:900; color:var(--text); }
+.panel-subtitle { font-size:12px; color:var(--pz-mu); margin-top:2px; }
+.panel-body { padding:14px 16px; }
 
-.template-toolbar-left,
-.template-toolbar-right {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-}
+.alert { border-radius:var(--pz-rs); padding:10px 13px; margin-bottom:12px; font-weight:600; font-size:12.5px; }
+.alert.error   { background:var(--pz-res); color:var(--pz-re); border:1px solid var(--pz-reb); }
+.alert.success { background:var(--pz-grs); color:var(--pz-gr); border:1px solid var(--pz-grb); }
 
+.editor-layout { display:grid; grid-template-columns:minmax(0, 1.15fr) minmax(320px, .85fr); gap:12px; align-items:start; }
+
+/* card era folosit pe sectiunile vechi; il aliniem la panel */
+.card { background:var(--pz-surf); border:1px solid var(--pz-line); border-radius:var(--pz-r); box-shadow:none; padding:14px; }
+
+.form-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+.field.full { grid-column:1 / -1; }
+.field label { display:block; margin-bottom:5px; font-size:12px; font-weight:850; color:var(--pz-mu); }
+.field input, .field select, .field textarea { width:100%; border:1px solid var(--pz-line); border-radius:var(--pz-rs); background:#fff; color:var(--text); padding:7px 10px; font-size:12.5px; outline:none; transition:border-color .14s; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+
+.word-editor-shell { border:1px solid var(--pz-line); border-radius:var(--pz-r); overflow:hidden; background:#fff; }
+.tox.tox-tinymce { border:0 !important; border-radius:var(--pz-r) !important; }
+.field textarea.editor { min-height:520px; font-family:var(--mono); font-size:12px; line-height:1.45; resize:vertical; white-space:pre-wrap; }
+
+.option-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:4px; }
+.check-pill { display:inline-flex; align-items:center; gap:7px; padding:7px 10px; border:1px solid var(--pz-line); border-radius:var(--pz-rs); background:#fff; font-size:12px; font-weight:700; color:var(--text); cursor:pointer; }
+.check-pill input { width:auto; }
+.check-pill:hover { border-color:var(--accent); }
+
+.editor-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; margin-top:12px; }
+
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:34px; border-radius:var(--pz-rs); padding:0 11px; border:1px solid var(--pz-line); background:#fff; color:var(--text); font-size:12.5px; font-weight:600; text-decoration:none; cursor:pointer; white-space:nowrap; box-shadow:none; }
+.btn:hover { border-color:var(--accent); color:var(--accent-deep); }
+.btn.primary, .btn.accent { background:var(--accent); border-color:var(--accent); color:#fff; }
+.btn.primary:hover, .btn.accent:hover { background:var(--accent-strong); color:#fff; }
+
+.side-stack { display:grid; gap:12px; }
+.side-stack h3 { margin:0 0 10px; font-size:14px; font-weight:900; color:var(--text); letter-spacing:-.01em; }
+.preview-frame { width:100%; height:520px; border:1px solid var(--pz-line); border-radius:var(--pz-r); background:#fff; }
+
+.tokens-list { display:grid; gap:8px; }
+.token-group { border:1px solid var(--pz-line); border-radius:var(--pz-r); background:var(--pz-soft, #F8FAFC); padding:10px; }
+.token-group-title { font-weight:800; color:var(--text); margin-bottom:7px; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+.token-wrap { display:flex; flex-wrap:wrap; gap:6px; }
+.token-pill { border:1px solid var(--pz-line); background:#fff; border-radius:var(--pz-rs); padding:5px 8px; font-family:var(--mono); font-size:11px; color:var(--accent-deep); cursor:pointer; user-select:none; transition:background .12s, border-color .12s; }
+.token-pill:hover { background:var(--accent-soft); border-color:var(--accent-soft-2); }
+
+.help-box { background:var(--pz-ors); border:1px solid var(--pz-orb); color:var(--pz-or); border-radius:var(--pz-rs); padding:10px 12px; font-size:12px; font-weight:600; line-height:1.4; }
+.muted-small { color:var(--pz-mu); font-size:12px; line-height:1.4; }
+
+/* Hero compact, fara gradient / shadow puternic — aliniat cu restul aplicatiei */
 .template-hero {
-    background: linear-gradient(135deg, #10243E, #163B63);
-    color: #fff;
-    border-radius: var(--radius-lg);
-    padding: 20px 22px;
-    box-shadow: var(--shadow-lg);
-    margin-bottom: 12px;
+    background:var(--pz-brand); color:#fff; border-radius:var(--pz-r); padding:18px 20px;
+    box-shadow:none; margin-bottom:12px;
+    display:flex; flex-direction:column; gap:4px;
 }
-
-.template-hero h1 {
-    font-size: 23px;
-    font-weight: 900;
-    letter-spacing: -.03em;
-    margin: 0;
-}
-
-.template-hero p {
-    color: rgba(255,255,255,.72);
-    margin: 5px 0 0;
-    max-width: 920px;
-}
-
-.editor-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
-    gap: 12px;
-    align-items: start;
-}
-
-.card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow);
-    padding: 14px;
-}
-
-.form-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-}
-
-.field.full {
-    grid-column: 1 / -1;
-}
-
-.field label {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 12px;
-    font-weight: 850;
-    color: var(--muted);
-}
-
-.field input,
-.field select,
-.field textarea {
-    width: 100%;
-}
-
-.word-editor-shell { border:1px solid var(--border2); border-radius:14px; overflow:hidden; background:#fff; }
-.tox.tox-tinymce { border:0 !important; border-radius:14px !important; }
-
-.field textarea.editor {
-    min-height: 520px;
-    font-family: var(--mono);
-    font-size: 12px;
-    line-height: 1.45;
-    resize: vertical;
-    white-space: pre-wrap;
-}
-
-.option-row {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-top: 4px;
-}
-
-.check-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 8px 10px;
-    border: 1px solid var(--border2);
-    border-radius: 999px;
-    background: var(--surface-soft);
-    font-size: 12px;
-    font-weight: 850;
-    color: var(--text);
-}
-
-.check-pill input {
-    width: auto;
-}
-
-.editor-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    margin-top: 12px;
-}
-
-.side-stack {
-    display: grid;
-    gap: 12px;
-}
-
-.preview-frame {
-    width: 100%;
-    height: 520px;
-    border: 1px solid var(--border2);
-    border-radius: 12px;
-    background: #fff;
-}
-
-.tokens-list {
-    display: grid;
-    gap: 9px;
-}
-
-.token-group {
-    border: 1px solid var(--border2);
-    border-radius: 12px;
-    background: var(--surface-soft);
-    padding: 10px;
-}
-
-.token-group-title {
-    font-weight: 900;
-    color: var(--text);
-    margin-bottom: 7px;
-    font-size: 13px;
-}
-
-.token-wrap {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.token-pill {
-    border: 1px solid var(--border);
-    background: #fff;
-    border-radius: 999px;
-    padding: 6px 8px;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--accent-deep);
-    cursor: pointer;
-    user-select: none;
-}
-
-.token-pill:hover {
-    background: var(--accent-soft);
-}
-
-.help-box {
-    background: var(--warning-soft);
-    border: 1px solid rgba(154, 103, 0, .18);
-    color: var(--warning);
-    border-radius: 12px;
-    padding: 10px 12px;
-    font-size: 12px;
-    font-weight: 750;
-    line-height: 1.4;
-}
-
-.muted-small {
-    color: var(--muted);
-    font-size: 12px;
-    line-height: 1.4;
-}
+.template-hero h1 { font-size:22px; font-weight:900; letter-spacing:-.03em; margin:0; color:#fff; }
+.template-hero p { color:rgba(255,255,255,.78); margin:2px 0 0; max-width:920px; font-size:13px; line-height:1.45; }
 
 @media(max-width: 1120px) {
-    .editor-layout {
-        grid-template-columns: 1fr;
-    }
+    .editor-layout { grid-template-columns:1fr; }
 }
 
 @media(max-width: 860px) {
-    .template-topbar {
-        width: 100% !important;
-        padding: 8px 10px 14px 10px !important;
-        display: block !important;
-    }
-
-    .template-toolbar,
-    .template-toolbar-left,
-    .template-toolbar-right {
-        display: grid !important;
-        grid-template-columns: 1fr !important;
-        width: 100% !important;
-    }
-
-    .template-toolbar .btn,
-    .template-toolbar form,
-    .template-toolbar button,
-    .editor-actions .btn,
-    .editor-actions button {
-        width: 100% !important;
-    }
-
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .template-hero {
-        padding: 18px;
-    }
-
-    .template-hero h1 {
-        font-size: 21px;
-    }
+    .template-topbar { width:100% !important; padding:8px 10px 14px 10px !important; display:block !important; }
+    .template-toolbar, .template-toolbar-left, .template-toolbar-right { display:grid !important; grid-template-columns:1fr !important; width:100% !important; }
+    .template-toolbar .btn, .template-toolbar form, .template-toolbar button,
+    .editor-actions .btn, .editor-actions button { width:100% !important; }
+    .form-grid { grid-template-columns:1fr; }
+    .template-hero { padding:16px; }
+    .template-hero h1 { font-size:19px; }
 }
 </style>
 </head>
@@ -637,11 +483,11 @@ $isNew = (int)$form['id'] <= 0;
         </div>
 
         <?php if ($flash): ?>
-            <div class="notice notice-success"><?= dte_h($flash) ?></div>
+            <div class="alert success" style="margin:10px 20px 0;"><?= dte_h($flash) ?></div>
         <?php endif; ?>
 
         <?php if ($error): ?>
-            <div class="notice notice-danger"><?= dte_h($error) ?></div>
+            <div class="alert error" style="margin:10px 20px 0;"><?= dte_h($error) ?></div>
         <?php endif; ?>
 
         <div class="content">
@@ -660,77 +506,90 @@ $isNew = (int)$form['id'] <= 0;
                 <input type="hidden" name="description" value="<?= dte_h($form['description']) ?>">
 
                 <div class="editor-layout">
-                    <section class="card">
-                        <div class="form-grid">
-                            <div class="field">
-                                <label>Tip document</label>
-                                <select name="document_type" id="documentType">
-                                    <?php foreach (dte_types() as $type => $label): ?>
-                                        <option value="<?= dte_h($type) ?>" <?= $form['document_type'] === $type ? 'selected' : '' ?>><?= dte_h($label) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-
-                            <div class="field">
-                                <label>Nume șablon</label>
-                                <input type="text" name="name" value="<?= dte_h($form['name']) ?>" required>
-                            </div>
-
-                            <div class="field">
-                                <label>Status</label>
-                                <div class="option-row">
-                                    <label class="check-pill">
-                                        <input type="checkbox" name="is_active" value="1" <?= (int)$form['is_active'] === 1 ? 'checked' : '' ?>> Activ
-                                    </label>
-                                    <label class="check-pill">
-                                        <input type="checkbox" name="is_default" value="1" <?= (int)$form['is_default'] === 1 ? 'checked' : '' ?>> Șablon implicit
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="field full">
-                                <label>Continut șablon</label>
-                                <div class="muted-small" style="margin-bottom:8px;">
-                                    Editezi vizual, ca in Word. Variabilele din dreapta se insereaza prin click si se completeaza automat la emitere.
-                                </div>
-                                <div class="word-editor-shell">
-                                    <textarea class="editor" name="content_html" id="contentHtml" spellcheck="false" required><?= dte_h($form['content_html']) ?></textarea>
-                                </div>
+                    <section class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <div class="panel-title">Conținut șablon</div>
+                                <div class="panel-subtitle">Editezi vizual, ca in Word. Variabilele din dreapta se inserează prin click si se completează automat la emitere.</div>
                             </div>
                         </div>
+                        <div class="panel-body">
+                            <div class="form-grid">
+                                <div class="field">
+                                    <label>Tip document</label>
+                                    <select name="document_type" id="documentType">
+                                        <?php foreach (dte_types() as $type => $label): ?>
+                                            <option value="<?= dte_h($type) ?>" <?= $form['document_type'] === $type ? 'selected' : '' ?>><?= dte_h($label) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
 
-                        <div class="editor-actions">
-                            <button class="btn" type="button" id="refreshPreview">Actualizează preview</button>
-                            <button class="btn" type="submit" name="action" value="save">Salvează</button>
-                            <button class="btn accent" type="submit" name="action" value="save_back">Salvează si inapoi</button>
+                                <div class="field">
+                                    <label>Nume șablon</label>
+                                    <input type="text" name="name" value="<?= dte_h($form['name']) ?>" required>
+                                </div>
+
+                                <div class="field full">
+                                    <label>Status</label>
+                                    <div class="option-row">
+                                        <label class="check-pill">
+                                            <input type="checkbox" name="is_active" value="1" <?= (int)$form['is_active'] === 1 ? 'checked' : '' ?>> Activ
+                                        </label>
+                                        <label class="check-pill">
+                                            <input type="checkbox" name="is_default" value="1" <?= (int)$form['is_default'] === 1 ? 'checked' : '' ?>> Șablon implicit
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="field full">
+                                    <label>Document</label>
+                                    <div class="word-editor-shell">
+                                        <textarea class="editor" name="content_html" id="contentHtml" spellcheck="false" required><?= dte_h($form['content_html']) ?></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="editor-actions">
+                                <button class="btn" type="button" id="refreshPreview">Actualizează preview</button>
+                                <button class="btn" type="submit" name="action" value="save">Salvează</button>
+                                <button class="btn primary" type="submit" name="action" value="save_back">Salvează si inapoi</button>
+                            </div>
                         </div>
                     </section>
 
                     <aside class="side-stack">
-                        <section class="card">
-                            <h3 style="margin:0 0 10px;font-size:15px;">Preview cu date demo</h3>
-                            <iframe class="preview-frame" id="previewFrame" srcdoc="<?= dte_h($previewHtml) ?>"></iframe>
-                            <div class="muted-small" style="margin-top:8px;">
-                                Preview-ul folosește date demonstrative. La emiterea reala, tokenii se completeaza automat din client, locație, servicii, materiale si setarile firmei.
+                        <section class="panel">
+                            <div class="panel-head">
+                                <div>
+                                    <div class="panel-title">Preview cu date demo</div>
+                                    <div class="panel-subtitle">La emiterea reala, tokenii se completează automat din client, locație, servicii, materiale si setarile firmei.</div>
+                                </div>
+                            </div>
+                            <div class="panel-body">
+                                <iframe class="preview-frame" id="previewFrame" srcdoc="<?= dte_h($previewHtml) ?>"></iframe>
                             </div>
                         </section>
 
-                        <section class="card">
-                            <h3 style="margin:0 0 10px;font-size:15px;">Variabile disponibile</h3>
-                            <div class="help-box" style="margin-bottom:10px;">
-                                Click pe o variabila pentru a o introduce in editor la pozitia cursorului.
+                        <section class="panel">
+                            <div class="panel-head">
+                                <div>
+                                    <div class="panel-title">Variabile disponibile</div>
+                                    <div class="panel-subtitle">Click pe o variabila pentru a o introduce in editor la pozitia cursorului.</div>
+                                </div>
                             </div>
-                            <div class="tokens-list">
-                                <?php foreach ($tokensByGroup as $group => $tokens): ?>
-                                    <div class="token-group">
-                                        <div class="token-group-title"><?= dte_h($group) ?></div>
-                                        <div class="token-wrap">
-                                            <?php foreach ($tokens as $token): ?>
-                                                <span class="token-pill" data-token="<?= dte_h($token) ?>"><?= dte_h($token) ?></span>
-                                            <?php endforeach; ?>
+                            <div class="panel-body">
+                                <div class="tokens-list">
+                                    <?php foreach ($tokensByGroup as $group => $tokens): ?>
+                                        <div class="token-group">
+                                            <div class="token-group-title"><?= dte_h($group) ?></div>
+                                            <div class="token-wrap">
+                                                <?php foreach ($tokens as $token): ?>
+                                                    <span class="token-pill" data-token="<?= dte_h($token) ?>"><?= dte_h($token) ?></span>
+                                                <?php endforeach; ?>
+                                            </div>
                                         </div>
-                                    </div>
-                                <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
                         </section>
                     </aside>
@@ -750,6 +609,7 @@ const demoTokens = <?= json_encode(dte_demo_tokens(), JSON_UNESCAPED_UNICODE | J
 const pdfCssByType = <?= json_encode([
     'oferta' => dte_pdf_css_for_type($pdo, 'oferta'),
     'contract' => dte_pdf_css_for_type($pdo, 'contract'),
+    'act_aditional' => dte_pdf_css_for_type($pdo, 'act_aditional'),
     'proces_verbal' => dte_pdf_css_for_type($pdo, 'proces_verbal'),
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 let previewTimer = null;

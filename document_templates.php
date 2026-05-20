@@ -51,6 +51,7 @@ function dtpl_types(): array
     return [
         'oferta' => 'Oferta',
         'contract' => 'Contract',
+        'act_aditional' => 'Act adițional',
         'proces_verbal' => 'Proces verbal',
     ];
 }
@@ -356,7 +357,7 @@ $isAdmin = is_admin();
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap" rel="stylesheet">
 
 <?php app_theme_css(); ?>
 
@@ -376,7 +377,7 @@ $isAdmin = is_admin();
 }
 
 .document-hero {
-    background: linear-gradient(135deg, #10243E, #163B63);
+    background: var(--pz-brand, #12345A);
     color: #fff;
     border-radius: var(--radius-lg);
     padding: 22px 24px;
@@ -685,7 +686,7 @@ a.btn.small {
                 <div>
                     <h1>Șabloane documente</h1>
                     <p>
-                        Administreaza șabloanele folosite de motorul unic pentru oferte, contracte si procese verbale.
+                        Administreaza șabloanele folosite de motorul unic pentru oferte, contracte, acte adiționale si procese verbale.
                         Emiterea documentelor va lua automat șablonul implicit al fiecarui tip.
                     </p>
                 </div>

@@ -424,9 +424,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $document) {
 
 $type = $document ? pzdoc_normalize_document_type((string)$document['document_type']) : '';
 $backUrl = 'document_view.php?id=' . (int)$documentId;
-if ($type === 'oferta') $listUrl = 'oferte.php';
+if ($type === 'oferta') $listUrl = 'offers';
 elseif ($type === 'contract') $listUrl = 'contracts.php';
-elseif ($type === 'proces_verbal') $listUrl = 'procese_verbale.php';
+elseif ($type === 'proces_verbal') $listUrl = 'service-reports';
 else $listUrl = 'dashboard.php';
 
 $toValue = $_POST['to_email'] ?? $defaultTo;

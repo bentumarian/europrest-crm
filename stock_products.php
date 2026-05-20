@@ -10,12 +10,54 @@ if (!stock_table_exists($pdo, 'stock_products')) { header('Location: stock_insta
 $msg = '';
 $err = '';
 
+function stock_product_upload_aviz_file(array $file, ?string $oldPath = null): ?string
+{
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Fișierul de aviz nu a putut fi încărcat.');
+    }
+    if ((int)($file['size'] ?? 0) > 15 * 1024 * 1024) {
+        throw new RuntimeException('Fișierul de aviz depășește limita de 15 MB.');
+    }
+
+    $originalName = (string)($file['name'] ?? '');
+    $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['pdf', 'jpg', 'jpeg', 'png', 'webp'], true)) {
+        throw new RuntimeException('Fișierul de aviz trebuie să fie PDF, JPG, PNG sau WEBP.');
+    }
+
+    $dir = __DIR__ . '/uploads/product_avize';
+    if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
+        throw new RuntimeException('Nu pot crea folderul pentru avize.');
+    }
+
+    $base = preg_replace('/[^a-zA-Z0-9._-]+/', '-', pathinfo($originalName, PATHINFO_FILENAME));
+    $base = trim((string)$base, '-_.') ?: 'aviz';
+    $relative = 'uploads/product_avize/' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '_' . $base . '.' . $ext;
+    if (!move_uploaded_file((string)$file['tmp_name'], __DIR__ . '/' . $relative)) {
+        throw new RuntimeException('Fișierul de aviz nu a putut fi salvat.');
+    }
+
+    if ($oldPath) {
+        $oldFull = realpath(__DIR__ . '/' . ltrim($oldPath, '/\\'));
+        $uploadsRoot = realpath(__DIR__ . '/uploads');
+        if ($oldFull && $uploadsRoot && str_starts_with($oldFull, $uploadsRoot) && is_file($oldFull)) {
+            @unlink($oldFull);
+        }
+    }
+
+    return $relative;
+}
+
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         csrf_require();
         $action = $_POST['action'] ?? '';
         if ($action === 'save_product') {
             $id = (int)($_POST['id'] ?? 0);
+            $existing = $id > 0 ? stock_get_product($pdo, $id) : null;
             $data = [
                 'name' => trim((string)($_POST['name'] ?? '')),
                 'product_group' => trim((string)($_POST['product_group'] ?? 'materiale')),
@@ -34,6 +76,18 @@ try {
             ];
             stock_validate_product_data($data);
 
+            $avizFile = $existing['aviz_file'] ?? null;
+            if (!empty($_POST['remove_aviz_file'])) {
+                $avizFile = null;
+            }
+            if (!empty($_FILES['aviz_file'])) {
+                $uploadedAviz = stock_product_upload_aviz_file($_FILES['aviz_file'], $avizFile);
+                if ($uploadedAviz !== null) {
+                    $avizFile = $uploadedAviz;
+                }
+            }
+            $data['aviz_file'] = $avizFile;
+
             if (!stock_is_biocide_group($data['product_group'])) {
                 $data['aviz_no'] = $data['aviz_no'] ?: null;
                 $data['aviz_valid_until'] = $data['aviz_valid_until'] ?: null;
@@ -41,12 +95,12 @@ try {
             }
 
             if ($id > 0) {
-                $sql = "UPDATE stock_products SET name=:name, product_group=:product_group, unit_consumption=:unit_consumption, package_qty=:package_qty, min_qty=:min_qty, aviz_no=:aviz_no, aviz_valid_until=:aviz_valid_until, active_substance=:active_substance, product_concentration=:product_concentration, contact_time=:contact_time, default_application_method=:default_application_method, safety_measures=:safety_measures, notes=:notes, is_active=:is_active, updated_at=NOW() WHERE id=:id";
+                $sql = "UPDATE stock_products SET name=:name, product_group=:product_group, unit_consumption=:unit_consumption, package_qty=:package_qty, min_qty=:min_qty, aviz_no=:aviz_no, aviz_valid_until=:aviz_valid_until, active_substance=:active_substance, product_concentration=:product_concentration, contact_time=:contact_time, default_application_method=:default_application_method, safety_measures=:safety_measures, aviz_file=:aviz_file, notes=:notes, is_active=:is_active, updated_at=NOW() WHERE id=:id";
                 $data['id'] = $id;
                 $pdo->prepare($sql)->execute($data);
                 $msg = 'Produs actualizat.';
             } else {
-                $sql = "INSERT INTO stock_products (name, product_group, unit_consumption, package_qty, min_qty, aviz_no, aviz_valid_until, active_substance, product_concentration, contact_time, default_application_method, safety_measures, notes, is_active, created_at) VALUES (:name, :product_group, :unit_consumption, :package_qty, :min_qty, :aviz_no, :aviz_valid_until, :active_substance, :product_concentration, :contact_time, :default_application_method, :safety_measures, :notes, :is_active, NOW())";
+                $sql = "INSERT INTO stock_products (name, product_group, unit_consumption, package_qty, min_qty, aviz_no, aviz_valid_until, active_substance, product_concentration, contact_time, default_application_method, safety_measures, aviz_file, notes, is_active, created_at) VALUES (:name, :product_group, :unit_consumption, :package_qty, :min_qty, :aviz_no, :aviz_valid_until, :active_substance, :product_concentration, :contact_time, :default_application_method, :safety_measures, :aviz_file, :notes, :is_active, NOW())";
                 $pdo->prepare($sql)->execute($data);
                 $msg = 'Produs adăugat.';
             }
@@ -66,11 +120,11 @@ app_theme_css();
 ?>
 <!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Produse gestiune</title>
 </head><body><div class="layout"><?php render_sidebar('stock', true); ?><main class="main"><div class="topbar"><div style="padding:0 20px;font-weight:900;">Gestiune - Produse</div></div><div class="content">
-<div class="stock-hero"><div><h1>Nomenclator produse</h1><p>Produse și materiale DDD, cu stoc minim și măsuri de siguranță pentru PV.</p></div><div class="stock-actions"><a class="btn" href="stock.php">Dashboard</a><a class="btn accent" href="stock_products.php">Produs nou</a></div></div>
+<div class="stock-hero"><div><h1>Nomenclator produse</h1><p>Produse și materiale DDD, cu stoc minim și măsuri de siguranță pentru PV.</p></div><div class="stock-actions"><a class="btn" href="avize_sanitare.php" target="_blank" rel="noopener">Pagina publică avize</a><a class="btn" href="stock.php">Dashboard</a><a class="btn accent" href="stock_products.php">Produs nou</a></div></div>
 <?php render_stock_module_nav('products'); ?>
 <?php if ($msg): ?><div class="notice notice-success"><?= stock_h($msg) ?></div><?php endif; ?>
 <?php if ($err): ?><div class="notice notice-danger"><?= stock_h($err) ?></div><?php endif; ?>
-<form class="stock-card" method="post" id="productForm">
+<form class="stock-card" method="post" id="productForm" enctype="multipart/form-data">
 <?= csrf_field() ?><input type="hidden" name="action" value="save_product"><input type="hidden" name="id" value="<?= (int)($edit['id'] ?? 0) ?>">
 <h2 style="margin:0 0 14px;font-size:18px;"><?= $edit ? 'Editează produs' : 'Adaugă produs' ?></h2>
 <div class="stock-grid">
@@ -85,6 +139,17 @@ app_theme_css();
 <div class="stock-grid js-biocide-only" style="margin-top:14px;">
     <div class="stock-field"><label>Număr aviz *</label><input name="aviz_no" value="<?= stock_h($edit['aviz_no'] ?? '') ?>" placeholder="Număr act administrativ / aviz"></div>
     <div class="stock-field"><label>Valabilitate aviz *</label><input type="date" name="aviz_valid_until" value="<?= stock_h($edit['aviz_valid_until'] ?? '') ?>"></div>
+</div>
+<div class="stock-field js-biocide-only" style="margin-top:14px;">
+    <label>Fișier aviz sanitar public</label>
+    <input type="file" name="aviz_file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*">
+    <small>PDF/JPG/PNG/WEBP, maxim 15 MB. Fișierul apare în pagina publică de avize pentru clienți.</small>
+    <?php if (!empty($edit['aviz_file'])): ?>
+        <div style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <a class="btn" href="avize_sanitare.php?download=<?= (int)($edit['id'] ?? 0) ?>" target="_blank" rel="noopener">Descarcă avizul curent</a>
+            <label style="display:flex;gap:7px;align-items:center;margin:0;text-transform:none;letter-spacing:0;font-size:13px;"><input type="checkbox" name="remove_aviz_file" value="1" style="width:auto;min-height:auto;"> Șterge fișierul curent</label>
+        </div>
+    <?php endif; ?>
 </div>
 <div class="stock-grid-4 js-biocide-only" style="margin-top:14px;">
     <div class="stock-field"><label>Substanță activă</label><input name="active_substance" value="<?= stock_h($edit['active_substance'] ?? '') ?>"></div>

@@ -26,7 +26,7 @@ if (file_exists(__DIR__ . '/stock_lib.php')) {
 if (!function_exists('pzdoc_allowed_document_types')) {
     function pzdoc_allowed_document_types(): array
     {
-        return ['oferta', 'contract', 'proces_verbal'];
+        return ['oferta', 'contract', 'proces_verbal', 'act_aditional'];
     }
 }
 
@@ -67,6 +67,10 @@ if (!function_exists('pzdoc_normalize_document_type')) {
             'proces' => 'proces_verbal',
             'proces_verbal' => 'proces_verbal',
             'procese_verbale' => 'proces_verbal',
+            'act_aditional' => 'act_aditional',
+            'acte_aditionale' => 'act_aditional',
+            'addendum' => 'act_aditional',
+            'addenda' => 'act_aditional',
         ];
 
         return $map[$type] ?? $type;
@@ -307,6 +311,7 @@ if (!function_exists('pzdoc_guess_title')) {
             'oferta' => 'Oferta',
             'contract' => 'Contract',
             'proces_verbal' => 'Proces verbal',
+            'act_aditional' => 'Act adițional',
         ][$documentType] ?? 'Document';
 
         $client = pzdoc_str($data['client_name_snapshot'] ?? null, 120);
@@ -387,7 +392,7 @@ if (!function_exists('pzdoc_create_document')) {
 
         $items = is_array($data['items'] ?? null) ? $data['items'] : [];
         $vatPercent = pzdoc_decimal($data['vat_percent'] ?? 0, 0);
-        if (in_array($documentType, ['oferta', 'contract'], true)) {
+        if (in_array($documentType, ['oferta', 'contract', 'act_aditional'], true)) {
             $vatPercent = 0.0;
         }
         $totals = pzdoc_calculate_items_totals($items, $vatPercent);
@@ -554,7 +559,7 @@ if (!function_exists('pzdoc_update_document')) {
 
         $items = array_key_exists('items', $data) && is_array($data['items']) ? $data['items'] : null;
         $vatPercent = array_key_exists('vat_percent', $data) ? pzdoc_decimal($data['vat_percent'], 0) : pzdoc_decimal($document['vat_percent'] ?? 0, 0);
-        if (in_array($documentType, ['oferta', 'contract'], true)) {
+        if (in_array($documentType, ['oferta', 'contract', 'act_aditional'], true)) {
             $vatPercent = 0.0;
         }
         $totals = $items !== null

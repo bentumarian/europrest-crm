@@ -41,9 +41,9 @@ function dview_back_url(string $type): string
         return 'contracts.php';
     }
     if ($type === 'proces_verbal') {
-        return 'procese_verbale.php';
+        return 'service-reports';
     }
-    return 'oferte.php';
+    return 'offers';
 }
 
 function dview_edit_url(array $document): string
@@ -54,9 +54,9 @@ function dview_edit_url(array $document): string
         return 'contracts.php?edit=' . $id;
     }
     if ($type === 'proces_verbal') {
-        return 'procese_verbale.php?edit=' . $id;
+        return 'service-reports?edit=' . $id;
     }
-    return 'oferte.php?edit=' . $id;
+    return 'offers?edit=' . $id;
 }
 
 
@@ -492,6 +492,18 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
     .actions-card button,
     .actions-card input { width: 100%; }
 }
+/* DS v2.4 */
+.actions-card input[type="date"],.actions-card input[type="text"] { border-radius:var(--pz-rs) !important; }
+.signature-pad-wrap,.signature-existing img { border-radius:var(--pz-r) !important; }
+.print-preview-frame { border-radius:var(--pz-r) !important; }
+.badge { border-radius:var(--pz-rs) !important; font-weight:600 !important; }
+.badge.draft    { background:var(--pz-ors) !important; color:var(--pz-or) !important; border-color:var(--pz-orb) !important; }
+.badge.issued   { background:var(--pz-grs) !important; color:var(--pz-gr) !important; border-color:var(--pz-grb) !important; }
+.badge.cancelled{ background:var(--pz-res) !important; color:var(--pz-re) !important; border-color:var(--pz-reb) !important; }
+.badge.email    { background:var(--pz-bls) !important; color:var(--pz-bld) !important; border-color:var(--pz-blb) !important; }
+.document-alert.success { background:var(--pz-grs) !important; color:var(--pz-gr) !important; }
+.document-alert.error   { background:var(--pz-res) !important; color:var(--pz-re) !important; }
+.document-alert.warning { background:var(--pz-ors) !important; color:var(--pz-or) !important; }
 </style>
 </head>
 <body>

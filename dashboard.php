@@ -4,1730 +4,560 @@ require_login();
 require_once 'app_ui.php';
 
 $isAdmin = is_admin();
-$isTeamUser = function_exists('is_team_user') ? is_team_user() : false;
-
-// Pentru tehnicieni, dashboard-ul rămâne calendarul lor
 if (!$isAdmin) {
     header("Location: calendar.php");
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Helpers
-|--------------------------------------------------------------------------
-*/
-function dash_h($value): string {
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+function dash_h($value): string
+{
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
 
-function dash_table_exists(PDO $pdo, string $table): bool {
-    $stmt = $pdo->prepare("SELECT COUNT(*) AS total FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?");
-    $stmt->execute([$table]);
-    return (int)($stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0) > 0;
+function dash_table_exists(PDO $pdo, string $table): bool
+{
+    try {
+        $s = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?");
+        $s->execute([$table]);
+        return (int)$s->fetchColumn() > 0;
+    } catch (Throwable $e) { return false; }
 }
 
-function dash_column_exists(PDO $pdo, string $table, string $column): bool {
-    $stmt = $pdo->prepare("SELECT COUNT(*) AS total FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?");
-    $stmt->execute([$table, $column]);
-    return (int)($stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0) > 0;
+function dash_column_exists(PDO $pdo, string $table, string $column): bool
+{
+    try {
+        $s = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?");
+        $s->execute([$table, $column]);
+        return (int)$s->fetchColumn() > 0;
+    } catch (Throwable $e) { return false; }
 }
 
-function dash_ensure_column(PDO $pdo, string $table, string $column, string $definition): void {
-    if (!dash_column_exists($pdo, $table, $column)) {
-        try {
-            $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
-        } catch (Throwable $e) {
-            error_log('dashboard add column error: ' . $e->getMessage());
-        }
-    }
+function dash_rows(PDO $pdo, string $sql, array $params = []): array
+{
+    try {
+        $s = $pdo->prepare($sql);
+        $s->execute($params);
+        return $s->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) { error_log('dashboard: ' . $e->getMessage()); return []; }
 }
 
-function dash_status_label(string $status): string {
-    return [
-        'neconfirmata' => 'Neconfirmata', 'confirmata' => 'Confirmata',
-        'in_lucru' => 'În lucru', 'finalizata' => 'Finalizată', 'anulata' => 'Anulată',
-        'de_programat' => 'De programat', 'contactat' => 'Contactat',
-        'amanat' => 'Amanat', 'programat' => 'Programat',
-    ][$status] ?? $status;
+function dash_value(PDO $pdo, string $sql, array $params = [], $default = 0)
+{
+    try {
+        $s = $pdo->prepare($sql);
+        $s->execute($params);
+        $v = $s->fetchColumn();
+        return ($v === false || $v === null) ? $default : $v;
+    } catch (Throwable $e) { return $default; }
 }
 
-function dash_status_tone(string $status): string {
-    return [
-        'confirmata' => 'info', 'in_lucru' => 'info-strong',
-        'finalizata' => 'success', 'anulata' => 'neutral',
-        'neconfirmata' => 'warning', 'de_programat' => 'warning',
-        'contactat' => 'info', 'amanat' => 'warning', 'programat' => 'info',
-    ][$status] ?? 'neutral';
-}
+function dash_money($amount): string { return number_format((float)$amount, 0, ',', '.'); }
+function dash_decimal($value, int $p = 1): string { return number_format((float)$value, $p, ',', '.'); }
 
-function dash_time(?string $time): string {
-    return $time ? substr((string)$time, 0, 5) : '--:--';
-}
-
-function dash_format_money(float $amount): string {
-    return number_format($amount, 0, ',', '.');
-}
-
-function dash_percent_change(float $current, float $previous): ?float {
-    if (abs($previous) < 0.00001) {
-        return abs($current) < 0.00001 ? 0.0 : null;
-    }
+function dash_percent_delta(float $current, float $previous): ?float
+{
+    if (abs($previous) < 0.00001) return abs($current) < 0.00001 ? 0.0 : null;
     return round((($current - $previous) / $previous) * 100, 1);
 }
 
-function dash_days_diff(string $from, string $to): int {
-    $a = strtotime($from); $b = strtotime($to);
-    return ($a === false || $b === false) ? 0 : (int)floor(($b - $a) / 86400);
+function dash_time(?string $time): string { return $time ? substr((string)$time, 0, 5) : '--:--'; }
+
+function dash_status_label(string $status): string
+{
+    return ['neconfirmata'=>'Neconfirmată','confirmata'=>'Confirmată','in_lucru'=>'În lucru',
+            'finalizata'=>'Finalizată','anulata'=>'Anulată','de_programat'=>'De programat',
+            'contactat'=>'Contactat','amanat'=>'Amânat','programat'=>'Programat'][$status] ?? $status;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Date calendaristice
-|--------------------------------------------------------------------------
-*/
-$today = date('Y-m-d');
-$monthStart = date('Y-m-01');
-$monthEnd   = date('Y-m-t');
-$lastMonthStart = date('Y-m-01', strtotime('first day of last month'));
-$lastMonthEnd   = date('Y-m-t', strtotime('last day of last month'));
+function dash_month_label(string $date): string
+{
+    return ['01'=>'Ian','02'=>'Feb','03'=>'Mar','04'=>'Apr','05'=>'Mai','06'=>'Iun',
+            '07'=>'Iul','08'=>'Aug','09'=>'Sep','10'=>'Oct','11'=>'Noi','12'=>'Dec'][date('m', strtotime($date))] ?? '';
+}
 
-// Săptămâna curenta = luni → duminica
-$weekStart = date('Y-m-d', strtotime('monday this week'));
-$weekEnd   = date('Y-m-d', strtotime('sunday this week'));
-// Săptămâna trecuta
-$lastWeekStart = date('Y-m-d', strtotime('monday last week'));
-$lastWeekEnd   = date('Y-m-d', strtotime('sunday last week'));
+function dash_date_ro(string $date): string
+{
+    $ts = strtotime($date);
+    return $ts ? date('d.m.Y', $ts) : $date;
+}
 
-/*
-|--------------------------------------------------------------------------
-| Helper: numara zile lucratoare luni-sambata intre 2 date (inclusiv)
-|--------------------------------------------------------------------------
-*/
-function dash_working_days(string $start, string $end): int {
-    $a = strtotime($start);
-    $b = strtotime($end);
-    if ($a === false || $b === false || $a > $b) return 0;
-    // Cap la azi - nu numaram zile viitoare ca "perioada efectiva"
-    $today = strtotime(date('Y-m-d'));
-    $b = min($b, $today);
-    $count = 0;
-    for ($t = $a; $t <= $b; $t += 86400) {
-        $dow = (int)date('N', $t); // 1=Mon, 7=Sun
-        if ($dow >= 1 && $dow <= 6) $count++; // luni-sambata
+function dash_short_date(string $date): string
+{
+    $ts = strtotime($date);
+    return $ts ? date('d.m', $ts) : $date;
+}
+
+function dash_days_ago(string $date): int
+{
+    return (int)floor((strtotime(date('Y-m-d')) - strtotime($date)) / 86400);
+}
+
+function dash_initials(string $name): string
+{
+    $parts = preg_split('/\s+/', trim($name)) ?: [];
+    $l = '';
+    foreach (array_slice($parts, 0, 2) as $p) $l .= mb_substr($p, 0, 1, 'UTF-8');
+    return mb_strtoupper($l ?: 'E', 'UTF-8');
+}
+
+function dash_safe_hex(?string $color, string $fallback = '#2563EB'): string
+{
+    $color = trim((string)$color);
+    return preg_match('/^#[0-9A-Fa-f]{6}$/', $color) ? $color : $fallback;
+}
+
+function dash_line_chart(array $rows, string $key, int $width = 540, int $height = 80, int $pad = 4): array
+{
+    $values = array_map(static fn($r) => max(0.0, (float)($r[$key] ?? 0)), $rows);
+    if (!$values) { $values = [0.0]; $rows = [[$key => 0, 'label' => '']]; }
+    $count = count($values);
+    $max = max(1.0, max($values));
+    $uw = max(1, $width - $pad * 2);
+    $uh = max(1, $height - $pad * 2);
+    $baseY = $height - $pad;
+    $pts = [];
+    foreach ($values as $i => $v) {
+        $x = $pad + ($count > 1 ? ($uw * $i / ($count - 1)) : $uw / 2);
+        $y = $baseY - (($v / $max) * $uh);
+        $pts[] = [round($x, 2), round($y, 2), $v, (string)($rows[$i]['label'] ?? '')];
     }
-    return $count;
+    $coords = array_map(static fn($p) => $p[0] . ' ' . $p[1], $pts);
+    $line = 'M ' . implode(' L ', $coords);
+    $area = 'M ' . $pts[0][0] . ' ' . $baseY . ' L ' . implode(' L ', $coords) . ' L ' . $pts[count($pts)-1][0] . ' ' . $baseY . ' Z';
+    return ['line' => $line, 'area' => $area, 'points' => $pts, 'labels' => array_column($rows, 'label'), 'max' => $max];
 }
 
-/*
-|--------------------------------------------------------------------------
-| ZONA 1: ECHIPE - capacitate pe ore (8h = 100%)
-|--------------------------------------------------------------------------
-*/
-$teamCapacityHours = 8.0;
-$teamStats = [];
-try {
-    $stmt = $pdo->prepare("
-        SELECT
-            tm.id, tm.name, tm.color,
-            COUNT(a.id) AS jobs_total,
-            SUM(CASE WHEN a.status = 'finalizata' THEN 1 ELSE 0 END) AS jobs_done,
-            SUM(CASE WHEN a.status = 'in_lucru'   THEN 1 ELSE 0 END) AS jobs_active,
-            COALESCE(SUM(
-                CASE WHEN a.start_time IS NOT NULL AND a.end_time IS NOT NULL
-                     THEN GREATEST(0, TIME_TO_SEC(a.end_time) - TIME_TO_SEC(a.start_time)) / 3600
-                     ELSE 0 END
-            ), 0) AS hours_booked,
-            MIN(CASE WHEN a.status NOT IN ('finalizata','anulata') THEN a.start_time END) AS next_start
-        FROM team_members tm
-        LEFT JOIN appointment_teams at
-            ON at.team_id = tm.id
-        LEFT JOIN appointments a
-            ON a.id = at.appointment_id
-           AND a.appointment_date = ?
-           AND a.status != 'anulata'
-        WHERE tm.active = 1
-        GROUP BY tm.id, tm.name, tm.color
-        ORDER BY hours_booked DESC, tm.name ASC
-    ");
-    $stmt->execute([$today]);
-    $teamStats = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Throwable $e) {
-    error_log('dashboard team stats error: ' . $e->getMessage());
-}
-
-$teamsTotal = count($teamStats);
-$teamsFree = 0; $teamsBusy = 0;
-$todayBookedHours = 0.0;
-foreach ($teamStats as $t) {
-    $todayBookedHours += (float)($t['hours_booked'] ?? 0);
-    if ((float)$t['hours_booked'] <= 0.01) $teamsFree++;
-    else $teamsBusy++;
-}
-
-/*
-|--------------------------------------------------------------------------
-| ZONA 1.5: EFICIENTA tehnicieni (săptămâna + luna, cu trend)
-|--------------------------------------------------------------------------
-| Capacitate FIXA per tehnician:
-|   - Săptămâna: 40 ore (inclusiv weekend dacă lucreaza)
-|   - Luna:     160 ore
-| Eficienta = ore_lucrate / capacitate_fixa
-| Nota (1-10) = procent / 10, capped la 10
-*/
-function dash_team_efficiency(PDO $pdo, string $start, string $end, float $capacityPerTeam): array {
-    if ($capacityPerTeam <= 0) $capacityPerTeam = 40.0; // fallback
-
-    try {
-        $stmt = $pdo->prepare("
-            SELECT
-                tm.id, tm.name, tm.color,
-                COALESCE(SUM(
-                    CASE WHEN a.start_time IS NOT NULL AND a.end_time IS NOT NULL
-                         THEN GREATEST(0, TIME_TO_SEC(a.end_time) - TIME_TO_SEC(a.start_time)) / 3600
-                         ELSE 0 END
-                ), 0) AS hours_worked,
-                COUNT(a.id) AS jobs_total
-            FROM team_members tm
-            LEFT JOIN appointment_teams at
-                ON at.team_id = tm.id
-            LEFT JOIN appointments a
-                ON a.id = at.appointment_id
-               AND a.appointment_date BETWEEN ? AND ?
-               AND a.status != 'anulata'
-            WHERE tm.active = 1
-            GROUP BY tm.id, tm.name, tm.color
-            ORDER BY hours_worked DESC, tm.name ASC
-        ");
-        $stmt->execute([$start, $end]);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Throwable $e) {
-        error_log('dashboard efficiency error: ' . $e->getMessage());
-        $rows = [];
+function dash_trend(PDO $pdo, bool $hasApps, bool $hasBilling, string $start, string $end, string $group): array
+{
+    $trend = [];
+    $cursor = strtotime($start);
+    $last = strtotime($end);
+    if ($group === 'month') {
+        $cursor = strtotime(date('Y-m-01', $cursor));
+        $last   = strtotime(date('Y-m-01', $last));
+        while ($cursor <= $last) {
+            $k = date('Y-m', $cursor);
+            $trend[$k] = ['key'=>$k,'label'=>dash_month_label(date('Y-m-01',$cursor)),'total'=>0,'completed'=>0,'value'=>0.0];
+            $cursor = strtotime('+1 month', $cursor);
+        }
+        $grp = "DATE_FORMAT(appointment_date,'%Y-%m')";
+    } else {
+        while ($cursor <= $last) {
+            $k = date('Y-m-d', $cursor);
+            $trend[$k] = ['key'=>$k,'label'=>dash_short_date($k),'total'=>0,'completed'=>0,'value'=>0.0];
+            $cursor = strtotime('+1 day', $cursor);
+        }
+        $grp = 'appointment_date';
     }
-
-    $teams = [];
-    $totalHours = 0;
+    if (!$hasApps) return array_values($trend);
+    $valExpr = $hasBilling ? "COALESCE(SUM(CASE WHEN billing_status!='nu_se_factureaza' THEN billing_amount ELSE 0 END),0) AS value_total" : "0 AS value_total";
+    $rows = dash_rows($pdo, "SELECT {$grp} AS pk, COUNT(*) AS total, SUM(CASE WHEN status='finalizata' THEN 1 ELSE 0 END) AS completed, {$valExpr} FROM appointments WHERE appointment_date BETWEEN ? AND ? AND status!='anulata' GROUP BY pk ORDER BY pk ASC", [$start, $end]);
     foreach ($rows as $r) {
-        $hours = (float)$r['hours_worked'];
-        $percent = $capacityPerTeam > 0 ? min(150, ($hours / $capacityPerTeam) * 100) : 0;
-        $grade = round($percent / 10, 1);
-        if ($grade > 10) $grade = 10;
-        $teams[] = [
-            'id'         => (int)$r['id'],
-            'name'       => $r['name'],
-            'color'      => $r['color'],
-            'hours'      => $hours,
-            'capacity'   => $capacityPerTeam,
-            'percent'    => $percent,
-            'grade'      => $grade,
-            'jobs_total' => (int)$r['jobs_total'],
-        ];
-        $totalHours += $hours;
+        $k = (string)($r['pk'] ?? '');
+        if (!isset($trend[$k])) continue;
+        $trend[$k]['total']     = (int)($r['total'] ?? 0);
+        $trend[$k]['completed'] = (int)($r['completed'] ?? 0);
+        $trend[$k]['value']     = (float)($r['value_total'] ?? 0);
     }
-
-    $teamCount = max(1, count($teams));
-    $avgHours = $totalHours / $teamCount;
-    $avgPercent = $capacityPerTeam > 0 ? min(150, ($avgHours / $capacityPerTeam) * 100) : 0;
-    $avgGrade = round($avgPercent / 10, 1);
-    if ($avgGrade > 10) $avgGrade = 10;
-
-    return [
-        'teams'         => $teams,
-        'capacity_team' => $capacityPerTeam,
-        'total_hours'   => $totalHours,
-        'avg_hours'     => $avgHours,
-        'avg_percent'   => $avgPercent,
-        'avg_grade'     => $avgGrade,
-        'team_count'    => count($teams),
-    ];
+    return array_values($trend);
 }
 
-// Capacitati FIXE per tehnician
-$capacityWeek  = 40.0;   // 40 ore / săptămâna
-$capacityMonth = 160.0;  // 160 ore / luna
+// ── Date constants ────────────────────────────────────────────────────────
 
-$effWeek      = dash_team_efficiency($pdo, $weekStart,     $weekEnd,     $capacityWeek);
-$effMonth     = dash_team_efficiency($pdo, $monthStart,    $monthEnd,    $capacityMonth);
-$effLastWeek  = dash_team_efficiency($pdo, $lastWeekStart, $lastWeekEnd, $capacityWeek);
-$effLastMonth = dash_team_efficiency($pdo, $lastMonthStart, $lastMonthEnd, $capacityMonth);
+$today        = date('Y-m-d');
+$nowTime      = date('H:i:s');
+$monthStart   = date('Y-m-01');
+$monthEnd     = date('Y-m-t');
+$sixMonthsStart = date('Y-m-01', strtotime('-5 months'));
 
-// Trend = diferenta procentuala intre media curenta si cea precedenta
-$weekTrend  = $effLastWeek['avg_percent']  > 0 ? round($effWeek['avg_percent']  - $effLastWeek['avg_percent'], 1)  : 0;
-$monthTrend = $effLastMonth['avg_percent'] > 0 ? round($effMonth['avg_percent'] - $effLastMonth['avg_percent'], 1) : 0;
+// ── Table & column checks ─────────────────────────────────────────────────
 
-/*
-|--------------------------------------------------------------------------
-| ZONA 2: BACKLOG - sarcini de programat (întârziate + azi)
-|--------------------------------------------------------------------------
-*/
-$tasksOverdueCount = 0;
-$tasksTodayCount = 0;
-$backlogList = [];
-try {
-    $stmt = $pdo->prepare("
-        SELECT
-            tk.id, tk.client_id, tk.client_location_id, tk.service_type, tk.due_date,
-            tk.contact_person AS task_contact_person, tk.contact_phone AS task_contact_phone,
-            c.name AS client_name, c.phone AS client_phone
-        FROM tasks tk
-        LEFT JOIN clients c ON c.id = tk.client_id
-        WHERE tk.due_date <= ?
-          AND tk.status IN ('de_programat', 'contactat', 'amanat')
-          AND tk.recurrence_stopped = 0
-        ORDER BY tk.due_date ASC, tk.id ASC
-        LIMIT 12
-    ");
-    $stmt->execute([$today]);
-    $backlogList = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Throwable $e) {
-    error_log('dashboard backlog error: ' . $e->getMessage());
-}
+$hasAppointments      = dash_table_exists($pdo, 'appointments');
+$hasTasks             = dash_table_exists($pdo, 'tasks');
+$hasClients           = dash_table_exists($pdo, 'clients');
+$hasTeamMembers       = dash_table_exists($pdo, 'team_members');
+$hasAppointmentTeams  = dash_table_exists($pdo, 'appointment_teams');
+$hasDocuments         = dash_table_exists($pdo, 'documents');
+$hasStockProducts     = dash_table_exists($pdo, 'stock_products');
+$hasStockReceipts     = dash_table_exists($pdo, 'stock_receipts');
+$hasStockMovements    = dash_table_exists($pdo, 'stock_movements');
+$hasSmartbillInvoices = dash_table_exists($pdo, 'smartbill_invoices');
+$hasSmartbillPayments = dash_table_exists($pdo, 'smartbill_invoice_payments');
+$hasBillingColumns    = $hasAppointments && dash_column_exists($pdo, 'appointments', 'billing_amount') && dash_column_exists($pdo, 'appointments', 'billing_status');
+$hasTaskStopped       = $hasTasks && dash_column_exists($pdo, 'tasks', 'recurrence_stopped');
+$taskActiveWhere      = $hasTaskStopped ? "AND recurrence_stopped = 0" : "";
 
-try {
-    $cStmt = $pdo->prepare("SELECT COUNT(*) FROM tasks WHERE due_date < ? AND status IN ('de_programat','contactat','amanat') AND recurrence_stopped = 0");
-    $cStmt->execute([$today]);
-    $tasksOverdueCount = (int)$cStmt->fetchColumn();
+// ── Chart data ────────────────────────────────────────────────────────────
 
-    $cStmt = $pdo->prepare("SELECT COUNT(*) FROM tasks WHERE due_date = ? AND status IN ('de_programat','contactat','amanat') AND recurrence_stopped = 0");
-    $cStmt->execute([$today]);
-    $tasksTodayCount = (int)$cStmt->fetchColumn();
-} catch (Throwable $e) { /* ignore */ }
-
-$backlogTotal = $tasksOverdueCount + $tasksTodayCount;
-
-/*
-|--------------------------------------------------------------------------
-| ZONA 3: CHECKLIST FACTURARE INTERVENTII
-|--------------------------------------------------------------------------
-*/
-$ibDue = 0;
-$ibDueAmount = 0.0;
-$ibBilledMonth = 0;
-$ibBilledMonthAmount = 0.0;
-$ibNoBillMonth = 0;
-$ibNoBillMonthAmount = 0.0;
-$ibOldestList = [];
-
-try {
-    if (dash_table_exists($pdo, 'appointments')) {
-        dash_ensure_column($pdo, 'appointments', 'billing_amount', "DECIMAL(10,2) NOT NULL DEFAULT 0.00");
-        dash_ensure_column($pdo, 'appointments', 'billing_status', "VARCHAR(30) NOT NULL DEFAULT 'de_facturat'");
-        dash_ensure_column($pdo, 'appointments', 'billing_note', "TEXT NULL");
-        dash_ensure_column($pdo, 'appointments', 'billing_updated_at', "DATETIME NULL");
-        dash_ensure_column($pdo, 'appointments', 'billing_updated_by', "INT NULL");
-        $pdo->exec("UPDATE appointments SET billing_status = 'de_facturat' WHERE billing_status IS NULL OR billing_status = '' OR billing_status NOT IN ('de_facturat','facturata','nu_se_factureaza')");
-
-        $stmt = $pdo->query("SELECT COUNT(*) AS total, COALESCE(SUM(billing_amount), 0) AS amount_total FROM appointments WHERE status = 'finalizata' AND billing_status = 'de_facturat'");
-        $ibDueRow = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
-        $ibDue = (int)($ibDueRow['total'] ?? 0);
-        $ibDueAmount = (float)($ibDueRow['amount_total'] ?? 0);
-
-        $stmt = $pdo->prepare("SELECT COUNT(*) AS total, COALESCE(SUM(billing_amount), 0) AS amount_total FROM appointments WHERE status = 'finalizata' AND billing_status = 'facturata' AND appointment_date BETWEEN ? AND ?");
-        $stmt->execute([$monthStart, $monthEnd]);
-        $ibBilledRow = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
-        $ibBilledMonth = (int)($ibBilledRow['total'] ?? 0);
-        $ibBilledMonthAmount = (float)($ibBilledRow['amount_total'] ?? 0);
-
-        $stmt = $pdo->prepare("SELECT COUNT(*) AS total, COALESCE(SUM(billing_amount), 0) AS amount_total FROM appointments WHERE status = 'finalizata' AND billing_status = 'nu_se_factureaza' AND appointment_date BETWEEN ? AND ?");
-        $stmt->execute([$monthStart, $monthEnd]);
-        $ibNoBillRow = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
-        $ibNoBillMonth = (int)($ibNoBillRow['total'] ?? 0);
-        $ibNoBillMonthAmount = (float)($ibNoBillRow['amount_total'] ?? 0);
-
-        $stmt = $pdo->query("
-            SELECT a.id, a.appointment_date, a.start_time, a.service_type, a.billing_amount, c.name AS client_name
-            FROM appointments a
-            LEFT JOIN clients c ON c.id = a.client_id
-            WHERE a.status = 'finalizata'
-              AND a.billing_status = 'de_facturat'
-            ORDER BY a.appointment_date ASC, a.start_time ASC, a.id ASC
-            LIMIT 5
-        ");
-        $ibOldestList = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$chartPeriods = [
+    '7d'  => ['label'=>'7 zile',  'rows'=>dash_trend($pdo,$hasAppointments,$hasBillingColumns,date('Y-m-d',strtotime('-6 days')),$today,'day')],
+    '30d' => ['label'=>'30 zile', 'rows'=>dash_trend($pdo,$hasAppointments,$hasBillingColumns,date('Y-m-d',strtotime('-29 days')),$today,'day')],
+    '6m'  => ['label'=>'6 luni',  'rows'=>dash_trend($pdo,$hasAppointments,$hasBillingColumns,$sixMonthsStart,$monthEnd,'month')],
+    '12m' => ['label'=>'12 luni', 'rows'=>dash_trend($pdo,$hasAppointments,$hasBillingColumns,date('Y-m-01',strtotime('-11 months')),$monthEnd,'month')],
+];
+$chartMetrics = [
+    'total'     => ['label'=>'Lucrări',   'unit'=>'lucrări'],
+    'completed' => ['label'=>'Finalizate','unit'=>'finalizate'],
+    'value'     => ['label'=>'Valoare',   'unit'=>'lei'],
+];
+$chartPayload = [];
+foreach ($chartMetrics as $mk => $mi) {
+    foreach ($chartPeriods as $pk => $pi) {
+        $c = dash_line_chart($pi['rows'], $mk, 540, 80);
+        $vals = array_map(static fn($r) => (float)($r[$mk] ?? 0), $pi['rows']);
+        $last = $vals ? (float)$vals[count($vals)-1] : 0.0;
+        $prev = count($vals) > 1 ? (float)$vals[count($vals)-2] : 0.0;
+        $chartPayload[$mk][$pk] = ['line'=>$c['line'],'area'=>$c['area'],'points'=>$c['points'],'labels'=>$c['labels'],'value'=>$last,'delta'=>dash_percent_delta($last,$prev),'unit'=>$mi['unit'],'metricLabel'=>$mi['label'],'periodLabel'=>$pi['label']];
     }
-} catch (Throwable $e) {
-    error_log('dashboard intervenții facturare error: ' . $e->getMessage());
 }
 
-/*
-|--------------------------------------------------------------------------
-| ZONA 4: AGENDA ZILEI
-|--------------------------------------------------------------------------
-*/
-$todayAppointments = [];
-try {
-    $stmt = $pdo->prepare("
-        SELECT
-            a.id, a.appointment_date, a.start_time, a.end_time, a.service_type, a.status,
-            c.name AS client_name,
-            t.name AS team_name, t.color AS team_color
-        FROM appointments a
-        LEFT JOIN clients c ON c.id = a.client_id
-        LEFT JOIN team_members t ON t.id = a.team_member_id
-        WHERE a.appointment_date = ?
-          AND a.status != 'anulata'
-        ORDER BY a.start_time ASC, a.id ASC
-        LIMIT 12
-    ");
-    $stmt->execute([$today]);
-    $todayAppointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Throwable $e) {
-    error_log('dashboard today appointments error: ' . $e->getMessage());
+$sixMonthRows  = $chartPeriods['6m']['rows'];
+$currentMonth  = $sixMonthRows[count($sixMonthRows)-1] ?? ['total'=>0,'completed'=>0,'value'=>0,'label'=>''];
+$previousMonth = $sixMonthRows[count($sixMonthRows)-2] ?? ['total'=>0,'completed'=>0,'value'=>0];
+$monthTotal    = (int)$currentMonth['total'];
+$monthCompleted = (int)$currentMonth['completed'];
+$monthValue    = (float)$currentMonth['value'];
+$mainChart     = $chartPayload['total']['6m'];
+
+// ── Tasks ─────────────────────────────────────────────────────────────────
+
+$tasksOverdue  = $hasTasks ? (int)dash_value($pdo,"SELECT COUNT(*) FROM tasks WHERE due_date<? AND status IN('de_programat','contactat','amanat') {$taskActiveWhere}",[$today],0) : 0;
+$tasksDueSoon  = $hasTasks ? (int)dash_value($pdo,"SELECT COUNT(*) FROM tasks WHERE due_date>=? AND due_date<DATE_ADD(?,INTERVAL 7 DAY) AND status IN('de_programat','contactat','amanat') {$taskActiveWhere}",[$today,$today],0) : 0;
+$tasksLater    = $hasTasks ? (int)dash_value($pdo,"SELECT COUNT(*) FROM tasks WHERE due_date>=DATE_ADD(?,INTERVAL 7 DAY) AND status IN('de_programat','contactat','amanat') {$taskActiveWhere}",[$today],0) : 0;
+$tasksTotal    = $tasksOverdue + $tasksDueSoon + $tasksLater;
+
+$overdueTasksList = [];
+if ($hasTasks) {
+    $hasTaskClientId = dash_column_exists($pdo,'tasks','client_id');
+    $joinClause = ($hasTaskClientId && $hasClients) ? "LEFT JOIN clients c ON c.id = t.client_id" : "";
+    $clientCol  = ($hasTaskClientId && $hasClients) ? "c.name AS client_name" : "NULL AS client_name";
+    $overdueTasksList = dash_rows($pdo,"SELECT t.id, t.title, t.due_date, {$clientCol} FROM tasks t {$joinClause} WHERE t.due_date < ? AND t.status IN('de_programat','contactat','amanat') {$taskActiveWhere} ORDER BY t.due_date ASC LIMIT 3",[$today]);
 }
+$tasksToSchedule = $hasTasks ? (int)dash_value($pdo,"SELECT COUNT(*) FROM tasks WHERE status='de_programat' {$taskActiveWhere}",[],0) : 0;
 
-$appointmentsToday = count($todayAppointments);
+// ── Billing ───────────────────────────────────────────────────────────────
 
-/*
-|--------------------------------------------------------------------------
-| Rezumat executiv + trenduri
-|--------------------------------------------------------------------------
-*/
-$completedToday = 0;
-$completedMonth = 0;
-$monthAppointments = 0;
-$lastMonthAppointments = 0;
-$monthRevenue = 0.0;
-$lastMonthRevenue = 0.0;
-$monthRevenueBilled = 0.0;
-$pvMissingCount = 0;
-$topServices = [];
-$dailyTrend = [];
-$revenueTrend = [];
+$billingDue = $billingDueAmount = $billingBilled = $billingBilledAmount = 0;
+$billingDueList = [];
+if ($hasBillingColumns) {
+    $r = dash_rows($pdo,"SELECT COUNT(*) AS c, COALESCE(SUM(billing_amount),0) AS s FROM appointments WHERE status='finalizata' AND billing_status='de_facturat' LIMIT 1");
+    $billingDue       = (int)($r[0]['c'] ?? 0);
+    $billingDueAmount = (float)($r[0]['s'] ?? 0);
+    $r = dash_rows($pdo,"SELECT COUNT(*) AS c, COALESCE(SUM(billing_amount),0) AS s FROM appointments WHERE status='finalizata' AND billing_status='facturata' AND appointment_date BETWEEN ? AND ? LIMIT 1",[$monthStart,$monthEnd]);
+    $billingBilled       = (int)($r[0]['c'] ?? 0);
+    $billingBilledAmount = (float)($r[0]['s'] ?? 0);
 
-try {
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE appointment_date = ? AND status = 'finalizata'");
-    $stmt->execute([$today]);
-    $completedToday = (int)$stmt->fetchColumn();
-
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE appointment_date BETWEEN ? AND ? AND status = 'finalizata'");
-    $stmt->execute([$monthStart, $monthEnd]);
-    $completedMonth = (int)$stmt->fetchColumn();
-
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE appointment_date BETWEEN ? AND ? AND status != 'anulata'");
-    $stmt->execute([$monthStart, $monthEnd]);
-    $monthAppointments = (int)$stmt->fetchColumn();
-
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE appointment_date BETWEEN ? AND ? AND status != 'anulata'");
-    $stmt->execute([$lastMonthStart, $lastMonthEnd]);
-    $lastMonthAppointments = (int)$stmt->fetchColumn();
-
-    $stmt = $pdo->prepare("
-        SELECT COALESCE(SUM(CASE WHEN billing_status != 'nu_se_factureaza' THEN billing_amount ELSE 0 END), 0)
-        FROM appointments
-        WHERE appointment_date BETWEEN ? AND ?
-          AND status != 'anulata'
-    ");
-    $stmt->execute([$monthStart, $monthEnd]);
-    $monthRevenue = (float)$stmt->fetchColumn();
-
-    $stmt->execute([$lastMonthStart, $lastMonthEnd]);
-    $lastMonthRevenue = (float)$stmt->fetchColumn();
-
-    $stmt = $pdo->prepare("
-        SELECT COALESCE(SUM(billing_amount), 0)
-        FROM appointments
-        WHERE appointment_date BETWEEN ? AND ?
-          AND status = 'finalizata'
-          AND billing_status = 'facturata'
-    ");
-    $stmt->execute([$monthStart, $monthEnd]);
-    $monthRevenueBilled = (float)$stmt->fetchColumn();
-} catch (Throwable $e) {
-    error_log('dashboard executive stats error: ' . $e->getMessage());
-}
-
-try {
-    if (dash_table_exists($pdo, 'documents')) {
-        $stmt = $pdo->prepare("
-            SELECT COUNT(*)
-            FROM appointments a
-            WHERE a.status = 'finalizata'
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM documents d
-                  WHERE d.appointment_id = a.id
-                    AND d.document_type = 'proces_verbal'
-                    AND d.status != 'cancelled'
-              )
-        ");
-        $stmt->execute();
-        $pvMissingCount = (int)$stmt->fetchColumn();
+    if ($hasClients) {
+        $billingDueList = dash_rows($pdo,"SELECT a.id, a.appointment_date, a.service_type, a.billing_amount, c.name AS client_name FROM appointments a LEFT JOIN clients c ON c.id=a.client_id WHERE a.status='finalizata' AND a.billing_status='de_facturat' ORDER BY a.appointment_date ASC LIMIT 3");
     }
-} catch (Throwable $e) {
-    error_log('dashboard pv missing error: ' . $e->getMessage());
 }
 
-try {
-    $trendStart = date('Y-m-d', strtotime('-29 days'));
-    $stmt = $pdo->prepare("
-        SELECT appointment_date, COUNT(*) AS total
-        FROM appointments
-        WHERE appointment_date BETWEEN ? AND ?
-          AND status != 'anulata'
-        GROUP BY appointment_date
-        ORDER BY appointment_date ASC
-    ");
-    $stmt->execute([$trendStart, $today]);
-    $byDate = [];
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $byDate[(string)$row['appointment_date']] = (int)$row['total'];
-    }
-    for ($i = 29; $i >= 0; $i--) {
-        $date = date('Y-m-d', strtotime("-{$i} days"));
-        $dailyTrend[] = [
-            'label' => date('d.m', strtotime($date)),
-            'value' => $byDate[$date] ?? 0,
-        ];
-    }
-} catch (Throwable $e) {
-    error_log('dashboard daily trend error: ' . $e->getMessage());
+// ── SmartBill ─────────────────────────────────────────────────────────────
+
+$sbIssuedAmount = $hasSmartbillInvoices ? (float)dash_value($pdo,"SELECT COALESCE(SUM(gross_amount),0) FROM smartbill_invoices WHERE invoice_date BETWEEN ? AND ?",[$monthStart,$monthEnd],0) : 0.0;
+$sbPaidAmount   = $hasSmartbillPayments ? (float)dash_value($pdo,"SELECT COALESCE(SUM(amount),0) FROM smartbill_invoice_payments WHERE payment_date BETWEEN ? AND ?",[$monthStart,$monthEnd],0) : 0.0;
+$sbSold         = $sbIssuedAmount - $sbPaidAmount;
+
+// Restanțe (facturi emise, termen depășit, cu sold neachitat)
+// Schema reală: smartbill_invoices.due_date + smartbill_invoice_payments (fără coloană payment_status)
+$restanteList           = [];
+$restanteTotalClients   = 0;
+$restanteTotalAmount    = 0.0;
+if ($hasSmartbillInvoices && dash_column_exists($pdo,'smartbill_invoices','due_date') && dash_column_exists($pdo,'smartbill_invoices','client_name')) {
+    $paymentsJoin = $hasSmartbillPayments
+        ? "LEFT JOIN (SELECT smartbill_invoice_id, SUM(amount) AS paid FROM smartbill_invoice_payments WHERE COALESCE(smartbill_status,'') NOT IN ('error','deleted') GROUP BY smartbill_invoice_id) p ON p.smartbill_invoice_id = i.id"
+        : "";
+    $paidExpr = $hasSmartbillPayments ? "GREATEST(0, i.gross_amount - COALESCE(p.paid, 0))" : "i.gross_amount";
+    $allRestante = dash_rows($pdo, "
+        SELECT i.client_name,
+               SUM({$paidExpr}) AS remaining_amount,
+               MIN(i.due_date) AS oldest_due
+        FROM smartbill_invoices i
+        {$paymentsJoin}
+        WHERE i.due_date < ?
+          AND i.due_date IS NOT NULL
+          AND i.source_type <> 'receipt'
+          AND TRIM(COALESCE(i.smartbill_number, '')) <> ''
+        GROUP BY i.client_name
+        HAVING remaining_amount > 0.01
+        ORDER BY remaining_amount DESC
+        LIMIT 20
+    ", [$today]);
+    $restanteTotalClients = count($allRestante);
+    $restanteTotalAmount  = array_sum(array_column($allRestante, 'remaining_amount'));
+    $restanteList = array_slice($allRestante, 0, 3);
 }
 
-try {
-    for ($i = 5; $i >= 0; $i--) {
-        $start = date('Y-m-01', strtotime("-{$i} months"));
-        $end = date('Y-m-t', strtotime($start));
-        $stmt = $pdo->prepare("
-            SELECT COALESCE(SUM(CASE WHEN billing_status != 'nu_se_factureaza' THEN billing_amount ELSE 0 END), 0)
-            FROM appointments
-            WHERE appointment_date BETWEEN ? AND ?
-              AND status != 'anulata'
-        ");
-        $stmt->execute([$start, $end]);
-        $revenueTrend[] = [
-            'label' => date('m.Y', strtotime($start)),
-            'value' => (float)$stmt->fetchColumn(),
-        ];
-    }
-} catch (Throwable $e) {
-    error_log('dashboard revenue trend error: ' . $e->getMessage());
+// ── Stock alerts ──────────────────────────────────────────────────────────
+
+$lowStock = $expiringLots = 0;
+if ($hasStockProducts && $hasStockReceipts && $hasStockMovements
+    && dash_column_exists($pdo,'stock_products','min_qty')
+    && dash_column_exists($pdo,'stock_products','is_active')) {
+    $lowStock = (int)dash_value($pdo,"SELECT COUNT(*) FROM (SELECT p.id, p.min_qty, (COALESCE(r.in_qty,0)+COALESCE(m.plus_qty,0)-COALESCE(m.minus_qty,0)) AS current_qty FROM stock_products p LEFT JOIN (SELECT product_id, SUM(qty) AS in_qty FROM stock_receipts GROUP BY product_id) r ON r.product_id=p.id LEFT JOIN (SELECT product_id, SUM(CASE WHEN movement_type IN('adjust_plus','return') THEN qty ELSE 0 END) AS plus_qty, SUM(CASE WHEN movement_type IN('consume','adjust_minus','loss','expired') THEN qty ELSE 0 END) AS minus_qty FROM stock_movements GROUP BY product_id) m ON m.product_id=p.id WHERE p.is_active=1) x WHERE x.min_qty>0 AND x.current_qty<=x.min_qty",[],0);
+}
+if ($hasStockReceipts && dash_column_exists($pdo,'stock_receipts','expires_at')) {
+    $expiringLots = (int)dash_value($pdo,"SELECT COUNT(*) FROM stock_receipts WHERE expires_at IS NOT NULL AND expires_at>=? AND expires_at<=DATE_ADD(?,INTERVAL 30 DAY)",[$today,$today],0);
 }
 
-try {
-    $stmt = $pdo->prepare("
-        SELECT COALESCE(NULLIF(service_type, ''), 'Fără serviciu') AS service_name,
-               COUNT(*) AS total,
-               COALESCE(SUM(CASE WHEN billing_status != 'nu_se_factureaza' THEN billing_amount ELSE 0 END), 0) AS amount_total
-        FROM appointments
-        WHERE appointment_date BETWEEN ? AND ?
-          AND status != 'anulata'
-        GROUP BY service_name
-        ORDER BY total DESC, amount_total DESC
-        LIMIT 5
-    ");
-    $stmt->execute([$monthStart, $monthEnd]);
-    $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Throwable $e) {
-    error_log('dashboard top services error: ' . $e->getMessage());
+// ── PV lipsă ──────────────────────────────────────────────────────────────
+
+$pvMissing = 0;
+if ($hasAppointments && $hasDocuments) {
+    $pvMissing = (int)dash_value($pdo,"SELECT COUNT(*) FROM appointments a WHERE a.status='finalizata' AND a.appointment_date>=DATE_SUB(?,INTERVAL 90 DAY) AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.appointment_id=a.id AND d.document_type='proces_verbal' AND d.status!='cancelled')",[$today],0);
 }
 
-$appointmentTrend = dash_percent_change((float)$monthAppointments, (float)$lastMonthAppointments);
-$revenueTrendPercent = dash_percent_change($monthRevenue, $lastMonthRevenue);
-$firstAppointment = $todayAppointments[0] ?? null;
-$lastAppointment = $todayAppointments ? $todayAppointments[count($todayAppointments) - 1] : null;
+// ── Agenda & team ─────────────────────────────────────────────────────────
 
-$attentionItems = [];
-if ($tasksOverdueCount > 0) {
-    $attentionItems[] = ['tone' => 'danger', 'label' => 'Sarcini întârziate', 'value' => $tasksOverdueCount, 'href' => 'tasks.php'];
-}
-if ($tasksTodayCount > 0) {
-    $attentionItems[] = ['tone' => 'warning', 'label' => 'Sarcini cu termen azi', 'value' => $tasksTodayCount, 'href' => 'tasks.php'];
-}
-if ($pvMissingCount > 0) {
-    $attentionItems[] = ['tone' => 'warning', 'label' => 'Lucrări finalizate fără PV', 'value' => $pvMissingCount, 'href' => 'procese_verbale.php'];
-}
-if ($ibDue > 0) {
-    $attentionItems[] = ['tone' => 'danger', 'label' => 'Intervenții de facturat', 'value' => $ibDue, 'href' => 'interventii_facturare.php?billing_status=de_facturat'];
-}
-if (!$attentionItems) {
-    $attentionItems[] = ['tone' => 'success', 'label' => 'Nu sunt urgente operaționale', 'value' => 0, 'href' => 'calendar.php'];
-}
+$todayAppointments = $hasAppointments ? dash_rows($pdo,"SELECT a.id, a.start_time, a.end_time, a.service_type, a.status, c.name AS client_name, tm.name AS team_name FROM appointments a LEFT JOIN clients c ON c.id=a.client_id LEFT JOIN team_members tm ON tm.id=a.team_member_id WHERE a.appointment_date=? AND a.status!='anulata' ORDER BY a.start_time ASC, a.id ASC LIMIT 8",[$today]) : [];
 
-$statusTone = 'success';
-$statusTitle = 'Zi sub control';
-$statusText = 'Fluxul operațional arată curat.';
-if ($tasksOverdueCount > 0 || $pvMissingCount > 0 || $ibDue >= 10) {
-    $statusTone = 'warning';
-    $statusTitle = 'Necesită atenție';
-    $statusText = 'Există câteva lucruri de închis înainte să se adune.';
-}
-if ($tasksOverdueCount >= 3 || $pvMissingCount >= 5 || $ibDue >= 20) {
-    $statusTone = 'danger';
-    $statusTitle = 'Presiune operațională';
-    $statusText = 'Prioritatea este să închidem restanțele vizibile.';
-}
+$tomorrowDate = date('Y-m-d', strtotime('+1 day'));
+$tomorrowAppointments = $hasAppointments ? dash_rows($pdo,"SELECT a.id, a.start_time, a.service_type, a.status, c.name AS client_name, tm.name AS team_name FROM appointments a LEFT JOIN clients c ON c.id=a.client_id LEFT JOIN team_members tm ON tm.id=a.team_member_id WHERE a.appointment_date=? AND a.status!='anulata' ORDER BY a.start_time ASC, a.id ASC LIMIT 4",[$tomorrowDate]) : [];
 
-/*
-|--------------------------------------------------------------------------
-| Briefing inteligent (chip-uri sus)
-|--------------------------------------------------------------------------
-*/
-$hour = (int)date('H');
-$greeting = $hour < 11 ? 'Buna dimineata' : ($hour < 18 ? 'Bună ziua' : 'Buna seara');
-$dashboardUserName = function_exists('current_user_name') ? current_user_name() : 'Utilizator';
+$teamRows = [];
+if ($hasTeamMembers && $hasAppointments) {
+    $teamJoin = $hasAppointmentTeams
+        ? "LEFT JOIN appointment_teams at2 ON at2.team_id=tm.id LEFT JOIN appointments a ON a.id=at2.appointment_id AND a.appointment_date=? AND a.status!='anulata'"
+        : "LEFT JOIN appointments a ON a.team_member_id=tm.id AND a.appointment_date=? AND a.status!='anulata'";
+    $teamRows = dash_rows($pdo,"SELECT tm.id, tm.name, tm.color, COUNT(a.id) AS jobs_total, SUM(CASE WHEN a.status='finalizata' THEN 1 ELSE 0 END) AS jobs_done, COALESCE(SUM(CASE WHEN a.start_time IS NOT NULL AND a.end_time IS NOT NULL THEN GREATEST(0,TIME_TO_SEC(a.end_time)-TIME_TO_SEC(a.start_time))/3600 ELSE 0 END),0) AS hours_booked FROM team_members tm {$teamJoin} WHERE tm.active=1 GROUP BY tm.id, tm.name, tm.color ORDER BY hours_booked DESC, tm.name ASC",[$today]);
+}
+$activeTechnicians  = $hasTeamMembers ? (int)dash_value($pdo,"SELECT COUNT(*) FROM team_members WHERE active=1",[],0) : 0;
+$techWithJobsToday  = count(array_filter($teamRows, fn($r) => (int)($r['jobs_total'] ?? 0) > 0));
+$techOccupancyPct   = $activeTechnicians > 0 ? round(($techWithJobsToday / $activeTechnicians) * 100) : 0;
 
-$briefingChips = [];
-if ($teamsFree > 0 && $teamsTotal > 0) {
-    $briefingChips[] = [
-        'tone' => $teamsFree === $teamsTotal ? 'danger' : 'warning',
-        'icon' => 'team',
-        'text' => $teamsFree . ' ' . ($teamsFree === 1 ? 'tehnician liber' : 'tehnicieni liberi') . ' azi',
-    ];
-}
-if ($backlogTotal > 0) {
-    $briefingChips[] = [
-        'tone' => $tasksOverdueCount > 0 ? 'danger' : 'warning',
-        'icon' => 'tasks',
-        'text' => $backlogTotal . ' de programat' . ($tasksOverdueCount > 0 ? ' (' . $tasksOverdueCount . ' întârziate)' : ''),
-    ];
-}
-if ($ibDue > 0) {
-    $briefingChips[] = [
-        'tone' => 'warning',
-        'icon' => 'invoice',
-        'text' => $ibDue . ' intervenții de facturat',
-    ];
-}
-if (!$briefingChips) {
-    $briefingChips[] = [
-        'tone' => 'success',
-        'icon' => 'check',
-        'text' => 'Totul e sub control. Zi calma.',
-    ];
-}
+// ── Top servicii ──────────────────────────────────────────────────────────
+
+$topServices = $hasAppointments ? dash_rows($pdo,"SELECT COALESCE(NULLIF(service_type,''),'Fără serviciu') AS service_name, COUNT(*) AS total FROM appointments WHERE appointment_date BETWEEN ? AND ? AND status!='anulata' GROUP BY service_name ORDER BY total DESC LIMIT 3",[$monthStart,$monthEnd]) : [];
+$topServiceMax = max(1, ...array_map(static fn($r) => (int)($r['total'] ?? 0), $topServices ?: [['total'=>1]]));
+
+// ── Misc ──────────────────────────────────────────────────────────────────
+
+$userName = function_exists('current_user_name') ? current_user_name() : 'Utilizator';
+
+// Topbar global — citit de render_sidebar()
+$pz_page_title       = 'Dashboard';
+$pz_page_breadcrumbs = [];
+$pz_topbar_opts      = ['placeholder' => 'Caută client...'];
+
+$dayNames = ['Sunday'=>'Duminică','Monday'=>'Luni','Tuesday'=>'Marți','Wednesday'=>'Miercuri','Thursday'=>'Joi','Friday'=>'Vineri','Saturday'=>'Sâmbătă'];
+$monthNames = ['January'=>'ianuarie','February'=>'februarie','March'=>'martie','April'=>'aprilie','May'=>'mai','June'=>'iunie','July'=>'iulie','August'=>'august','September'=>'septembrie','October'=>'octombrie','November'=>'noiembrie','December'=>'decembrie'];
+$todayLabel = ($dayNames[date('l')] ?? date('l')) . ' · ' . date('d') . ' ' . ($monthNames[date('F')] ?? date('F')) . ' ' . date('Y');
 ?>
 <!DOCTYPE html>
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Dashboard</title>
+<title>Dashboard · PestZone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <?php app_theme_css(); ?>
 <style>
-/* === GREETING + BRIEFING PREMIUM === */
-.dash-greeting {
-    position: relative;
-    overflow: hidden;
-    margin-bottom: 16px;
-    padding: 18px 22px 18px;
-    border-radius: 18px;
-    border: 1px solid rgba(177, 214, 240, .58);
-    background:
-        radial-gradient(circle at 92% 14%, rgba(177, 214, 240, .58), transparent 32%),
-        linear-gradient(135deg, rgba(255,255,255,.88), rgba(223,226,232,.50));
-    box-shadow: 0 22px 46px -30px rgba(0, 32, 80, .36), inset 0 1px 0 rgba(255,255,255,.78);
-    backdrop-filter: blur(16px) saturate(1.25);
-    -webkit-backdrop-filter: blur(16px) saturate(1.25);
+/* ── Design tokens (ui_template.php) ─────────────────────────── */
+:root {
+    --pz-bg:       #F8FAFC;
+    --pz-surf:     #FFFFFF;
+    --pz-line:     #E2E8F0;
+    --pz-lines:    #F1F5F9;
+    --pz-title:    #0F172A;
+    --pz-text:     #334155;
+    --pz-mu:       #64748B;
+    --pz-fa:       #94A3B8;
+    --pz-bl:       #2563EB;
+    --pz-bld:      #1E3A8A;
+    --pz-bls:      #EFF6FF;
+    --pz-blb:      #BFDBFE;
+    --pz-gr:       #166534;
+    --pz-grs:      #F0FDF4;
+    --pz-grb:      #BBF7D0;
+    --pz-or:       #9A3412;
+    --pz-ors:      #FFF7ED;
+    --pz-orb:      #FED7AA;
+    --pz-re:       #991B1B;
+    --pz-res:      #FEF2F2;
+    --pz-reb:      #FECACA;
+    --pz-r:        8px;
+    --pz-rs:       4px;
+    --pz-gap:      12px;
 }
-.dash-greeting::before {
-    content: "";
-    position: absolute;
-    inset: -30% -10% auto auto;
-    width: 48%;
-    height: 120%;
-    transform: rotate(18deg);
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,.40), transparent);
-    pointer-events: none;
-}
-.dash-hero-top {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    gap: 18px;
-    align-items: flex-start;
-}
-.dash-hero-copy { min-width: 0; }
-.dash-overline {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 6px;
-    color: var(--accent);
-    font-size: 11px;
-    font-weight: 850;
-    letter-spacing: .09em;
-    text-transform: uppercase;
-}
-.dash-greeting h1 { margin: 0; font-size: 25px; font-weight: 650; letter-spacing: -.035em; color: var(--text); }
-.dash-greeting h1, .dash-greeting h1 span { font-size: 23px; }
-.dash-greeting h1 span { font-weight: 850; color: #002050; }
-.dash-greeting .sub { margin-top: 7px; color: #39506f; font-size: 13px; font-weight: 650; line-height: 1.38; }
-.dash-hero-status {
-    min-width: 146px;
-    padding: 8px 10px;
-    border: 1px solid rgba(148,163,184,.32);
-    border-radius: 14px;
-    background: rgba(255,255,255,.75);
-    color: var(--text);
-    font-size: 12px;
-    font-weight: 800;
-    text-align: right;
-    box-shadow: 0 1px 2px rgba(15,23,42,.04);
-}
-.dash-hero-status small {
-    display: block;
-    margin-top: 2px;
-    color: var(--muted);
-    font-size: 11px;
-    font-weight: 650;
-}
-.dash-status-dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    margin-right: 6px;
-    background: var(--tone-success);
-    box-shadow: 0 0 0 4px rgba(4,120,87,.12);
-}
-.dash-hero-kpis {
-    position: relative;
+
+/* ── Base ────────────────────────────────────────────────────── */
+.pz-dash *, .pz-dash *::before, .pz-dash *::after { box-sizing: border-box; margin: 0; padding: 0; }
+.pz-dash {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 12.5px;
+    color: var(--pz-text);
+    background: var(--pz-bg);
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    margin-top: 14px;
-}
-.dash-kpi-card {
-    display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
-    gap: 9px;
-    align-items: center;
-    min-height: 70px;
-    padding: 10px 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(148,163,184,.30);
-    background: rgba(255,255,255,.82);
-    text-decoration: none;
-    color: inherit;
-    transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease;
-}
-.dash-kpi-card:hover {
-    transform: translateY(-1px);
-    border-color: var(--accent-soft-2);
-    box-shadow: 0 10px 22px -18px rgba(15,23,42,.45);
-}
-.dash-kpi-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 12px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--surface-soft);
-    color: var(--accent);
-}
-.dash-kpi-icon svg { width: 17px; height: 17px; stroke-width: 2.1; fill: none; stroke: currentColor; }
-.dash-kpi-label {
-    display: block;
-    color: var(--muted);
-    font-size: 10.5px;
-    font-weight: 850;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    margin-bottom: 2px;
-}
-.dash-kpi-value {
-    display: block;
-    font-family: var(--mono);
-    font-size: 21px;
-    font-weight: 850;
-    line-height: 1;
-    color: var(--text);
-}
-.dash-kpi-value .unit {
-    font-family: var(--font, inherit);
-    font-size: 12px;
-    font-weight: 750;
-    color: var(--muted);
-    margin-left: 3px;
-}
-.dash-kpi-meta {
-    display: block;
-    margin-top: 4px;
-    font-size: 11px;
-    color: var(--muted);
-    font-weight: 700;
-    line-height: 1.25;
-}
-.dash-kpi-card.tone-danger .dash-kpi-icon { background: var(--tone-danger-soft); color: var(--tone-danger); }
-.dash-kpi-card.tone-danger .dash-kpi-value { color: var(--tone-danger); }
-.dash-kpi-card.tone-warning .dash-kpi-icon { background: var(--tone-warning-soft); color: var(--tone-warning); }
-.dash-kpi-card.tone-warning .dash-kpi-value { color: var(--tone-warning); }
-.dash-kpi-card.tone-info .dash-kpi-icon { background: var(--tone-info-soft); color: var(--tone-info); }
-.dash-kpi-card.tone-info .dash-kpi-value { color: var(--tone-info); }
-.dash-hero-actions {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 12px;
-}
-.dash-hero-action {
-    /* Identic ca geometrie cu butoanele din tasks.php: pill, 42px, text centrat */
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-width: 154px;
-    height: 38px;
-    min-height: 38px;
-    padding: 0 18px;
-    border-radius: 999px !important;
-    background: rgba(255, 255, 255, .72) !important;
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 850;
-    line-height: 1;
-    letter-spacing: -.012em;
-    box-shadow:
-        0 10px 22px rgba(0, 32, 80, .06),
-        inset 0 1px 0 rgba(255,255,255,.86) !important;
-    backdrop-filter: blur(12px) saturate(130%);
-    -webkit-backdrop-filter: blur(12px) saturate(130%);
-    transition: transform .14s ease, box-shadow .14s ease, filter .14s ease, background .14s ease, border-color .14s ease;
-}
-.dash-hero-action:hover {
-    transform: translateY(-1px);
-    background: rgba(255, 255, 255, .86) !important;
-    filter: brightness(1.02);
-    box-shadow:
-        0 14px 26px rgba(0, 32, 80, .10),
-        inset 0 1px 0 rgba(255,255,255,.92) !important;
-}
-.dash-hero-action.action-client {
-    color: #1160B7 !important;
-    border: 1px solid rgba(17, 96, 183, .72) !important;
-}
-.dash-hero-action.action-programare {
-    color: #002050 !important;
-    border: 1px solid rgba(0, 32, 80, .72) !important;
-}
-.dash-hero-action.action-sarcina {
-    color: #D24726 !important;
-    border: 1px solid rgba(210, 71, 38, .78) !important;
-}
-.dash-hero-action .plus {
-    font-size: 18px;
-    line-height: 1;
-    font-weight: 650;
-    margin-top: -1px;
-}
-.dash-hero-action svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.1; }
-.dash-layout-help {
-    margin-left: auto;
-    color: var(--muted);
-    font-size: 11.5px;
-    font-weight: 650;
-}
-@media (max-width: 980px) {
-    .dash-hero-kpis { grid-template-columns: 1fr; }
-    .dash-layout-help { width: 100%; margin-left: 0; }
-}
-@media (max-width: 700px) {
-    .dash-greeting { padding: 15px; border-radius: 18px; }
-    .dash-hero-top { flex-direction: column; }
-    .dash-hero-status { width: 100%; text-align: left; }
-}
-
-@media (max-width: 700px) {
-    /* Mobil: cele 3 actiuni principale raman obligatoriu pe aceeași linie */
-    .dash-hero-actions {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 7px;
-        width: 100%;
-        margin-top: 12px;
-        align-items: stretch;
-    }
-    .dash-hero-action {
-        min-width: 0 !important;
-        width: 100%;
-        height: 42px;
-        min-height: 42px;
-        padding: 0 8px;
-        border-radius: 999px !important;
-        font-size: clamp(11px, 2.8vw, 13px);
-        font-weight: 850;
-        gap: 5px;
-        white-space: nowrap;
-        letter-spacing: -.02em;
-    }
-    .dash-hero-action .plus {
-        font-size: 17px;
-        margin-top: -1px;
-        flex: 0 0 auto;
-    }
-}
-@media (max-width: 380px) {
-    .dash-hero-actions { gap: 5px; }
-    .dash-hero-action {
-        height: 40px;
-        min-height: 40px;
-        padding: 0 5px;
-        font-size: 10.8px;
-        gap: 4px;
-    }
-    .dash-hero-action .plus { font-size: 15px; }
-}
-
-/* === PANEL bazic === */
-/* Inaltime maxima ~10cm (380px continut + ~60px head) cu scroll intern pe body */
-.panel {
-    background: rgba(255,255,255,.84);
-    border: 1px solid rgba(177,214,240,.42);
-    border-radius: 16px;
-    box-shadow: 0 14px 28px -24px rgba(0,32,80,.28), inset 0 1px 0 rgba(255,255,255,.70);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    max-height: 390px;
-    backdrop-filter: blur(12px) saturate(1.15);
-    -webkit-backdrop-filter: blur(12px) saturate(1.15);
-}
-.panel-head { padding: 12px 16px; border-bottom: 1px solid var(--border2); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0; }
-.panel-title { font-size: 14px; font-weight: 800; color: var(--text); letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
-.panel-title .badge-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 800; }
-.panel-title .badge-count.danger { background: var(--tone-danger); }
-.panel-subtitle { font-size: 11.5px; color: var(--muted); font-weight: 600; margin-top: 2px; }
-.panel-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 9px; border: 1px solid var(--border); background: #fff; color: var(--text); font-size: 12px; font-weight: 700; text-decoration: none; transition: background .14s ease; }
-.panel-link:hover { background: var(--surface-soft); border-color: var(--accent-soft-2); }
-.panel-body { padding: 12px 16px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
-.panel-body.tight { padding: 8px 10px; }
-/* Scrollbar discret in interiorul cardurilor */
-.panel-body::-webkit-scrollbar { width: 8px; }
-.panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
-.panel-body::-webkit-scrollbar-thumb:hover { background: var(--accent-soft-2); }
-.panel-body::-webkit-scrollbar-track { background: transparent; }
-
-/* === ZONA ECHIPE - card mare full width cu tile-uri === */
-.team-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: 10px;
-}
-.team-tile {
-    position: relative;
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 11px;
-    transition: border-color .14s ease, transform .12s ease;
-}
-.team-tile:hover { transform: translateY(-2px); border-color: var(--accent-soft-2); }
-.team-tile.is-free   { border-color: rgba(180,83,9,.30); background: var(--tone-warning-bg); }
-.team-tile.is-full   { border-color: rgba(4,120,87,.30); background: var(--tone-success-bg); }
-.team-tile .tile-head { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
-.team-tile .tile-avatar { width: 29px; height: 29px; border-radius: 10px; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
-.team-tile .tile-name { font-size: 14px; font-weight: 800; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.team-tile .tile-status {
-    font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 999px;
-    background: var(--surface-soft); color: var(--muted); white-space: nowrap;
-    text-transform: uppercase; letter-spacing: .04em;
-}
-.team-tile.is-free .tile-status { background: var(--tone-warning); color: #fff; }
-.team-tile.is-full .tile-status { background: var(--tone-success); color: #fff; }
-.team-tile .tile-hours { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 7px; }
-.team-tile .tile-hours .hours-num { font-family: var(--mono); font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
-.team-tile .tile-hours .hours-cap { color: var(--muted); font-size: 12px; font-weight: 600; }
-.team-tile .tile-bar { height: 7px; background: var(--surface-muted); border-radius: 999px; overflow: hidden; margin-bottom: 8px; }
-.team-tile .tile-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .25s ease; }
-.team-tile.is-full .tile-bar > span { background: var(--tone-success); }
-.team-tile.is-free .tile-bar > span { background: var(--tone-warning); }
-.team-tile .tile-meta { font-size: 11px; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
-.team-tile .tile-meta strong { color: var(--text); font-weight: 800; }
-.team-tile .tile-action { display: block; text-align: center; padding: 7px 11px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; text-decoration: none; transition: filter .14s ease; }
-.team-tile .tile-action:hover { filter: brightness(1.08); }
-.team-tile .tile-action.secondary { background: #fff; color: var(--accent); border: 1px solid var(--accent-soft-2); }
-.team-tile .tile-action.secondary:hover { background: var(--accent-soft); }
-
-/* === GRID rearanjabil — DOAR full (12) sau jumatate (6) pentru simetrie === */
-.dash-grid {
-    display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 14px;
-    align-items: start;
-}
-.dash-grid > [data-size="12"] { grid-column: span 12; }
-.dash-grid > [data-size="6"]  { grid-column: span 6; }
-@media (max-width: 1100px) {
-    .dash-grid > .panel { grid-column: span 12 !important; }
-}
-
-/* === Drag handles si toolbar pe fiecare card === */
-.panel-head .card-tools { display: inline-flex; align-items: center; gap: 4px; opacity: 0; transition: opacity .14s ease; }
-.panel:hover .panel-head .card-tools, .panel.is-dragging .card-tools { opacity: 1; }
-.card-handle {
-    cursor: grab; color: var(--muted); padding: 5px 6px; border-radius: 7px;
-    background: transparent; border: 1px solid transparent;
-    transition: background .14s ease, color .14s ease, border-color .14s ease;
-    display: inline-flex; align-items: center; justify-content: center;
-    user-select: none; touch-action: none;
-}
-.card-handle:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft-2); }
-.card-handle:active { cursor: grabbing; }
-.card-handle svg { width: 14px; height: 14px; fill: currentColor; }
-.card-size-btn {
-    cursor: pointer; color: var(--muted); padding: 5px 8px; border-radius: 7px;
-    background: transparent; border: 1px solid transparent; font-size: 11px; font-weight: 800;
-    transition: background .14s ease, color .14s ease, border-color .14s ease;
-    font-family: var(--mono);
-}
-.card-size-btn:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft-2); }
-
-/* === Efecte vizuale drag === */
-.panel.is-dragging  { opacity: .55; cursor: grabbing; }
-.panel.is-ghost     { background: var(--accent-soft) !important; border: 2px dashed var(--accent) !important; }
-.panel.is-ghost > * { visibility: hidden; }
-.panel.is-chosen    { box-shadow: 0 12px 28px -8px rgba(15, 23, 42, .25), 0 4px 10px rgba(15, 23, 42, .12); }
-
-/* === Reset button in hero === */
-.dash-layout-reset {
-    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-    min-height: 34px;
-    padding: 8px 12px;
-    border-radius: 11px;
-    background: rgba(255,255,255,.72);
-    color: var(--muted);
-    border: 1px solid var(--border);
-    font-size: 12px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: background .14s ease, color .14s ease, border-color .14s ease, transform .14s ease;
-    font-family: inherit;
-}
-.dash-layout-reset:hover { transform: translateY(-1px); background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft-2); }
-.dash-layout-reset svg { width: 14px; height: 14px; fill: none; stroke: currentColor; }
-.dash-layout-tip { display: none; }
-
-/* === BACKLOG list === */
-.backlog-list { display: grid; gap: 8px; }
-.backlog-row {
-    display: grid; grid-template-columns: 56px minmax(0, 1fr) auto;
-    gap: 11px; align-items: center;
-    padding: 10px 12px; border: 1px solid var(--border2); border-radius: 12px;
-    background: #fff; transition: border-color .14s ease, background .14s ease;
-}
-.backlog-row:hover { border-color: var(--accent-soft-2); background: var(--surface-soft); }
-.backlog-row.is-overdue { border-color: rgba(220,38,38,.25); background: var(--tone-danger-bg); }
-.backlog-row .row-date {
-    text-align: center; padding: 6px 4px; border-radius: 9px;
-    background: #fff; border: 1px solid var(--border2);
-    font-family: var(--mono); font-weight: 800; font-size: 11px; color: var(--text);
-    line-height: 1.1;
-}
-.backlog-row.is-overdue .row-date { background: var(--tone-danger); color: #fff; border-color: var(--tone-danger); }
-.backlog-row .row-date .row-day { font-size: 14px; }
-.backlog-row .row-date .row-mon { font-size: 9px; text-transform: uppercase; opacity: .75; }
-.backlog-row .row-info { min-width: 0; }
-.backlog-row .row-client { font-size: 13.5px; font-weight: 800; color: var(--text); }
-.backlog-row .row-meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-.backlog-row .row-meta strong { color: var(--tone-danger); }
-.backlog-row .row-action {
-    padding: 7px 13px; border-radius: 9px; background: var(--accent); color: #fff;
-    font-size: 12px; font-weight: 800; text-decoration: none; white-space: nowrap;
-    transition: filter .14s ease;
-}
-.backlog-row .row-action:hover { filter: brightness(1.08); }
-
-/* === FINANCIAR === */
-.fin-mock-banner {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 3px 9px; border-radius: 6px;
-    background: var(--tone-warning-soft); color: var(--tone-warning);
-    border: 1px solid rgba(180,83,9,.22);
-    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
-    margin-left: 8px;
-}
-.fin-grid { display: grid; gap: 10px; }
-.fin-card {
-    padding: 12px 14px; border-radius: 12px; background: var(--surface-soft);
-    border: 1px solid var(--border2);
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-}
-.fin-card.primary { background: var(--tone-danger-bg); border-color: rgba(220,38,38,.22); }
-.fin-card .fin-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
-.fin-card.primary .fin-label { color: var(--tone-danger); }
-.fin-card .fin-value { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -.025em; font-family: var(--mono); }
-.fin-card .fin-meta { margin-top: 2px; font-size: 12px; font-weight: 800; color: var(--muted); font-family: var(--mono); }
-.fin-card.primary .fin-value { color: var(--tone-danger); }
-.fin-card .fin-currency { font-size: 12px; font-weight: 700; color: var(--muted); margin-left: 4px; }
-.fin-card .fin-trend {
-    display: inline-flex; align-items: center; gap: 3px;
-    padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800;
-    background: var(--tone-success-soft); color: var(--tone-success);
-}
-.fin-card .fin-trend.down { background: var(--tone-danger-soft); color: var(--tone-danger); }
-.fin-unpaid-title { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 16px 0 8px; }
-.fin-unpaid-row {
-    display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
-    gap: 10px; align-items: center;
-    padding: 9px 11px; border: 1px solid var(--border2); border-radius: 10px;
-    background: #fff; margin-bottom: 6px;
-}
-.fin-unpaid-row .uf-client { font-size: 12.5px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fin-unpaid-row .uf-meta { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
-.fin-unpaid-row .uf-amount { font-family: var(--mono); font-size: 13px; font-weight: 800; color: var(--text); white-space: nowrap; }
-.fin-unpaid-row .uf-days {
-    padding: 3px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 800; white-space: nowrap;
-    background: var(--surface-soft); color: var(--muted);
-}
-.fin-unpaid-row .uf-days.warn   { background: var(--tone-warning-soft); color: var(--tone-warning); }
-.fin-unpaid-row .uf-days.danger { background: var(--tone-danger-soft);  color: var(--tone-danger); }
-
-/* === AGENDA === */
-.agenda-list { display: grid; gap: 6px; }
-.agenda-row {
-    display: grid; grid-template-columns: 60px minmax(0, 1fr) auto auto;
-    gap: 12px; align-items: center;
-    padding: 10px 12px; border: 1px solid var(--border2); border-radius: 12px;
-    background: #fff;
-    transition: border-color .14s ease, background .14s ease;
-}
-.agenda-row:hover { border-color: var(--accent-soft-2); background: var(--surface-soft); }
-.agenda-row .ag-time {
-    text-align: center; font-family: var(--mono);
-    font-size: 13px; font-weight: 800; color: var(--text);
-    padding: 5px 8px; background: var(--surface-soft); border-radius: 8px;
-}
-.agenda-row .ag-info { min-width: 0; }
-.agenda-row .ag-client { font-size: 13.5px; font-weight: 800; color: var(--text); overflow-wrap: anywhere; }
-.agenda-row .ag-meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-.agenda-row .ag-meta strong { color: var(--text); font-weight: 800; }
-.agenda-row .ag-team-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
-.agenda-row .ag-status {
-    padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 800;
-    background: var(--surface-soft); color: var(--muted); white-space: nowrap;
-}
-.agenda-row .ag-status.tone-info { background: var(--tone-info-soft); color: var(--tone-info); }
-.agenda-row .ag-status.tone-info-strong { background: var(--tone-info); color: #fff; }
-.agenda-row .ag-status.tone-success { background: var(--tone-success-soft); color: var(--tone-success); }
-.agenda-row .ag-status.tone-warning { background: var(--tone-warning-soft); color: var(--tone-warning); }
-.agenda-row .ag-icons { display: inline-flex; gap: 4px; }
-.agenda-row .ag-icons a {
-    width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
-    border-radius: 8px; border: 1px solid var(--border2); background: #fff; color: var(--muted);
-    transition: background .14s ease, color .14s ease;
-}
-.agenda-row .ag-icons a:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft-2); }
-.agenda-row .ag-icons a svg { width: 13px; height: 13px; stroke-width: 2; fill: none; stroke: currentColor; }
-
-/* === Empty states === */
-.empty-state { padding: 22px 12px; text-align: center; color: var(--muted); font-size: 13px; font-weight: 600; }
-.empty-state .es-title { font-weight: 800; color: var(--text); font-size: 14px; margin-bottom: 4px; }
-
-/* === Spacing principal === */
-.dash-section { margin-bottom: 14px; }
-
-/* === EFICIENTA tehnicieni === */
-.eff-tabs { display: inline-flex; gap: 4px; padding: 3px; background: var(--surface-soft); border-radius: 10px; border: 1px solid var(--border2); }
-.eff-tab { padding: 6px 14px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; transition: background .14s ease, color .14s ease; font-family: inherit; }
-.eff-tab:hover { color: var(--text); }
-.eff-tab.is-active { background: #fff; color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.04); }
-.eff-pane { display: none; }
-.eff-pane.is-active { display: block; animation: effFadeIn .15s ease; }
-@keyframes effFadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-.eff-grade-pill {
-    display: inline-flex; align-items: center; padding: 3px 10px;
-    border-radius: 999px; font-size: 11.5px; font-weight: 800;
-    background: var(--tone-success-soft); color: var(--tone-success);
-    border: 1px solid rgba(4,120,87,.22); margin-left: 8px; font-family: var(--mono);
-}
-
-.eff-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
-.eff-summary-card { background: var(--surface-soft); border: 1px solid var(--border2); border-radius: 12px; padding: 12px 14px; }
-.eff-summary-card.eff-summary-grade.tone-success { background: var(--tone-success-bg); border-color: rgba(4,120,87,.20); }
-.eff-summary-card.eff-summary-grade.tone-warning { background: var(--tone-warning-bg); border-color: rgba(180,83,9,.20); }
-.eff-summary-card.eff-summary-grade.tone-danger  { background: var(--tone-danger-bg);  border-color: rgba(220,38,38,.20); }
-.eff-sum-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
-.eff-sum-value { font-size: 26px; font-weight: 800; color: var(--text); letter-spacing: -.025em; font-family: var(--mono); line-height: 1; }
-.eff-summary-card.tone-success .eff-sum-value { color: var(--tone-success); }
-.eff-summary-card.tone-warning .eff-sum-value { color: var(--tone-warning); }
-.eff-summary-card.tone-danger  .eff-sum-value { color: var(--tone-danger); }
-.eff-sum-suffix { font-size: 13px; font-weight: 700; color: var(--muted); margin-left: 2px; }
-.eff-sum-trend { margin-top: 6px; font-size: 11px; font-weight: 700; color: var(--muted); }
-.eff-sum-trend.up   { color: var(--tone-success); }
-.eff-sum-trend.down { color: var(--tone-danger); }
-
-.eff-list { display: grid; gap: 10px; }
-.eff-row { padding: 10px 12px; border: 1px solid var(--border2); border-radius: 12px; background: #fff; }
-.eff-row-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.eff-avatar { width: 30px; height: 30px; border-radius: 9px; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
-.eff-row-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.eff-row-grade {
-    font-family: var(--mono); font-size: 16px; font-weight: 800;
-    padding: 4px 12px; border-radius: 8px; min-width: 60px; text-align: center;
-    background: var(--surface-soft); color: var(--text);
-}
-.eff-row-grade.tone-success { background: var(--tone-success-soft); color: var(--tone-success); border: 1px solid rgba(4,120,87,.22); }
-.eff-row-grade.tone-warning { background: var(--tone-warning-soft); color: var(--tone-warning); border: 1px solid rgba(180,83,9,.22); }
-.eff-row-grade.tone-danger  { background: var(--tone-danger-soft);  color: var(--tone-danger);  border: 1px solid rgba(220,38,38,.22); }
-
-.eff-row-bar { height: 7px; background: var(--surface-muted); border-radius: 999px; overflow: hidden; margin-bottom: 7px; }
-.eff-row-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .25s ease; }
-.eff-row.is-success .eff-row-bar > span { background: var(--tone-success); }
-.eff-row.is-warning .eff-row-bar > span { background: var(--tone-warning); }
-.eff-row.is-danger  .eff-row-bar > span { background: var(--tone-danger); }
-.eff-row-meta { font-size: 11.5px; color: var(--muted); font-weight: 600; }
-.eff-row-meta strong { color: var(--text); font-weight: 800; }
-.eff-row-pct { font-family: var(--mono); font-weight: 800; color: var(--accent); }
-
-@media (max-width: 700px) {
-    .eff-summary { grid-template-columns: 1fr; }
-}
-
-
-/* === Dashboard: efect 3D discret pe carduri === */
-.dash-greeting,
-.dash-kpi-card,
-.panel,
-.team-tile,
-.backlog-row,
-.agenda-row,
-.fin-unpaid-row,
-.eff-summary-card,
-.eff-row {
-    position: relative;
-    transform: translateZ(0);
-    box-shadow:
-        0 1px 0 rgba(255,255,255,.86) inset,
-        0 1px 0 rgba(0,32,80,.025),
-        0 12px 26px -22px rgba(0,32,80,.34),
-        0 6px 14px -14px rgba(15,23,42,.20) !important;
-}
-
-.dash-greeting::after,
-.dash-kpi-card::after,
-.panel::after,
-.team-tile::after,
-.backlog-row::after,
-.agenda-row::after,
-.fin-unpaid-row::after,
-.eff-summary-card::after,
-.eff-row::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    border-radius: inherit;
-    background:
-        linear-gradient(180deg, rgba(255,255,255,.50), rgba(255,255,255,0) 42%),
-        radial-gradient(circle at 18% 0%, rgba(177,214,240,.22), transparent 38%);
-    opacity: .72;
-    mix-blend-mode: normal;
-}
-
-.dash-kpi-card,
-.panel,
-.team-tile,
-.backlog-row,
-.agenda-row,
-.fin-unpaid-row,
-.eff-summary-card,
-.eff-row {
-    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, filter .16s ease;
-}
-
-.dash-kpi-card:hover,
-.panel:hover,
-.team-tile:hover,
-.backlog-row:hover,
-.agenda-row:hover,
-.fin-unpaid-row:hover,
-.eff-summary-card:hover,
-.eff-row:hover {
-    transform: translateY(-2px) translateZ(0);
-    filter: saturate(1.02);
-    box-shadow:
-        0 1px 0 rgba(255,255,255,.92) inset,
-        0 2px 0 rgba(0,32,80,.035),
-        0 18px 34px -26px rgba(0,32,80,.42),
-        0 9px 18px -18px rgba(15,23,42,.24) !important;
-}
-
-.panel-head,
-.panel-body,
-.dash-kpi-card > *,
-.team-tile > *,
-.backlog-row > *,
-.agenda-row > *,
-.fin-unpaid-row > *,
-.eff-summary-card > *,
-.eff-row > * {
-    position: relative;
-    z-index: 1;
-}
-
-@media (max-width: 700px) {
-    .dash-greeting,
-    .dash-kpi-card,
-    .panel,
-    .team-tile,
-    .backlog-row,
-    .agenda-row,
-    .fin-unpaid-row,
-    .eff-summary-card,
-    .eff-row {
-        box-shadow:
-            0 1px 0 rgba(255,255,255,.86) inset,
-            0 1px 0 rgba(0,32,80,.03),
-            0 14px 28px -24px rgba(0,32,80,.38) !important;
-    }
-    .dash-kpi-card:hover,
-    .panel:hover,
-    .team-tile:hover,
-    .backlog-row:hover,
-    .agenda-row:hover,
-    .fin-unpaid-row:hover,
-    .eff-summary-card:hover,
-    .eff-row:hover {
-        transform: none;
-    }
-}
-
-/* === Dashboard executiv nou === */
-.exec-dashboard {
-    display: grid;
-    gap: 16px;
-}
-.exec-hero {
-    position: relative;
-    overflow: hidden;
-    border: 1px solid rgba(177,214,240,.55);
-    border-radius: 22px;
-    padding: 22px;
-    background:
-        radial-gradient(circle at 88% 10%, rgba(177,214,240,.72), transparent 30%),
-        linear-gradient(135deg, rgba(255,255,255,.95), rgba(236,244,251,.82));
-    box-shadow: 0 26px 56px -38px rgba(0,32,80,.42), inset 0 1px 0 rgba(255,255,255,.86);
-}
-.exec-hero-top {
-    display: flex;
-    justify-content: space-between;
-    gap: 18px;
-    align-items: flex-start;
-}
-.exec-kicker {
-    color: var(--accent);
-    font-size: 11px;
-    font-weight: 900;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-}
-.exec-hero h1 {
-    margin: 0;
-    color: var(--text);
-    font-size: 30px;
-    line-height: 1.08;
-    letter-spacing: 0;
-    font-weight: 850;
-}
-.exec-hero p {
-    margin: 8px 0 0;
-    max-width: 720px;
-    color: #40546f;
-    font-size: 14px;
-    line-height: 1.45;
-    font-weight: 650;
-}
-.exec-status {
-    min-width: 190px;
-    border-radius: 16px;
-    border: 1px solid rgba(148,163,184,.35);
-    background: rgba(255,255,255,.78);
-    padding: 12px 14px;
-    text-align: right;
-    box-shadow: 0 10px 24px -20px rgba(15,23,42,.35);
-}
-.exec-status strong {
-    display: block;
-    color: var(--text);
-    font-size: 14px;
-    font-weight: 900;
-}
-.exec-status span {
-    display: block;
-    margin-top: 3px;
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 700;
-}
-.exec-status::before {
-    content: "";
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
-    margin-right: 7px;
-    background: var(--tone-success);
-    box-shadow: 0 0 0 5px rgba(4,120,87,.12);
-}
-.exec-status.tone-warning::before { background: var(--tone-warning); box-shadow: 0 0 0 5px rgba(180,83,9,.13); }
-.exec-status.tone-danger::before { background: var(--tone-danger); box-shadow: 0 0 0 5px rgba(220,38,38,.13); }
-.exec-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 18px;
-}
-.exec-action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 40px;
-    padding: 0 18px;
-    border-radius: 999px;
-    border: 1px solid rgba(0,32,80,.20);
-    background: rgba(255,255,255,.78);
-    color: var(--text);
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 850;
-}
-.exec-action.primary {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent);
-}
-.exec-kpis {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 10px;
-    margin-top: 18px;
-}
-.exec-kpi {
-    min-height: 108px;
-    border: 1px solid rgba(148,163,184,.26);
-    border-radius: 16px;
-    background: rgba(255,255,255,.84);
+    gap: var(--pz-gap);
     padding: 14px;
-    text-decoration: none;
-    color: inherit;
-    box-shadow: 0 14px 28px -24px rgba(0,32,80,.30);
+    max-width: 1680px;
+    margin: 0 auto;
 }
-.exec-kpi .label {
-    color: var(--muted);
-    font-size: 11px;
-    font-weight: 900;
-    letter-spacing: .05em;
-    text-transform: uppercase;
+
+/* ── Page header ─────────────────────────────────────────────── */
+.pz-ph { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.pz-ph-name { font-size: 16px; font-weight: 600; color: var(--pz-title); line-height: 1.2; }
+.pz-ph-date { font-size: 11.5px; color: var(--pz-mu); margin-top: 1px; }
+.pz-live { display: flex; align-items: center; gap: 5px; padding: 4px 9px; border: 1px solid var(--pz-grb); border-radius: var(--pz-rs); background: var(--pz-grs); color: var(--pz-gr); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.pz-ldot { width: 6px; height: 6px; border-radius: 50%; background: #22C55E; flex-shrink: 0; }
+
+/* ── Section label ───────────────────────────────────────────── */
+.pz-slbl { font-size: 10px; font-weight: 700; color: var(--pz-fa); text-transform: uppercase; letter-spacing: .5px; display: flex; align-items: center; gap: 8px; padding: 2px 0 0; }
+.pz-slbl::after { content: ''; flex: 1; height: 1px; background: var(--pz-line); }
+
+/* ── Badges & pills ──────────────────────────────────────────── */
+.pz-badge { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+.pz-badge.re { background: var(--pz-res); color: var(--pz-re); border: 1px solid var(--pz-reb); }
+.pz-badge.or { background: var(--pz-ors); color: var(--pz-or); border: 1px solid var(--pz-orb); }
+.pz-badge.gr { background: var(--pz-grs); color: var(--pz-gr); border: 1px solid var(--pz-grb); }
+.pz-badge.bl { background: var(--pz-bls); color: var(--pz-bld); border: 1px solid var(--pz-blb); }
+.pz-cbadge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+.pz-cbadge.re { background: var(--pz-res); color: var(--pz-re); border: 1px solid var(--pz-reb); }
+.pz-cbadge.or { background: var(--pz-ors); color: var(--pz-or); border: 1px solid var(--pz-orb); }
+.pz-cbadge.bl { background: var(--pz-bls); color: var(--pz-bld); border: 1px solid var(--pz-blb); }
+.pz-cbadge.gr { background: var(--pz-grs); color: var(--pz-gr); border: 1px solid var(--pz-grb); }
+
+/* ── KPI row ─────────────────────────────────────────────────── */
+.pz-kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--pz-gap); }
+.pz-kc {
+    background: var(--pz-surf); border: 1px solid var(--pz-line); border-radius: var(--pz-r);
+    padding: 12px 13px 13px; border-left-width: 3px; border-left-style: solid;
+    display: flex; flex-direction: column;
 }
-.exec-kpi .value {
-    display: block;
-    margin-top: 8px;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 27px;
-    line-height: 1;
-    font-weight: 900;
+.pz-kc.bl { border-left-color: var(--pz-bl); }
+.pz-kc.or { border-left-color: #F97316; }
+.pz-kc.re { border-left-color: #EF4444; }
+.pz-kc.gr { border-left-color: #22C55E; }
+.pz-kc-drag { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+.pz-kc-lbl { font-size: 10.5px; font-weight: 600; color: var(--pz-mu); text-transform: uppercase; letter-spacing: .3px; }
+.pz-kc-val { font-size: 22px; font-weight: 700; color: var(--pz-title); line-height: 1.15; margin-top: 5px; }
+.pz-kc-val span { font-size: 13px; font-weight: 500; color: var(--pz-mu); }
+.pz-kc-sub { font-size: 11px; color: var(--pz-mu); margin-top: auto; padding-top: 6px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+
+/* ── Panel (card with header) ────────────────────────────────── */
+.pz-pnl { background: var(--pz-surf); border: 1px solid var(--pz-line); border-radius: var(--pz-r); overflow: hidden; display: flex; flex-direction: column; }
+.pz-ph2 { padding: 9px 12px; border-bottom: 1px solid var(--pz-lines); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.pz-phc { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.pz-pttl { font-size: 12.5px; font-weight: 600; color: var(--pz-title); }
+.pz-pmeta { font-size: 11px; color: var(--pz-mu); margin-top: 1px; }
+.pz-pbody { padding: 12px; flex: 1; display: flex; flex-direction: column; }
+
+/* ── Drag handle ─────────────────────────────────────────────── */
+.drag-handle { color: var(--pz-fa); cursor: grab; font-size: 14px; flex-shrink: 0; display: flex; align-items: center; user-select: none; -webkit-user-select: none; transition: color .15s; }
+.drag-handle:hover { color: var(--pz-mu); }
+.drag-handle:active { cursor: grabbing; }
+.sortable-ghost { opacity: .2 !important; border: 1.5px dashed var(--pz-bl) !important; background: var(--pz-bls) !important; border-radius: var(--pz-r); }
+.sortable-chosen { outline: 2px solid var(--pz-blb); outline-offset: 1px; }
+
+/* ── Alert panels ────────────────────────────────────────────── */
+.pz-alerts-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pz-gap); }
+.pz-ap-ttl { font-size: 12px; font-weight: 600; color: var(--pz-title); display: flex; align-items: center; gap: 6px; }
+.pz-ap-ico { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+.pz-ap-ico.re { background: var(--pz-res); color: var(--pz-re); }
+.pz-ap-ico.or { background: var(--pz-ors); color: var(--pz-or); }
+.pz-ap-ico.bl { background: var(--pz-bls); color: var(--pz-bld); }
+.pz-ai-wrap { flex: 1; display: flex; flex-direction: column; }
+.pz-ai { padding: 8px 12px; border-bottom: 1px solid var(--pz-lines); display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+.pz-ai:last-child { border-bottom: 0; }
+.pz-ai.warn { background: var(--pz-ors); }
+.pz-ai-n { font-size: 11.5px; font-weight: 600; color: var(--pz-title); line-height: 1.25; }
+.pz-ai-n.or { color: var(--pz-or); }
+.pz-ai-s { font-size: 10.5px; color: var(--pz-mu); margin-top: 1px; }
+.pz-ai-v { font-size: 11.5px; font-weight: 700; white-space: nowrap; margin-top: 1px; }
+.pz-ai-v.re { color: var(--pz-re); }
+.pz-ai-v.or { color: var(--pz-or); }
+.pz-ai-v.bl { color: var(--pz-bl); }
+.pz-ai-spacer { flex: 1; }
+.pz-amore { padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--pz-bl); background: var(--pz-bls); text-align: center; cursor: pointer; flex-shrink: 0; border-top: 1px solid var(--pz-blb); text-decoration: none; display: block; }
+.pz-amore:hover { background: var(--pz-blb); }
+
+/* ── Mid row ─────────────────────────────────────────────────── */
+.pz-mid-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--pz-gap); }
+
+/* ── Chart ───────────────────────────────────────────────────── */
+.pz-ctabs { display: flex; gap: 2px; }
+.pz-ctab { padding: 3px 7px; border-radius: 3px; font-size: 10.5px; font-weight: 600; color: var(--pz-mu); cursor: pointer; border: 0; background: transparent; font-family: inherit; }
+.pz-ctab.a, .pz-ctab:hover { background: var(--pz-bls); color: var(--pz-bld); }
+.pz-chart-stat { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--pz-lines); padding-top: 9px; margin-top: 9px; }
+.pz-cs { text-align: center; }
+.pz-cs + .pz-cs { border-left: 1px solid var(--pz-lines); }
+.pz-cs-l { font-size: 9.5px; font-weight: 600; color: var(--pz-mu); text-transform: uppercase; display: block; }
+.pz-cs-v { font-size: 15px; font-weight: 700; display: block; margin-top: 2px; }
+
+/* ── Agenda ──────────────────────────────────────────────────── */
+.pz-ag-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 12px; color: var(--pz-fa); font-size: 12px; text-align: center; }
+.pz-ag-slbl { font-size: 10px; font-weight: 700; color: var(--pz-mu); text-transform: uppercase; padding: 8px 12px 4px; border-top: 1px solid var(--pz-lines); flex-shrink: 0; }
+.pz-ag-item { padding: 6px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; text-decoration: none; }
+.pz-ag-item:hover { background: var(--pz-lines); }
+.pz-ag-t { font-size: 10.5px; font-weight: 600; color: var(--pz-mu); min-width: 36px; }
+.pz-ag-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.pz-ag-n { font-size: 11.5px; font-weight: 600; color: var(--pz-title); }
+.pz-ag-s { font-size: 10.5px; color: var(--pz-mu); }
+
+/* ── Bottom row ──────────────────────────────────────────────── */
+.pz-bot-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pz-gap); }
+
+/* ── Team rows ───────────────────────────────────────────────── */
+.pz-tr { padding: 7px 12px; border-bottom: 1px solid var(--pz-lines); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.pz-tr:last-child { border-bottom: 0; }
+.pz-tav { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 700; flex-shrink: 0; color: #fff; }
+.pz-tn { font-size: 11.5px; font-weight: 600; color: var(--pz-title); min-width: 52px; white-space: nowrap; }
+.pz-tbw { flex: 1; height: 4px; background: var(--pz-lines); border-radius: 10px; overflow: hidden; }
+.pz-tb2 { height: 100%; border-radius: 10px; }
+.pz-tpct { font-size: 10.5px; font-weight: 700; min-width: 30px; text-align: right; }
+.pz-ttsk { font-size: 10.5px; color: var(--pz-mu); white-space: nowrap; }
+
+/* ── Finance rows ────────────────────────────────────────────── */
+.pz-fr { padding: 8px 12px; border-bottom: 1px solid var(--pz-lines); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.pz-fr:last-child { border-bottom: 0; }
+.pz-fr.warn { background: var(--pz-ors); }
+.pz-fr.danger { background: var(--pz-res); }
+.pz-fl { font-size: 11.5px; color: var(--pz-mu); font-weight: 500; }
+.pz-fl.em { font-weight: 600; color: var(--pz-title); }
+.pz-fv { font-size: 12.5px; font-weight: 700; }
+.pz-fv.bl { color: var(--pz-bld); }
+.pz-fv.gr { color: var(--pz-gr); }
+.pz-fv.or { color: var(--pz-or); }
+.pz-fv.re { color: var(--pz-re); }
+.pz-fv.big { font-size: 15px; color: var(--pz-title); }
+.pz-svc-section { padding: 10px 12px; border-top: 1px solid var(--pz-lines); flex: 1; }
+.pz-svc-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+.pz-svc-bar { height: 3px; background: var(--pz-lines); border-radius: 10px; margin-bottom: 10px; }
+.pz-svc-fill { height: 100%; border-radius: 10px; }
+
+/* ── Status dot colors for agenda ───────────────────────────── */
+.dot-neconfirmata { background: var(--pz-fa); }
+.dot-confirmata   { background: var(--pz-bl); }
+.dot-in_lucru     { background: #F97316; }
+.dot-finalizata   { background: #22C55E; }
+.dot-programat    { background: var(--pz-bl); }
+.dot-default      { background: var(--pz-fa); }
+
+/* ── Link reset ──────────────────────────────────────────────── */
+.pz-dash a { text-decoration: none; }
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+    .pz-alerts-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pz-mid-row { grid-template-columns: 1fr; }
+    .pz-bot-row { grid-template-columns: 1fr; }
 }
-.exec-kpi .meta {
-    display: block;
-    margin-top: 8px;
-    color: var(--muted);
-    font-size: 12px;
-    line-height: 1.3;
-    font-weight: 700;
-}
-.exec-kpi.warning .value { color: var(--tone-warning); }
-.exec-kpi.danger .value { color: var(--tone-danger); }
-.exec-kpi.success .value { color: var(--tone-success); }
-.exec-grid {
-    display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 14px;
-}
-.exec-card {
-    grid-column: span 6;
-    border: 1px solid rgba(177,214,240,.45);
-    border-radius: 18px;
-    background: rgba(255,255,255,.90);
-    box-shadow: 0 18px 38px -30px rgba(0,32,80,.34), inset 0 1px 0 rgba(255,255,255,.78);
-    overflow: hidden;
-}
-.exec-card.wide { grid-column: span 12; }
-.exec-card.third { grid-column: span 4; }
-.exec-card-head {
-    padding: 15px 16px 11px;
-    border-bottom: 1px solid var(--border2);
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-}
-.exec-card-title {
-    margin: 0;
-    color: var(--text);
-    font-size: 16px;
-    font-weight: 900;
-    letter-spacing: 0;
-}
-.exec-card-sub {
-    margin-top: 3px;
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 650;
-}
-.exec-card-link {
-    white-space: nowrap;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 7px 12px;
-    background: #fff;
-    color: var(--text);
-    text-decoration: none;
-    font-size: 12px;
-    font-weight: 850;
-}
-.exec-card-body { padding: 14px 16px 16px; }
-.today-brief {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-}
-.brief-item {
-    border: 1px solid var(--border2);
-    border-radius: 14px;
-    background: var(--surface-soft);
-    padding: 12px;
-}
-.brief-item .num {
-    display: block;
-    font-family: var(--mono);
-    font-size: 24px;
-    font-weight: 900;
-    color: var(--text);
-    line-height: 1;
-}
-.brief-item .txt {
-    display: block;
-    margin-top: 6px;
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 750;
-}
-.attention-list, .agenda-compact, .service-list {
-    display: grid;
-    gap: 8px;
-}
-.attention-row, .agenda-compact-row, .service-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: center;
-    border: 1px solid var(--border2);
-    border-radius: 13px;
-    background: #fff;
-    padding: 11px 12px;
-    text-decoration: none;
-    color: inherit;
-}
-.attention-row strong, .agenda-compact-row strong, .service-row strong {
-    color: var(--text);
-    font-size: 13px;
-    font-weight: 850;
-}
-.attention-row span, .agenda-compact-row span, .service-row span {
-    display: block;
-    margin-top: 3px;
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 650;
-}
-.attention-value {
-    min-width: 38px;
-    height: 30px;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--surface-soft);
-    color: var(--text);
-    font-family: var(--mono);
-    font-weight: 900;
-}
-.attention-row.tone-danger .attention-value { background: var(--tone-danger-soft); color: var(--tone-danger); }
-.attention-row.tone-warning .attention-value { background: var(--tone-warning-soft); color: var(--tone-warning); }
-.attention-row.tone-success .attention-value { background: var(--tone-success-soft); color: var(--tone-success); }
-.mini-chart {
-    height: 210px;
-    display: flex;
-    align-items: flex-end;
-    gap: 5px;
-    padding: 8px 0 0;
-}
-.mini-bar {
-    flex: 1;
-    min-width: 4px;
-    border-radius: 999px 999px 4px 4px;
-    background: linear-gradient(180deg, #2f66c7, #8fb7f4);
-    min-height: 6px;
-}
-.mini-bar.revenue { background: linear-gradient(180deg, #0f8c72, #9fe1d2); }
-.chart-footer {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 8px;
-    color: var(--muted);
-    font-size: 11px;
-    font-weight: 700;
-}
-.trend-chip {
-    display: inline-flex;
-    align-items: center;
-    padding: 5px 9px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 900;
-    background: var(--surface-soft);
-    color: var(--muted);
-}
-.trend-chip.up { background: var(--tone-success-soft); color: var(--tone-success); }
-.trend-chip.down { background: var(--tone-danger-soft); color: var(--tone-danger); }
-.agenda-time {
-    font-family: var(--mono);
-    font-size: 14px;
-    font-weight: 900;
-    color: var(--accent);
-}
-.empty-soft {
-    border: 1px dashed var(--border);
-    border-radius: 14px;
-    padding: 18px;
-    color: var(--muted);
-    background: var(--surface-soft);
-    font-size: 13px;
-    font-weight: 700;
-}
-@media (max-width: 1180px) {
-    .exec-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .exec-card, .exec-card.third { grid-column: span 12; }
-    .today-brief { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 720px) {
-    .exec-dashboard { gap: 10px; }
-    .exec-hero {
-        padding: 10px;
-        border-radius: 8px;
-        background: #fff;
-        box-shadow: none;
-    }
-    .exec-hero-top {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 10px;
-    }
-    .exec-kicker { display: none; }
-    .exec-hero h1 { font-size: 20px; line-height: 1.1; }
-    .exec-hero p { display: none; }
-    .exec-status {
-        width: 100%;
-        min-width: 0;
-        text-align: left;
-        border-radius: 8px;
-        padding: 8px 9px;
-        box-shadow: none;
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 2px 8px;
-        align-items: center;
-    }
-    .exec-status::before { display: none; }
-    .exec-status strong { font-size: 12px; }
-    .exec-status span { margin: 0; font-size: 11px; }
-    .exec-status span:last-child { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
-    .exec-kpis {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 7px;
-        margin-top: 10px;
-    }
-    .exec-kpi {
-        min-height: 66px;
-        border-radius: 8px;
-        padding: 9px;
-        box-shadow: none;
-    }
-    .exec-kpi .label { font-size: 8.5px; letter-spacing: .045em; }
-    .exec-kpi .value { margin-top: 5px; font-size: 19px; }
-    .exec-kpi .meta { margin-top: 4px; font-size: 10px; line-height: 1.18; }
-    .exec-kpi:last-child {
-        grid-column: 1 / -1;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
-        gap: 8px;
-        min-height: 52px;
-    }
-    .exec-kpi:last-child .value { grid-column: 2; grid-row: 1 / span 2; margin: 0; font-size: 24px; }
-    .exec-kpi:last-child .meta { margin-top: 2px; }
-    .exec-actions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 7px;
-        margin-top: 10px;
-    }
-    .exec-action {
-        min-height: 32px;
-        border-radius: 8px;
-        padding: 0 10px;
-        font-size: 12px;
-    }
-    .exec-action.primary { grid-column: 1 / -1; }
-    .exec-grid { gap: 10px; }
-    .exec-card {
-        border-radius: 8px;
-        box-shadow: none;
-    }
-    .exec-card-head { padding: 10px 11px 8px; gap: 8px; }
-    .exec-card-title { font-size: 14px; }
-    .exec-card-sub { font-size: 10.5px; }
-    .exec-card-link {
-        border-radius: 6px;
-        padding: 6px 9px;
-        font-size: 11px;
-    }
-    .exec-card-body { padding: 9px 11px 11px; }
-    .today-brief {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 7px;
-    }
-    .brief-item {
-        border-radius: 8px;
-        padding: 9px;
-    }
-    .brief-item .num { font-size: 18px; }
-    .brief-item .txt { margin-top: 4px; font-size: 10.5px; }
-    .attention-list, .agenda-compact, .service-list { gap: 7px; }
-    .attention-row, .agenda-compact-row, .service-row {
-        border-radius: 8px;
-        padding: 9px 10px;
-    }
-    .attention-row strong, .agenda-compact-row strong, .service-row strong { font-size: 12px; }
-    .attention-row span, .agenda-compact-row span, .service-row span { font-size: 10.5px; }
-    .attention-value {
-        min-width: 26px;
-        width: auto;
-        height: 26px;
-        border-radius: 7px;
-        font-size: 11px;
-        display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
-        margin: 0 !important;
-        padding: 0 7px;
-        line-height: 1;
-    }
-    .attention-row .attention-value {
-        justify-self: end;
-    }
-    .mini-chart { height: 150px; gap: 4px; }
-    .trend-chip { border-radius: 6px; padding: 4px 7px; font-size: 10.5px; }
-    .empty-soft { border-radius: 8px; padding: 12px; font-size: 11.5px; }
+@media (max-width: 680px) {
+    .pz-kpi-row { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .pz-kc { padding: 8px 8px 10px; }
+    .pz-kc-drag { display: none; }
+    .pz-kc-lbl { font-size: 9px; letter-spacing: .2px; }
+    .pz-kc-val { font-size: 16px; margin-top: 3px; }
+    .pz-kc-val span { font-size: 11px; }
+    .pz-kc-sub { font-size: 9.5px; gap: 3px; padding-top: 4px; }
+    .pz-badge { font-size: 9px; padding: 1px 4px; }
+    .pz-alerts-row, .pz-mid-row, .pz-bot-row { grid-template-columns: 1fr; }
+    .pz-dash { padding: 8px; gap: 8px; }
+    .pz-ph-name { font-size: 14px; }
 }
 </style>
 </head>
@@ -1735,221 +565,571 @@ if (!$briefingChips) {
 <div class="layout">
     <?php render_sidebar('dashboard', $isAdmin); ?>
     <main class="main">
-        <div class="content exec-dashboard">
-            <section class="exec-hero">
-                <div class="exec-hero-top">
-                    <div>
-                        <div class="exec-kicker">Dashboard operațional</div>
-                        <h1><?= dash_h($greeting) ?>, <?= dash_h($dashboardUserName) ?></h1>
-                        <p>Rezumat rapid pentru zi, lună și direcția firmei: ce merge bine, ce crește și ce trebuie închis înainte să se adune.</p>
-                    </div>
-                    <div class="exec-status tone-<?= dash_h($statusTone) ?>">
-                        <strong><?= dash_h($statusTitle) ?></strong>
-                        <span><?= dash_h($statusText) ?></span>
-                        <span><?= date('d.m.Y') ?></span>
+
+        <div class="content pz-dash">
+
+            <!-- ── Page header ─────────────────────────────────── -->
+            <div class="pz-ph">
+                <div>
+                    <div class="pz-ph-name">Bună, <?= dash_h($userName) ?></div>
+                    <div class="pz-ph-date"><?= dash_h($todayLabel) ?></div>
+                </div>
+                <div class="pz-live">
+                    <div class="pz-ldot"></div>
+                    Date live din platformă
+                </div>
+            </div>
+
+            <!-- ── KPI strip ──────────────────────────────────── -->
+            <div class="pz-slbl">KPI-uri principale</div>
+            <div class="pz-kpi-row" id="row-kpi">
+
+                <div class="pz-kc bl" data-card-id="kpi-lucrari">
+                    <div class="pz-kc-drag"><i class="ti ti-grip-horizontal drag-handle" aria-hidden="true" style="font-size:12px"></i></div>
+                    <div class="pz-kc-lbl">Lucrări luna</div>
+                    <div class="pz-kc-val"><?= (int)$monthTotal ?></div>
+                    <div class="pz-kc-sub">
+                        <?= (int)$monthCompleted ?> finalizate
+                        <?php if ($monthTotal > 0): ?>
+                            <span class="pz-badge bl"><?= dash_decimal($monthCompleted > 0 ? ($monthCompleted / $monthTotal * 100) : 0, 0) ?>%</span>
+                        <?php endif; ?>
                     </div>
                 </div>
 
-                <div class="exec-kpis">
-                    <a class="exec-kpi" href="calendar.php?date=<?= dash_h($today) ?>&view=day">
-                        <span class="label">Programări azi</span>
-                        <strong class="value"><?= (int)$appointmentsToday ?></strong>
-                        <span class="meta"><?= (int)$completedToday ?> finalizate · <?= dash_h(number_format((float)$todayBookedHours, 1, ',', '.')) ?>h programate</span>
-                    </a>
-                    <a class="exec-kpi <?= $appointmentTrend !== null && $appointmentTrend >= 0 ? 'success' : 'warning' ?>" href="reports.php">
-                        <span class="label">Programări lună</span>
-                        <strong class="value"><?= (int)$monthAppointments ?></strong>
-                        <span class="meta">
-                            <?php if ($appointmentTrend === null): ?>
-                                Fără termen de comparație
-                            <?php else: ?>
-                                <?= $appointmentTrend >= 0 ? '+' : '' ?><?= dash_h(number_format($appointmentTrend, 1, ',', '.')) ?>% față de luna trecută
-                            <?php endif; ?>
-                        </span>
-                    </a>
-                    <a class="exec-kpi <?= $revenueTrendPercent !== null && $revenueTrendPercent >= 0 ? 'success' : 'warning' ?>" href="interventii_facturare.php">
-                        <span class="label">Valoare lunară</span>
-                        <strong class="value"><?= dash_h(dash_format_money($monthRevenue)) ?></strong>
-                        <span class="meta">
-                            lei fără TVA ·
-                            <?php if ($revenueTrendPercent === null): ?>
-                                lună nouă
-                            <?php else: ?>
-                                <?= $revenueTrendPercent >= 0 ? '+' : '' ?><?= dash_h(number_format($revenueTrendPercent, 1, ',', '.')) ?>%
-                            <?php endif; ?>
-                        </span>
-                    </a>
-                    <a class="exec-kpi <?= $ibDue > 0 ? 'danger' : 'success' ?>" href="interventii_facturare.php?billing_status=de_facturat">
-                        <span class="label">De facturat</span>
-                        <strong class="value"><?= (int)$ibDue ?></strong>
-                        <span class="meta"><?= dash_h(dash_format_money($ibDueAmount)) ?> lei în așteptare</span>
-                    </a>
-                    <a class="exec-kpi <?= $backlogTotal > 0 ? 'warning' : 'success' ?>" href="tasks.php">
-                        <span class="label">De programat</span>
-                        <strong class="value"><?= (int)$backlogTotal ?></strong>
-                        <span class="meta"><?= (int)$tasksOverdueCount ?> întârziate · <?= (int)$tasksTodayCount ?> azi</span>
-                    </a>
+                <div class="pz-kc or" data-card-id="kpi-facturat">
+                    <div class="pz-kc-drag"><i class="ti ti-grip-horizontal drag-handle" aria-hidden="true" style="font-size:12px"></i></div>
+                    <div class="pz-kc-lbl">De facturat</div>
+                    <div class="pz-kc-val"><?= (int)$billingDue ?></div>
+                    <div class="pz-kc-sub">
+                        intervenții
+                        <?php if ($billingDueAmount > 0): ?>
+                            <span class="pz-badge or"><?= dash_money($billingDueAmount) ?> lei</span>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
-                <div class="exec-actions">
-                    <a class="exec-action primary" href="calendar.php?date=<?= dash_h($today) ?>&view=day&open_create=1">+ Programare</a>
-                    <a class="exec-action" href="clients.php?open_create=1">+ Client</a>
-                    <a class="exec-action" href="tasks.php?open_create=1">+ Sarcină</a>
+                <div class="pz-kc re" data-card-id="kpi-restante">
+                    <div class="pz-kc-drag"><i class="ti ti-grip-horizontal drag-handle" aria-hidden="true" style="font-size:12px"></i></div>
+                    <div class="pz-kc-lbl">Restanțe</div>
+                    <div class="pz-kc-val"><?= $restanteTotalClients > 0 ? (int)$restanteTotalClients : (int)$tasksOverdue ?></div>
+                    <div class="pz-kc-sub">
+                        <?= $restanteTotalClients > 0 ? 'beneficiari' : 'sarcini întârziate' ?>
+                        <?php if ($restanteTotalAmount > 0): ?>
+                            <span class="pz-badge re"><?= dash_money($restanteTotalAmount) ?> lei</span>
+                        <?php endif; ?>
+                    </div>
                 </div>
-            </section>
 
-            <section class="exec-grid">
-                <article class="exec-card wide">
-                    <div class="exec-card-head">
-                        <div>
-                            <h2 class="exec-card-title">Azi, pe scurt</h2>
-                            <div class="exec-card-sub">Imaginea zilei fără să intri în calendar.</div>
-                        </div>
-                        <a class="exec-card-link" href="calendar.php?date=<?= dash_h($today) ?>&view=day">Calendar zi</a>
+                <div class="pz-kc gr" data-card-id="kpi-echipa">
+                    <div class="pz-kc-drag"><i class="ti ti-grip-horizontal drag-handle" aria-hidden="true" style="font-size:12px"></i></div>
+                    <div class="pz-kc-lbl">Echipă azi</div>
+                    <div class="pz-kc-val"><?= (int)$techWithJobsToday ?> <span>/ <?= (int)$activeTechnicians ?></span></div>
+                    <div class="pz-kc-sub">
+                        tehnicieni activi
+                        <span class="pz-badge gr"><?= (int)$techOccupancyPct ?>%</span>
                     </div>
-                    <div class="exec-card-body">
-                        <div class="today-brief">
-                            <div class="brief-item"><span class="num"><?= (int)$appointmentsToday ?></span><span class="txt">programări azi</span></div>
-                            <div class="brief-item"><span class="num"><?= (int)$completedToday ?></span><span class="txt">lucrări finalizate</span></div>
-                            <div class="brief-item"><span class="num"><?= $firstAppointment ? dash_h(dash_time($firstAppointment['start_time'] ?? null)) : '-' ?></span><span class="txt">prima programare</span></div>
-                            <div class="brief-item"><span class="num"><?= $lastAppointment ? dash_h(dash_time($lastAppointment['start_time'] ?? null)) : '-' ?></span><span class="txt">ultima programare</span></div>
-                        </div>
-                    </div>
-                </article>
+                </div>
 
-                <article class="exec-card third">
-                    <div class="exec-card-head">
-                        <div>
-                            <h2 class="exec-card-title">Ce necesită atenție</h2>
-                            <div class="exec-card-sub">Lucrurile care merită închise primele.</div>
+            </div>
+
+            <!-- ── Alert panels ───────────────────────────────── -->
+            <div class="pz-slbl">Alerte operaționale</div>
+            <div class="pz-alerts-row" id="row-alerts">
+
+                <!-- Sarcini urgente -->
+                <div class="pz-pnl" data-card-id="alert-sarcini">
+                    <div class="pz-ph2">
+                        <i class="ti ti-grip-vertical drag-handle" aria-hidden="true"></i>
+                        <div class="pz-phc">
+                            <div class="pz-ap-ttl">
+                                <div class="pz-ap-ico re"><i class="ti ti-alert-triangle" aria-hidden="true"></i></div>
+                                Sarcini urgente
+                            </div>
+                            <span class="pz-cbadge <?= $tasksOverdue > 0 ? 're' : 'or' ?>"><?= (int)$tasksOverdue ?> întârziate</span>
                         </div>
                     </div>
-                    <div class="exec-card-body">
-                        <div class="attention-list">
-                            <?php foreach ($attentionItems as $item): ?>
-                                <a class="attention-row tone-<?= dash_h($item['tone']) ?>" href="<?= dash_h($item['href']) ?>">
+                    <div class="pz-ai-wrap">
+                        <?php if ($overdueTasksList): ?>
+                            <?php foreach ($overdueTasksList as $task): ?>
+                                <div class="pz-ai">
                                     <div>
-                                        <strong><?= dash_h($item['label']) ?></strong>
-                                        <span><?= $item['tone'] === 'success' ? 'Totul arată curat aici.' : 'Deschide lista și rezolvă punctual.' ?></span>
+                                        <div class="pz-ai-n"><?= dash_h($task['client_name'] ?: $task['title'] ?: 'Sarcină') ?></div>
+                                        <div class="pz-ai-s"><?= dash_h($task['title'] ?: '') ?></div>
                                     </div>
-                                    <span class="attention-value"><?= (int)$item['value'] ?></span>
-                                </a>
+                                    <div class="pz-ai-v re">−<?= (int)dash_days_ago($task['due_date']) ?>z</div>
+                                </div>
                             <?php endforeach; ?>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="exec-card">
-                    <div class="exec-card-head">
-                        <div>
-                            <h2 class="exec-card-title">Programări în ultimele 30 zile</h2>
-                            <div class="exec-card-sub">Trend scurt pentru ritmul operațional.</div>
-                        </div>
-                        <?php
-                            $chipClass = $appointmentTrend !== null && $appointmentTrend >= 0 ? 'up' : 'down';
-                            $chipText = $appointmentTrend === null ? 'Nou' : (($appointmentTrend >= 0 ? '+' : '') . number_format($appointmentTrend, 1, ',', '.') . '%');
-                        ?>
-                        <span class="trend-chip <?= dash_h($chipClass) ?>"><?= dash_h($chipText) ?></span>
-                    </div>
-                    <div class="exec-card-body">
-                        <?php $maxDaily = max(1, ...array_map(static fn($r) => (int)$r['value'], $dailyTrend)); ?>
-                        <div class="mini-chart" aria-label="Programări ultimele 30 zile">
-                            <?php foreach ($dailyTrend as $point): ?>
-                                <?php $height = max(4, ((int)$point['value'] / $maxDaily) * 100); ?>
-                                <span class="mini-bar" title="<?= dash_h($point['label']) ?>: <?= (int)$point['value'] ?>" style="height: <?= number_format($height, 2, '.', '') ?>%"></span>
-                            <?php endforeach; ?>
-                        </div>
-                        <div class="chart-footer"><span><?= dash_h($dailyTrend[0]['label'] ?? '') ?></span><span><?= dash_h($dailyTrend[count($dailyTrend)-1]['label'] ?? '') ?></span></div>
-                    </div>
-                </article>
-
-                <article class="exec-card">
-                    <div class="exec-card-head">
-                        <div>
-                            <h2 class="exec-card-title">Valoare lucrări</h2>
-                            <div class="exec-card-sub">Estimare lunară pe baza valorilor din programări.</div>
-                        </div>
-                        <?php
-                            $revChipClass = $revenueTrendPercent !== null && $revenueTrendPercent >= 0 ? 'up' : 'down';
-                            $revChipText = $revenueTrendPercent === null ? 'Nou' : (($revenueTrendPercent >= 0 ? '+' : '') . number_format($revenueTrendPercent, 1, ',', '.') . '%');
-                        ?>
-                        <span class="trend-chip <?= dash_h($revChipClass) ?>"><?= dash_h($revChipText) ?></span>
-                    </div>
-                    <div class="exec-card-body">
-                        <?php $maxRevenue = max(1, ...array_map(static fn($r) => (float)$r['value'], $revenueTrend)); ?>
-                        <div class="mini-chart" aria-label="Valoare lucrări pe luni">
-                            <?php foreach ($revenueTrend as $point): ?>
-                                <?php $height = max(4, ((float)$point['value'] / $maxRevenue) * 100); ?>
-                                <span class="mini-bar revenue" title="<?= dash_h($point['label']) ?>: <?= dash_h(dash_format_money((float)$point['value'])) ?> lei" style="height: <?= number_format($height, 2, '.', '') ?>%"></span>
-                            <?php endforeach; ?>
-                        </div>
-                        <div class="chart-footer"><span><?= dash_h($revenueTrend[0]['label'] ?? '') ?></span><span><?= dash_h($revenueTrend[count($revenueTrend)-1]['label'] ?? '') ?></span></div>
-                    </div>
-                </article>
-
-
-                <article class="exec-card third">
-                    <div class="exec-card-head">
-                        <div>
-                            <h2 class="exec-card-title">Top servicii luna asta</h2>
-                            <div class="exec-card-sub">Ce tipuri de lucrări mișcă cel mai mult activitatea.</div>
-                        </div>
-                        <a class="exec-card-link" href="reports.php">Rapoarte</a>
-                    </div>
-                    <div class="exec-card-body">
-                        <?php if (!$topServices): ?>
-                            <div class="empty-soft">Încă nu există servicii programate luna aceasta.</div>
-                        <?php else: ?>
-                            <div class="service-list">
-                                <?php foreach ($topServices as $service): ?>
-                                    <div class="service-row">
-                                        <div>
-                                            <strong><?= dash_h($service['service_name'] ?? 'Serviciu') ?></strong>
-                                            <span><?= (int)($service['total'] ?? 0) ?> lucrări · <?= dash_h(dash_format_money((float)($service['amount_total'] ?? 0))) ?> lei</span>
-                                        </div>
-                                        <span class="attention-value"><?= (int)($service['total'] ?? 0) ?></span>
-                                    </div>
-                                <?php endforeach; ?>
+                        <?php elseif ($tasksOverdue === 0): ?>
+                            <div class="pz-ai">
+                                <div>
+                                    <div class="pz-ai-n" style="color:var(--pz-gr)">Fără sarcini întârziate</div>
+                                    <div class="pz-ai-s">Totul este la zi</div>
+                                </div>
                             </div>
                         <?php endif; ?>
-                    </div>
-                </article>
-
-                <article class="exec-card wide">
-                    <div class="exec-card-head">
-                        <div>
-                            <h2 class="exec-card-title">Agenda zilei</h2>
-                            <div class="exec-card-sub">Programările importante de azi, în ordine cronologică.</div>
-                        </div>
-                        <a class="exec-card-link" href="calendar.php?date=<?= dash_h($today) ?>&view=day">Vezi calendar</a>
-                    </div>
-                    <div class="exec-card-body">
-                        <?php if (!$todayAppointments): ?>
-                            <div class="empty-soft">Nu există programări astăzi. Zi bună pentru recuperat restanțe și planificat lucrările următoare.</div>
-                        <?php else: ?>
-                            <div class="agenda-compact">
-                                <?php foreach ($todayAppointments as $a): ?>
-                                    <?php
-                                        $startTime = dash_time($a['start_time'] ?? null);
-                                        $status = (string)($a['status'] ?? 'confirmata');
-                                    ?>
-                                    <a class="agenda-compact-row" href="calendar.php?date=<?= dash_h($today) ?>&view=day">
-                                        <div>
-                                            <strong><span class="agenda-time"><?= dash_h($startTime) ?></span> · <?= dash_h($a['client_name'] ?: 'Client') ?></strong>
-                                            <span><?= !empty($a['service_type']) ? dash_h($a['service_type']) . ' · ' : '' ?><?= dash_h($a['team_name'] ?? 'Fără tehnician') ?></span>
-                                        </div>
-                                        <span class="trend-chip"><?= dash_h(dash_status_label($status)) ?></span>
-                                    </a>
-                                <?php endforeach; ?>
+                        <?php if ($tasksToSchedule > 0): ?>
+                            <div class="pz-ai warn">
+                                <div>
+                                    <div class="pz-ai-n or"><?= (int)$tasksToSchedule ?> lucrări de programat</div>
+                                    <div class="pz-ai-s">Fără dată atribuită</div>
+                                </div>
+                                <div class="pz-ai-v or">→</div>
                             </div>
                         <?php endif; ?>
+                        <div class="pz-ai-spacer"></div>
                     </div>
-                </article>
-            </section>
+                    <a href="tasks.php" class="pz-amore">
+                        <i class="ti ti-arrow-right" style="font-size:11px;vertical-align:-1px;margin-right:4px" aria-hidden="true"></i>
+                        Deschide sarcini · <?= (int)$tasksTotal ?> active
+                    </a>
+                </div>
 
+                <!-- Intervenții de facturat -->
+                <div class="pz-pnl" data-card-id="alert-facturat">
+                    <div class="pz-ph2">
+                        <i class="ti ti-grip-vertical drag-handle" aria-hidden="true"></i>
+                        <div class="pz-phc">
+                            <div class="pz-ap-ttl">
+                                <div class="pz-ap-ico or"><i class="ti ti-receipt" aria-hidden="true"></i></div>
+                                De facturat
+                            </div>
+                            <span class="pz-cbadge <?= $billingDue > 0 ? 'or' : 'gr' ?>"><?= (int)$billingDue ?> intervenții</span>
+                        </div>
+                    </div>
+                    <div class="pz-ai-wrap">
+                        <?php if ($billingDueList): ?>
+                            <?php foreach ($billingDueList as $item): ?>
+                                <div class="pz-ai">
+                                    <div>
+                                        <div class="pz-ai-n"><?= dash_h($item['client_name'] ?: 'Client') ?></div>
+                                        <div class="pz-ai-s"><?= dash_h(($item['service_type'] ?: 'Serviciu') . ' · ' . dash_short_date((string)$item['appointment_date'])) ?></div>
+                                    </div>
+                                    <div class="pz-ai-v or"><?= dash_money((float)$item['billing_amount']) ?> lei</div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php elseif ($billingDue === 0): ?>
+                            <div class="pz-ai">
+                                <div>
+                                    <div class="pz-ai-n" style="color:var(--pz-gr)">Nimic de facturat</div>
+                                    <div class="pz-ai-s">Toate intervențiile sunt facturate</div>
+                                </div>
+                            </div>
+                        <?php elseif (!$hasBillingColumns): ?>
+                            <div class="pz-ai">
+                                <div class="pz-ai-n" style="color:var(--pz-mu)">Modul facturare inactiv</div>
+                            </div>
+                        <?php endif; ?>
+                        <div class="pz-ai-spacer"></div>
+                    </div>
+                    <a href="work_billing.php?billing_status=de_facturat" class="pz-amore">
+                        <i class="ti ti-arrow-right" style="font-size:11px;vertical-align:-1px;margin-right:4px" aria-hidden="true"></i>
+                        <?php if ($billingDue > 3): ?>
+                            + <?= (int)($billingDue - count($billingDueList)) ?> intervenții · <?= dash_money($billingDueAmount) ?> lei
+                        <?php else: ?>
+                            Deschide facturare intervenții
+                        <?php endif; ?>
+                    </a>
+                </div>
 
-        </div>
+                <!-- Sume restante -->
+                <div class="pz-pnl" data-card-id="alert-restante">
+                    <div class="pz-ph2">
+                        <i class="ti ti-grip-vertical drag-handle" aria-hidden="true"></i>
+                        <div class="pz-phc">
+                            <div class="pz-ap-ttl">
+                                <div class="pz-ap-ico re"><i class="ti ti-clock-exclamation" aria-hidden="true"></i></div>
+                                Sume restante
+                            </div>
+                            <span class="pz-cbadge <?= $restanteTotalClients > 0 ? 're' : 'gr' ?>"><?= (int)$restanteTotalClients ?> bef.</span>
+                        </div>
+                    </div>
+                    <div class="pz-ai-wrap">
+                        <?php if ($restanteList): ?>
+                            <?php foreach ($restanteList as $r): ?>
+                                <div class="pz-ai">
+                                    <div>
+                                        <div class="pz-ai-n"><?= dash_h($r['client_name'] ?? 'Client') ?></div>
+                                        <div class="pz-ai-s">Scad. <?= dash_short_date((string)($r['oldest_due'] ?? $today)) ?> · <?= (int)dash_days_ago((string)($r['oldest_due'] ?? $today)) ?> zile dep.</div>
+                                    </div>
+                                    <div class="pz-ai-v re"><?= dash_money((float)$r['remaining_amount']) ?> lei</div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php elseif ($restanteTotalClients === 0 && $hasSmartbillInvoices): ?>
+                            <div class="pz-ai">
+                                <div>
+                                    <div class="pz-ai-n" style="color:var(--pz-gr)">Fără restanțe scadente</div>
+                                    <div class="pz-ai-s">Toate facturile sunt la zi</div>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <div class="pz-ai">
+                                <div class="pz-ai-n" style="color:var(--pz-mu)">Date SmartBill indisponibile</div>
+                            </div>
+                        <?php endif; ?>
+                        <div class="pz-ai-spacer"></div>
+                    </div>
+                    <a href="facturi.php" class="pz-amore">
+                        <i class="ti ti-arrow-right" style="font-size:11px;vertical-align:-1px;margin-right:4px" aria-hidden="true"></i>
+                        <?php if ($restanteTotalClients > 3): ?>
+                            + <?= (int)($restanteTotalClients - 3) ?> beneficiari · <?= dash_money($restanteTotalAmount) ?> lei total
+                        <?php else: ?>
+                            Deschide facturi emise
+                        <?php endif; ?>
+                    </a>
+                </div>
+
+            </div>
+
+            <!-- ── Activitate & planificare ───────────────────── -->
+            <div class="pz-slbl">Activitate & planificare</div>
+            <div class="pz-mid-row" id="row-mid">
+
+                <!-- Grafic lucrări -->
+                <div class="pz-pnl" data-card-id="mid-chart">
+                    <div class="pz-ph2">
+                        <i class="ti ti-grip-vertical drag-handle" aria-hidden="true"></i>
+                        <div class="pz-phc">
+                            <div>
+                                <div class="pz-pttl">Lucrări executate</div>
+                                <div class="pz-pmeta">Trend pe 6 luni</div>
+                            </div>
+                            <div class="pz-ctabs" role="tablist" aria-label="Perioadă grafic">
+                                <button class="pz-ctab" data-chart-period="7d">7 z</button>
+                                <button class="pz-ctab" data-chart-period="30d">30 z</button>
+                                <button class="pz-ctab a" data-chart-period="6m">6 luni</button>
+                                <button class="pz-ctab" data-chart-period="12m">12 luni</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pz-pbody">
+                        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+                            <span id="chartValMain" style="font-size:24px;font-weight:700;color:var(--pz-title)"><?= (int)$monthTotal ?></span>
+                            <span id="chartValSub" style="font-size:11.5px;color:var(--pz-mu)">lucrări · 6 luni</span>
+                            <span id="chartDeltaBadge" class="pz-badge <?= (dash_percent_delta((float)$monthTotal, (float)($previousMonth['total'] ?? 0)) ?? 0) >= 0 ? 'gr' : 're' ?>" style="margin-left:auto">
+                                <?php
+                                    $d = dash_percent_delta((float)$monthTotal, (float)($previousMonth['total'] ?? 0));
+                                    echo $d === null ? 'fără comp.' : (($d >= 0 ? '+' : '') . dash_decimal($d, 1) . '% vs luna prec.');
+                                ?>
+                            </span>
+                        </div>
+                        <div id="pzChartWrap" style="width:100%">
+                            <svg id="pzChartSvg" viewBox="0 0 540 80" width="100%" height="80" preserveAspectRatio="none" aria-label="Trend lucrări">
+                                <defs>
+                                    <linearGradient id="pzGrad" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="#2563EB" stop-opacity=".14"/>
+                                        <stop offset="100%" stop-color="#2563EB" stop-opacity="0"/>
+                                    </linearGradient>
+                                </defs>
+                                <line x1="0" y1="0"  x2="540" y2="0"  stroke="#F1F5F9" stroke-width="1"/>
+                                <line x1="0" y1="26" x2="540" y2="26" stroke="#F1F5F9" stroke-width="1"/>
+                                <line x1="0" y1="52" x2="540" y2="52" stroke="#F1F5F9" stroke-width="1"/>
+                                <line x1="0" y1="76" x2="540" y2="76" stroke="#F1F5F9" stroke-width="1"/>
+                                <path id="pzArea" d="<?= dash_h($mainChart['area']) ?>" fill="url(#pzGrad)"/>
+                                <path id="pzLine" d="<?= dash_h($mainChart['line']) ?>" fill="none" stroke="#2563EB" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+                                <g id="pzDots">
+                                    <?php foreach ($mainChart['points'] as $pt): ?>
+                                        <circle cx="<?= dash_h(number_format((float)$pt[0],2,'.','')); ?>" cy="<?= dash_h(number_format((float)$pt[1],2,'.','')); ?>" r="3.5" fill="#fff" stroke="#2563EB" stroke-width="1.5"/>
+                                    <?php endforeach; ?>
+                                </g>
+                            </svg>
+                        </div>
+                        <div id="pzAxis" style="display:flex;justify-content:space-between;margin-top:3px">
+                            <?php foreach ($mainChart['labels'] as $lbl): ?>
+                                <span style="font-size:9.5px;color:var(--pz-fa)"><?= dash_h($lbl) ?></span>
+                            <?php endforeach; ?>
+                        </div>
+                        <!-- Metric tabs -->
+                        <div style="display:flex;gap:4px;margin-top:10px;padding-top:10px;border-top:1px solid var(--pz-lines)">
+                            <button class="pz-ctab a" data-chart-metric="total" style="flex:1">Lucrări</button>
+                            <button class="pz-ctab" data-chart-metric="completed" style="flex:1">Finalizate</button>
+                            <button class="pz-ctab" data-chart-metric="value" style="flex:1">Valoare</button>
+                        </div>
+                        <div class="pz-chart-stat" style="margin-top:8px">
+                            <div class="pz-cs"><span class="pz-cs-l">Luna</span><span class="pz-cs-v" style="color:var(--pz-title)"><?= (int)$monthTotal ?></span></div>
+                            <div class="pz-cs"><span class="pz-cs-l">Finalizate</span><span class="pz-cs-v" style="color:var(--pz-bld)"><?= (int)$monthCompleted ?></span></div>
+                            <div class="pz-cs"><span class="pz-cs-l">Valoare</span><span class="pz-cs-v" style="color:var(--pz-gr)"><?= dash_money($monthValue) ?></span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agenda zilei -->
+                <div class="pz-pnl" data-card-id="mid-agenda">
+                    <div class="pz-ph2">
+                        <i class="ti ti-grip-vertical drag-handle" aria-hidden="true"></i>
+                        <div class="pz-phc">
+                            <div>
+                                <div class="pz-pttl">Agenda zilei</div>
+                                <div class="pz-pmeta"><?= dash_h($todayLabel) ?></div>
+                            </div>
+                            <a href="calendar.php?date=<?= dash_h($today) ?>&view=day" style="font-size:11px;font-weight:600;color:var(--pz-bl)">Calendar →</a>
+                        </div>
+                    </div>
+
+                    <?php if ($todayAppointments): ?>
+                        <?php foreach ($todayAppointments as $ap): ?>
+                            <?php
+                                $dotClass = 'dot-' . ($ap['status'] ?? 'default');
+                                if (!in_array($ap['status'], ['neconfirmata','confirmata','in_lucru','finalizata','programat'])) $dotClass = 'dot-default';
+                            ?>
+                            <a href="calendar.php?date=<?= dash_h($today) ?>&view=day" class="pz-ag-item">
+                                <div class="pz-ag-t"><?= dash_h(dash_time($ap['start_time'] ?? null)) ?></div>
+                                <div class="pz-ag-dot <?= $dotClass ?>"></div>
+                                <div>
+                                    <div class="pz-ag-n"><?= dash_h($ap['client_name'] ?: 'Client') ?></div>
+                                    <div class="pz-ag-s"><?= dash_h(($ap['service_type'] ?: 'Serviciu') . ($ap['team_name'] ? ' · ' . $ap['team_name'] : '')) ?></div>
+                                </div>
+                            </a>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="pz-ag-empty">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:block;margin-bottom:6px;color:var(--pz-line)" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            Nu există programări astăzi
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($tomorrowAppointments): ?>
+                        <div class="pz-ag-slbl">Mâine — <?= dash_h(dash_short_date($tomorrowDate)) ?></div>
+                        <?php foreach ($tomorrowAppointments as $ap): ?>
+                            <?php $dotClass = in_array($ap['status'], ['neconfirmata','confirmata','in_lucru','finalizata','programat']) ? 'dot-' . $ap['status'] : 'dot-default'; ?>
+                            <a href="calendar.php?date=<?= dash_h($tomorrowDate) ?>&view=day" class="pz-ag-item">
+                                <div class="pz-ag-t"><?= dash_h(dash_time($ap['start_time'] ?? null)) ?></div>
+                                <div class="pz-ag-dot <?= $dotClass ?>"></div>
+                                <div>
+                                    <div class="pz-ag-n"><?= dash_h($ap['client_name'] ?: 'Client') ?></div>
+                                    <div class="pz-ag-s"><?= dash_h(($ap['service_type'] ?: 'Serviciu') . ($ap['team_name'] ? ' · ' . $ap['team_name'] : '')) ?></div>
+                                </div>
+                            </a>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+
+            </div>
+
+            <!-- ── Echipă & financiar ─────────────────────────── -->
+            <div class="pz-slbl">Echipă & financiar</div>
+            <div class="pz-bot-row" id="row-bot">
+
+                <!-- Echipa azi -->
+                <div class="pz-pnl" data-card-id="bot-echipa">
+                    <div class="pz-ph2">
+                        <i class="ti ti-grip-vertical drag-handle" aria-hidden="true"></i>
+                        <div class="pz-phc">
+                            <div>
+                                <div class="pz-pttl">Echipa azi</div>
+                                <div class="pz-pmeta">Grad ocupare · <?= dash_h(dash_short_date($today)) ?></div>
+                            </div>
+                            <span class="pz-cbadge bl"><?= (int)$techWithJobsToday ?> activi</span>
+                        </div>
+                    </div>
+                    <?php if ($teamRows): ?>
+                        <?php foreach ($teamRows as $tm):
+                            $color  = dash_safe_hex($tm['color'] ?? null);
+                            $hours  = (float)($tm['hours_booked'] ?? 0);
+                            $jobs   = (int)($tm['jobs_total'] ?? 0);
+                            $pct    = min(100, $jobs > 0 ? max(8, ($hours / 8) * 100) : ($jobs > 0 ? 30 : 0));
+                            $pctInt = (int)round($pct);
+                            // bar color based on occupancy
+                            $barColor = $pct >= 90 ? '#22C55E' : ($pct >= 50 ? '#2563EB' : ($pct > 0 ? '#F97316' : '#E2E8F0'));
+                            $pctColor = $pct >= 90 ? 'var(--pz-gr)' : ($pct >= 50 ? 'var(--pz-bl)' : ($pct > 0 ? 'var(--pz-or)' : 'var(--pz-fa)'));
+                        ?>
+                            <div class="pz-tr">
+                                <div class="pz-tav" style="background:<?= dash_h($color) ?>"><?= dash_h(dash_initials((string)$tm['name'])) ?></div>
+                                <div class="pz-tn"><?= dash_h($tm['name']) ?></div>
+                                <div class="pz-tbw"><div class="pz-tb2" style="width:<?= $pctInt ?>%;background:<?= dash_h($barColor) ?>"></div></div>
+                                <div class="pz-tpct" style="color:<?= $pctColor ?>"><?= $jobs > 0 ? $pctInt . '%' : '—' ?></div>
+                                <div class="pz-ttsk"><?= $jobs ?> lucrări</div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div style="padding:16px;color:var(--pz-fa);font-size:12px;text-align:center">Nu există tehnicieni activi</div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Facturare lunii -->
+                <div class="pz-pnl" data-card-id="bot-financiar">
+                    <div class="pz-ph2">
+                        <i class="ti ti-grip-vertical drag-handle" aria-hidden="true"></i>
+                        <div class="pz-phc">
+                            <div>
+                                <div class="pz-pttl">Facturare lunii</div>
+                                <div class="pz-pmeta"><?= dash_h(date('F Y', strtotime($monthStart))) ?></div>
+                            </div>
+                            <span class="pz-cbadge gr">Sincronizat</span>
+                        </div>
+                    </div>
+                    <div class="pz-fr">
+                        <div class="pz-fl">Valoare lucrări</div>
+                        <div class="pz-fv bl"><?= dash_money($monthValue) ?> lei</div>
+                    </div>
+                    <div class="pz-fr">
+                        <div class="pz-fl">Facturat (<?= (int)$billingBilled ?> facturi)</div>
+                        <div class="pz-fv gr"><?= dash_money($billingBilledAmount) ?> lei</div>
+                    </div>
+                    <?php if ($billingDue > 0): ?>
+                        <div class="pz-fr warn">
+                            <div class="pz-fl" style="color:var(--pz-or);font-weight:600">De facturat</div>
+                            <div class="pz-fv or"><?= (int)$billingDue ?> · <?= dash_money($billingDueAmount) ?> lei</div>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($restanteTotalAmount > 0): ?>
+                        <div class="pz-fr danger">
+                            <div class="pz-fl" style="color:var(--pz-re);font-weight:600">Restanțe scadente</div>
+                            <div class="pz-fv re"><?= (int)$restanteTotalClients ?> · <?= dash_money($restanteTotalAmount) ?> lei</div>
+                        </div>
+                    <?php endif; ?>
+                    <div class="pz-fr" style="border-top:2px solid var(--pz-line)">
+                        <div class="pz-fl em">SmartBill emis</div>
+                        <div class="pz-fv big"><?= dash_money($sbIssuedAmount) ?> lei</div>
+                    </div>
+                    <?php if ($topServices): ?>
+                        <div class="pz-svc-section">
+                            <div style="font-size:10px;font-weight:700;color:var(--pz-mu);text-transform:uppercase;margin-bottom:8px">Top servicii luna</div>
+                            <?php foreach ($topServices as $svc):
+                                $w = max(8, min(100, ((int)$svc['total'] / $topServiceMax) * 100));
+                            ?>
+                                <div class="pz-svc-row">
+                                    <span style="font-size:11.5px;font-weight:500;color:var(--pz-text)"><?= dash_h($svc['service_name']) ?></span>
+                                    <span class="pz-badge bl"><?= (int)$svc['total'] ?></span>
+                                </div>
+                                <div class="pz-svc-bar"><div class="pz-svc-fill" style="width:<?= round($w) ?>%;background:var(--pz-bl)"></div></div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+            </div>
+
+        </div><!-- .pz-dash -->
     </main>
-</div>
+</div><!-- .layout -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script>
+// ── Chart data from PHP ──────────────────────────────────────────────────
+const PZ_CHART = <?= json_encode($chartPayload, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
+
+// ── Chart renderer ───────────────────────────────────────────────────────
+(function () {
+    let metric = 'total', period = '6m';
+
+    const area   = document.getElementById('pzArea');
+    const line   = document.getElementById('pzLine');
+    const dots   = document.getElementById('pzDots');
+    const axis   = document.getElementById('pzAxis');
+    const valMain  = document.getElementById('chartValMain');
+    const valSub   = document.getElementById('chartValSub');
+    const deltaBadge = document.getElementById('chartDeltaBadge');
+
+    const fmtNum = (v, m) => {
+        const n = Number(v || 0);
+        return m === 'value'
+            ? new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(n) + ' lei'
+            : new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(n);
+    };
+
+    const fmtDelta = (d) => {
+        if (d === null || d === undefined) return 'fără comp.';
+        const sign = Number(d) >= 0 ? '+' : '';
+        return sign + new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(d) + '% vs luna prec.';
+    };
+
+    const render = () => {
+        const d = PZ_CHART?.[metric]?.[period];
+        if (!d) return;
+
+        area.setAttribute('d', d.area);
+        line.setAttribute('d', d.line);
+
+        dots.innerHTML = '';
+        d.points.forEach(p => {
+            const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            c.setAttribute('cx', p[0]);
+            c.setAttribute('cy', p[1]);
+            c.setAttribute('r', '3.5');
+            c.setAttribute('fill', '#fff');
+            c.setAttribute('stroke', '#2563EB');
+            c.setAttribute('stroke-width', '1.5');
+            dots.appendChild(c);
+        });
+
+        valMain.textContent = fmtNum(d.value, metric);
+        valSub.textContent  = d.unit + ' · ' + d.periodLabel;
+        deltaBadge.textContent = fmtDelta(d.delta);
+        const isPos = Number(d.delta) >= 0;
+        deltaBadge.className = 'pz-badge ' + (d.delta === null ? 'bl' : isPos ? 'gr' : 're');
+
+        axis.innerHTML = '';
+        const labels = d.labels || [];
+        const step = labels.length > 12 ? Math.ceil(labels.length / 6) : 1;
+        labels.forEach((lbl, i) => {
+            if (i !== 0 && i !== labels.length - 1 && i % step !== 0) return;
+            const s = document.createElement('span');
+            s.style.cssText = 'font-size:9.5px;color:var(--pz-fa)';
+            s.textContent = lbl;
+            axis.appendChild(s);
+        });
+    };
+
+    document.querySelectorAll('[data-chart-metric]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            metric = btn.dataset.chartMetric;
+            document.querySelectorAll('[data-chart-metric]').forEach(b => b.classList.toggle('a', b === btn));
+            render();
+        });
+    });
+
+    document.querySelectorAll('[data-chart-period]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            period = btn.dataset.chartPeriod;
+            document.querySelectorAll('[data-chart-period]').forEach(b => b.classList.toggle('a', b === btn));
+            render();
+        });
+    });
+})();
+
+// ── Drag & drop with order persistence ──────────────────────────────────
+(function initDrag() {
+    if (typeof Sortable === 'undefined') { setTimeout(initDrag, 100); return; }
+
+    const STORE_KEY = 'pz_dash_order_v1';
+
+    function loadOrder(rowId) {
+        try { return JSON.parse(localStorage.getItem(STORE_KEY + '_' + rowId) || 'null'); }
+        catch (e) { return null; }
+    }
+
+    function saveOrder(rowId, order) {
+        try { localStorage.setItem(STORE_KEY + '_' + rowId, JSON.stringify(order)); }
+        catch (e) {}
+    }
+
+    function applyOrder(rowEl) {
+        const order = loadOrder(rowEl.id);
+        if (!order || !order.length) return;
+        const children = Array.from(rowEl.children);
+        order.forEach(cardId => {
+            const el = children.find(c => c.dataset.cardId === cardId);
+            if (el) rowEl.appendChild(el);
+        });
+    }
+
+    ['row-kpi', 'row-alerts', 'row-mid', 'row-bot'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        applyOrder(el);
+        new Sortable(el, {
+            animation: 180,
+            handle: '.drag-handle',
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            easing: 'cubic-bezier(.2,1,.1,1)',
+            onEnd: function () {
+                const order = Array.from(el.children).map(c => c.dataset.cardId).filter(Boolean);
+                saveOrder(id, order);
+            }
+        });
+    });
+})();
+</script>
 </body>
 </html>
