@@ -230,8 +230,13 @@ $statusLabels = [
         .status-pill { display:inline-flex; align-items:center; justify-content:center; min-width:74px; border-radius:var(--pz-rs); padding:3px 8px; font-size:10.5px; font-weight:700; }
         .status-paid { background:var(--pz-grs); color:var(--pz-gr); border:1px solid var(--pz-grb); }
         .status-partial { background:var(--pz-ors); color:var(--pz-or); border:1px solid var(--pz-orb); }
-        .status-unpaid, .status-draft { background:var(--accent-soft); color:var(--accent-deep); border:1px solid var(--accent-soft-2); }
+        /* Emisă (unpaid) = verde, Ciornă (draft) = portocaliu */
+        .status-unpaid { background:var(--pz-grs); color:var(--pz-gr); border:1px solid var(--pz-grb); }
+        .status-draft { background:var(--pz-ors); color:var(--pz-or); border:1px solid var(--pz-orb); }
         .status-overdue, .status-error { background:var(--pz-res); color:var(--pz-re); border:1px solid var(--pz-reb); }
+        /* Buton icon-only (Email) */
+        .btn.icon-only { padding:5px 7px; line-height:0; }
+        .btn.icon-only svg { width:14px; height:14px; }
 
         .row-actions { display:flex; gap:5px; justify-content:flex-end; flex-wrap:wrap; }
         .row-actions .btn { min-height:28px; padding:5px 8px; font-size:11.5px; }
@@ -343,9 +348,21 @@ $statusLabels = [
                             <td><span class="status-pill status-<?= bill_h($rowStatus) ?>"><?= bill_h($statusLabels[$rowStatus] ?? $rowStatus) ?></span></td>
                             <td>
                                 <div class="row-actions">
-                                    <a class="btn ghost" href="invoice.php?id=<?= (int)$invoice['id'] ?>">Deschide</a>
-                                    <?php if (trim((string)($invoice['smartbill_number'] ?? '')) !== ''): ?>
+                                    <?php $isIssuedRow = trim((string)($invoice['smartbill_number'] ?? '')) !== ''; ?>
+                                    <?php if (!$isIssuedRow): ?>
+                                        <a class="btn ghost" href="invoice.php?id=<?= (int)$invoice['id'] ?>">Deschide</a>
+                                    <?php else: ?>
                                         <a class="btn ghost" href="invoice_pdf.php?id=<?= (int)$invoice['id'] ?>" target="_blank" rel="noopener">PDF</a>
+                                        <?php $clientEmailRow = trim((string)($invoice['client_email'] ?? '')); ?>
+                                        <?php if ($clientEmailRow !== ''): ?>
+                                            <form method="post" action="invoice.php" style="display:inline;margin:0" onsubmit="return confirm(<?= bill_h(json_encode('Trimite factura ' . bill_invoice_ref($invoice) . ' pe email către ' . $clientEmailRow . '?', JSON_UNESCAPED_UNICODE)) ?>);">
+                                                <?= function_exists('csrf_field') ? csrf_field() : '' ?>
+                                                <input type="hidden" name="action" value="send_invoice_email">
+                                                <input type="hidden" name="invoice_id" value="<?= (int)$invoice['id'] ?>">
+                                                <input type="hidden" name="email_to" value="<?= bill_h($clientEmailRow) ?>">
+                                                <button class="btn ghost icon-only" type="submit" title="Trimite pe email la <?= bill_h($clientEmailRow) ?>" aria-label="Trimite pe email"><?= app_icon_svg('mail') ?></button>
+                                            </form>
+                                        <?php endif; ?>
                                         <?php if (pz_smartbill_money($invoice['remaining_amount'] ?? 0) > 0.005): ?>
                                             <a class="btn accent" href="<?= bill_h(bill_payment_link($invoice)) ?>">Încasează</a>
                                         <?php endif; ?>
