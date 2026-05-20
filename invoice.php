@@ -1902,3 +1902,24 @@ function submitStorno() {
     const id = invoiceIdValue();
     if (!id) {
         alert('Salveaza mai intai factura, apoi poti adauga storno.');
+        return;
+    }
+    if (!confirm('STORNO factura curenta?\n\nSe va emite in SmartBill o factura de stornare cu valori negative care anuleaza contabil factura. Operatiunea NU poate fi anulata.\n\nContinui?')) {
+        return;
+    }
+    const form = setInvoiceAction('reverse_invoice');
+    if (form) form.submit();
+}
+
+// Inchide meniul de optiuni cand se da click in afara lui.
+document.addEventListener('click', function (e) {
+    const menu = document.getElementById('invoiceOptions');
+    if (!menu || !menu.classList.contains('open')) return;
+    if (menu.contains(e.target)) return;
+    const trigger = e.target.closest('[onclick*="toggleInvoiceOptions"]');
+    if (trigger) return;
+    menu.classList.remove('open');
+});
+</script>
+</body>
+</html>
