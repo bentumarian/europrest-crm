@@ -1285,14 +1285,14 @@ if (!function_exists('pzdoc_company_stamp_html')) {
 if (!function_exists('pzdoc_document_wants_stamp')) {
     /**
      * Returneaza true dacă documentul a fost marcat sa primeasca ștampila (apply_company_stamp=1).
-     * Ștampila este permisa pe oferta, contract si proces verbal.
+     * Ștampila este permisa pe oferta, contract, proces verbal si act adițional.
      */
     function pzdoc_document_wants_stamp(array $document): bool
     {
         $type = function_exists('pzdoc_normalize_document_type')
             ? pzdoc_normalize_document_type((string)($document['document_type'] ?? ''))
             : (string)($document['document_type'] ?? '');
-        if (!in_array($type, ['oferta', 'contract', 'proces_verbal'], true)) {
+        if (!in_array($type, ['oferta', 'contract', 'proces_verbal', 'act_aditional'], true)) {
             return false;
         }
         return !empty($document['apply_company_stamp']);
