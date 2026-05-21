@@ -309,6 +309,7 @@ function pz_contract_build_payload_from_post(array $post, string $currency): arr
         'contract_object' => pz_contract_str($post['contract_object'] ?? ''),
         'execution_terms' => pz_contract_str($post['execution_terms'] ?? ''),
         'special_clauses' => pz_contract_str($post['special_clauses'] ?? ''),
+        'contract_type' => (($post['contract_type'] ?? 'recurrent') === 'execution') ? 'execution' : 'recurrent',
     ];
 }
 
@@ -386,26 +387,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $locationId = !empty($_POST['client_location_id']) ? (int)$_POST['client_location_id'] : null;
         $vatPercent = 0.0;
         $currency = pz_contract_str($_POST['currency'] ?? 'RON', 10) ?: 'RON';
+        $contractType = (($_POST['contract_type'] ?? 'recurrent') === 'execution') ? 'execution' : 'recurrent';
         $items = pz_contract_build_items_from_post($_POST['items'] ?? [], $locationsById, $clientsById, $clientId, $vatPercent, $currency);
 
         if ($clientId <= 0) {
             pz_contract_redirect_with_error('Selectează clientul pentru contract.', $documentId);
         }
 
-        if (!$items) {
-            pz_contract_redirect_with_error('Adaugă cel puțin un serviciu / locație in contract.', $documentId);
-        }
-
-        foreach ($items as $item) {
-            if (empty($item['client_location_id'])) {
-                pz_contract_redirect_with_error('Selectează locatia pentru fiecare serviciu contractat. Dacă serviciul se face la sediu, adauga sediul ca locație in fișa clientului.', $documentId);
+        if ($contractType === 'recurrent') {
+            if (!$items) {
+                pz_contract_redirect_with_error('Adaugă cel puțin un serviciu / locație in contract.', $documentId);
             }
-            if (trim((string)($item['frequency_text'] ?? '')) === '') {
-                pz_contract_redirect_with_error('Selectează frecventa pentru fiecare serviciu contractat.', $documentId);
+            foreach ($items as $item) {
+                if (empty($item['client_location_id'])) {
+                    pz_contract_redirect_with_error('Selectează locatia pentru fiecare serviciu contractat. Dacă serviciul se face la sediu, adauga sediul ca locație in fișa clientului.', $documentId);
+                }
+                if (trim((string)($item['frequency_text'] ?? '')) === '') {
+                    pz_contract_redirect_with_error('Selectează frecventa pentru fiecare serviciu contractat.', $documentId);
+                }
             }
-        }
-        if (!$locationId && !empty($items[0]['client_location_id'])) {
-            $locationId = (int)$items[0]['client_location_id'];
+            if (!$locationId && !empty($items[0]['client_location_id'])) {
+                $locationId = (int)$items[0]['client_location_id'];
+            }
+        } else {
+            // Contract de execuție: nu folosim tabel servicii.
+            $items = [];
+            if (trim((string)($_POST['contract_object'] ?? '')) === '') {
+                pz_contract_redirect_with_error('Completează obiectul contractului pentru contractul de execuție.', $documentId);
+            }
         }
 
         $startDate = pz_contract_str($_POST['contract_start_date'] ?? '', 40);
@@ -533,8 +542,13 @@ if (!$formPayload) {
         'contract_object' => 'Prestari servicii DDD conform locațiilor, serviciilor si frecventelor agreate de parti.',
         'execution_terms' => '',
         'special_clauses' => '',
+        'contract_type' => 'recurrent',
     ];
 }
+
+$contractTypeValue   = (($formPayload['contract_type'] ?? 'recurrent') === 'execution') ? 'execution' : 'recurrent';
+$contractObjectDDD   = 'Prestari servicii DDD conform locațiilor, serviciilor si frecventelor agreate de parti.';
+$contractObjectValue = (string)($formPayload['contract_object'] ?? $contractObjectDDD);
 
 if (!$editingItems) {
     $editingItems = [[
@@ -711,6 +725,23 @@ foreach ($services as $service) {
     .doc-actions { justify-content:flex-start; }
     .contract-hero { padding:18px; }
 }
+
+/* === Selector „Tip contract" === */
+.ctype-picker { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+.ctype-card { position:relative; display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border:1.5px solid var(--border2); background:var(--surface-soft); border-radius:14px; cursor:pointer; transition:border-color .15s, background .15s, box-shadow .15s; }
+.ctype-card:hover { border-color:var(--accent-pale); background:#fff; }
+.ctype-card.is-active { border-color:var(--pz-bl); background:var(--pz-bls); box-shadow:0 0 0 3px rgba(37,99,235,.08); }
+.ctype-card input[type="radio"] { position:absolute; opacity:0; pointer-events:none; }
+.ctype-card .ctype-radio { flex:0 0 18px; width:18px; height:18px; border-radius:50%; border:1.5px solid var(--border); background:#fff; margin-top:2px; position:relative; }
+.ctype-card.is-active .ctype-radio { border-color:var(--pz-bl); }
+.ctype-card.is-active .ctype-radio::after { content:""; position:absolute; inset:3px; border-radius:50%; background:var(--pz-bl); }
+.ctype-card .ctype-text strong { display:block; font-size:13px; font-weight:700; color:var(--text); }
+.ctype-card .ctype-text span { display:block; font-size:11.5px; color:var(--muted); margin-top:3px; line-height:1.35; }
+.ctype-textarea { width:100%; min-height:160px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:#fff; font-family:inherit; font-size:13px; color:var(--text); resize:vertical; line-height:1.5; }
+.ctype-textarea:focus { outline:none; border-color:var(--pz-bl); box-shadow:0 0 0 3px rgba(37,99,235,.10); }
+@media (max-width: 980px) {
+    .ctype-picker { grid-template-columns:1fr; }
+}
 </style>
 <?php render_search_preview_assets(); ?>
 </head>
@@ -796,20 +827,55 @@ foreach ($services as $service) {
                             <input type="hidden" name="payment_terms" id="paymentTermsHidden" value="<?= pz_contract_h($formPayload['payment_terms'] ?? '') ?>">
                             <input type="hidden" name="title" value="<?= pz_contract_h($formDocument['title'] ?? '') ?>">
                             <input type="hidden" name="client_location_id" id="mainLocationId" value="<?= (int)($formDocument['client_location_id'] ?? 0) ?>">
-                            <input type="hidden" name="contract_object" value="<?= pz_contract_h($formPayload['contract_object'] ?? 'Prestari servicii DDD conform locațiilor, serviciilor si frecventelor agreate de parti.') ?>">
                             <input type="hidden" name="execution_terms" value="<?= pz_contract_h($formPayload['execution_terms'] ?? '') ?>">
                             <input type="hidden" name="special_clauses" value="<?= pz_contract_h($formPayload['special_clauses'] ?? '') ?>">
                             <input type="hidden" name="notes" value="<?= pz_contract_h($formDocument['notes'] ?? '') ?>">
                             <input type="hidden" name="internal_notes" value="<?= pz_contract_h($formDocument['internal_notes'] ?? '') ?>">
 
                             <div class="quick-note">
-                                Completează doar datele care intra efectiv in contract: client, perioada, termen plata si tabelul cu locații/servicii. Restul textului este controlat din șablon.
+                                Alege tipul de contract, apoi completează datele care intră efectiv în contract. Restul textului este controlat din șablon.
                             </div>
 
-                            <div class="contract-steps">
+                            <div class="panel" style="margin-bottom:12px; box-shadow:none;">
+                                <div class="panel-head">
+                                    <div>
+                                        <div class="panel-title">Tip contract</div>
+                                        <div class="panel-subtitle">Alege ce fel de contract emiti. Formularul se mulează în funcție de tip.</div>
+                                    </div>
+                                </div>
+                                <div class="panel-body">
+                                    <div class="ctype-picker" id="contractTypePicker">
+                                        <label class="ctype-card<?= $contractTypeValue === 'recurrent' ? ' is-active' : '' ?>" data-value="recurrent">
+                                            <input type="radio" name="contract_type" value="recurrent"<?= $contractTypeValue === 'recurrent' ? ' checked' : '' ?>>
+                                            <span class="ctype-radio"></span>
+                                            <span class="ctype-text">
+                                                <strong>DDD recurent</strong>
+                                                <span>Tabel locații × servicii × frecvență. Generează automat sarcini periodice.</span>
+                                            </span>
+                                        </label>
+                                        <label class="ctype-card<?= $contractTypeValue === 'execution' ? ' is-active' : '' ?>" data-value="execution">
+                                            <input type="radio" name="contract_type" value="execution"<?= $contractTypeValue === 'execution' ? ' checked' : '' ?>>
+                                            <span class="ctype-radio"></span>
+                                            <span class="ctype-text">
+                                                <strong>Execuție / Punctual</strong>
+                                                <span>Treci manual obiectul contractului. Fără tabel servicii.</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="contract-steps" data-contract-mode="recurrent"<?= $contractTypeValue === 'execution' ? ' style="display:none"' : '' ?>>
                                 <div class="contract-step"><b>1. Client</b><span>Datele beneficiarului se preiau automat din fișa clientului.</span></div>
                                 <div class="contract-step"><b>2. Perioada</b><span>Data contract, inceput, sfarsit si termen plata.</span></div>
                                 <div class="contract-step"><b>3. Tabel servicii</b><span>Locație din fișa clientului, serviciu, mp, frecventa si pret/intervenție.</span></div>
+                                <div class="contract-step"><b>4. Emitere</b><span>Salvezi draft sau emiti contractul cu numar.</span></div>
+                            </div>
+
+                            <div class="contract-steps" data-contract-mode="execution"<?= $contractTypeValue === 'execution' ? '' : ' style="display:none"' ?>>
+                                <div class="contract-step"><b>1. Client</b><span>Datele beneficiarului se preiau automat din fișa clientului.</span></div>
+                                <div class="contract-step"><b>2. Perioada</b><span>Data contract, inceput, sfarsit si termen plata.</span></div>
+                                <div class="contract-step"><b>3. Obiect contract</b><span>Scrii manual obiectul: servicii, lucrări, condiții punctuale.</span></div>
                                 <div class="contract-step"><b>4. Emitere</b><span>Salvezi draft sau emiti contractul cu numar.</span></div>
                             </div>
 
@@ -865,7 +931,7 @@ foreach ($services as $service) {
 
                             </div>
 
-                            <div class="panel" style="margin-top:14px; box-shadow:none;">
+                            <div class="panel" data-contract-mode="recurrent" style="margin-top:14px; box-shadow:none;<?= $contractTypeValue === 'execution' ? ' display:none;' : '' ?>">
                                 <div class="panel-head">
                                     <div>
                                         <div class="panel-title">Locații si servicii contractate</div>
@@ -933,6 +999,21 @@ foreach ($services as $service) {
                                     <div class="client-help">Preturile sunt fără TVA. In contract, coloana de pret apare ca pret / intervenție.</div>
                                 </div>
                             </div>
+
+                            <div class="panel" data-contract-mode="execution" style="margin-top:14px; box-shadow:none;<?= $contractTypeValue === 'execution' ? '' : ' display:none;' ?>">
+                                <div class="panel-head">
+                                    <div>
+                                        <div class="panel-title">Obiectul contractului</div>
+                                        <div class="panel-subtitle">Descrie obiectul contractului: servicii, lucrări, condiții punctuale. Acest text alimentează variabila {{contract_obiect}} din șablon.</div>
+                                    </div>
+                                </div>
+                                <div class="panel-body">
+                                    <textarea name="contract_object" id="contractObjectTextarea" class="ctype-textarea" rows="10" placeholder="Ex: Prestari servicii de execuție lucrări de dezinsecție generală a imobilului situat la adresa ..., conform ofertei nr. ... din data de ..."><?= pz_contract_h($contractObjectValue) ?></textarea>
+                                    <div class="client-help" style="margin-top:6px;">Textul intră ca atare în PDF, prin tokenul <code>{{contract_obiect}}</code> din șablon.</div>
+                                </div>
+                            </div>
+
+                            <input type="hidden" name="contract_object_default" id="contractObjectDefault" value="<?= pz_contract_h($contractObjectDDD) ?>">
 
                             <div class="form-actions">
                                 <div>
@@ -1423,6 +1504,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initClientAutocomplete();
     populateLocationsSmart();
     recalculateRows();
+    initContractTypePicker();
 
     const clientSearchInput = document.getElementById('clientSearchInput');
     const clientHidden = document.getElementById('clientSelect');
@@ -1432,6 +1514,46 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 120);
     }
 });
+
+/* === Selector tip contract: toggle vizibilitate panel-uri + reset textarea === */
+function initContractTypePicker() {
+    const picker = document.getElementById('contractTypePicker');
+    if (!picker) return;
+    const radios = picker.querySelectorAll('input[name="contract_type"]');
+    const textarea = document.getElementById('contractObjectTextarea');
+    const defaultObj = (document.getElementById('contractObjectDefault') || {}).value || '';
+
+    function applyMode(mode) {
+        // Marchează vizual cardul activ
+        picker.querySelectorAll('.ctype-card').forEach(card => {
+            card.classList.toggle('is-active', card.dataset.value === mode);
+        });
+        // Arată / ascunde panel-urile + cele 2 sub-headere de pași
+        document.querySelectorAll('[data-contract-mode]').forEach(el => {
+            el.style.display = (el.dataset.contractMode === mode) ? '' : 'none';
+        });
+        // Resetează / curăță textarea în funcție de mod
+        if (textarea) {
+            if (mode === 'recurrent') {
+                // pentru DDD recurent textarea nu mai e relevant, dar valoarea ei merge în payload
+                // o ducem la default-ul DDD ca să nu rămână text orfan din execuție
+                textarea.value = defaultObj;
+            } else if (mode === 'execution') {
+                // dacă utilizatorul vine din DDD recurent și textul e exact default-ul, golim ca să scrie de la zero
+                if (textarea.value.trim() === defaultObj.trim()) {
+                    textarea.value = '';
+                }
+                setTimeout(() => textarea.focus(), 80);
+            }
+        }
+    }
+
+    radios.forEach(r => r.addEventListener('change', () => applyMode(r.value)));
+
+    // Aplică modul inițial (în caz că HTML-ul are inconsistențe de stare)
+    const checked = picker.querySelector('input[name="contract_type"]:checked');
+    if (checked) applyMode(checked.value);
+}
 </script>
 
 <?php
