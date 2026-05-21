@@ -414,9 +414,9 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 .ib-table.js-resizable { table-layout:fixed; }
 .ib-table.js-resizable th { position:relative; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ib-table.js-resizable td { overflow:hidden; word-wrap:break-word; overflow-wrap:break-word; }
-.col-resize-handle { position:absolute; top:0; right:0; width:6px; height:100%; cursor:col-resize; user-select:none; z-index:2; }
-.col-resize-handle:hover { background:rgba(37,99,235,.35); }
-.col-resize-handle.is-active { background:rgba(37,99,235,.6); }
+.col-resize-handle { position:absolute; top:0; right:0; width:8px; height:100%; cursor:col-resize; user-select:none; z-index:2; background:linear-gradient(to right, transparent 0%, transparent 40%, rgba(99,102,241,.35) 50%, transparent 60%, transparent 100%); }
+.col-resize-handle:hover { background:rgba(37,99,235,.45); }
+.col-resize-handle.is-active { background:rgba(37,99,235,.7); }
 </style>
 <?php render_search_preview_assets(); ?>
 </head>
@@ -852,7 +852,7 @@ try {
 // - dublu-click pe handle: reset la auto pentru acea coloană
 // - lățimile preferate salvate în localStorage pe utilizator
 (function () {
-    document.addEventListener('DOMContentLoaded', function () {
+    function initResizable() {
         var table = document.querySelector('.ib-table.js-resizable');
         if (!table) return;
         var STORAGE_KEY = 'workBillingColWidths_v1';
@@ -921,6 +921,11 @@ try {
                 window.location.reload();
             });
         });
-    });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initResizable);
+    } else {
+        initResizable();
+    }
 })();
 </script>
