@@ -247,19 +247,8 @@ function pz_contract_build_items_from_post(array $postItems, array $locationsByI
 
         $locationId = !empty($row['client_location_id']) ? (int)$row['client_location_id'] : null;
         $location = ($locationId && isset($locationsById[$locationId])) ? $locationsById[$locationId] : null;
-        // Locatie manuala (text liber) ca alternativa la dropdown.
-        $locationManualText = pz_contract_str($row['client_location_text'] ?? '', 220);
-        if ($location) {
-            $locationName = pz_contract_str($location['location_name'] ?? '', 220);
-            $locationAddress = pz_contract_str($location['address'] ?? '');
-        } elseif ($locationManualText !== '') {
-            $locationName = $locationManualText;
-            $locationAddress = '';
-            $locationId = null;
-        } else {
-            $locationName = '';
-            $locationAddress = '';
-        }
+        $locationName = $location ? pz_contract_str($location['location_name'] ?? '', 220) : '';
+        $locationAddress = $location ? pz_contract_str($location['address'] ?? '') : '';
 
         $surface = max(0, pz_contract_decimal($row['quantity'] ?? 0, 0));
         $unit = pz_contract_str($row['unit'] ?? 'mp', 30) ?: 'mp';
@@ -408,9 +397,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         foreach ($items as $item) {
-            $hasLocation = !empty($item['client_location_id']) || trim((string)($item['location_name'] ?? '')) !== '';
-            if (!$hasLocation) {
-                pz_contract_redirect_with_error('Completează locația pentru fiecare serviciu contractat (alege din listă sau scrie manual).', $documentId);
+            if (empty($item['client_location_id'])) {
+                pz_contract_redirect_with_error('Selectează locatia pentru fiecare serviciu contractat. Dacă serviciul se face la sediu, adauga sediul ca locație in fișa clientului.', $documentId);
             }
             if (trim((string)($item['frequency_text'] ?? '')) === '') {
                 pz_contract_redirect_with_error('Selectează frecventa pentru fiecare serviciu contractat.', $documentId);
@@ -706,10 +694,6 @@ foreach ($services as $service) {
 .contract-step span { display:block; font-size:11px; color:var(--muted); margin-top:2px; }
 .quick-note { background:var(--accent-soft); border:1px solid var(--accent-soft-2); color:var(--text); border-radius:14px; padding:10px 12px; font-size:12px; font-weight:800; margin-bottom:12px; }
 .row-location-address { margin-top:5px; color:var(--muted); font-size:11px; line-height:1.25; }
-.cell-mode-wrap { display:flex; gap:4px; align-items:stretch; }
-.cell-mode-wrap > select, .cell-mode-wrap > input[type=text] { flex:1 1 auto; min-width:0; }
-.cell-mode-wrap .toggle-mode { flex:0 0 auto; min-height:34px; padding:0 8px; font-size:11px; font-weight:600; color:var(--muted); }
-.cell-mode-wrap .toggle-mode:hover { color:var(--text); background:#F1F5F9; }
 .expiring-banner { border-color:var(--pz-orb); background:var(--pz-ors); }
 .expiring-banner .panel-head { border-bottom-color:var(--pz-orb); }
 .expiring-banner .panel-title { color:var(--pz-or); }
@@ -905,29 +889,20 @@ foreach ($services as $service) {
                                             </thead>
                                             <tbody id="itemsBody">
                                             <?php foreach ($editingItems as $idx => $item): ?>
-                                                <?php $hasManualLocation = empty($item['client_location_id']) && !empty($item['location_name']); ?>
-                                                <?php $hasManualService = empty($item['service_id']) && !empty($item['service_name']); ?>
-                                                <tr class="item-row" data-loc-mode="<?= $hasManualLocation ? 'manual' : 'list' ?>" data-svc-mode="<?= $hasManualService ? 'manual' : 'list' ?>">
+                                                <tr class="item-row">
                                                     <td class="row-index"><?= (int)$idx + 1 ?></td>
                                                     <td>
-                                                        <div class="cell-mode-wrap">
-                                                            <select name="items[<?= (int)$idx ?>][client_location_id]" class="row-location" data-selected="<?= (int)($item['client_location_id'] ?? 0) ?>" onchange="onRowLocationChange(this)" <?= $hasManualLocation ? 'style="display:none"' : 'required' ?>></select>
-                                                            <input type="text" name="items[<?= (int)$idx ?>][client_location_text]" class="row-location-manual" value="<?= pz_contract_h($hasManualLocation ? ($item['location_name'] ?? '') : '') ?>" placeholder="Locație manuală" <?= $hasManualLocation ? 'required' : 'style="display:none"' ?>>
-                                                            <button type="button" class="btn small toggle-mode" onclick="toggleRowLocationMode(this)" title="Schimbă între listă și text manual"><?= $hasManualLocation ? 'Listă' : 'Manual' ?></button>
-                                                        </div>
+                                                        <select name="items[<?= (int)$idx ?>][client_location_id]" class="row-location" data-selected="<?= (int)($item['client_location_id'] ?? 0) ?>" onchange="onRowLocationChange(this)" required></select>
                                                         <div class="row-location-address"></div>
                                                     </td>
                                                     <td>
-                                                        <div class="cell-mode-wrap">
-                                                            <select name="items[<?= (int)$idx ?>][service_id]" class="service-select" onchange="syncServiceName(this)" <?= $hasManualService ? 'style="display:none"' : '' ?>>
-                                                                <option value="">Alege din nomenclator</option>
-                                                                <?php foreach ($services as $service): ?>
-                                                                    <option value="<?= (int)$service['id'] ?>" data-name="<?= pz_contract_h($service['name']) ?>" data-description="<?= pz_contract_h($service['description'] ?? '') ?>" <?= (int)($item['service_id'] ?? 0) === (int)$service['id'] ? 'selected' : '' ?>><?= pz_contract_h($service['name']) ?></option>
-                                                                <?php endforeach; ?>
-                                                            </select>
-                                                            <button type="button" class="btn small toggle-mode" onclick="toggleRowServiceMode(this)" title="Schimbă între nomenclator și serviciu manual"><?= $hasManualService ? 'Listă' : 'Manual' ?></button>
-                                                        </div>
-                                                        <input type="text" name="items[<?= (int)$idx ?>][service_name]" class="service-name" value="<?= pz_contract_h($item['service_name'] ?? '') ?>" placeholder="<?= $hasManualService ? 'Serviciu manual (obligatoriu)' : 'Denumire serviciu (opțional, pentru afișare în contract)' ?>" style="margin-top:6px;" <?= $hasManualService ? 'required' : '' ?>>
+                                                        <select name="items[<?= (int)$idx ?>][service_id]" class="service-select" onchange="syncServiceName(this)">
+                                                            <option value="">Alege din nomenclator</option>
+                                                            <?php foreach ($services as $service): ?>
+                                                                <option value="<?= (int)$service['id'] ?>" data-name="<?= pz_contract_h($service['name']) ?>" data-description="<?= pz_contract_h($service['description'] ?? '') ?>" <?= (int)($item['service_id'] ?? 0) === (int)$service['id'] ? 'selected' : '' ?>><?= pz_contract_h($service['name']) ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                        <input type="text" name="items[<?= (int)$idx ?>][service_name]" class="service-name" value="<?= pz_contract_h($item['service_name'] ?? '') ?>" placeholder="Denumire serviciu" style="margin-top:6px;">
                                                         <input type="hidden" name="items[<?= (int)$idx ?>][description]" class="service-description" value="<?= pz_contract_h($item['description'] ?? '') ?>">
                                                     </td>
                                                     <td>
@@ -1310,91 +1285,21 @@ function nextItemIndex() {
     return window.pzNextContractItemIndex++;
 }
 
-/* ============================================================
- * Toggle pentru LOCAȚIE: lista (dropdown) <-> text manual
- * Cand e in mod "manual", select-ul devine optional (sterge name?
- * nu, doar disable + display:none). Form-ul citeste fie
- * client_location_id, fie client_location_text in POST handler.
- * ============================================================ */
-function toggleRowLocationMode(btn) {
-    const row = btn.closest('.item-row');
-    if (!row) return;
-    const cell = btn.closest('td');
-    const sel = cell.querySelector('.row-location');
-    const txt = cell.querySelector('.row-location-manual');
-    const addressBox = cell.querySelector('.row-location-address');
-    const currentMode = row.dataset.locMode || 'list';
-    if (currentMode === 'list') {
-        sel.style.display = 'none';
-        sel.required = false;
-        sel.value = '';
-        txt.style.display = '';
-        txt.required = true;
-        if (!txt.value) txt.focus();
-        btn.textContent = 'Listă';
-        row.dataset.locMode = 'manual';
-        if (addressBox) addressBox.textContent = '';
-    } else {
-        txt.style.display = 'none';
-        txt.required = false;
-        txt.value = '';
-        sel.style.display = '';
-        sel.required = true;
-        btn.textContent = 'Manual';
-        row.dataset.locMode = 'list';
-    }
-}
-
-/* Toggle pentru SERVICIU: nomenclator <-> serviciu manual.
- * In modul manual, service_id e gol si service_name devine obligatoriu. */
-function toggleRowServiceMode(btn) {
-    const row = btn.closest('.item-row');
-    if (!row) return;
-    const cell = btn.closest('td');
-    const sel = cell.querySelector('.service-select');
-    const nameInput = cell.querySelector('.service-name');
-    const currentMode = row.dataset.svcMode || 'list';
-    if (currentMode === 'list') {
-        sel.style.display = 'none';
-        sel.value = '';
-        nameInput.required = true;
-        nameInput.placeholder = 'Serviciu manual (obligatoriu)';
-        if (!nameInput.value) nameInput.focus();
-        btn.textContent = 'Listă';
-        row.dataset.svcMode = 'manual';
-    } else {
-        sel.style.display = '';
-        nameInput.required = false;
-        nameInput.placeholder = 'Denumire serviciu (opțional, pentru afișare în contract)';
-        btn.textContent = 'Manual';
-        row.dataset.svcMode = 'list';
-    }
-}
-
 function addItemRow() {
     const body = document.getElementById('itemsBody');
     if (!body) return;
     const i = nextItemIndex();
     const tr = document.createElement('tr');
     tr.className = 'item-row';
-    tr.dataset.locMode = 'list';
-    tr.dataset.svcMode = 'list';
     tr.innerHTML = `
         <td class="row-index"></td>
         <td>
-            <div class="cell-mode-wrap">
-                <select name="items[${i}][client_location_id]" class="row-location" data-selected="" onchange="onRowLocationChange(this)" required></select>
-                <input type="text" name="items[${i}][client_location_text]" class="row-location-manual" placeholder="Locație manuală" style="display:none">
-                <button type="button" class="btn small toggle-mode" onclick="toggleRowLocationMode(this)" title="Schimbă între listă și text manual">Manual</button>
-            </div>
+            <select name="items[${i}][client_location_id]" class="row-location" data-selected="" onchange="onRowLocationChange(this)" required></select>
             <div class="row-location-address"></div>
         </td>
         <td>
-            <div class="cell-mode-wrap">
-                <select name="items[${i}][service_id]" class="service-select" onchange="syncServiceName(this)">${serviceOptionsHtml()}</select>
-                <button type="button" class="btn small toggle-mode" onclick="toggleRowServiceMode(this)" title="Schimbă între nomenclator și serviciu manual">Manual</button>
-            </div>
-            <input type="text" name="items[${i}][service_name]" class="service-name" placeholder="Denumire serviciu (opțional, pentru afișare în contract)" style="margin-top:6px;">
+            <select name="items[${i}][service_id]" class="service-select" onchange="syncServiceName(this)">${serviceOptionsHtml()}</select>
+            <input type="text" name="items[${i}][service_name]" class="service-name" placeholder="Denumire serviciu" style="margin-top:6px;">
             <input type="hidden" name="items[${i}][description]" class="service-description" value="">
         </td>
         <td>
