@@ -11,7 +11,7 @@ function rem_h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UT
 
 /*
 |--------------------------------------------------------------------------
-| Schema auto-bootstrap
+| Schema auto-bootstrap (idempotent)
 |--------------------------------------------------------------------------
 */
 $pdo->exec("
@@ -19,7 +19,7 @@ $pdo->exec("
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(200) NOT NULL,
         description TEXT NULL,
-        category VARCHAR(30) NOT NULL DEFAULT 'general',
+        category VARCHAR(30) NOT NULL DEFAULT 'other',
         remind_date DATE NOT NULL,
         remind_time TIME NULL,
         responsible_user_id INT NULL,
@@ -40,20 +40,52 @@ $pdo->exec("
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 
+// Coloane noi pentru preaviz (idempotent — verific cu SHOW COLUMNS înainte de ALTER)
+try {
+    $existingCols = [];
+    $stmtCols = $pdo->query("SHOW COLUMNS FROM reminders");
+    while ($c = $stmtCols->fetch(PDO::FETCH_ASSOC)) {
+        $existingCols[(string)$c['Field']] = true;
+    }
+    if (!isset($existingCols['notice_period_value'])) {
+        $pdo->exec("ALTER TABLE reminders ADD COLUMN notice_period_value INT NULL AFTER recurrence_end_date");
+    }
+    if (!isset($existingCols['notice_period_unit'])) {
+        $pdo->exec("ALTER TABLE reminders ADD COLUMN notice_period_unit VARCHAR(10) NULL AFTER notice_period_value");
+    }
+} catch (Throwable $e) {
+    error_log('reminders.php schema upgrade: ' . $e->getMessage());
+}
+
 /*
 |--------------------------------------------------------------------------
-| Catalog categorii + recurente
+| Catalog categorii + recurențe + preaviz
 |--------------------------------------------------------------------------
 */
 $categories = [
-    'general'          => ['label' => 'General',         'icon' => '📌', 'color' => 'bl'],
-    'vehicle'          => ['label' => 'Revizie mașină',  'icon' => '🚗', 'color' => 'or'],
-    'meeting'          => ['label' => 'Întâlnire',       'icon' => '👥', 'color' => 'gr'],
-    'internal_meeting' => ['label' => 'Ședință internă', 'icon' => '📋', 'color' => 'bl'],
-    'accounting'       => ['label' => 'Contabilitate',   'icon' => '💼', 'color' => 'or'],
-    'supply'           => ['label' => 'Aprovizionare',   'icon' => '📦', 'color' => 'gr'],
-    'other'            => ['label' => 'Altul',           'icon' => '⚙️', 'color' => 'mu'],
+    'vehicle_review' => ['label' => 'Revizie Auto',     'icon' => '🚗', 'color' => 'or'],
+    'itp'            => ['label' => 'ITP',              'icon' => '🔧', 'color' => 'bl'],
+    'insurance'      => ['label' => 'Asigurare',        'icon' => '🛡️', 'color' => 'gr'],
+    'index_meter'    => ['label' => 'Transmitere index','icon' => '📊', 'color' => 'bl'],
+    'other'          => ['label' => 'Altul',            'icon' => '📌', 'color' => 'mu'],
 ];
+
+// Pentru remindere vechi cu categorii care nu mai există în noua listă,
+// le mapăm la 'other' la afișare (compatibilitate retro, nu pierde date).
+function rem_category_resolve(string $key, array $categories): array {
+    if (isset($categories[$key])) return $categories[$key];
+    // mapări legacy
+    $legacyMap = [
+        'vehicle' => 'vehicle_review',
+        'general' => 'other',
+        'meeting' => 'other',
+        'internal_meeting' => 'other',
+        'accounting' => 'other',
+        'supply' => 'other',
+    ];
+    $mapped = $legacyMap[$key] ?? 'other';
+    return $categories[$mapped] ?? $categories['other'];
+}
 
 $recurrenceTypes = [
     ''        => 'Fără recurență',
@@ -61,6 +93,12 @@ $recurrenceTypes = [
     'weekly'  => 'Săptămânal',
     'monthly' => 'Lunar',
     'yearly'  => 'Anual',
+];
+
+$noticeUnits = [
+    'day'   => 'zile',
+    'week'  => 'săptămâni',
+    'month' => 'luni',
 ];
 
 /*
@@ -83,11 +121,23 @@ function rem_next_date(string $current, string $type, int $interval): ?string {
     } catch (Throwable $e) { return null; }
 }
 
-function rem_users(PDO $pdo): array {
+/**
+ * Calculează data la care reminderul intră în fereastra de preaviz.
+ * Ex: scadență 15.10, preaviz „1 săptămână" → start = 08.10
+ * Returnează NULL dacă nu există preaviz (deci e considerat activ mereu).
+ */
+function rem_notice_start(string $remindDate, ?int $value, ?string $unit): ?string {
+    if (!$value || $value < 1 || !$unit) return null;
     try {
-        $stmt = $pdo->query("SELECT id, COALESCE(name, username, email, CONCAT('User #', id)) AS name FROM users WHERE COALESCE(active, 1) = 1 ORDER BY name ASC");
-        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-    } catch (Throwable $e) { return []; }
+        $d = new DateTime($remindDate);
+        switch ($unit) {
+            case 'day':   $d->modify('-' . (int)$value . ' day'); break;
+            case 'week':  $d->modify('-' . (int)$value . ' week'); break;
+            case 'month': $d->modify('-' . (int)$value . ' month'); break;
+            default: return null;
+        }
+        return $d->format('Y-m-d');
+    } catch (Throwable $e) { return null; }
 }
 
 /*
@@ -106,38 +156,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'create' || $action === 'update') {
             $title = trim((string)($_POST['title'] ?? ''));
             $description = trim((string)($_POST['description'] ?? ''));
-            $category = (string)($_POST['category'] ?? 'general');
-            if (!isset($categories[$category])) $category = 'general';
+            $category = (string)($_POST['category'] ?? 'other');
+            if (!isset($categories[$category])) $category = 'other';
             $remindDate = trim((string)($_POST['remind_date'] ?? ''));
-            $remindTime = trim((string)($_POST['remind_time'] ?? '')) ?: null;
-            $responsibleUserId = (int)($_POST['responsible_user_id'] ?? 0) ?: null;
             $recurrenceType = (string)($_POST['recurrence_type'] ?? '');
             if (!isset($recurrenceTypes[$recurrenceType])) $recurrenceType = '';
             $recurrenceInterval = max(1, (int)($_POST['recurrence_interval'] ?? 1));
             $recurrenceEndDate = trim((string)($_POST['recurrence_end_date'] ?? '')) ?: null;
 
+            // Preaviz: doar dacă unitatea e setată (selector activ)
+            $noticeUnitRaw = (string)($_POST['notice_period_unit'] ?? '');
+            $noticeUnit = isset($noticeUnits[$noticeUnitRaw]) ? $noticeUnitRaw : null;
+            $noticeValueRaw = (int)($_POST['notice_period_value'] ?? 0);
+            $noticeValue = ($noticeUnit && $noticeValueRaw > 0) ? $noticeValueRaw : null;
+            if (!$noticeValue) $noticeUnit = null; // consistent
+
             if ($title === '' || $remindDate === '') {
-                throw new RuntimeException('Completează titlul și data.');
+                throw new RuntimeException('Completează titlul și data scadenței.');
             }
             $d = DateTime::createFromFormat('Y-m-d', $remindDate);
             if (!$d || $d->format('Y-m-d') !== $remindDate) {
                 throw new RuntimeException('Data introdusă nu este validă.');
             }
-            if ($remindTime !== null && !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $remindTime)) {
-                $remindTime = null;
-            }
 
             if ($action === 'create') {
                 $stmt = $pdo->prepare("
                     INSERT INTO reminders
-                    (title, description, category, remind_date, remind_time, responsible_user_id,
-                     created_by, status, recurrence_type, recurrence_interval, recurrence_end_date)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+                    (title, description, category, remind_date, responsible_user_id, created_by,
+                     status, recurrence_type, recurrence_interval, recurrence_end_date,
+                     notice_period_value, notice_period_unit)
+                    VALUES (?, ?, ?, ?, NULL, ?, 'pending', ?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
-                    $title, $description ?: null, $category, $remindDate, $remindTime,
-                    $responsibleUserId, current_user_id(),
-                    $recurrenceType ?: null, $recurrenceInterval, $recurrenceEndDate
+                    $title, $description ?: null, $category, $remindDate,
+                    current_user_id(),
+                    $recurrenceType ?: null, $recurrenceInterval, $recurrenceEndDate,
+                    $noticeValue, $noticeUnit
                 ]);
                 $flashSuccess = 'Reminder adăugat.';
             } else {
@@ -145,15 +199,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($id <= 0) throw new RuntimeException('ID invalid.');
                 $stmt = $pdo->prepare("
                     UPDATE reminders SET
-                        title = ?, description = ?, category = ?, remind_date = ?, remind_time = ?,
-                        responsible_user_id = ?, recurrence_type = ?, recurrence_interval = ?,
-                        recurrence_end_date = ?
+                        title = ?, description = ?, category = ?, remind_date = ?,
+                        recurrence_type = ?, recurrence_interval = ?, recurrence_end_date = ?,
+                        notice_period_value = ?, notice_period_unit = ?
                     WHERE id = ?
                 ");
                 $stmt->execute([
-                    $title, $description ?: null, $category, $remindDate, $remindTime,
-                    $responsibleUserId, $recurrenceType ?: null, $recurrenceInterval,
-                    $recurrenceEndDate, $id
+                    $title, $description ?: null, $category, $remindDate,
+                    $recurrenceType ?: null, $recurrenceInterval, $recurrenceEndDate,
+                    $noticeValue, $noticeUnit, $id
                 ]);
                 $flashSuccess = 'Reminder actualizat.';
             }
@@ -169,7 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("UPDATE reminders SET status='done', completed_at=NOW(), completed_by=? WHERE id=?")
                 ->execute([current_user_id(), $id]);
 
-            // Daca e recurent, cream urmatorul
+            // Daca e recurent, cream urmatorul cu aceleași setări de preaviz
             if (!empty($rem['recurrence_type'])) {
                 $nextDate = rem_next_date((string)$rem['remind_date'], (string)$rem['recurrence_type'], (int)$rem['recurrence_interval']);
                 $endDate = $rem['recurrence_end_date'] ?? null;
@@ -177,17 +231,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $parentId = (int)($rem['recurrence_parent_id'] ?: $rem['id']);
                     $pdo->prepare("
                         INSERT INTO reminders
-                        (title, description, category, remind_date, remind_time, responsible_user_id,
-                         created_by, status, recurrence_type, recurrence_interval, recurrence_end_date,
-                         recurrence_parent_id)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+                        (title, description, category, remind_date, responsible_user_id, created_by,
+                         status, recurrence_type, recurrence_interval, recurrence_end_date,
+                         recurrence_parent_id, notice_period_value, notice_period_unit)
+                        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)
                     ")->execute([
-                        $rem['title'], $rem['description'], $rem['category'], $nextDate, $rem['remind_time'],
+                        $rem['title'], $rem['description'], $rem['category'], $nextDate,
                         $rem['responsible_user_id'], current_user_id(),
                         $rem['recurrence_type'], $rem['recurrence_interval'], $endDate,
-                        $parentId
+                        $parentId,
+                        $rem['notice_period_value'] ?? null, $rem['notice_period_unit'] ?? null
                     ]);
-                    $flashSuccess = 'Marcat ca finalizat. Următoarea apariție programată pentru ' . $nextDate . '.';
+                    $flashSuccess = 'Marcat ca finalizat. Următoarea apariție programată pentru ' . date('d.m.Y', strtotime($nextDate)) . '.';
                 } else {
                     $flashSuccess = 'Reminder finalizat. Recurența a ajuns la sfârșit.';
                 }
@@ -210,9 +265,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $params = ['flash' => $flashSuccess ?: '', 'flash_err' => $flashError ?: ''];
-    foreach (['status', 'category', 'responsible'] as $k) {
-        if (isset($_GET[$k])) $params[$k] = $_GET[$k];
-    }
+    if (isset($_GET['tab'])) $params['tab'] = $_GET['tab'];
     header('Location: reminders.php?' . http_build_query(array_filter($params)));
     exit;
 }
@@ -222,79 +275,55 @@ $flashError = trim((string)($_GET['flash_err'] ?? ''));
 
 /*
 |--------------------------------------------------------------------------
-| Filtre + listă
+| Listare
 |--------------------------------------------------------------------------
 */
-$filterStatus = (string)($_GET['status'] ?? 'pending');
-if (!in_array($filterStatus, ['all', 'pending', 'done', 'overdue'], true)) $filterStatus = 'pending';
-$filterCategory = (string)($_GET['category'] ?? '');
-if ($filterCategory !== '' && !isset($categories[$filterCategory])) $filterCategory = '';
-$filterResponsible = (int)($_GET['responsible'] ?? 0);
-$searchQ = trim((string)($_GET['q'] ?? ''));
-
-$where = ['1=1'];
-$params = [];
+$tab = (string)($_GET['tab'] ?? 'active');
+if (!in_array($tab, ['active', 'history', 'upcoming'], true)) $tab = 'active';
 $today = date('Y-m-d');
 
-if ($filterStatus === 'pending') {
-    $where[] = "r.status = 'pending'";
-} elseif ($filterStatus === 'done') {
-    $where[] = "r.status = 'done'";
-} elseif ($filterStatus === 'overdue') {
-    $where[] = "r.status = 'pending' AND r.remind_date < ?";
-    $params[] = $today;
-}
-
-if ($filterCategory !== '') {
-    $where[] = "r.category = ?";
-    $params[] = $filterCategory;
-}
-
-if ($filterResponsible > 0) {
-    $where[] = "r.responsible_user_id = ?";
-    $params[] = $filterResponsible;
-}
-
-if ($searchQ !== '') {
-    $where[] = "(r.title LIKE ? OR r.description LIKE ?)";
-    $params[] = '%' . $searchQ . '%';
-    $params[] = '%' . $searchQ . '%';
-}
-
-$sql = "
-    SELECT r.*,
-           u.name AS responsible_name,
-           cb.name AS created_by_name
-    FROM reminders r
-    LEFT JOIN users u ON u.id = r.responsible_user_id
-    LEFT JOIN users cb ON cb.id = r.created_by
-    WHERE " . implode(' AND ', $where) . "
-    ORDER BY
-        CASE WHEN r.status = 'pending' THEN 0 ELSE 1 END ASC,
-        r.remind_date ASC,
-        COALESCE(r.remind_time, '23:59:59') ASC,
-        r.id ASC
-    LIMIT 500
-";
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$reminders = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// KPI counters
-$kpi = ['today' => 0, 'overdue' => 0, 'week' => 0, 'total_pending' => 0];
+// Toate reminderele pending pentru calculul logic preaviz
+$allPending = [];
 try {
-    $r = $pdo->query("
-        SELECT
-            SUM(CASE WHEN status='pending' AND remind_date = CURDATE() THEN 1 ELSE 0 END) AS today,
-            SUM(CASE WHEN status='pending' AND remind_date < CURDATE() THEN 1 ELSE 0 END) AS overdue,
-            SUM(CASE WHEN status='pending' AND remind_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS week,
-            SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS total_pending
-        FROM reminders
-    ")->fetch(PDO::FETCH_ASSOC) ?: [];
-    foreach ($kpi as $k => $_) $kpi[$k] = (int)($r[$k] ?? 0);
-} catch (Throwable $e) {}
+    $stmt = $pdo->query("SELECT * FROM reminders WHERE status = 'pending' ORDER BY remind_date ASC, id ASC LIMIT 1000");
+    $allPending = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) { error_log('reminders.php pending fetch: ' . $e->getMessage()); }
 
-$users = rem_users($pdo);
+$activeList = []; // în fereastra de preaviz sau scadente
+$upcomingList = []; // după fereastra de preaviz
+foreach ($allPending as $rem) {
+    $remindDate = (string)$rem['remind_date'];
+    $noticeStart = rem_notice_start($remindDate, isset($rem['notice_period_value']) ? (int)$rem['notice_period_value'] : null, $rem['notice_period_unit'] ?? null);
+    // Fără preaviz → mereu activ. Cu preaviz → activ doar după data de start.
+    $isActive = ($noticeStart === null) ? true : ($noticeStart <= $today);
+    if ($isActive) {
+        $activeList[] = $rem;
+    } else {
+        $upcomingList[] = $rem;
+    }
+}
+
+// Istoric: finalizate
+$historyList = [];
+try {
+    $stmt = $pdo->query("
+        SELECT * FROM reminders
+        WHERE status = 'done'
+        ORDER BY completed_at DESC, id DESC
+        LIMIT 500
+    ");
+    $historyList = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) { error_log('reminders.php history fetch: ' . $e->getMessage()); }
+
+// Counter-uri pentru tab-uri
+$countActive   = count($activeList);
+$countUpcoming = count($upcomingList);
+$countHistory  = count($historyList);
+
+// Selectează lista de afișat în funcție de tab
+if ($tab === 'history')      $displayList = $historyList;
+elseif ($tab === 'upcoming') $displayList = $upcomingList;
+else                          $displayList = $activeList;
 
 // Pentru edit prefill
 $editId = (int)($_GET['edit'] ?? 0);
@@ -309,84 +338,80 @@ if ($editId > 0) {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Remindere - PestZone</title>
+<title>Reminders - PestZone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <?php app_theme_css(); ?>
 <style>
 * { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
 
-.rem-page { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; padding: 16px 20px; }
+.rem-page { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; padding: 16px 20px; }
 
 .rem-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .rem-header h1 { font-size: 22px; font-weight: 700; color: var(--pz-title); letter-spacing: -.02em; margin: 0; }
 .rem-header .sub { font-size: 13px; color: var(--pz-mu); margin-top: 2px; }
 
-.rem-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.rem-kpi-card { background: var(--pz-surf); border: 1px solid var(--pz-line); border-radius: var(--pz-r); padding: 14px 16px; }
-.rem-kpi-card.tone-danger { border-color: var(--pz-reb); background: var(--pz-res); }
-.rem-kpi-card.tone-warning { border-color: var(--pz-orb); background: var(--pz-ors); }
-.rem-kpi-card .lbl { font-size: 11px; font-weight: 700; color: var(--pz-mu); text-transform: uppercase; letter-spacing: .04em; }
-.rem-kpi-card.tone-danger .lbl { color: var(--pz-re); }
-.rem-kpi-card.tone-warning .lbl { color: var(--pz-or); }
-.rem-kpi-card .val { font-size: 26px; font-weight: 700; color: var(--pz-title); margin-top: 4px; letter-spacing: -.02em; }
-.rem-kpi-card.tone-danger .val { color: var(--pz-re); }
-.rem-kpi-card.tone-warning .val { color: var(--pz-or); }
-
-.rem-filter-bar { display: grid; grid-template-columns: minmax(200px, 1.5fr) 160px 200px 200px auto; gap: 8px; align-items: end; background: var(--pz-surf); border: 1px solid var(--pz-line); border-radius: var(--pz-r); padding: 12px; }
-.rem-filter-bar .field label { display: block; font-size: 10.5px; font-weight: 800; color: var(--pz-mu); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
-.rem-filter-bar .field input, .rem-filter-bar .field select { width: 100%; min-height: 38px; box-sizing: border-box; }
+.rem-tabs { display: flex; gap: 6px; background: var(--pz-surf); border: 1px solid var(--pz-line); border-radius: var(--pz-r); padding: 6px; }
+.rem-tab { padding: 8px 14px; border-radius: var(--pz-rs); font-size: 13px; font-weight: 600; color: var(--pz-mu); display: inline-flex; align-items: center; gap: 8px; text-decoration: none; cursor: pointer; transition: background .15s, color .15s; border: 0; background: transparent; }
+.rem-tab:hover { background: var(--pz-soft); color: var(--pz-title); }
+.rem-tab.is-active { background: var(--pz-bls); color: var(--pz-bld); }
+.rem-tab .count { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--pz-line); color: var(--pz-mu); }
+.rem-tab.is-active .count { background: var(--pz-blb); color: var(--pz-bld); }
 
 .rem-list { background: var(--pz-surf); border: 1px solid var(--pz-line); border-radius: var(--pz-r); overflow: hidden; }
-.rem-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) 160px 160px 130px 150px; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--pz-lines); align-items: center; font-size: 13px; }
+.rem-row { display: grid; grid-template-columns: 130px minmax(0, 1fr) 160px 170px 150px; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--pz-lines); align-items: center; font-size: 13px; }
 .rem-row:last-child { border-bottom: 0; }
 .rem-row:hover { background: var(--pz-soft); }
 .rem-row.is-overdue { background: var(--pz-res); }
 .rem-row.is-overdue:hover { background: #FECACA; }
 .rem-row.is-done { opacity: .58; }
+.rem-row.is-notice { background: #FFFBEB; }
+.rem-row.is-notice:hover { background: #FEF3C7; }
 
-.rem-date { font-family: var(--mono, ui-monospace, monospace); font-size: 12px; color: var(--pz-text); font-weight: 600; }
-.rem-date .time { display: block; color: var(--pz-mu); font-size: 11px; margin-top: 2px; }
-.rem-date.is-today { color: var(--pz-bl); }
-.rem-date.is-overdue { color: var(--pz-re); font-weight: 700; }
+.rem-date { font-family: var(--mono, ui-monospace, monospace); font-size: 12.5px; color: var(--pz-text); font-weight: 700; }
+.rem-date .pill { display: inline-block; margin-top: 4px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px; font-family: 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .03em; }
+.rem-date .pill.due-soon { background: #FFEDD5; color: #9A3412; }
+.rem-date .pill.due-today { background: var(--pz-bls); color: var(--pz-bld); }
+.rem-date .pill.due-overdue { background: var(--pz-res); color: var(--pz-re); }
 
-.rem-title-cell .ttl { font-weight: 650; color: var(--pz-title); }
-.rem-title-cell .desc { font-size: 11.5px; color: var(--pz-mu); margin-top: 2px; overflow-wrap: anywhere; line-height: 1.4; }
+.rem-title-cell .ttl { font-weight: 650; color: var(--pz-title); font-size: 14px; }
+.rem-title-cell .desc { font-size: 12px; color: var(--pz-mu); margin-top: 3px; overflow-wrap: anywhere; line-height: 1.45; }
 
-.rem-cat { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: var(--pz-rs); font-size: 11px; font-weight: 700; }
+.rem-cat { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: var(--pz-rs); font-size: 11px; font-weight: 700; white-space: nowrap; }
 .rem-cat.bl { background: var(--pz-bls); color: var(--pz-bld); border: 1px solid var(--pz-blb); }
 .rem-cat.gr { background: var(--pz-grs); color: var(--pz-gr); border: 1px solid var(--pz-grb); }
 .rem-cat.or { background: var(--pz-ors); color: var(--pz-or); border: 1px solid var(--pz-orb); }
 .rem-cat.mu { background: var(--pz-soft); color: var(--pz-text); border: 1px solid var(--pz-line); }
 
-.rem-resp { font-size: 12px; color: var(--pz-text); }
-.rem-resp .placeholder { color: var(--pz-mu); font-style: italic; }
+.rem-meta { font-size: 11.5px; color: var(--pz-mu); display: flex; flex-direction: column; gap: 3px; }
+.rem-meta .line { display: flex; align-items: center; gap: 6px; }
 
-.rem-recurrence { font-size: 11px; color: var(--pz-mu); }
-
-.rem-actions { display: flex; gap: 4px; justify-content: flex-end; }
+.rem-actions { display: flex; gap: 6px; justify-content: flex-end; }
 .rem-actions form { margin: 0; padding: 0; display: inline; }
-.rem-actions .btn { min-height: 30px; padding: 0 9px; font-size: 12px; line-height: 1; }
+.rem-actions .btn { min-height: 32px; padding: 0 10px; font-size: 12px; line-height: 1; }
 
-.rem-empty { padding: 48px 20px; text-align: center; color: var(--pz-mu); font-size: 14px; }
+.rem-empty { padding: 56px 20px; text-align: center; color: var(--pz-mu); font-size: 14px; }
 
 .rem-modal-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .rem-modal-form .full { grid-column: 1 / -1; }
 .rem-modal-form label { display: block; font-size: 10.5px; font-weight: 800; color: var(--pz-mu); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
 .rem-modal-form input, .rem-modal-form select, .rem-modal-form textarea { width: 100%; box-sizing: border-box; }
 
-.rem-recurrence-box { background: var(--pz-soft); border: 1px dashed var(--pz-line); border-radius: var(--pz-rs); padding: 10px 12px; }
-.rem-recurrence-box.is-active { background: var(--pz-bls); border-color: var(--pz-blb); border-style: solid; }
-.rem-recurrence-fields { display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-.rem-recurrence-box.is-active .rem-recurrence-fields { display: grid; }
+.rem-recurrence-box,
+.rem-notice-box { background: var(--pz-soft); border: 1px dashed var(--pz-line); border-radius: var(--pz-rs); padding: 12px 14px; }
+.rem-recurrence-box.is-active,
+.rem-notice-box.is-active { background: var(--pz-bls); border-color: var(--pz-blb); border-style: solid; }
+.rem-recurrence-fields,
+.rem-notice-fields { display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.rem-recurrence-box.is-active .rem-recurrence-fields,
+.rem-notice-box.is-active .rem-notice-fields { display: grid; }
+.rem-box-help { font-size: 11px; color: var(--pz-mu); margin-top: 6px; }
 
 @media (max-width: 900px) {
-    .rem-kpi-grid { grid-template-columns: 1fr 1fr; }
-    .rem-filter-bar { grid-template-columns: 1fr; }
-    .rem-row { grid-template-columns: 1fr; gap: 6px; }
+    .rem-row { grid-template-columns: 1fr; gap: 8px; }
     .rem-modal-form { grid-template-columns: 1fr; }
+    .rem-tabs { overflow-x: auto; }
 }
 </style>
-<?php render_search_preview_assets(); ?>
 </head>
 <body>
 <div class="layout">
@@ -396,8 +421,8 @@ if ($editId > 0) {
 
             <div class="rem-header">
                 <div>
-                    <h1>Remindere</h1>
-                    <div class="sub">Sarcini interne, întâlniri, revizii, livrări — totul într-un loc.</div>
+                    <h1>Reminders</h1>
+                    <div class="sub">Sarcini de office: revizii auto, ITP, asigurări, transmitere index și altele.</div>
                 </div>
                 <button class="btn accent" type="button" onclick="remOpenCreate()">+ Reminder nou</button>
             </div>
@@ -409,111 +434,81 @@ if ($editId > 0) {
                 <div class="notice notice-danger"><?= rem_h($flashError) ?></div>
             <?php endif; ?>
 
-            <div class="rem-kpi-grid">
-                <div class="rem-kpi-card">
-                    <div class="lbl">Total active</div>
-                    <div class="val"><?= (int)$kpi['total_pending'] ?></div>
-                </div>
-                <div class="rem-kpi-card tone-warning">
-                    <div class="lbl">Scadente azi</div>
-                    <div class="val"><?= (int)$kpi['today'] ?></div>
-                </div>
-                <div class="rem-kpi-card">
-                    <div class="lbl">Săptămâna asta</div>
-                    <div class="val"><?= (int)$kpi['week'] ?></div>
-                </div>
-                <div class="rem-kpi-card tone-danger">
-                    <div class="lbl">În întârziere</div>
-                    <div class="val"><?= (int)$kpi['overdue'] ?></div>
-                </div>
+            <div class="rem-tabs">
+                <a class="rem-tab <?= $tab === 'active' ? 'is-active' : '' ?>" href="reminders.php?tab=active">
+                    Active <span class="count"><?= $countActive ?></span>
+                </a>
+                <a class="rem-tab <?= $tab === 'upcoming' ? 'is-active' : '' ?>" href="reminders.php?tab=upcoming">
+                    Programate ulterior <span class="count"><?= $countUpcoming ?></span>
+                </a>
+                <a class="rem-tab <?= $tab === 'history' ? 'is-active' : '' ?>" href="reminders.php?tab=history">
+                    Istoric <span class="count"><?= $countHistory ?></span>
+                </a>
             </div>
 
-            <form method="get" class="rem-filter-bar">
-                <div class="field">
-                    <label>Căutare</label>
-                    <div class="pz-search-wrap">
-                        <input type="search" id="remindersSearchInput" name="q" value="<?= rem_h($searchQ) ?>" placeholder="Titlu sau descriere" autocomplete="off">
-                        <div class="pz-search-preview"></div>
-                    </div>
-                </div>
-                <div class="field">
-                    <label>Status</label>
-                    <select name="status">
-                        <option value="pending" <?= $filterStatus === 'pending' ? 'selected' : '' ?>>Active</option>
-                        <option value="overdue" <?= $filterStatus === 'overdue' ? 'selected' : '' ?>>În întârziere</option>
-                        <option value="done" <?= $filterStatus === 'done' ? 'selected' : '' ?>>Finalizate</option>
-                        <option value="all" <?= $filterStatus === 'all' ? 'selected' : '' ?>>Toate</option>
-                    </select>
-                </div>
-                <div class="field">
-                    <label>Categorie</label>
-                    <select name="category">
-                        <option value="">Toate</option>
-                        <?php foreach ($categories as $key => $cat): ?>
-                            <option value="<?= rem_h($key) ?>" <?= $filterCategory === $key ? 'selected' : '' ?>><?= rem_h($cat['icon'] . ' ' . $cat['label']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="field">
-                    <label>Responsabil</label>
-                    <select name="responsible">
-                        <option value="">Toți</option>
-                        <?php foreach ($users as $u): ?>
-                            <option value="<?= (int)$u['id'] ?>" <?= $filterResponsible === (int)$u['id'] ? 'selected' : '' ?>><?= rem_h($u['name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="field">
-                    <label>&nbsp;</label>
-                    <button class="btn" type="submit">Filtrează</button>
-                </div>
-            </form>
-
             <div class="rem-list">
-                <?php if (empty($reminders)): ?>
+                <?php if (empty($displayList)): ?>
                     <div class="rem-empty">
-                        Niciun reminder pentru filtrele alese.<br>
-                        <button class="btn accent" type="button" onclick="remOpenCreate()" style="margin-top:14px;">+ Adaugă primul reminder</button>
+                        <?php if ($tab === 'history'): ?>
+                            Niciun reminder finalizat încă.
+                        <?php elseif ($tab === 'upcoming'): ?>
+                            Niciun reminder programat pentru viitor (toate sunt deja în fereastra de preaviz).
+                        <?php else: ?>
+                            Niciun reminder activ.<br>
+                            <button class="btn accent" type="button" onclick="remOpenCreate()" style="margin-top:14px;">+ Adaugă primul reminder</button>
+                        <?php endif; ?>
                     </div>
                 <?php else: ?>
-                    <?php foreach ($reminders as $rem):
-                        $cat = $categories[$rem['category']] ?? $categories['general'];
-                        $isOverdue = $rem['status'] === 'pending' && $rem['remind_date'] < $today;
-                        $isToday = $rem['remind_date'] === $today;
-                        $isDone = $rem['status'] === 'done';
+                    <?php foreach ($displayList as $rem):
+                        $cat = rem_category_resolve((string)$rem['category'], $categories);
+                        $remindDate = (string)$rem['remind_date'];
+                        $isOverdue = $rem['status'] === 'pending' && $remindDate < $today;
+                        $isToday   = $remindDate === $today;
+                        $isDone    = $rem['status'] === 'done';
+                        $noticeStart = rem_notice_start($remindDate, isset($rem['notice_period_value']) ? (int)$rem['notice_period_value'] : null, $rem['notice_period_unit'] ?? null);
+                        $inNotice  = !$isDone && !$isOverdue && !$isToday && $noticeStart && $noticeStart <= $today && $remindDate > $today;
+
                         $rowClass = '';
                         if ($isDone) $rowClass = 'is-done';
                         elseif ($isOverdue) $rowClass = 'is-overdue';
-                        $dateClass = $isOverdue ? 'is-overdue' : ($isToday ? 'is-today' : '');
+                        elseif ($inNotice) $rowClass = 'is-notice';
+
+                        $pillClass = '';
+                        $pillText = '';
+                        if ($isOverdue) { $pillClass = 'due-overdue'; $pillText = 'Scadent'; }
+                        elseif ($isToday) { $pillClass = 'due-today'; $pillText = 'Astăzi'; }
+                        elseif ($inNotice) { $pillClass = 'due-soon'; $pillText = 'În preaviz'; }
                     ?>
                         <div class="rem-row <?= $rowClass ?>">
-                            <div class="rem-date <?= $dateClass ?>">
-                                <?= rem_h(date('d.m.Y', strtotime($rem['remind_date']))) ?>
-                                <?php if ($rem['remind_time']): ?>
-                                    <span class="time"><?= rem_h(substr($rem['remind_time'], 0, 5)) ?></span>
+                            <div class="rem-date">
+                                <?= rem_h(date('d.m.Y', strtotime($remindDate))) ?>
+                                <?php if ($pillText !== ''): ?>
+                                    <span class="pill <?= $pillClass ?>"><?= rem_h($pillText) ?></span>
                                 <?php endif; ?>
                             </div>
                             <div class="rem-title-cell">
                                 <div class="ttl"><?= rem_h($rem['title']) ?></div>
                                 <?php if ($rem['description']): ?>
-                                    <div class="desc"><?= rem_h(mb_substr($rem['description'], 0, 140)) . (mb_strlen($rem['description']) > 140 ? '…' : '') ?></div>
+                                    <div class="desc"><?= rem_h(mb_substr((string)$rem['description'], 0, 180)) . (mb_strlen((string)$rem['description']) > 180 ? '…' : '') ?></div>
                                 <?php endif; ?>
                             </div>
                             <div>
                                 <span class="rem-cat <?= rem_h($cat['color']) ?>"><?= rem_h($cat['icon']) ?> <?= rem_h($cat['label']) ?></span>
                             </div>
-                            <div class="rem-resp">
-                                <?php if ($rem['responsible_name']): ?>
-                                    <?= rem_h($rem['responsible_name']) ?>
-                                <?php else: ?>
-                                    <span class="placeholder">Neasignat</span>
+                            <div class="rem-meta">
+                                <?php if (!empty($rem['recurrence_type'])):
+                                    $recLabel = $recurrenceTypes[$rem['recurrence_type']] ?? '';
+                                    $recInterval = (int)($rem['recurrence_interval'] ?? 1);
+                                ?>
+                                    <div class="line">🔁 <?= rem_h($recLabel) ?><?= $recInterval > 1 ? ' (×' . $recInterval . ')' : '' ?></div>
                                 <?php endif; ?>
-                            </div>
-                            <div class="rem-recurrence">
-                                <?php if (!empty($rem['recurrence_type'])): ?>
-                                    🔁 <?= rem_h($recurrenceTypes[$rem['recurrence_type']] ?? '') ?><?php if ((int)$rem['recurrence_interval'] > 1): ?> (×<?= (int)$rem['recurrence_interval'] ?>)<?php endif; ?>
-                                <?php else: ?>
-                                    —
+                                <?php if (!empty($rem['notice_period_value']) && !empty($rem['notice_period_unit'])):
+                                    $unitLabel = $noticeUnits[$rem['notice_period_unit']] ?? '';
+                                ?>
+                                    <div class="line">⏰ Preaviz: <?= (int)$rem['notice_period_value'] ?> <?= rem_h($unitLabel) ?></div>
+                                <?php endif; ?>
+                                <?php if (empty($rem['recurrence_type']) && empty($rem['notice_period_value'])): ?>
+                                    <div class="line" style="color:var(--pz-mu)">—</div>
                                 <?php endif; ?>
                             </div>
                             <div class="rem-actions">
@@ -522,7 +517,7 @@ if ($editId > 0) {
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="action" value="complete">
                                         <input type="hidden" name="id" value="<?= (int)$rem['id'] ?>">
-                                        <button class="btn" type="submit" title="Marchează ca finalizat">✓</button>
+                                        <button class="btn" type="submit" title="Marchează finalizat">✓</button>
                                     </form>
                                 <?php else: ?>
                                     <form method="post">
@@ -551,7 +546,7 @@ if ($editId > 0) {
 
 <!-- Modal create/edit -->
 <div class="modal" id="remModal">
-    <div class="modal-box" style="max-width:720px;">
+    <div class="modal-box" style="max-width:680px;">
         <div class="modal-header">
             <h2 id="remModalTitle">Reminder nou</h2>
             <button class="modal-close" type="button" onclick="remCloseModal()">&times;</button>
@@ -564,22 +559,17 @@ if ($editId > 0) {
             <div class="rem-modal-form">
                 <div class="full">
                     <label>Titlu *</label>
-                    <input type="text" name="title" id="remTitle" required maxlength="200" placeholder="Ex: Revizie Renault Master B 123 ABC">
+                    <input type="text" name="title" id="remTitle" required maxlength="200" placeholder="Ex: ITP Renault Master B 123 ABC">
                 </div>
 
                 <div class="full">
                     <label>Descriere</label>
-                    <textarea name="description" id="remDescription" rows="3" placeholder="Detalii, locație, persoană contact, etc."></textarea>
+                    <textarea name="description" id="remDescription" rows="2" placeholder="Detalii suplimentare (opțional)"></textarea>
                 </div>
 
                 <div>
-                    <label>Data *</label>
+                    <label>Data scadenței *</label>
                     <input type="date" name="remind_date" id="remDate" required>
-                </div>
-
-                <div>
-                    <label>Ora (opțional)</label>
-                    <input type="time" name="remind_time" id="remTime" step="900">
                 </div>
 
                 <div>
@@ -587,16 +577,6 @@ if ($editId > 0) {
                     <select name="category" id="remCategory">
                         <?php foreach ($categories as $key => $cat): ?>
                             <option value="<?= rem_h($key) ?>"><?= rem_h($cat['icon'] . ' ' . $cat['label']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div>
-                    <label>Responsabil</label>
-                    <select name="responsible_user_id" id="remResponsible">
-                        <option value="">Neasignat</option>
-                        <?php foreach ($users as $u): ?>
-                            <option value="<?= (int)$u['id'] ?>"><?= rem_h($u['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -619,6 +599,27 @@ if ($editId > 0) {
                                 <input type="date" name="recurrence_end_date" id="remRecurrenceEnd">
                             </div>
                         </div>
+                        <div class="rem-box-help">Ex: „Anual la fiecare 1" pentru ITP, „Lunar la fiecare 1" pentru transmitere index.</div>
+                    </div>
+                </div>
+
+                <div class="full">
+                    <div class="rem-notice-box" id="remNoticeBox">
+                        <label style="margin:0;">Preaviz (înainte de scadență)</label>
+                        <select name="notice_period_unit" id="remNoticeUnit" onchange="remToggleNotice()" style="margin-top:6px;">
+                            <option value="">Fără preaviz (afișare imediată)</option>
+                            <?php foreach ($noticeUnits as $key => $label): ?>
+                                <option value="<?= rem_h($key) ?>"><?= rem_h(ucfirst($label)) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="rem-notice-fields">
+                            <div>
+                                <label>Cu câte unități înainte</label>
+                                <input type="number" name="notice_period_value" id="remNoticeValue" value="1" min="1" max="365">
+                            </div>
+                            <div></div>
+                        </div>
+                        <div class="rem-box-help">Ex: pentru ITP scadent 15.10 cu preaviz „1 săptămână" → apare în „Active" din 08.10.</div>
                     </div>
                 </div>
             </div>
@@ -641,6 +642,7 @@ function remOpenCreate() {
     document.getElementById('remForm').reset();
     document.getElementById('remDate').value = new Date().toISOString().split('T')[0];
     remToggleRecurrence();
+    remToggleNotice();
     document.getElementById('remModal').classList.add('open');
     setTimeout(() => document.getElementById('remTitle').focus(), 60);
 }
@@ -660,13 +662,16 @@ function remFillForm(d) {
     document.getElementById('remTitle').value = d.title || '';
     document.getElementById('remDescription').value = d.description || '';
     document.getElementById('remDate').value = d.remind_date || '';
-    document.getElementById('remTime').value = (d.remind_time || '').substring(0, 5);
-    document.getElementById('remCategory').value = d.category || 'general';
-    document.getElementById('remResponsible').value = d.responsible_user_id || '';
+    // Mapează categoriile vechi la 'other' în UI
+    const validCats = <?= json_encode(array_keys($categories)) ?>;
+    document.getElementById('remCategory').value = validCats.includes(d.category) ? d.category : 'other';
     document.getElementById('remRecurrenceType').value = d.recurrence_type || '';
     document.getElementById('remRecurrenceInterval').value = d.recurrence_interval || 1;
     document.getElementById('remRecurrenceEnd').value = d.recurrence_end_date || '';
+    document.getElementById('remNoticeUnit').value = d.notice_period_unit || '';
+    document.getElementById('remNoticeValue').value = d.notice_period_value || 1;
     remToggleRecurrence();
+    remToggleNotice();
     document.getElementById('remModal').classList.add('open');
 }
 
@@ -683,6 +688,13 @@ function remToggleRecurrence() {
     const type = document.getElementById('remRecurrenceType').value;
     const box = document.getElementById('remRecurrenceBox');
     if (type) box.classList.add('is-active');
+    else box.classList.remove('is-active');
+}
+
+function remToggleNotice() {
+    const unit = document.getElementById('remNoticeUnit').value;
+    const box = document.getElementById('remNoticeBox');
+    if (unit) box.classList.add('is-active');
     else box.classList.remove('is-active');
 }
 
@@ -703,34 +715,5 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') remCloseModal();
 });
 </script>
-
-<?php
-// Preview live pentru bara „Caută reminder".
-$previewReminders = [];
-try {
-    if ($pdo->query("SHOW TABLES LIKE 'reminders'")->fetch()) {
-        $stmtPrev = $pdo->query("SELECT id, title FROM reminders ORDER BY id DESC LIMIT 2000");
-        while ($r = $stmtPrev->fetch(PDO::FETCH_ASSOC)) {
-            $t = html_entity_decode((string)($r['title'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            $previewReminders[] = [
-                'title'  => $t !== '' ? $t : ('Reminder #' . (int)$r['id']),
-                'url'    => 'reminders.php?q=' . urlencode($t),
-                'type'   => 'reminder',
-                'search' => $t,
-            ];
-        }
-    }
-} catch (Throwable $e) { error_log('reminders.php preview: ' . $e->getMessage()); }
-?>
-<script>
-(function () {
-    var go = function () {
-        if (!window.pzSearchPreview) { setTimeout(go, 30); return; }
-        window.pzSearchPreview.attach('remindersSearchInput',
-            <?= json_encode($previewReminders, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>,
-            { minChars: 1, maxResults: 8 }
-        );
-    };
-    go();
-})();
-</script>
+</body>
+</html>
