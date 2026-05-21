@@ -58,6 +58,7 @@ if (!function_exists('render_sidebar')) {
         'documente',
         'oferte',
         'contracts',
+        'addenda',
         'procese_verbale',
     ];
     $documentsOpen = in_array($active, $documentsKeys, true);
@@ -88,6 +89,7 @@ if (!function_exists('render_sidebar')) {
             'documente' => ['label' => 'Toate documentele', 'href' => 'documents', 'icon' => 'documents'],
             'oferte' => ['label' => 'Oferte', 'href' => 'offers', 'icon' => 'offers'],
             'contracts' => ['label' => 'Contracte', 'href' => 'contracts.php', 'icon' => 'contracts'],
+            'addenda' => ['label' => 'Acte adiționale', 'href' => 'addenda.php', 'icon' => 'contracts'],
             'procese_verbale' => ['label' => 'Procese verbale', 'href' => 'service-reports', 'icon' => 'processes'],
             // Șabloane/Serii/Design PDF s-au mutat în Setări (erau dublate)
         ];
@@ -615,6 +617,7 @@ if (!function_exists('render_sidebar')) {
             'documente'              => ['Documente',  ['Toate']],
             'oferte'                 => ['Documente',  ['Oferte']],
             'contracts'              => ['Documente',  ['Contracte']],
+            'addenda'                => ['Documente',  ['Acte adiționale']],
             'procese_verbale'        => ['Documente',  ['Procese verbale']],
 
             // sub-pagini Setări
