@@ -902,7 +902,7 @@ foreach ($services as $service) {
                                                                 <option value="<?= (int)$service['id'] ?>" data-name="<?= pz_contract_h($service['name']) ?>" data-description="<?= pz_contract_h($service['description'] ?? '') ?>" <?= (int)($item['service_id'] ?? 0) === (int)$service['id'] ? 'selected' : '' ?>><?= pz_contract_h($service['name']) ?></option>
                                                             <?php endforeach; ?>
                                                         </select>
-                                                        <input type="text" name="items[<?= (int)$idx ?>][service_name]" class="service-name" value="<?= pz_contract_h($item['service_name'] ?? '') ?>" placeholder="Denumire serviciu" style="margin-top:6px;">
+                                                        <input type="hidden" name="items[<?= (int)$idx ?>][service_name]" class="service-name" value="<?= pz_contract_h($item['service_name'] ?? '') ?>">
                                                         <input type="hidden" name="items[<?= (int)$idx ?>][description]" class="service-description" value="<?= pz_contract_h($item['description'] ?? '') ?>">
                                                     </td>
                                                     <td>
@@ -1299,7 +1299,7 @@ function addItemRow() {
         </td>
         <td>
             <select name="items[${i}][service_id]" class="service-select" onchange="syncServiceName(this)">${serviceOptionsHtml()}</select>
-            <input type="text" name="items[${i}][service_name]" class="service-name" placeholder="Denumire serviciu" style="margin-top:6px;">
+            <input type="hidden" name="items[${i}][service_name]" class="service-name">
             <input type="hidden" name="items[${i}][description]" class="service-description" value="">
         </td>
         <td>
