@@ -1538,13 +1538,33 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-/* === Selector tip contract: toggle vizibilitate panel-uri + reset textarea === */
+/* === Selector tip contract: toggle vizibilitate panel-uri + reset textarea + sync valoare === */
 function initContractTypePicker() {
     const picker = document.getElementById('contractTypePicker');
     if (!picker) return;
     const radios = picker.querySelectorAll('input[name="contract_type"]');
     const textarea = document.getElementById('contractObjectTextarea');
     const defaultObj = (document.getElementById('contractObjectDefault') || {}).value || '';
+
+    // Sync valoare manuală -> hidden contract_value
+    const valueManual    = document.getElementById('contractValueManual');
+    const valueHidden    = document.getElementById('contractValue');
+    const currencyManual = document.getElementById('contractCurrencyManual');
+    const currencyHidden = document.getElementById('currency');
+
+    if (valueManual && valueHidden) {
+        valueManual.addEventListener('input', () => {
+            const v = parseFloat(String(valueManual.value).replace(',', '.')) || 0;
+            valueHidden.value = v.toFixed(2);
+        });
+    }
+    if (currencyManual && currencyHidden) {
+        currencyManual.addEventListener('change', () => {
+            currencyHidden.value = currencyManual.value;
+            // re-trigger recalculate dacă suntem în DDD, ca să refresheze afișajul total
+            if (typeof recalculateRows === 'function') recalculateRows();
+        });
+    }
 
     function applyMode(mode) {
         // Marchează vizual cardul activ
@@ -1568,6 +1588,20 @@ function initContractTypePicker() {
                 }
                 setTimeout(() => textarea.focus(), 80);
             }
+        }
+        // Sincronizare valoare contract între moduri
+        if (mode === 'execution') {
+            // Aducem în input-ul vizibil ce avem în hidden (sumă din tabel sau valoare salvată)
+            if (valueManual && valueHidden) {
+                const cur = parseFloat(valueHidden.value || '0') || 0;
+                valueManual.value = cur > 0 ? cur.toFixed(2) : '';
+            }
+            if (currencyManual && currencyHidden) {
+                currencyManual.value = currencyHidden.value || 'RON';
+            }
+        } else if (mode === 'recurrent') {
+            // Recalculează din tabel ca să fie suma actuală a items-urilor
+            if (typeof recalculateRows === 'function') recalculateRows();
         }
     }
 
