@@ -615,21 +615,6 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                         <span class="ib-small-btn primary is-disabled" aria-disabled="true">Facturează</span>
                                     <?php else: ?>
                                         <a class="ib-small-btn primary" href="invoice.php?<?= http_build_query(['billing_item_ids' => [(int)$row['id']]]) ?>">Facturează</a>
-                                        <?php if ($status === 'to_review'): ?>
-                                            <form method="post" class="inline-form" action="<?= ib_h(ib_current_url()) ?>">
-                                                <?= csrf_field() ?>
-                                                <input type="hidden" name="action" value="mark_to_invoice">
-                                                <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
-                                                <button class="ib-small-btn warning" type="submit">Marchează „De facturat"</button>
-                                            </form>
-                                        <?php else: ?>
-                                            <form method="post" class="inline-form" action="<?= ib_h(ib_current_url()) ?>">
-                                                <?= csrf_field() ?>
-                                                <input type="hidden" name="action" value="mark_to_review">
-                                                <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
-                                                <button class="ib-small-btn muted" type="submit">Înapoi la verificare</button>
-                                            </form>
-                                        <?php endif; ?>
                                         <button type="button" class="ib-small-btn danger js-skip-toggle" data-target="skip-card-<?= (int)$row['id'] ?>">Nu se facturează</button>
                                         <form method="post" class="skip-inline" id="skip-card-<?= (int)$row['id'] ?>" action="<?= ib_h(ib_current_url()) ?>">
                                             <?= csrf_field() ?>
@@ -728,21 +713,6 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                                     <span class="ib-small-btn primary is-disabled" aria-disabled="true">Facturează</span>
                                                 <?php else: ?>
                                                     <a class="ib-small-btn primary" href="invoice.php?<?= http_build_query(['billing_item_ids' => [(int)$row['id']]]) ?>">Facturează</a>
-                                                    <?php if ($status === 'to_review'): ?>
-                                                        <form method="post" class="inline-form" action="<?= ib_h(ib_current_url()) ?>">
-                                                            <?= csrf_field() ?>
-                                                            <input type="hidden" name="action" value="mark_to_invoice">
-                                                            <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
-                                                            <button class="ib-small-btn warning" type="submit">Marchează „De facturat"</button>
-                                                        </form>
-                                                    <?php else: ?>
-                                                        <form method="post" class="inline-form" action="<?= ib_h(ib_current_url()) ?>">
-                                                            <?= csrf_field() ?>
-                                                            <input type="hidden" name="action" value="mark_to_review">
-                                                            <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
-                                                            <button class="ib-small-btn muted" type="submit">Înapoi la verificare</button>
-                                                        </form>
-                                                    <?php endif; ?>
                                                     <button type="button" class="ib-small-btn danger js-skip-toggle" data-target="skip-row-<?= (int)$row['id'] ?>">Nu se facturează</button>
                                                     <form method="post" class="skip-inline" id="skip-row-<?= (int)$row['id'] ?>" action="<?= ib_h(ib_current_url()) ?>">
                                                         <?= csrf_field() ?>
