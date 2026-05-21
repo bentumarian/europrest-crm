@@ -1080,7 +1080,7 @@ function pzClientHighlight(text, query) {
 }
 function pzClientSearch(query) {
     const q = pzNormalize(query);
-    if (q.length < 2) return [];
+    if (q.length < 1) return [];
     const results = [];
     for (const c of clientsData) {
         const haystack = pzNormalize((c.name || '') + ' ' + (c.fiscal_code || '') + ' ' + (c.phone || '') + ' ' + (c.representative || '') + ' ' + (c.email || ''));
@@ -1163,7 +1163,7 @@ function initClientAutocomplete() {
         clearTimeout(debounceT);
         debounceT = setTimeout(() => {
             const q = input.value.trim();
-            if (q.length < 2) { wrap.classList.remove('is-open'); document.getElementById('clientResults').innerHTML = ''; return; }
+            if (q.length < 1) { wrap.classList.remove('is-open'); document.getElementById('clientResults').innerHTML = ''; return; }
             pzRenderClientResults(pzClientSearch(q), q);
             wrap.classList.add('is-open');
         }, 150);
