@@ -53,6 +53,9 @@ try {
     if (!isset($existingCols['notice_period_unit'])) {
         $pdo->exec("ALTER TABLE reminders ADD COLUMN notice_period_unit VARCHAR(10) NULL AFTER notice_period_value");
     }
+    if (!isset($existingCols['email_to'])) {
+        $pdo->exec("ALTER TABLE reminders ADD COLUMN email_to VARCHAR(255) NULL AFTER notice_period_unit");
+    }
 } catch (Throwable $e) {
     error_log('reminders.php schema upgrade: ' . $e->getMessage());
 }
@@ -171,6 +174,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $noticeValue = ($noticeUnit && $noticeValueRaw > 0) ? $noticeValueRaw : null;
             if (!$noticeValue) $noticeUnit = null; // consistent
 
+            // Email opțional: dacă bifa „Trimite email" e activă, email_to e obligatoriu și valid
+            $emailEnabled = !empty($_POST['email_enabled']);
+            $emailToRaw = trim((string)($_POST['email_to'] ?? ''));
+            $emailTo = null;
+            if ($emailEnabled) {
+                if ($emailToRaw === '' || !filter_var($emailToRaw, FILTER_VALIDATE_EMAIL)) {
+                    throw new RuntimeException('Pentru notificare email, completează o adresă validă.');
+                }
+                $emailTo = $emailToRaw;
+            }
+
             if ($title === '' || $remindDate === '') {
                 throw new RuntimeException('Completează titlul și data scadenței.');
             }
@@ -184,14 +198,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     INSERT INTO reminders
                     (title, description, category, remind_date, responsible_user_id, created_by,
                      status, recurrence_type, recurrence_interval, recurrence_end_date,
-                     notice_period_value, notice_period_unit)
-                    VALUES (?, ?, ?, ?, NULL, ?, 'pending', ?, ?, ?, ?, ?)
+                     notice_period_value, notice_period_unit, email_to)
+                    VALUES (?, ?, ?, ?, NULL, ?, 'pending', ?, ?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
                     $title, $description ?: null, $category, $remindDate,
                     current_user_id(),
                     $recurrenceType ?: null, $recurrenceInterval, $recurrenceEndDate,
-                    $noticeValue, $noticeUnit
+                    $noticeValue, $noticeUnit, $emailTo
                 ]);
                 $flashSuccess = 'Reminder adăugat.';
             } else {
@@ -201,13 +215,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     UPDATE reminders SET
                         title = ?, description = ?, category = ?, remind_date = ?,
                         recurrence_type = ?, recurrence_interval = ?, recurrence_end_date = ?,
-                        notice_period_value = ?, notice_period_unit = ?
+                        notice_period_value = ?, notice_period_unit = ?, email_to = ?
                     WHERE id = ?
                 ");
                 $stmt->execute([
                     $title, $description ?: null, $category, $remindDate,
                     $recurrenceType ?: null, $recurrenceInterval, $recurrenceEndDate,
-                    $noticeValue, $noticeUnit, $id
+                    $noticeValue, $noticeUnit, $emailTo, $id
                 ]);
                 $flashSuccess = 'Reminder actualizat.';
             }
@@ -233,14 +247,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         INSERT INTO reminders
                         (title, description, category, remind_date, responsible_user_id, created_by,
                          status, recurrence_type, recurrence_interval, recurrence_end_date,
-                         recurrence_parent_id, notice_period_value, notice_period_unit)
-                        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)
+                         recurrence_parent_id, notice_period_value, notice_period_unit, email_to)
+                        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)
                     ")->execute([
                         $rem['title'], $rem['description'], $rem['category'], $nextDate,
                         $rem['responsible_user_id'], current_user_id(),
                         $rem['recurrence_type'], $rem['recurrence_interval'], $endDate,
                         $parentId,
-                        $rem['notice_period_value'] ?? null, $rem['notice_period_unit'] ?? null
+                        $rem['notice_period_value'] ?? null, $rem['notice_period_unit'] ?? null,
+                        $rem['email_to'] ?? null
                     ]);
                     $flashSuccess = 'Marcat ca finalizat. Următoarea apariție programată pentru ' . date('d.m.Y', strtotime($nextDate)) . '.';
                 } else {
@@ -507,7 +522,10 @@ if ($editId > 0) {
                                 ?>
                                     <div class="line">⏰ Preaviz: <?= (int)$rem['notice_period_value'] ?> <?= rem_h($unitLabel) ?></div>
                                 <?php endif; ?>
-                                <?php if (empty($rem['recurrence_type']) && empty($rem['notice_period_value'])): ?>
+                                <?php if (!empty($rem['email_to'])): ?>
+                                    <div class="line" title="Notificare email către <?= rem_h($rem['email_to']) ?>">✉ Email activ</div>
+                                <?php endif; ?>
+                                <?php if (empty($rem['recurrence_type']) && empty($rem['notice_period_value']) && empty($rem['email_to'])): ?>
                                     <div class="line" style="color:var(--pz-mu)">—</div>
                                 <?php endif; ?>
                             </div>
