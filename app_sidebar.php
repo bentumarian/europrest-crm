@@ -37,7 +37,7 @@ if (!function_exists('render_sidebar')) {
         'email_activity',
         'data_import',
         'review_settings',
-        'ui_template',
+        'style_guide',
         // Mutate aici din sidebar (configurare documente):
         'document_templates',
         'document_series',
@@ -631,7 +631,7 @@ if (!function_exists('render_sidebar')) {
             'sms_activity'           => ['Setări',     ['Activitate SMS']],
             'email_activity'         => ['Setări',     ['Activitate Email']],
             'data_import'            => ['Setări',     ['Import date']],
-            'ui_template'            => ['Template UI', ['Identitate interna']],
+            'style_guide'            => ['Ghid de stil', ['Identitate internă']],
         ];
 
         // Caută în titluri folosind cheia originală, înainte de gruparea vizuală în sidebar.

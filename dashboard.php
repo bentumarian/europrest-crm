@@ -356,7 +356,7 @@ $todayLabel = ($dayNames[date('l')] ?? date('l')) . ' · ' . date('d') . ' ' . (
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <?php app_theme_css(); ?>
 <style>
-/* ── Design tokens (ui_template.php) ─────────────────────────── */
+/* ── Design tokens (style_guide.php) ─────────────────────────── */
 :root {
     --pz-bg:       #F8FAFC;
     --pz-surf:     #FFFFFF;

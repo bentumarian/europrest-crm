@@ -71,6 +71,15 @@ if (!function_exists('app_theme_css')) {
             --pz-reb:     #FECACA;
             --pz-r:       8px;
             --pz-rs:      4px;
+            --pz-gap:     12px;
+
+            /* Accente — variantele „acc" pentru dot-uri, accent-bars, status-dots */
+            --pz-gr-acc:  #22C55E;
+            --pz-or-acc:  #F97316;
+            --pz-re-acc:  #EF4444;
+
+            /* Brand — sidebar navy */
+            --pz-brand:   #12345A;
 
             /* === Tone semantice (FIX: înainte erau monocrome/sparte) === */
             --tone-danger:        #DC2626;

@@ -90,7 +90,7 @@ $cards = [
     [
         'title' => 'Identitate platformă',
         'desc' => 'Paleta de culori, fontul Inter și regulile generale de UI',
-        'url' => 'ui_template.php',
+        'url' => 'style_guide.php',
         'icon' => 'design',
     ],
     [
