@@ -1137,10 +1137,10 @@ if (!$invoiceItems) {
         .items-head h2 { font-size:14px; margin:0; }
         .items-head .btn { display:inline-flex; align-items:center; justify-content:center; line-height:1; }
 
-        .invoice-items { display:grid; gap:8px; margin-top:0; }
+        .invoice-items { display:grid; gap:8px; margin-top:0; padding:12px 14px; }
         .invoice-item { border:0; border-radius:0; background:transparent; padding:0; }
-        .invoice-item-grid { display:grid; grid-template-columns:minmax(220px,2fr) 76px 112px 92px 120px 120px 86px; gap:8px; align-items:end; }
-        .invoice-item-extra { display:grid; grid-template-columns:minmax(220px,1fr) 120px 170px; gap:8px; align-items:end; margin:7px 0 10px 0; }
+        .invoice-item-grid { display:grid; grid-template-columns:minmax(200px,2fr) 70px 100px 84px 110px 110px 80px; gap:10px; align-items:end; }
+        .invoice-item-extra { display:grid; grid-template-columns:minmax(200px,1fr) 110px 160px; gap:10px; align-items:end; margin:7px 0 10px 0; }
         .invoice-line-head { display:grid; grid-template-columns:minmax(220px,2fr) 76px 112px 92px 120px 120px 86px; gap:8px; background:var(--pz-brand); color:#fff; font-size:11px; font-weight:700; padding:8px; margin-top:10px; }
         .invoice-line-hint { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--pz-mu); font-size:12px; font-weight:600; padding:10px; border-bottom:1px solid var(--pz-lines); }
 
@@ -1475,7 +1475,7 @@ if (!$invoiceItems) {
                                 <?php foreach ($invoiceItems as $idx => $item): ?>
                                     <div class="invoice-item" data-item-row>
                                         <div class="invoice-item-grid">
-                                            <div><label>Descriere *</label><input name="item_description[<?= (int)$idx ?>]" value="<?= inv_h($item['description'] ?? '') ?>" required></div>
+                                            <div><label>Denumire *</label><input name="item_description[<?= (int)$idx ?>]" value="<?= inv_h($item['description'] ?? '') ?>" required></div>
                                             <div><label>Cod</label><input name="item_product_code[<?= (int)$idx ?>]" value="<?= inv_h($item['product_code'] ?? '') ?>"></div>
                                             <div><label>Cantitate</label><input type="number" step="0.001" min="0.001" name="item_quantity[<?= (int)$idx ?>]" value="<?= inv_h($item['quantity'] ?? '1') ?>"></div>
                                             <div><label>UM</label><select name="item_unit_name[<?= (int)$idx ?>]"><?php $selectedUnit = (string)($item['unit_name'] ?? 'buc'); ?><?php foreach ($invoiceUnitOptions as $unitOption): ?><option value="<?= inv_h($unitOption) ?>" <?= $selectedUnit === $unitOption ? 'selected' : '' ?>><?= inv_h($unitOption) ?></option><?php endforeach; ?></select></div>
@@ -1484,7 +1484,7 @@ if (!$invoiceItems) {
                                             <button class="btn ghost item-remove" type="button" onclick="removeInvoiceItem(this)">X</button>
                                         </div>
                                         <div class="invoice-item-extra">
-                                            <div><label>Descriere detaliata</label><input name="item_product_description[<?= (int)$idx ?>]" value="<?= inv_h($item['product_description'] ?? '') ?>"></div>
+                                            <div><label>Descriere</label><input name="item_product_description[<?= (int)$idx ?>]" value="<?= inv_h($item['product_description'] ?? '') ?>"></div>
                                             <div><label>Tip</label><select name="item_is_service[<?= (int)$idx ?>]"><option value="1" <?= ($item['is_service'] ?? '1') === '1' ? 'selected' : '' ?>>Serviciu</option><option value="0" <?= ($item['is_service'] ?? '1') === '0' ? 'selected' : '' ?>>Produs</option></select></div>
                                             <label class="tax-included-label"><input type="checkbox" name="item_is_tax_included[<?= (int)$idx ?>]" value="1" <?= ($item['is_tax_included'] ?? '0') === '1' ? 'checked' : '' ?>> Pret cu TVA inclus</label>
                                         </div>
@@ -1817,7 +1817,7 @@ function addInvoiceItem() {
     row.setAttribute('data-item-row', '1');
     row.innerHTML = `
         <div class="invoice-item-grid">
-            <div><label>Descriere *</label><input name="item_description[${idx}]" required></div>
+            <div><label>Denumire *</label><input name="item_description[${idx}]" required></div>
             <div><label>Cod</label><input name="item_product_code[${idx}]"></div>
             <div><label>Cantitate</label><input type="number" step="0.001" min="0.001" name="item_quantity[${idx}]" value="1"></div>
             <div><label>UM</label><select name="item_unit_name[${idx}]">${invoiceUnitOptionsHtml('buc')}</select></div>
@@ -1826,7 +1826,7 @@ function addInvoiceItem() {
             <button class="btn ghost item-remove" type="button" onclick="removeInvoiceItem(this)">X</button>
         </div>
         <div class="invoice-item-extra">
-            <div><label>Descriere detaliata</label><input name="item_product_description[${idx}]"></div>
+            <div><label>Descriere</label><input name="item_product_description[${idx}]"></div>
             <div><label>Tip</label><select name="item_is_service[${idx}]"><option value="1" selected>Serviciu</option><option value="0">Produs</option></select></div>
             <label class="tax-included-label"><input type="checkbox" name="item_is_tax_included[${idx}]" value="1"> Pret cu TVA inclus</label>
         </div>
