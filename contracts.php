@@ -1561,8 +1561,12 @@ function initContractTypePicker() {
     if (currencyManual && currencyHidden) {
         currencyManual.addEventListener('change', () => {
             currencyHidden.value = currencyManual.value;
-            // re-trigger recalculate dacă suntem în DDD, ca să refresheze afișajul total
-            if (typeof recalculateRows === 'function') recalculateRows();
+            // Doar în DDD recurent re-sumăm tabelul; în execuție recalculateRows ar
+            // suprascrie valoarea manuală cu 0 (tabel gol).
+            const checked = document.querySelector('input[name="contract_type"]:checked');
+            if (checked && checked.value === 'recurrent' && typeof recalculateRows === 'function') {
+                recalculateRows();
+            }
         });
     }
 
