@@ -302,47 +302,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $locationId = !empty($parentDocument['client_location_id']) ? (int)$parentDocument['client_location_id'] : null;
         $currency = pz_addendum_str($parentDocument['currency'] ?? 'RON', 10) ?: 'RON';
         $vatPercent = 0.0;
-        $items = pz_addendum_build_items_from_post($_POST['items'] ?? [], $vatPercent, $currency);
 
-        // Daca utilizatorul a ales "Pretul ramane acelasi", suprascriem unit_price si
-        // total_price cu cele din contractul-mama, indiferent de ce a fost trimis prin POST.
-        // Astfel preturile nu pot fi modificate accidental sau prin manipularea formularului.
-        $priceMode = ($_POST['price_mode'] ?? 'same') === 'updated' ? 'updated' : 'same';
-        if ($priceMode === 'same') {
-            $parentItems = is_array($parentDocument['items'] ?? null) ? $parentDocument['items'] : [];
-            foreach ($items as $idx => &$itemRef) {
-                if (isset($parentItems[$idx])) {
-                    $parentPrice = is_numeric($parentItems[$idx]['unit_price'] ?? null) ? (float)$parentItems[$idx]['unit_price'] : 0.0;
-                    $itemRef['unit_price'] = $parentPrice;
-                    $itemRef['total_price'] = $parentPrice;
-                }
-            }
-            unset($itemRef);
-        }
-
-        if (!$items) {
-            pz_addendum_redirect_with_error('Adaugă cel puțin un serviciu in actul adițional.', $documentId, $parentDocumentId);
-        }
-
-        foreach ($items as $item) {
-            if (empty($item['client_location_id'])) {
-                pz_addendum_redirect_with_error('Selectează locația pentru fiecare serviciu.', $documentId, $parentDocumentId);
-            }
-            if (trim((string)($item['frequency_text'] ?? '')) === '') {
-                pz_addendum_redirect_with_error('Selectează frecventa pentru fiecare serviciu.', $documentId, $parentDocumentId);
-            }
-        }
-
-        $startDate = pz_addendum_str($_POST['addendum_start_date'] ?? '', 40);
-        $endDate = pz_addendum_str($_POST['addendum_end_date'] ?? '', 40);
-        if ($startDate === '') {
-            pz_addendum_redirect_with_error('Completează data de inceput a prelungirii.', $documentId, $parentDocumentId);
-        }
-        if ($endDate === '') {
-            pz_addendum_redirect_with_error('Completează data de sfarsit a prelungirii.', $documentId, $parentDocumentId);
-        }
-        if (strtotime($endDate) && strtotime($startDate) && strtotime($endDate) < strtotime($startDate)) {
-            pz_addendum_redirect_with_error('Data de sfarsit nu poate fi inainte de data de inceput.', $documentId, $parentDocumentId);
+        // Act adițional = doar document descriptiv. Conținutul liber este în câmpul
+        // `notes` (Obiectul actului adițional). NU se folosesc items, dates, sau
+        // alte side-effects pe contract / contract_services / tasks.
+        $scopeText = trim((string)($_POST['notes'] ?? ''));
+        if ($scopeText === '') {
+            pz_addendum_redirect_with_error('Completează obiectul actului adițional.', $documentId, $parentDocumentId);
         }
 
         $parentPayload = pzdoc_json_decode($parentDocument['payload_json'] ?? null);
@@ -353,13 +319,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'parent_contract_date' => pz_addendum_str($parentDocument['document_date'] ?? '', 40),
             'parent_contract_start_date' => pz_addendum_str($parentPayload['contract_start_date'] ?? '', 40),
             'parent_contract_end_date' => pz_addendum_str($parentPayload['contract_end_date'] ?? '', 40),
-            'addendum_start_date' => $startDate,
-            'addendum_end_date' => $endDate,
-            'price_mode' => $priceMode,
             'notes_internal' => pz_addendum_str($_POST['internal_notes'] ?? ''),
         ];
 
-        $defaultObject = 'Prelungire si actualizare contract DDD conform locațiilor, serviciilor si frecventelor agreate.';
         $data = [
             'template_id' => !empty($_POST['template_id']) ? (int)$_POST['template_id'] : null,
             'document_date' => $_POST['document_date'] ?? date('Y-m-d'),
@@ -371,10 +333,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'contract_id' => !empty($parentDocument['contract_id']) ? (int)$parentDocument['contract_id'] : null,
             'vat_percent' => $vatPercent,
             'currency' => $currency,
-            'notes' => pz_addendum_str($_POST['notes'] ?? $defaultObject),
+            'notes' => $scopeText,
             'internal_notes' => pz_addendum_str($_POST['internal_notes'] ?? ''),
             'payload_json' => $payload,
-            'items' => $items,
+            'items' => [],  // Niciodată items pentru act adițional — fără atingerea contract_services / tasks
         ];
 
         try {
@@ -390,11 +352,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($action === 'issue') {
                 pzdoc_issue_document($pdo, $documentId);
-                // Extinde end_date pe contract si bumpeaza recurenta sarcinilor pentru
-                // perioada prelungita (vezi contract_flow_lib.php).
-                if (function_exists('pz_flow_sync_issued_addendum')) {
-                    pz_flow_sync_issued_addendum($pdo, $documentId);
-                }
+                // IMPORTANT: NU se apelează pz_flow_sync_issued_addendum.
+                // Actul adițional rămâne strict descriptiv; nu modifică
+                // contract_services, nu extinde end_date pe contract, nu creează task-uri.
                 header('Location: document_view.php?id=' . (int)$documentId . '&issued=1');
                 exit;
             }
@@ -563,11 +523,8 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
 .doc-actions { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
 .empty-state { padding:22px; text-align:center; color:var(--pz-mu); font-weight:600; border:1px dashed var(--pz-line); border-radius:var(--pz-r); background:var(--pz-soft); }
 .pagination { display:flex; gap:6px; justify-content:flex-end; align-items:center; flex-wrap:wrap; margin-top:12px; }
-.price-mode-row { display:flex; gap:14px; flex-wrap:wrap; align-items:center; padding:9px 11px; border:1px solid var(--border); border-radius:12px; background:var(--surface-soft); }
-.price-mode-row label { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--text); cursor:pointer; margin:0; }
-.price-mode-hint { font-size:11.5px; color:var(--muted); font-weight:500; margin-left:auto; }
-.addendum-price-input.is-locked { background:var(--surface-soft); color:var(--muted); cursor:not-allowed; border-style:dashed; }
-.price-original-note { margin-top:4px; font-size:10.5px; color:var(--muted); font-style:italic; }
+.addendum-scope-textarea { width:100%; min-height:200px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:#fff; font-family:inherit; font-size:13px; color:var(--text); resize:vertical; line-height:1.55; }
+.addendum-scope-textarea:focus { outline:none; border-color:var(--pz-bl); box-shadow:0 0 0 3px rgba(37,99,235,.10); }
 @media (max-width: 980px) {
     .filter-form, .addendum-form-grid { grid-template-columns:1fr; }
     .field.span2 { grid-column:1; }
@@ -657,7 +614,6 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                             <input type="hidden" name="document_id" value="<?= (int)($formDocument['id'] ?? 0) ?>">
                             <input type="hidden" name="parent_document_id" value="<?= (int)$parentDocument['id'] ?>">
                             <input type="hidden" name="title" value="<?= pz_addendum_h($formDocument['title'] ?? ('Act adițional contract ' . ($parentDocument['document_number'] ?? $parentDocument['id']))) ?>">
-                            <input type="hidden" name="notes" value="<?= pz_addendum_h($formDocument['notes'] ?? '') ?>">
 
                             <div class="addendum-form-grid">
                                 <div class="field">
@@ -678,101 +634,17 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                                         <?php endif; ?>
                                     </select>
                                 </div>
-
-                                <div class="field">
-                                    <label>Data inceput prelungire *</label>
-                                    <input type="date" name="addendum_start_date" value="<?= pz_addendum_h($formPayload['addendum_start_date']) ?>" required>
-                                </div>
-
-                                <div class="field">
-                                    <label>Data sfarsit prelungire *</label>
-                                    <input type="date" name="addendum_end_date" value="<?= pz_addendum_h($formPayload['addendum_end_date']) ?>" required>
-                                </div>
-
-                                <div class="field full">
-                                    <label>Preț pe perioada prelungita</label>
-                                    <div class="price-mode-row">
-                                        <label>
-                                            <input type="radio" class="price-mode-radio" name="price_mode" value="same" <?= ($formPayload['price_mode'] ?? 'same') === 'same' ? 'checked' : '' ?>>
-                                            Pretul rămâne acelasi ca in contract
-                                        </label>
-                                        <label>
-                                            <input type="radio" class="price-mode-radio" name="price_mode" value="updated" <?= ($formPayload['price_mode'] ?? 'same') === 'updated' ? 'checked' : '' ?>>
-                                            Preț actualizat (modifică in tabel)
-                                        </label>
-                                        <span class="price-mode-hint" id="priceModeHint"></span>
-                                    </div>
-                                </div>
                             </div>
 
-                            <div class="panel" style="margin-top:14px;">
+                            <div class="panel" style="margin-top:14px; box-shadow:none;">
                                 <div class="panel-head">
                                     <div>
-                                        <div class="panel-title">Servicii pentru perioada prelungita</div>
-                                        <div class="panel-subtitle">Datele sunt preluate din contract. Modifică doar dacă serviciile sau preturile se schimba pentru perioada prelungita.</div>
+                                        <div class="panel-title">Obiectul actului adițional</div>
+                                        <div class="panel-subtitle">Descrie liber ce se modifică: prelungirea perioadei de valabilitate, modificarea prețului, schimbarea termenelor, completarea lucrărilor sau orice altă modificare. Textul intră în PDF prin <code>{{notes}}</code>.</div>
                                     </div>
                                 </div>
                                 <div class="panel-body">
-                                    <div class="items-wrap">
-                                        <table class="items-table">
-                                            <thead>
-                                            <tr>
-                                                <th style="width:46px;">Nr.</th>
-                                                <th style="width:230px;">Locație</th>
-                                                <th style="width:260px;">Serviciu</th>
-                                                <th style="width:100px;">m.p.</th>
-                                                <th style="width:160px;">Frecvență</th>
-                                                <th style="width:150px;">Preț / intervenție</th>
-                                            </tr>
-                                            </thead>
-                                            <tbody id="itemsBody">
-                                            <?php
-                                                $parentItemsForUi = ($parentDocument && is_array($parentDocument['items'] ?? null)) ? $parentDocument['items'] : [];
-                                            ?>
-                                            <?php foreach ($editingItems as $idx => $item): ?>
-                                                <?php
-                                                    $originalPrice = isset($parentItemsForUi[$idx]['unit_price']) ? (float)$parentItemsForUi[$idx]['unit_price'] : (float)($item['unit_price'] ?? 0);
-                                                ?>
-                                                <tr class="item-row">
-                                                    <td class="row-index"><?= (int)$idx + 1 ?></td>
-                                                    <td>
-                                                        <input type="text" name="items[<?= (int)$idx ?>][location_name]" value="<?= pz_addendum_h($item['location_name'] ?? '') ?>" placeholder="Locație" readonly>
-                                                        <input type="hidden" name="items[<?= (int)$idx ?>][client_location_id]" value="<?= (int)($item['client_location_id'] ?? 0) ?>">
-                                                        <input type="hidden" name="items[<?= (int)$idx ?>][location_address]" value="<?= pz_addendum_h($item['location_address'] ?? '') ?>">
-                                                    </td>
-                                                    <td>
-                                                        <input type="text" name="items[<?= (int)$idx ?>][service_name]" value="<?= pz_addendum_h($item['service_name'] ?? '') ?>" placeholder="Denumire serviciu">
-                                                        <input type="hidden" name="items[<?= (int)$idx ?>][service_id]" value="<?= (int)($item['service_id'] ?? 0) ?>">
-                                                        <input type="hidden" name="items[<?= (int)$idx ?>][description]" value="<?= pz_addendum_h($item['description'] ?? '') ?>">
-                                                    </td>
-                                                    <td>
-                                                        <input type="number" step="0.01" min="0" name="items[<?= (int)$idx ?>][quantity]" value="<?= pz_addendum_h((string)($item['quantity'] ?? 0)) ?>" placeholder="mp">
-                                                        <input type="hidden" name="items[<?= (int)$idx ?>][unit]" value="mp">
-                                                    </td>
-                                                    <td>
-                                                        <select name="items[<?= (int)$idx ?>][frequency_text]" required>
-                                                            <?php $rawFrequency = trim((string)($item['frequency_text'] ?? '')); ?>
-                                                            <?php $selectedFrequency = $rawFrequency === '' ? '' : pz_addendum_normalize_frequency($rawFrequency); ?>
-                                                            <option value="" disabled <?= $selectedFrequency === '' ? 'selected' : '' ?>>Alege frecventa</option>
-                                                            <?php foreach (pz_addendum_frequency_options() as $frequencyKey => $frequencyLabel): ?>
-                                                                <option value="<?= pz_addendum_h($frequencyKey) ?>" <?= $selectedFrequency === $frequencyKey ? 'selected' : '' ?>><?= pz_addendum_h($frequencyLabel) ?></option>
-                                                            <?php endforeach; ?>
-                                                        </select>
-                                                    </td>
-                                                    <td>
-                                                        <input type="number" step="0.01" min="0" name="items[<?= (int)$idx ?>][unit_price]" class="addendum-price-input" data-original-price="<?= pz_addendum_h((string)$originalPrice) ?>" value="<?= pz_addendum_h((string)($item['unit_price'] ?? 0)) ?>" placeholder="lei fără TVA">
-                                                        <input type="hidden" name="items[<?= (int)$idx ?>][total_price]" value="<?= pz_addendum_h((string)($item['total_price'] ?? ($item['unit_price'] ?? 0))) ?>">
-                                                        <input type="hidden" name="items[<?= (int)$idx ?>][planned_date]" value="<?= pz_addendum_h($item['planned_date'] ?? '') ?>">
-                                                        <div class="price-original-note" style="display:none;">Preluat din contract</div>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                            <?php if (!$editingItems): ?>
-                                                <tr><td colspan="6" class="empty-state">Contractul sursa nu are servicii. Adaugă servicii in contract inainte de a emite un act adițional.</td></tr>
-                                            <?php endif; ?>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                    <textarea name="notes" id="addendumScopeTextarea" class="addendum-scope-textarea" rows="10" required placeholder="Ex: Părțile convin prelungirea perioadei de valabilitate a contractului până la data de 31.12.2027, restul clauzelor rămânând neschimbate."><?= pz_addendum_h($formDocument['notes'] ?? '') ?></textarea>
                                 </div>
                             </div>
 
@@ -888,68 +760,13 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
     </main>
 </div>
 <script>
-(function () {
-    function formatPrice(value) {
-        var num = parseFloat(value);
-        if (!isFinite(num)) num = 0;
-        return num.toFixed(2);
+// Auto-focus pe textarea când form-ul se deschide gol.
+document.addEventListener('DOMContentLoaded', function () {
+    var ta = document.getElementById('addendumScopeTextarea');
+    if (ta && !ta.value.trim()) {
+        setTimeout(function () { ta.focus(); }, 120);
     }
-
-    function applyPriceMode(mode) {
-        var inputs = document.querySelectorAll('.addendum-price-input');
-        var hint = document.getElementById('priceModeHint');
-        var locked = mode === 'same';
-        inputs.forEach(function (input) {
-            var row = input.closest('tr');
-            var note = row ? row.querySelector('.price-original-note') : null;
-            var totalHidden = row ? row.querySelector('input[name$="[total_price]"]') : null;
-            if (locked) {
-                var original = input.getAttribute('data-original-price') || '0';
-                input.value = formatPrice(original);
-                if (totalHidden) totalHidden.value = formatPrice(original);
-                input.readOnly = true;
-                input.classList.add('is-locked');
-                input.title = 'Preț preluat din contract. Pentru modificare, alege „Preț actualizat".';
-                if (note) note.style.display = 'block';
-            } else {
-                input.readOnly = false;
-                input.classList.remove('is-locked');
-                input.removeAttribute('title');
-                if (note) note.style.display = 'none';
-            }
-        });
-        if (hint) {
-            hint.textContent = locked
-                ? 'Preturile sunt blocate la valorile din contract.'
-                : 'Poti modifica preturile in tabel.';
-        }
-    }
-
-    function syncTotalOnInput(e) {
-        var input = e.target;
-        if (!input.classList || !input.classList.contains('addendum-price-input')) return;
-        var row = input.closest('tr');
-        if (!row) return;
-        var totalHidden = row.querySelector('input[name$="[total_price]"]');
-        if (totalHidden) totalHidden.value = formatPrice(input.value);
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        var radios = document.querySelectorAll('.price-mode-radio');
-        if (!radios.length) return;
-
-        var current = 'same';
-        radios.forEach(function (r) {
-            if (r.checked) current = r.value;
-            r.addEventListener('change', function () {
-                if (r.checked) applyPriceMode(r.value);
-            });
-        });
-
-        document.addEventListener('input', syncTotalOnInput);
-        applyPriceMode(current);
-    });
-})();
+});
 </script>
 
 <?php
