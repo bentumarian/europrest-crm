@@ -1454,8 +1454,10 @@ if (!$invoiceItems) {
                         <div><label>IBAN</label><input name="client_iban" id="client_iban" value="<?= inv_h($prefill['client_iban']) ?>"></div>
                         <div><label>Țară *</label><input name="client_country" id="client_country" value="<?= inv_h($prefill['client_country']) ?>" required></div>
                         <div><label>Județ *</label><input name="client_county" id="client_county" value="<?= inv_h($prefill['client_county']) ?>" required></div>
-                        <div><label>Oraș / localitate *</label><input name="client_city" id="client_city" value="<?= inv_h($prefill['client_city']) ?>" required></div>
-                        <div class="full"><label>Adresa *</label><input name="client_address" id="client_address" value="<?= inv_h($prefill['client_address']) ?>" required></div>
+                        <div class="full" style="display:grid;grid-template-columns:minmax(140px,1fr) minmax(240px,3fr);gap:8px 12px;">
+                            <div><label>Oraș / localitate *</label><input name="client_city" id="client_city" value="<?= inv_h($prefill['client_city']) ?>" required></div>
+                            <div><label>Adresa *</label><input name="client_address" id="client_address" value="<?= inv_h($prefill['client_address']) ?>" required></div>
+                        </div>
                         <div><label>Termen plată / scadență</label><input type="date" name="due_date" value="<?= inv_h($prefill['due_date']) ?>"></div>
                         <div><label>Limba</label><select name="invoice_language"><option value="RO" <?= $prefill['invoice_language'] === 'RO' ? 'selected' : '' ?>>RO</option><option value="EN" <?= $prefill['invoice_language'] === 'EN' ? 'selected' : '' ?>>EN</option></select></div>
                         <div class="full compact-product">
