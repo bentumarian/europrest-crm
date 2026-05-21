@@ -58,7 +58,7 @@ if (!function_exists('pz_billing_status_class')) {
             'to_review'    => 'tone-warning',
             'to_invoice'   => 'tone-info',
             'invoiced'     => 'tone-success',
-            'not_billable' => 'tone-neutral',
+            'not_billable' => 'tone-danger',
             'cancelled'    => 'tone-danger',
         ];
         return $map[$status] ?? 'tone-neutral';

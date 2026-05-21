@@ -41,18 +41,19 @@ if (!pz_table_exists('reminders')) {
     exit;
 }
 
-// Selectam remindere scadente maine, neasignate inca pentru email
+// Selectăm doar reminderele unde utilizatorul a bifat explicit notificarea email
+// (email_to e completat). Restul sunt ignorate la trimitere.
 $stmt = $pdo->prepare("
     SELECT r.*,
-           u.email AS responsible_email,
-           u.name AS responsible_name
+           r.email_to AS responsible_email,
+           COALESCE(uc.name, 'Office') AS responsible_name
     FROM reminders r
-    LEFT JOIN users u ON u.id = r.responsible_user_id
+    LEFT JOIN users uc ON uc.id = r.created_by
     WHERE r.status = 'pending'
       AND r.remind_date = ?
       AND r.email_notified_at IS NULL
-      AND u.email IS NOT NULL
-      AND u.email <> ''
+      AND r.email_to IS NOT NULL
+      AND r.email_to <> ''
     ORDER BY r.id ASC
     LIMIT 200
 ");
@@ -60,13 +61,19 @@ $stmt->execute([$tomorrow]);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $categories = [
-    'general'          => 'General',
-    'vehicle'          => 'Revizie mașină',
-    'meeting'          => 'Întâlnire',
-    'internal_meeting' => 'Ședință internă',
-    'accounting'       => 'Contabilitate',
-    'supply'           => 'Aprovizionare',
+    // categorii noi
+    'vehicle_review'   => 'Revizie Auto',
+    'itp'              => 'ITP',
+    'insurance'        => 'Asigurare',
+    'index_meter'      => 'Transmitere index',
     'other'            => 'Altul',
+    // legacy (compatibilitate retro pentru remindere vechi)
+    'general'          => 'Altul',
+    'vehicle'          => 'Revizie Auto',
+    'meeting'          => 'Altul',
+    'internal_meeting' => 'Altul',
+    'accounting'       => 'Altul',
+    'supply'           => 'Altul',
 ];
 
 $baseUrl = rtrim((string)pz_setting_get('app_base_url', ''), '/');

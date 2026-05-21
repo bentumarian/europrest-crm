@@ -410,6 +410,13 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 @media(max-width:1280px){ .ib-filters { grid-template-columns:repeat(4,minmax(0,1fr)); } .kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:980px){ .work-main,.work-grid { grid-template-columns:1fr; } }
 @media(max-width:860px){ .ib-topbar { width:100%; max-width:100vw; padding:8px 10px 14px; display:block; position:relative; top:auto; } .ib-toolbar { display:block; } .ib-filters { grid-template-columns:1fr; } .ib-filters input,.ib-filters select,.ib-filters .btn,.ib-filters button { width:100%; max-width:100%; } .content { width:100%; max-width:100vw; overflow-x:hidden; } .quick-range { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } .quick-range .btn { width:100%; } .ib-hero { padding:4px 0; } .kpi-grid { grid-template-columns:1fr; } .table-scroll { display:none; } .work-list { display:grid; padding:10px; } }
+/* Resizable columns */
+.ib-table.js-resizable { table-layout:fixed; }
+.ib-table.js-resizable th { position:relative; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ib-table.js-resizable td { overflow:hidden; word-wrap:break-word; overflow-wrap:break-word; }
+.col-resize-handle { position:absolute; top:0; right:0; width:8px; height:100%; cursor:col-resize; user-select:none; z-index:2; background:linear-gradient(to right, transparent 0%, transparent 40%, rgba(99,102,241,.35) 50%, transparent 60%, transparent 100%); }
+.col-resize-handle:hover { background:rgba(37,99,235,.45); }
+.col-resize-handle.is-active { background:rgba(37,99,235,.7); }
 </style>
 <?php render_search_preview_assets(); ?>
 </head>
@@ -615,21 +622,6 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                         <span class="ib-small-btn primary is-disabled" aria-disabled="true">Facturează</span>
                                     <?php else: ?>
                                         <a class="ib-small-btn primary" href="invoice.php?<?= http_build_query(['billing_item_ids' => [(int)$row['id']]]) ?>">Facturează</a>
-                                        <?php if ($status === 'to_review'): ?>
-                                            <form method="post" class="inline-form" action="<?= ib_h(ib_current_url()) ?>">
-                                                <?= csrf_field() ?>
-                                                <input type="hidden" name="action" value="mark_to_invoice">
-                                                <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
-                                                <button class="ib-small-btn warning" type="submit">Marchează „De facturat"</button>
-                                            </form>
-                                        <?php else: ?>
-                                            <form method="post" class="inline-form" action="<?= ib_h(ib_current_url()) ?>">
-                                                <?= csrf_field() ?>
-                                                <input type="hidden" name="action" value="mark_to_review">
-                                                <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
-                                                <button class="ib-small-btn muted" type="submit">Înapoi la verificare</button>
-                                            </form>
-                                        <?php endif; ?>
                                         <button type="button" class="ib-small-btn danger js-skip-toggle" data-target="skip-card-<?= (int)$row['id'] ?>">Nu se facturează</button>
                                         <form method="post" class="skip-inline" id="skip-card-<?= (int)$row['id'] ?>" action="<?= ib_h(ib_current_url()) ?>">
                                             <?= csrf_field() ?>
@@ -647,19 +639,19 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                         <?php endforeach; ?>
                         </div>
                         <div class="table-scroll">
-                            <table class="ib-table">
+                            <table class="ib-table js-resizable">
                                 <thead>
                                     <tr>
                                         <th style="width:34px;"></th>
-                                        <th>Data</th>
-                                        <th>Client</th>
-                                        <th>Locație</th>
-                                        <th>Servicii</th>
-                                        <th>PV</th>
-                                        <th>Valoare</th>
-                                        <th>Status</th>
-                                        <th>Motiv / Observații</th>
-                                        <th>Acțiuni</th>
+                                        <th data-col="data">Data</th>
+                                        <th data-col="client">Client</th>
+                                        <th data-col="locatie">Locație</th>
+                                        <th data-col="servicii">Servicii</th>
+                                        <th data-col="pv">PV</th>
+                                        <th data-col="valoare">Valoare</th>
+                                        <th data-col="status">Status</th>
+                                        <th data-col="observatii">Motiv / Observații</th>
+                                        <th data-col="actiuni">Acțiuni</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -728,21 +720,6 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                                     <span class="ib-small-btn primary is-disabled" aria-disabled="true">Facturează</span>
                                                 <?php else: ?>
                                                     <a class="ib-small-btn primary" href="invoice.php?<?= http_build_query(['billing_item_ids' => [(int)$row['id']]]) ?>">Facturează</a>
-                                                    <?php if ($status === 'to_review'): ?>
-                                                        <form method="post" class="inline-form" action="<?= ib_h(ib_current_url()) ?>">
-                                                            <?= csrf_field() ?>
-                                                            <input type="hidden" name="action" value="mark_to_invoice">
-                                                            <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
-                                                            <button class="ib-small-btn warning" type="submit">Marchează „De facturat"</button>
-                                                        </form>
-                                                    <?php else: ?>
-                                                        <form method="post" class="inline-form" action="<?= ib_h(ib_current_url()) ?>">
-                                                            <?= csrf_field() ?>
-                                                            <input type="hidden" name="action" value="mark_to_review">
-                                                            <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
-                                                            <button class="ib-small-btn muted" type="submit">Înapoi la verificare</button>
-                                                        </form>
-                                                    <?php endif; ?>
                                                     <button type="button" class="ib-small-btn danger js-skip-toggle" data-target="skip-row-<?= (int)$row['id'] ?>">Nu se facturează</button>
                                                     <form method="post" class="skip-inline" id="skip-row-<?= (int)$row['id'] ?>" action="<?= ib_h(ib_current_url()) ?>">
                                                         <?= csrf_field() ?>
@@ -867,5 +844,88 @@ try {
         );
     };
     go();
+})();
+</script>
+<script>
+// Coloane redimensionabile pentru tabelul Lista lucrări
+// - drag pe marginea dreaptă a fiecărui <th> pentru redimensionare
+// - dublu-click pe handle: reset la auto pentru acea coloană
+// - lățimile preferate salvate în localStorage pe utilizator
+(function () {
+    function initResizable() {
+        var table = document.querySelector('.ib-table.js-resizable');
+        if (!table) return;
+        var STORAGE_KEY = 'workBillingColWidths_v1';
+        var saved = {};
+        try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch (e) { saved = {}; }
+
+        var ths = Array.prototype.slice.call(table.querySelectorAll('thead th'));
+
+        // 1) Îngheață lățimile actuale (auto -> px) pentru toate coloanele,
+        //    ca să avem o referință stabilă când trecem la table-layout:fixed.
+        ths.forEach(function (th) {
+            var key = th.getAttribute('data-col');
+            if (key && saved[key] && saved[key] > 40) {
+                th.style.width = saved[key] + 'px';
+            } else if (!th.style.width) {
+                th.style.width = th.offsetWidth + 'px';
+            }
+        });
+
+        // 2) Adaugă handle de redimensionare pentru fiecare th cu data-col
+        ths.forEach(function (th) {
+            var key = th.getAttribute('data-col');
+            if (!key) return;
+
+            var handle = document.createElement('div');
+            handle.className = 'col-resize-handle';
+            handle.title = 'Trage pentru a redimensiona. Dublu-click pentru reset.';
+            th.appendChild(handle);
+
+            var startX = 0;
+            var startWidth = 0;
+
+            handle.addEventListener('mousedown', function (e) {
+                startX = e.clientX;
+                startWidth = th.offsetWidth;
+                handle.classList.add('is-active');
+                document.body.style.userSelect = 'none';
+                document.body.style.cursor = 'col-resize';
+
+                function onMove(ev) {
+                    var delta = ev.clientX - startX;
+                    var newWidth = Math.max(60, startWidth + delta);
+                    th.style.width = newWidth + 'px';
+                }
+                function onUp() {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                    handle.classList.remove('is-active');
+                    document.body.style.userSelect = '';
+                    document.body.style.cursor = '';
+                    saved[key] = th.offsetWidth;
+                    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)); } catch (e) {}
+                }
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            handle.addEventListener('dblclick', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                delete saved[key];
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)); } catch (err) {}
+                // reload pentru a recalcula lățimea naturală
+                window.location.reload();
+            });
+        });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initResizable);
+    } else {
+        initResizable();
+    }
 })();
 </script>

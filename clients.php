@@ -1458,6 +1458,7 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
                     <div class="pz-search-preview"></div>
                 </div>
                 <a class="btn" href="clients.php" title="Resetare filtre" aria-label="Resetare filtre">↻</a>
+                <a class="btn" href="clients_dedupe.php" title="Corelează telefonul și emailul între firme cu același reprezentant legal">🔗 Corelare reprezentanți</a>
                 <button class="btn accent add-client-btn" type="button" onclick="openClientModal()">+ Client nou</button>
             </form>
         </div>

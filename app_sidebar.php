@@ -101,6 +101,7 @@ if (!function_exists('render_sidebar')) {
         $mainAfterDocuments = [
             'stock'     => ['label' => 'Gestiune', 'href' => 'stock.php', 'icon' => 'stock'],
             'reports'   => ['label' => 'Rapoarte', 'href' => 'reports.php', 'icon' => 'reports'],
+            'reminders' => ['label' => 'Reminders', 'href' => 'reminders.php', 'icon' => 'alert'],
             'review_feedback' => ['label' => 'Feedback', 'href' => 'review_feedback.php', 'icon' => 'star'],
             'settings'  => ['label' => 'Setări', 'href' => 'settings.php', 'icon' => 'settings'],
         ];

@@ -1029,22 +1029,22 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 .schedule-scroll { width: 100%; max-width: 100%; overflow: auto; -webkit-overflow-scrolling: touch; max-height: calc(100vh - 155px); border: 1px solid rgba(0,32,80,.28); border-radius: var(--radius-lg); background: var(--surface); box-shadow: 0 16px 34px rgba(0,32,80,.06); }
 .schedule-grid { width: max(100%, <?= (int)$desktopGridWidth ?>px); min-width: max(100%, <?= (int)$desktopGridWidth ?>px); display: grid; grid-template-columns: 76px repeat(<?= (int)$teamCount ?>, minmax(<?= (int)$desktopMinTeamWidth ?>px, 1fr)); grid-template-rows: 68px repeat(<?= count($slots) ?>, 34px); position: relative; }
 .time-head { position: sticky; top: 0; left: 0; z-index: 25; background: rgba(255,255,255,.92); border-bottom: 1px solid rgba(0,32,80,.34); border-top-left-radius: var(--radius-lg); backdrop-filter: blur(14px); }
-.team-head { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb,var(--team-color) 18%,#fff); border-bottom: 1px solid rgba(0,32,80,.22); border-left: 1px solid rgba(0,32,80,.18); padding: 0; min-width: 0; box-shadow: inset 0 3px 0 var(--team-color); backdrop-filter: blur(14px); }
+.team-head { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb,var(--team-color) 18%,#fff); border-bottom: 1px solid rgba(0,32,80,.22); border-left: 1px solid rgba(0,32,80,.34); padding: 0; min-width: 0; box-shadow: inset 0 3px 0 var(--team-color); backdrop-filter: blur(14px); }
 .team-head-card { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; gap: 0; padding: 0; overflow: hidden; border-radius: 0; border: 0; background: transparent; box-shadow: none; }
 .team-head-card::after { content: none; }
 .team-dot { width: 24px; height: 24px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 900; letter-spacing: .02em; flex-shrink: 0; background: var(--team-color); box-shadow: 0 8px 18px color-mix(in srgb,var(--team-color) 30%,transparent), inset 0 1px 0 rgba(255,255,255,.32); position: relative; z-index: 1; }
 .team-name { display: none; }
 .time-cell { position: sticky; left: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid rgba(0,32,80,.24); border-right: 1px solid rgba(0,32,80,.30); padding: 0 10px; color: var(--muted); font-weight: 500; font-size: 11px; font-family: var(--mono); display: flex; align-items: center; justify-content: flex-end; }
 .time-cell.hour { color: var(--text); font-size: 12px; font-weight: 650; }
-.slot-cell { border-bottom: 1px solid rgba(0,32,80,.13); border-left: 1px solid rgba(0,32,80,.11); background: color-mix(in srgb,var(--team-color) 5%,#fff); transition: background .1s; min-width: 0; }
-.slot-cell.work-hours { background: color-mix(in srgb,var(--team-color) 5%,#fff); border-bottom-color: rgba(0,32,80,.13); border-left-color: rgba(0,32,80,.11); }
-.slot-cell.off-hours { background: color-mix(in srgb,var(--team-color) 8%,#DFE2E8); border-bottom-color: rgba(0,32,80,.18); border-left-color: rgba(0,32,80,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.38); }
+.slot-cell { border-bottom: 1px solid rgba(0,32,80,.13); border-left: 1px solid rgba(0,32,80,.32); background: color-mix(in srgb,var(--team-color) 5%,#fff); transition: background .1s; min-width: 0; }
+.slot-cell.work-hours { background: color-mix(in srgb,var(--team-color) 5%,#fff); border-bottom-color: rgba(0,32,80,.13); border-left-color: rgba(0,32,80,.32); }
+.slot-cell.off-hours { background: color-mix(in srgb,var(--team-color) 8%,#DFE2E8); border-bottom-color: rgba(0,32,80,.18); border-left-color: rgba(0,32,80,.36); box-shadow: inset 0 1px 0 rgba(255,255,255,.38); }
 .time-cell.work-hours { background: #fff; border-bottom-color: rgba(0,32,80,.20); border-right-color: rgba(0,32,80,.30); }
 .time-cell.off-hours { background: #DFE2E8; color: #002050; border-bottom-color: rgba(0,32,80,.28); border-right-color: rgba(0,32,80,.34); }
 .slot-cell:hover { background: color-mix(in srgb,var(--team-color) 15%,#fff); }
 .slot-cell.off-hours:hover { background: color-mix(in srgb,var(--team-color) 14%,#D4D9E2); }
-.slot-cell.hour-line, .time-cell.hour-line { border-top: 1px solid rgba(0,32,80,.34) !important; }
-.slot-cell.hour-line { box-shadow: inset 0 1px 0 rgba(0,32,80,.06); }
+.slot-cell.hour-line, .time-cell.hour-line { border-top: 2px solid rgba(0,32,80,.55) !important; }
+.slot-cell.hour-line { box-shadow: inset 0 1px 0 rgba(0,32,80,.12); }
 .slot-cell.drag-over { background: rgba(14, 116, 144, .16); outline: 2px dashed var(--accent); outline-offset: -3px; }
 .event { position: relative; z-index: 15; margin: 3px 5px; border-radius: 10px; padding: 6px 8px; color: #fff; overflow: hidden; cursor: pointer; font-size: 12px; line-height: 1.3; border: none; box-shadow: 0 8px 20px rgba(16, 32, 21, .18); transition: transform .1s, box-shadow .1s, opacity .1s; min-width: 0; }
 .event[draggable="true"] { cursor: grab; }
