@@ -98,7 +98,13 @@ if (!function_exists('render_search_preview_assets')) {
                 if (!preview) {
                     preview = document.createElement('div');
                     preview.className = 'pz-search-preview';
-                    wrap.appendChild(preview);
+                }
+                // Atasam preview-ul direct in <body> ca sa scapam de orice containing
+                // block creat de parinti (ex: backdrop-filter, transform, contain) care
+                // sparge `position: fixed`. Asa dropdown-ul e mereu vizibil indiferent
+                // de unde e apelat attach().
+                if (preview.parentElement !== document.body) {
+                    document.body.appendChild(preview);
                 }
                 items.forEach(function (it) {
                     if (!it._idx) {
