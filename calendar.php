@@ -1043,8 +1043,8 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 .time-cell.off-hours { background: #DFE2E8; color: #002050; border-bottom-color: rgba(0,32,80,.28); border-right-color: rgba(0,32,80,.34); }
 .slot-cell:hover { background: color-mix(in srgb,var(--team-color) 15%,#fff); }
 .slot-cell.off-hours:hover { background: color-mix(in srgb,var(--team-color) 14%,#D4D9E2); }
-.slot-cell.hour-line, .time-cell.hour-line { border-top: 1px solid rgba(0,32,80,.34) !important; }
-.slot-cell.hour-line { box-shadow: inset 0 1px 0 rgba(0,32,80,.06); }
+.slot-cell.hour-line, .time-cell.hour-line { border-top: 2px solid rgba(0,32,80,.55) !important; }
+.slot-cell.hour-line { box-shadow: inset 0 1px 0 rgba(0,32,80,.12); }
 .slot-cell.drag-over { background: rgba(14, 116, 144, .16); outline: 2px dashed var(--accent); outline-offset: -3px; }
 .event { position: relative; z-index: 15; margin: 3px 5px; border-radius: 10px; padding: 6px 8px; color: #fff; overflow: hidden; cursor: pointer; font-size: 12px; line-height: 1.3; border: none; box-shadow: 0 8px 20px rgba(16, 32, 21, .18); transition: transform .1s, box-shadow .1s, opacity .1s; min-width: 0; }
 .event[draggable="true"] { cursor: grab; }
