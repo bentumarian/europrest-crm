@@ -162,17 +162,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $category = (string)($_POST['category'] ?? 'other');
             if (!isset($categories[$category])) $category = 'other';
             $remindDate = trim((string)($_POST['remind_date'] ?? ''));
-            $recurrenceType = (string)($_POST['recurrence_type'] ?? '');
-            if (!isset($recurrenceTypes[$recurrenceType])) $recurrenceType = '';
-            $recurrenceInterval = max(1, (int)($_POST['recurrence_interval'] ?? 1));
-            $recurrenceEndDate = trim((string)($_POST['recurrence_end_date'] ?? '')) ?: null;
 
-            // Preaviz: doar dacă unitatea e setată (selector activ)
-            $noticeUnitRaw = (string)($_POST['notice_period_unit'] ?? '');
-            $noticeUnit = isset($noticeUnits[$noticeUnitRaw]) ? $noticeUnitRaw : null;
-            $noticeValueRaw = (int)($_POST['notice_period_value'] ?? 0);
-            $noticeValue = ($noticeUnit && $noticeValueRaw > 0) ? $noticeValueRaw : null;
-            if (!$noticeValue) $noticeUnit = null; // consistent
+            // Recurența: [interval][unit] - dacă intervalul = 0 sau lipsă, fără recurență
+            $recurrenceInterval = max(0, (int)($_POST['recurrence_interval'] ?? 0));
+            $recurrenceUnitMap = ['day' => 'daily', 'week' => 'weekly', 'month' => 'monthly', 'year' => 'yearly'];
+            $recurrenceUnitRaw = (string)($_POST['recurrence_unit'] ?? 'year');
+            if ($recurrenceInterval > 0 && isset($recurrenceUnitMap[$recurrenceUnitRaw])) {
+                $recurrenceType = $recurrenceUnitMap[$recurrenceUnitRaw];
+            } else {
+                $recurrenceType = '';
+                $recurrenceInterval = 1; // valoare neutră în DB când nu există recurență
+            }
+            $recurrenceEndDate = null; // câmp eliminat din UI
+
+            // Preaviz: [value][unit] - dacă value = 0 sau lipsă, fără preaviz
+            $noticeUnitRaw = (string)($_POST['notice_period_unit'] ?? 'day');
+            $noticeValueRaw = max(0, (int)($_POST['notice_period_value'] ?? 0));
+            if ($noticeValueRaw > 0 && isset($noticeUnits[$noticeUnitRaw])) {
+                $noticeValue = $noticeValueRaw;
+                $noticeUnit = $noticeUnitRaw;
+            } else {
+                $noticeValue = null;
+                $noticeUnit = null;
+            }
 
             // Email opțional: dacă bifa „Trimite email" e activă, email_to e obligatoriu și valid
             $emailEnabled = !empty($_POST['email_enabled']);
@@ -411,21 +423,15 @@ if ($editId > 0) {
 .rem-modal-form label { display: block; font-size: 10.5px; font-weight: 800; color: var(--pz-mu); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
 .rem-modal-form input, .rem-modal-form select, .rem-modal-form textarea { width: 100%; box-sizing: border-box; }
 
-.rem-recurrence-box,
-.rem-notice-box,
 .rem-email-box { background: var(--pz-soft); border: 1px dashed var(--pz-line); border-radius: var(--pz-rs); padding: 12px 14px; }
-.rem-recurrence-box.is-active,
-.rem-notice-box.is-active,
 .rem-email-box.is-active { background: var(--pz-bls); border-color: var(--pz-blb); border-style: solid; }
-.rem-recurrence-fields,
-.rem-notice-fields,
 .rem-email-fields { display: none; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; }
-.rem-recurrence-box.is-active .rem-recurrence-fields,
-.rem-notice-box.is-active .rem-notice-fields,
 .rem-email-box.is-active .rem-email-fields { display: grid; }
-.rem-recurrence-fields,
-.rem-notice-fields { grid-template-columns: 1fr 1fr; }
 .rem-box-help { font-size: 11px; color: var(--pz-mu); margin-top: 6px; }
+
+.rem-combo { display: flex; gap: 8px; }
+.rem-combo input[type=number] { flex: 0 0 80px; }
+.rem-combo select { flex: 1; }
 
 @media (max-width: 900px) {
     .rem-row { grid-template-columns: 1fr; gap: 8px; }
@@ -605,45 +611,28 @@ if ($editId > 0) {
                     </select>
                 </div>
 
-                <div class="full">
-                    <div class="rem-recurrence-box" id="remRecurrenceBox">
-                        <label style="margin:0;">Recurență</label>
-                        <select name="recurrence_type" id="remRecurrenceType" onchange="remToggleRecurrence()" style="margin-top:6px;">
-                            <?php foreach ($recurrenceTypes as $key => $label): ?>
-                                <option value="<?= rem_h($key) ?>"><?= rem_h($label) ?></option>
-                            <?php endforeach; ?>
+                <div>
+                    <label>Recurență (la fiecare)</label>
+                    <div class="rem-combo">
+                        <input type="number" name="recurrence_interval" id="remRecurrenceInterval" value="0" min="0" max="365">
+                        <select name="recurrence_unit" id="remRecurrenceUnit">
+                            <option value="day">zile</option>
+                            <option value="week">săptămâni</option>
+                            <option value="month">luni</option>
+                            <option value="year" selected>ani</option>
                         </select>
-                        <div class="rem-recurrence-fields">
-                            <div>
-                                <label>La fiecare</label>
-                                <input type="number" name="recurrence_interval" id="remRecurrenceInterval" value="1" min="1" max="365">
-                            </div>
-                            <div>
-                                <label>Până la (opțional)</label>
-                                <input type="date" name="recurrence_end_date" id="remRecurrenceEnd">
-                            </div>
-                        </div>
-                        <div class="rem-box-help">Ex: „Anual la fiecare 1" pentru ITP, „Lunar la fiecare 1" pentru transmitere index.</div>
                     </div>
                 </div>
 
-                <div class="full">
-                    <div class="rem-notice-box" id="remNoticeBox">
-                        <label style="margin:0;">Preaviz (înainte de scadență)</label>
-                        <select name="notice_period_unit" id="remNoticeUnit" onchange="remToggleNotice()" style="margin-top:6px;">
-                            <option value="">Fără preaviz (afișare imediată)</option>
-                            <?php foreach ($noticeUnits as $key => $label): ?>
-                                <option value="<?= rem_h($key) ?>"><?= rem_h(ucfirst($label)) ?></option>
-                            <?php endforeach; ?>
+                <div>
+                    <label>Preaviz (înainte de scadență)</label>
+                    <div class="rem-combo">
+                        <input type="number" name="notice_period_value" id="remNoticeValue" value="0" min="0" max="365">
+                        <select name="notice_period_unit" id="remNoticeUnit">
+                            <option value="day" selected>zile</option>
+                            <option value="week">săptămâni</option>
+                            <option value="month">luni</option>
                         </select>
-                        <div class="rem-notice-fields">
-                            <div>
-                                <label>Cu câte unități înainte</label>
-                                <input type="number" name="notice_period_value" id="remNoticeValue" value="1" min="1" max="365">
-                            </div>
-                            <div></div>
-                        </div>
-                        <div class="rem-box-help">Ex: pentru ITP scadent 15.10 cu preaviz „1 săptămână" → apare în „Active" din 08.10.</div>
                     </div>
                 </div>
 
@@ -681,10 +670,12 @@ function remOpenCreate() {
     document.getElementById('remIdField').value = '';
     document.getElementById('remForm').reset();
     document.getElementById('remDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('remRecurrenceInterval').value = 0;
+    document.getElementById('remRecurrenceUnit').value = 'year';
+    document.getElementById('remNoticeValue').value = 0;
+    document.getElementById('remNoticeUnit').value = 'day';
     document.getElementById('remEmailEnabled').checked = false;
     document.getElementById('remEmailTo').value = '';
-    remToggleRecurrence();
-    remToggleNotice();
     remToggleEmail();
     document.getElementById('remModal').classList.add('open');
     setTimeout(() => document.getElementById('remTitle').focus(), 60);
@@ -708,15 +699,25 @@ function remFillForm(d) {
     // Mapează categoriile vechi la 'other' în UI
     const validCats = <?= json_encode(array_keys($categories)) ?>;
     document.getElementById('remCategory').value = validCats.includes(d.category) ? d.category : 'other';
-    document.getElementById('remRecurrenceType').value = d.recurrence_type || '';
-    document.getElementById('remRecurrenceInterval').value = d.recurrence_interval || 1;
-    document.getElementById('remRecurrenceEnd').value = d.recurrence_end_date || '';
-    document.getElementById('remNoticeUnit').value = d.notice_period_unit || '';
-    document.getElementById('remNoticeValue').value = d.notice_period_value || 1;
+    // Recurența: mapează din DB (daily/weekly/monthly/yearly) la UI (day/week/month/year)
+    const dbToUiRec = {'daily':'day','weekly':'week','monthly':'month','yearly':'year'};
+    if (d.recurrence_type && dbToUiRec[d.recurrence_type]) {
+        document.getElementById('remRecurrenceUnit').value = dbToUiRec[d.recurrence_type];
+        document.getElementById('remRecurrenceInterval').value = d.recurrence_interval || 1;
+    } else {
+        document.getElementById('remRecurrenceUnit').value = 'year';
+        document.getElementById('remRecurrenceInterval').value = 0;
+    }
+    // Preaviz
+    if (d.notice_period_value && d.notice_period_unit) {
+        document.getElementById('remNoticeUnit').value = d.notice_period_unit;
+        document.getElementById('remNoticeValue').value = d.notice_period_value;
+    } else {
+        document.getElementById('remNoticeUnit').value = 'day';
+        document.getElementById('remNoticeValue').value = 0;
+    }
     document.getElementById('remEmailEnabled').checked = !!d.email_to;
     document.getElementById('remEmailTo').value = d.email_to || '';
-    remToggleRecurrence();
-    remToggleNotice();
     remToggleEmail();
     document.getElementById('remModal').classList.add('open');
 }
@@ -728,20 +729,6 @@ function remCloseModal() {
         url.searchParams.delete('edit');
         window.history.replaceState({}, '', url);
     }
-}
-
-function remToggleRecurrence() {
-    const type = document.getElementById('remRecurrenceType').value;
-    const box = document.getElementById('remRecurrenceBox');
-    if (type) box.classList.add('is-active');
-    else box.classList.remove('is-active');
-}
-
-function remToggleNotice() {
-    const unit = document.getElementById('remNoticeUnit').value;
-    const box = document.getElementById('remNoticeBox');
-    if (unit) box.classList.add('is-active');
-    else box.classList.remove('is-active');
 }
 
 function remToggleEmail() {
