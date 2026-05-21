@@ -1313,10 +1313,21 @@ if (!function_exists('pzdoc_append_company_stamp_if_needed')) {
     /**
      * Dacă sablonul nu contine explicit {{company_stamp}}, dar documentul are ștampila activata,
      * adaugam o zona simpla la final. Astfel butonul functioneaza si pentru șabloanele vechi.
+     *
+     * Excepție: pentru act adițional NU se face auto-append. Plasarea ștampilei
+     * este controlată strict prin tokenul {{company_stamp}} din șablon — așa
+     * evităm riscul ca ștampila să apară aiurea pe pagină.
      */
     function pzdoc_append_company_stamp_if_needed(string $html, array $document, bool $stampTokenPresent): string
     {
         if ($stampTokenPresent || !pzdoc_document_wants_stamp($document)) {
+            return $html;
+        }
+        $docType = function_exists('pzdoc_normalize_document_type')
+            ? pzdoc_normalize_document_type((string)($document['document_type'] ?? ''))
+            : (string)($document['document_type'] ?? '');
+        if ($docType === 'act_aditional') {
+            // Doar plasare manuală via {{company_stamp}}; fără fallback automat la final.
             return $html;
         }
         $stampHtml = pzdoc_company_stamp_html();
