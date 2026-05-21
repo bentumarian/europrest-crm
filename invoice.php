@@ -956,6 +956,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             VALUES (?, ?, 'draft_saved', 'draft', 'Factura pregătită în CRM.', ?)
         ")->execute([$invoiceId, $appointmentId ?: null, function_exists('current_user_id') ? current_user_id() : null]);
 
+        // Dacă utilizatorul a bifat „Încasează acum", emite imediat factura și chitanța în SmartBill
+        $autoReceiptOnSave = !empty($_POST['auto_receipt']) && (string)$_POST['auto_receipt'] === '1';
+        if ($autoReceiptOnSave) {
+            $issueResult = pz_smartbill_issue_invoice($pdo, $invoiceId);
+            if (empty($issueResult['ok'])) {
+                header('Location: invoice.php?saved=1&issue_error=' . urlencode((string)($issueResult['error'] ?? 'Factura draft a fost salvată, dar emiterea în SmartBill a eșuat.')) . '&id=' . $invoiceId);
+                exit;
+            }
+            $issuedInvoice = pz_smartbill_fetch_invoice($pdo, $invoiceId);
+            $gross = $issuedInvoice ? pz_smartbill_money($issuedInvoice['gross_amount'] ?? 0) : 0.0;
+            if ($gross > 0) {
+                $receiptSettings = pz_smartbill_settings($pdo);
+                $receiptData = [
+                    'payment_type' => 'chitanta',
+                    'amount' => $gross,
+                    'payment_date' => date('Y-m-d'),
+                    'currency' => trim((string)($issuedInvoice['currency'] ?? 'RON')) ?: 'RON',
+                    'document_series' => trim((string)($receiptSettings['smartbill.receipt_series'] ?? '')),
+                ];
+                $receiptResult = pz_smartbill_issue_payment($pdo, $invoiceId, $receiptData);
+                if (!empty($receiptResult['ok'])) {
+                    header('Location: invoice.php?issued=1&payment_issued=1&id=' . $invoiceId);
+                    exit;
+                }
+                header('Location: invoice.php?issued=1&receipt_error=' . urlencode((string)($receiptResult['error'] ?? 'Chitanța nu a putut fi emisă.')) . '&id=' . $invoiceId);
+                exit;
+            }
+            header('Location: invoice.php?issued=1&receipt_error=' . urlencode('Chitanța nu a putut fi emisă: valoarea facturii este 0.') . '&id=' . $invoiceId);
+            exit;
+        }
+
         header('Location: invoice.php?saved=1&id=' . $invoiceId);
         exit;
     }
@@ -1535,6 +1566,7 @@ if (!$invoiceItems) {
                             <?php else: ?>
                                 <div class="invoice-save-actions">
                                     <a class="btn ghost" href="<?= $invoiceIsDraft ? 'invoice.php?id=' . (int)$loadedInvoice['id'] : 'invoices.php' ?>">Renunță</a>
+                                    <label class="auto-receipt-label"><input type="checkbox" name="auto_receipt" value="1"> Încasează acum (chitanță)</label>
                                     <button class="btn accent" type="submit"><?= $invoiceIsDraft ? 'Salvează modificările' : 'Salvează' ?></button>
                                 </div>
                             <?php endif; ?>
