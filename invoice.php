@@ -1138,9 +1138,9 @@ if (!$invoiceItems) {
         .items-head .btn { display:inline-flex; align-items:center; justify-content:center; line-height:1; }
 
         .invoice-items { display:grid; gap:8px; margin-top:0; padding:14px 22px; }
-        .invoice-item { border:0; border-radius:0; background:transparent; padding:0; }
-        .invoice-item-grid { display:grid; grid-template-columns:minmax(180px,360px) 70px 100px 84px 110px 110px 80px; gap:12px; align-items:end; justify-content:center; }
-        .invoice-item-extra { display:grid; grid-template-columns:minmax(180px,360px) 110px 160px; gap:12px; align-items:end; margin:7px 0 10px 0; justify-content:center; }
+        .invoice-item { border:0; border-radius:0; background:transparent; padding:0; width:fit-content; max-width:100%; margin-left:auto; margin-right:auto; }
+        .invoice-item-grid { display:grid; grid-template-columns:minmax(180px,360px) 70px 100px 84px 110px 110px 80px; gap:12px; align-items:end; }
+        .invoice-item-extra { display:grid; grid-template-columns:minmax(180px,360px) 110px 160px; gap:12px; align-items:end; margin:7px 0 10px 0; }
         .invoice-line-head { display:grid; grid-template-columns:minmax(180px,360px) 76px 112px 92px 120px 120px 86px; gap:12px; background:var(--pz-brand); color:#fff; font-size:11px; font-weight:700; padding:8px 22px; margin-top:10px; justify-content:center; }
         .invoice-line-hint { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--pz-mu); font-size:12px; font-weight:600; padding:10px; border-bottom:1px solid var(--pz-lines); }
 
@@ -1242,6 +1242,7 @@ if (!$invoiceItems) {
             .invoice-line-head { display:none; }
             .item-remove { width:100%; }
             .smartbill-grid .wide { grid-column:auto; }
+            .invoice-item { width:auto; max-width:none; }
         }
         @media(max-width:980px) { .form-grid { grid-template-columns:1fr; } }
         @media(max-width:720px) { .payment-compact, .payment-methods, .payment-extra { grid-template-columns:1fr; } }
