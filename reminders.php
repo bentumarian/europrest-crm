@@ -412,13 +412,19 @@ if ($editId > 0) {
 .rem-modal-form input, .rem-modal-form select, .rem-modal-form textarea { width: 100%; box-sizing: border-box; }
 
 .rem-recurrence-box,
-.rem-notice-box { background: var(--pz-soft); border: 1px dashed var(--pz-line); border-radius: var(--pz-rs); padding: 12px 14px; }
+.rem-notice-box,
+.rem-email-box { background: var(--pz-soft); border: 1px dashed var(--pz-line); border-radius: var(--pz-rs); padding: 12px 14px; }
 .rem-recurrence-box.is-active,
-.rem-notice-box.is-active { background: var(--pz-bls); border-color: var(--pz-blb); border-style: solid; }
+.rem-notice-box.is-active,
+.rem-email-box.is-active { background: var(--pz-bls); border-color: var(--pz-blb); border-style: solid; }
 .rem-recurrence-fields,
-.rem-notice-fields { display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.rem-notice-fields,
+.rem-email-fields { display: none; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; }
 .rem-recurrence-box.is-active .rem-recurrence-fields,
-.rem-notice-box.is-active .rem-notice-fields { display: grid; }
+.rem-notice-box.is-active .rem-notice-fields,
+.rem-email-box.is-active .rem-email-fields { display: grid; }
+.rem-recurrence-fields,
+.rem-notice-fields { grid-template-columns: 1fr 1fr; }
 .rem-box-help { font-size: 11px; color: var(--pz-mu); margin-top: 6px; }
 
 @media (max-width: 900px) {
@@ -640,6 +646,22 @@ if ($editId > 0) {
                         <div class="rem-box-help">Ex: pentru ITP scadent 15.10 cu preaviz „1 săptămână" → apare în „Active" din 08.10.</div>
                     </div>
                 </div>
+
+                <div class="full">
+                    <div class="rem-email-box" id="remEmailBox">
+                        <label style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:var(--pz-title);">
+                            <input type="checkbox" name="email_enabled" id="remEmailEnabled" value="1" onchange="remToggleEmail()" style="width:auto;margin:0;">
+                            Trimite notificare email cu 1 zi înainte de scadență
+                        </label>
+                        <div class="rem-email-fields">
+                            <div>
+                                <label>Adresa de email</label>
+                                <input type="email" name="email_to" id="remEmailTo" placeholder="ex: <?= rem_h(current_user_email() ?: 'office@firma.ro') ?>" maxlength="255">
+                            </div>
+                        </div>
+                        <div class="rem-box-help">Dacă bifa este activă, cron-ul zilnic va trimite un email la adresa de mai sus cu o zi înainte de data scadenței.</div>
+                    </div>
+                </div>
             </div>
 
             <div class="actions-row" style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px;">
@@ -659,8 +681,11 @@ function remOpenCreate() {
     document.getElementById('remIdField').value = '';
     document.getElementById('remForm').reset();
     document.getElementById('remDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('remEmailEnabled').checked = false;
+    document.getElementById('remEmailTo').value = '';
     remToggleRecurrence();
     remToggleNotice();
+    remToggleEmail();
     document.getElementById('remModal').classList.add('open');
     setTimeout(() => document.getElementById('remTitle').focus(), 60);
 }
@@ -688,8 +713,11 @@ function remFillForm(d) {
     document.getElementById('remRecurrenceEnd').value = d.recurrence_end_date || '';
     document.getElementById('remNoticeUnit').value = d.notice_period_unit || '';
     document.getElementById('remNoticeValue').value = d.notice_period_value || 1;
+    document.getElementById('remEmailEnabled').checked = !!d.email_to;
+    document.getElementById('remEmailTo').value = d.email_to || '';
     remToggleRecurrence();
     remToggleNotice();
+    remToggleEmail();
     document.getElementById('remModal').classList.add('open');
 }
 
@@ -714,6 +742,19 @@ function remToggleNotice() {
     const box = document.getElementById('remNoticeBox');
     if (unit) box.classList.add('is-active');
     else box.classList.remove('is-active');
+}
+
+function remToggleEmail() {
+    const checked = document.getElementById('remEmailEnabled').checked;
+    const box = document.getElementById('remEmailBox');
+    const input = document.getElementById('remEmailTo');
+    if (checked) {
+        box.classList.add('is-active');
+        // Pre-completează cu email-ul utilizatorului curent dacă e gol
+        if (!input.value) input.value = <?= json_encode(current_user_email() ?: '') ?>;
+    } else {
+        box.classList.remove('is-active');
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
