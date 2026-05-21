@@ -739,6 +739,13 @@ foreach ($services as $service) {
 .ctype-card .ctype-text span { display:block; font-size:11.5px; color:var(--muted); margin-top:3px; line-height:1.35; }
 .ctype-textarea { width:100%; min-height:160px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:#fff; font-family:inherit; font-size:13px; color:var(--text); resize:vertical; line-height:1.5; }
 .ctype-textarea:focus { outline:none; border-color:var(--pz-bl); box-shadow:0 0 0 3px rgba(37,99,235,.10); }
+.ctype-value-row { display:grid; grid-template-columns:minmax(240px, 320px) 1fr; gap:12px; margin-bottom:12px; }
+.ctype-value-input { display:flex; gap:6px; align-items:stretch; }
+.ctype-value-input input[type="number"] { flex:1; min-width:0; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:#fff; font-family:inherit; font-size:13px; color:var(--text); }
+.ctype-value-input input[type="number"]:focus { outline:none; border-color:var(--pz-bl); box-shadow:0 0 0 3px rgba(37,99,235,.10); }
+.ctype-value-input select { flex:0 0 78px; padding:8px 8px; border:1px solid var(--border); border-radius:8px; background:var(--surface-soft); font-family:inherit; font-size:13px; color:var(--text); cursor:pointer; }
+.ctype-value-input select:focus { outline:none; border-color:var(--pz-bl); box-shadow:0 0 0 3px rgba(37,99,235,.10); }
+.ctype-label { display:block; font-size:11.5px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; margin-bottom:5px; }
 @media (max-width: 980px) {
     .ctype-picker { grid-template-columns:1fr; }
 }
@@ -1008,6 +1015,22 @@ foreach ($services as $service) {
                                     </div>
                                 </div>
                                 <div class="panel-body">
+                                    <div class="ctype-value-row">
+                                        <div class="field">
+                                            <label for="contractValueManual">Valoare contract</label>
+                                            <div class="ctype-value-input">
+                                                <input type="number" id="contractValueManual" min="0" step="0.01" placeholder="0.00" value="<?= pz_contract_h((string)($formPayload['contract_value_raw'] ?? 0)) ?>">
+                                                <select id="contractCurrencyManual">
+                                                    <?php $curVal = (string)($formDocument['currency'] ?? 'RON'); ?>
+                                                    <?php foreach (['RON','EUR','USD'] as $cur): ?>
+                                                        <option value="<?= $cur ?>"<?= $curVal === $cur ? ' selected' : '' ?>><?= $cur ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                            <div class="client-help" style="margin-top:4px;">Sumă totală fără TVA. Apare în PDF prin tokenul <code>{{contract_value}}</code>.</div>
+                                        </div>
+                                    </div>
+                                    <label for="contractObjectTextarea" class="ctype-label">Descriere obiect</label>
                                     <textarea name="contract_object" id="contractObjectTextarea" class="ctype-textarea" rows="10" placeholder="Ex: Prestari servicii de execuție lucrări de dezinsecție generală a imobilului situat la adresa ..., conform ofertei nr. ... din data de ..."><?= pz_contract_h($contractObjectValue) ?></textarea>
                                     <div class="client-help" style="margin-top:6px;">Textul intră ca atare în PDF, prin tokenul <code>{{contract_obiect}}</code> din șablon.</div>
                                 </div>
