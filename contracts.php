@@ -1577,7 +1577,19 @@ function initContractTypePicker() {
         });
         // Arată / ascunde panel-urile + cele 2 sub-headere de pași
         document.querySelectorAll('[data-contract-mode]').forEach(el => {
-            el.style.display = (el.dataset.contractMode === mode) ? '' : 'none';
+            const isActive = (el.dataset.contractMode === mode);
+            el.style.display = isActive ? '' : 'none';
+            // CRITIC: dezactivează inputurile din panel-ul ascuns ca să nu blocheze
+            // HTML5 validation pe câmpuri required invizibile (ex: items[i][client_location_id])
+            // și nici să nu fie trimise la submit.
+            el.querySelectorAll('input, select, textarea, button').forEach(field => {
+                if (isActive) {
+                    field.disabled = false;
+                } else {
+                    // Nu dezactivez butoanele de tip submit (vor fi vizibile oricum în form-actions, care nu are data-contract-mode)
+                    if (field.type !== 'submit') field.disabled = true;
+                }
+            });
         });
         // Resetează / curăță textarea în funcție de mod
         if (textarea) {
@@ -1644,7 +1656,7 @@ try {
 } catch (Throwable $e) { error_log('contracts.php preview: ' . $e->getMessage()); }
 ?>
 <script>
-(function(function () {
+(function () {
     var go = function () {
         if (!window.pzSearchPreview) { setTimeout(go, 30); return; }
         window.pzSearchPreview.attach('contractsSearchInput',
