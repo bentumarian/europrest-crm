@@ -637,11 +637,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'issue') {
         $invoiceId = max(0, (int)($_POST['invoice_id'] ?? 0));
+        $autoReceipt = !empty($_POST['auto_receipt']) && (string)$_POST['auto_receipt'] === '1';
         if ($invoiceId <= 0) {
             $error = 'Factura nu a fost găsită.';
         } else {
             $result = pz_smartbill_issue_invoice($pdo, $invoiceId);
             if (!empty($result['ok'])) {
+                // Dacă utilizatorul a bifat „Încasează acum", emite și chitanța (cash) pentru valoarea totală
+                if ($autoReceipt) {
+                    $issuedInvoice = pz_smartbill_fetch_invoice($pdo, $invoiceId);
+                    $gross = $issuedInvoice ? pz_smartbill_money($issuedInvoice['gross_amount'] ?? 0) : 0.0;
+                    if ($gross > 0) {
+                        $receiptSettings = pz_smartbill_settings($pdo);
+                        $receiptData = [
+                            'payment_type' => 'chitanta',
+                            'amount' => $gross,
+                            'payment_date' => date('Y-m-d'),
+                            'currency' => trim((string)($issuedInvoice['currency'] ?? 'RON')) ?: 'RON',
+                            'document_series' => trim((string)($receiptSettings['smartbill.receipt_series'] ?? '')),
+                        ];
+                        $receiptResult = pz_smartbill_issue_payment($pdo, $invoiceId, $receiptData);
+                        if (!empty($receiptResult['ok'])) {
+                            header('Location: invoice.php?issued=1&payment_issued=1&id=' . $invoiceId);
+                            exit;
+                        }
+                        $receiptError = (string)($receiptResult['error'] ?? 'Chitanța nu a putut fi emisă.');
+                        header('Location: invoice.php?issued=1&receipt_error=' . urlencode($receiptError) . '&id=' . $invoiceId);
+                        exit;
+                    }
+                    header('Location: invoice.php?issued=1&receipt_error=' . urlencode('Chitanța nu a putut fi emisă: valoarea facturii este 0.') . '&id=' . $invoiceId);
+                    exit;
+                }
                 header('Location: invoice.php?issued=1&id=' . $invoiceId);
                 exit;
             }
@@ -1171,6 +1197,12 @@ if (!$invoiceItems) {
         .alert { grid-column:1/-1; border-radius:var(--pz-rs); padding:10px 13px; font-weight:600; font-size:12.5px; }
         .alert.ok { background:var(--pz-grs); color:var(--pz-gr); border:1px solid var(--pz-grb); }
         .alert.err { background:var(--pz-res); color:var(--pz-re); border:1px solid var(--pz-reb); }
+        .alert.warn { background:#FFF7E6; color:#9A6700; border:1px solid #F0C36D; }
+
+        /* Issue + auto-receipt */
+        .issue-with-receipt { display:inline-flex; align-items:center; gap:12px; flex-wrap:wrap; }
+        .auto-receipt-label { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--pz-mu); cursor:pointer; user-select:none; }
+        .auto-receipt-label input[type=checkbox] { margin:0; }
 
         /* Tables */
         table { width:100%; border-collapse:collapse; font-size:12.5px; }
@@ -1284,6 +1316,7 @@ if (!$invoiceItems) {
             <?php if (isset($_GET['email_sent'])): ?><div class="alert ok">Factura a fost trimisă pe email prin SmartBill.</div><?php endif; ?>
             <?php if (isset($_GET['issue_error'])): ?><div class="alert err"><?= inv_h($_GET['issue_error']) ?></div><?php endif; ?>
             <?php if (isset($_GET['payment_error'])): ?><div class="alert err"><?= inv_h($_GET['payment_error']) ?></div><?php endif; ?>
+            <?php if (isset($_GET['receipt_error'])): ?><div class="alert warn">Factura a fost emisă, dar chitanța NU a putut fi emisă: <?= inv_h($_GET['receipt_error']) ?>. Poți încasa manual din butonul „Încasează".</div><?php endif; ?>
             <?php if (isset($_GET['email_error'])): ?><div class="alert err"><?= inv_h($_GET['email_error']) ?></div><?php endif; ?>
             <?php if (isset($_GET['recurring_error'])): ?><div class="alert err"><?= inv_h($_GET['recurring_error']) ?></div><?php endif; ?>
             <?php if ($error !== ''): ?><div class="alert err"><?= inv_h($error) ?></div><?php endif; ?>
@@ -1528,10 +1561,11 @@ if (!$invoiceItems) {
                 </div>
                 <div class="action-buttons">
                     <?php if (trim((string)($loadedInvoice['smartbill_number'] ?? '')) === ''): ?>
-                        <form method="post" style="margin:0">
+                        <form method="post" class="issue-with-receipt" style="margin:0">
                             <?= function_exists('csrf_field') ? csrf_field() : '' ?>
                             <input type="hidden" name="action" value="issue">
                             <input type="hidden" name="invoice_id" value="<?= (int)$loadedInvoice['id'] ?>">
+                            <label class="auto-receipt-label"><input type="checkbox" name="auto_receipt" value="1"> Încasează acum (chitanță)</label>
                             <button class="btn accent" type="submit">Emite în SmartBill</button>
                         </form>
                     <?php else: ?>
