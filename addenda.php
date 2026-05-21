@@ -322,6 +322,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'notes_internal' => pz_addendum_str($_POST['internal_notes'] ?? ''),
         ];
 
+        // Ștampila firmei: bifare opțională în formular.
+        $applyStamp = !empty($_POST['apply_company_stamp']) ? 1 : 0;
+
         $data = [
             'template_id' => !empty($_POST['template_id']) ? (int)$_POST['template_id'] : null,
             'document_date' => $_POST['document_date'] ?? date('Y-m-d'),
@@ -335,6 +338,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'currency' => $currency,
             'notes' => $scopeText,
             'internal_notes' => pz_addendum_str($_POST['internal_notes'] ?? ''),
+            'apply_company_stamp' => $applyStamp,
             'payload_json' => $payload,
             'items' => [],  // Niciodată items pentru act adițional — fără atingerea contract_services / tasks
         ];
@@ -645,6 +649,22 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                                 </div>
                                 <div class="panel-body">
                                     <textarea name="notes" id="addendumScopeTextarea" class="addendum-scope-textarea" rows="10" required placeholder="Ex: Părțile convin prelungirea perioadei de valabilitate a contractului până la data de 31.12.2027, restul clauzelor rămânând neschimbate."><?= pz_addendum_h($formDocument['notes'] ?? '') ?></textarea>
+                                </div>
+                            </div>
+
+                            <?php
+                                // Ștampila firmei: opțională la emiterea actului adițional.
+                                $stampChecked = isset($formDocument['apply_company_stamp'])
+                                    ? !empty($formDocument['apply_company_stamp'])
+                                    : true;  // implicit bifat (uniformizare cu PV)
+                            ?>
+                            <div style="margin:14px 0;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:#f8fafc;">
+                                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;color:var(--text);">
+                                    <input type="checkbox" name="apply_company_stamp" value="1" <?= $stampChecked ? 'checked' : '' ?> style="width:18px;height:18px;">
+                                    <span>Aplică ștampila firmei pe acest act adițional</span>
+                                </label>
+                                <div style="margin-top:6px;font-size:12px;color:var(--muted);padding-left:28px;">
+                                    Ștampila încărcată în <em>Setări → Design documente</em> apare lângă semnătura Executantului prin tokenul <code>{{company_stamp}}</code> din șablon.
                                 </div>
                             </div>
 
