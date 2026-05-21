@@ -1430,21 +1430,18 @@ if (!$invoiceItems) {
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div>
-                            <label>CIF/CNP *</label>
+                        <div style="grid-column:span 2;">
+                            <label>Nume client *</label>
                             <div class="pz-search-wrap">
-                                <input name="client_fiscal_code" id="client_fiscal_code" value="<?= inv_h($prefill['client_fiscal_code']) ?>" required autocomplete="off" placeholder="Scrie CIF/CNP sau nume...">
+                                <input name="client_name" id="client_name" value="<?= inv_h($prefill['client_name']) ?>" required autocomplete="off" placeholder="Caută client (nume sau CIF)..." autofocus>
                                 <div class="pz-search-preview"></div>
                             </div>
                         </div>
                         <div><label>Data emiterii</label><input type="date" name="issue_date" value="<?= inv_h($prefill['issue_date']) ?>"></div>
                         <div><label>Moneda factura</label><input name="currency" value="<?= inv_h($prefill['currency']) ?>"></div>
-                        <div class="full">
-                            <label>Nume client *</label>
-                            <div class="pz-search-wrap">
-                                <input name="client_name" id="client_name" value="<?= inv_h($prefill['client_name']) ?>" required autocomplete="off" placeholder="Scrie numele clientului...">
-                                <div class="pz-search-preview"></div>
-                            </div>
+                        <div>
+                            <label>CIF/CNP *</label>
+                            <input name="client_fiscal_code" id="client_fiscal_code" value="<?= inv_h($prefill['client_fiscal_code']) ?>" required autocomplete="off" placeholder="Auto-completat din client">
                         </div>
                         <div><label>Reg. Com. / Serie CI</label><input name="client_reg_com" id="client_reg_com" value="<?= inv_h($prefill['client_reg_com']) ?>"></div>
                         <div><label>Persoană contact</label><input name="client_contact" id="client_contact" value="<?= inv_h($prefill['client_contact']) ?>"></div>
@@ -1790,8 +1787,8 @@ function invoiceFillClientFromPreview(clientId) {
             };
         });
 
-        /* Atasam pe ambele inputuri, cu un onSelect care completeaza formularul. */
-        ['client_fiscal_code', 'client_name'].forEach(function (inputId) {
+        /* Cautarea se face doar din Nume client; CIF/CNP se auto-completeaza la selectie. */
+        ['client_name'].forEach(function (inputId) {
             window.pzSearchPreview.attach(inputId, items, {
                 minChars: 1,
                 maxResults: 8,
