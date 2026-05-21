@@ -1787,43 +1787,16 @@ function invoiceFillClientFromPreview(clientId) {
             };
         });
 
-        /* Cautarea se face doar din Nume client; CIF/CNP se auto-completeaza la selectie. */
-        ['client_name'].forEach(function (inputId) {
-            window.pzSearchPreview.attach(inputId, items, {
-                minChars: 1,
-                maxResults: 8,
-                emptyText: 'Niciun client găsit'
-            });
-            /* Override: la click in preview, completeaza formularul si nu naviga. */
-            const input = document.getElementById(inputId);
-            if (!input) return;
-            const wrap = input.closest('.pz-search-wrap');
-            if (!wrap) return;
-            wrap.addEventListener('mousedown', function (e) {
-                const item = e.target.closest('.pz-search-item');
-                if (!item) return;
-                e.preventDefault();
-                /* Gaseste indexul din lista randata si extrage _clientId */
-                const nodes = wrap.querySelectorAll('.pz-search-item');
-                const idx = Array.prototype.indexOf.call(nodes, item);
-                /* Rebuild matches list ca sa luam clientId; folosim aceeasi
-                   logica de filtru ca in modul — match pe toate cuvintele. */
-                const q = (input.value || '').trim().toLowerCase();
-                const terms = q.split(/\s+/).filter(Boolean);
-                let count = 0, found = null;
-                for (let i = 0; i < items.length && count <= idx; i++) {
-                    const txt = ((items[i].search || '') + ' ' + items[i].title + ' ' + (items[i].subtitle || '')).toLowerCase();
-                    let ok = true;
-                    for (const t of terms) { if (txt.indexOf(t) === -1) { ok = false; break; } }
-                    if (ok) { if (count === idx) { found = items[i]; break; } count++; }
+        /* Cautarea se face doar din Nume client; la selectie, completam tot formularul. */
+        window.pzSearchPreview.attach('client_name', items, {
+            minChars: 1,
+            maxResults: 8,
+            emptyText: 'Niciun client găsit',
+            onSelect: function (item) {
+                if (item && item._clientId) {
+                    invoiceFillClientFromPreview(item._clientId);
                 }
-                if (found) {
-                    invoiceFillClientFromPreview(found._clientId);
-                    const preview = wrap.querySelector('.pz-search-preview');
-                    if (preview) preview.classList.remove('open');
-                    input.blur();
-                }
-            });
+            }
         });
     }
     go();

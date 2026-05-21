@@ -152,6 +152,35 @@ if (!function_exists('render_search_preview_assets')) {
                 window.addEventListener('resize', function () {
                     if (preview.classList.contains('open')) positionPreview();
                 });
+                // Callback onSelect: cand utilizatorul click-uieste pe un item,
+                // apelam options.onSelect(item) in loc de comportamentul implicit
+                // (navigare prin <a href>). Util cand vrem sa completam un formular
+                // in loc sa navigam pe pagina clientului.
+                if (typeof options.onSelect === 'function') {
+                    preview.addEventListener('mousedown', function (e) {
+                        var item = e.target.closest('.pz-search-item');
+                        if (!item || !preview.contains(item)) return;
+                        e.preventDefault();
+                        var nodes = preview.querySelectorAll('.pz-search-item');
+                        var idx = Array.prototype.indexOf.call(nodes, item);
+                        // Reconstruim lista de matches cu aceeasi logica de filtru ca render()
+                        var q = normalize(input.value);
+                        var terms = q.split(/\s+/).filter(Boolean);
+                        var matches = [];
+                        for (var k = 0; k < items.length && matches.length <= idx; k++) {
+                            var ok = true;
+                            for (var t = 0; t < terms.length; t++) {
+                                if (items[k]._idx.indexOf(terms[t]) === -1) { ok = false; break; }
+                            }
+                            if (ok) { matches.push(items[k]); if (matches.length > idx) break; }
+                        }
+                        if (matches[idx]) {
+                            try { options.onSelect(matches[idx]); } catch (err) { console.error(err); }
+                            preview.classList.remove('open');
+                            input.blur();
+                        }
+                    });
+                }
             }
             window.pzSearchPreview = { attach: attach };
             document.addEventListener('click', function (e) {
