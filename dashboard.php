@@ -396,6 +396,7 @@ $todayLabel = ($dayNames[date('l')] ?? date('l')) . ' · ' . date('d') . ' ' . (
     padding: 14px;
     max-width: 1680px;
     margin: 0 auto;
+    zoom: 1.18;
 }
 
 /* ── Page header ─────────────────────────────────────────────── */
