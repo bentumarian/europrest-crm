@@ -982,7 +982,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                             <label>Client *</label>
                                             <input type="hidden" name="client_id" id="clientSelect" required value="<?= (int)($formDocument['client_id'] ?? 0) ?>" data-selected="<?= (int)($formDocument['client_id'] ?? 0) ?>">
                                             <div class="pz-autocomplete" id="clientAutocomplete">
-                                                <input type="text" class="pz-autocomplete-input" id="clientSearchInput" placeholder="Caută după nume client, CUI, telefon, reprezentant…" autocomplete="off">
+                                                <input type="text" class="pz-autocomplete-input" id="clientSearchInput" placeholder="Caută după nume client, CUI, telefon, reprezentant…" autocomplete="off" autofocus>
                                                 <button type="button" class="pz-autocomplete-clear" id="clientClearBtn" title="Șterge">&times;</button>
                                                 <div class="pz-autocomplete-selected" id="clientSelectedBox">
                                                     <div>
@@ -1521,7 +1521,7 @@ function pzClientHighlight(text, query) {
 
 function pzClientSearch(query) {
     const q = pzNormalize(query);
-    if (q.length < 2) return [];
+    if (q.length < 1) return [];
     const results = [];
     for (const c of clientsData) {
         const haystack = pzNormalize(
@@ -1600,6 +1600,21 @@ function pzClientSetSelected(client) {
     populateBasisContracts(true);
     pzCheckLastPv(client.id);
     pzValidateForm();
+
+    // Dupa selectarea clientului, mutam focusul pe urmatorul camp obligatoriu liber.
+    // De obicei "Zona/e tratate" (treatedAreas) e urmatorul, dar daca operatorul nu
+    // a apucat sa-l completeze inca, sarim acolo. Daca exista, focus la el; altfel
+    // incercam locationSelect / surfaceText ca fallback.
+    setTimeout(function () {
+        var nextTargets = ['treatedAreas', 'surfaceText'];
+        for (var i = 0; i < nextTargets.length; i++) {
+            var el = document.getElementById(nextTargets[i]);
+            if (el && !el.value) { el.focus(); return; }
+        }
+        // Daca toate sunt deja completate, focus la prima ne-completata oricum.
+        var el2 = document.getElementById('treatedAreas');
+        if (el2) el2.focus();
+    }, 50);
 }
 
 function pzClientClear() {
@@ -1636,7 +1651,7 @@ function initClientAutocomplete() {
         clearTimeout(debounceT);
         debounceT = setTimeout(() => {
             const q = input.value.trim();
-            if (q.length < 2) {
+            if (q.length < 1) {
                 wrap.classList.remove('is-open');
                 document.getElementById('clientResults').innerHTML = '';
                 return;
