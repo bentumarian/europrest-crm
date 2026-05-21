@@ -1137,11 +1137,11 @@ if (!$invoiceItems) {
         .items-head h2 { font-size:14px; margin:0; }
         .items-head .btn { display:inline-flex; align-items:center; justify-content:center; line-height:1; }
 
-        .invoice-items { display:grid; gap:8px; margin-top:0; padding:12px 14px; }
+        .invoice-items { display:grid; gap:8px; margin-top:0; padding:14px 22px; }
         .invoice-item { border:0; border-radius:0; background:transparent; padding:0; }
-        .invoice-item-grid { display:grid; grid-template-columns:minmax(200px,2fr) 70px 100px 84px 110px 110px 80px; gap:10px; align-items:end; }
-        .invoice-item-extra { display:grid; grid-template-columns:minmax(200px,1fr) 110px 160px; gap:10px; align-items:end; margin:7px 0 10px 0; }
-        .invoice-line-head { display:grid; grid-template-columns:minmax(220px,2fr) 76px 112px 92px 120px 120px 86px; gap:8px; background:var(--pz-brand); color:#fff; font-size:11px; font-weight:700; padding:8px; margin-top:10px; }
+        .invoice-item-grid { display:grid; grid-template-columns:minmax(180px,360px) 70px 100px 84px 110px 110px 80px 1fr; gap:12px; align-items:end; }
+        .invoice-item-extra { display:grid; grid-template-columns:minmax(180px,360px) 110px 160px 1fr; gap:12px; align-items:end; margin:7px 0 10px 0; }
+        .invoice-line-head { display:grid; grid-template-columns:minmax(180px,360px) 76px 112px 92px 120px 120px 86px 1fr; gap:12px; background:var(--pz-brand); color:#fff; font-size:11px; font-weight:700; padding:8px 22px; margin-top:10px; }
         .invoice-line-hint { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--pz-mu); font-size:12px; font-weight:600; padding:10px; border-bottom:1px solid var(--pz-lines); }
 
         .item-remove { min-width:42px; align-self:end; min-height:32px; height:32px; padding:0 8px; line-height:1; }
@@ -1450,8 +1450,8 @@ if (!$invoiceItems) {
                         <div><label>Banca</label><input name="client_bank" id="client_bank" value="<?= inv_h($prefill['client_bank']) ?>"></div>
                         <div><label>IBAN</label><input name="client_iban" id="client_iban" value="<?= inv_h($prefill['client_iban']) ?>"></div>
                         <div><label>Țară *</label><input name="client_country" id="client_country" value="<?= inv_h($prefill['client_country']) ?>" required></div>
-                        <div><label>Județ *</label><input name="client_county" id="client_county" value="<?= inv_h($prefill['client_county']) ?>" required></div>
-                        <div class="full" style="display:grid;grid-template-columns:minmax(140px,1fr) minmax(240px,3fr);gap:8px 12px;">
+                        <div class="full" style="display:grid;grid-template-columns:minmax(140px,1fr) minmax(140px,1fr) minmax(220px,2.4fr);gap:8px 12px;">
+                            <div><label>Județ *</label><input name="client_county" id="client_county" value="<?= inv_h($prefill['client_county']) ?>" required></div>
                             <div><label>Oraș / localitate *</label><input name="client_city" id="client_city" value="<?= inv_h($prefill['client_city']) ?>" required></div>
                             <div><label>Adresa *</label><input name="client_address" id="client_address" value="<?= inv_h($prefill['client_address']) ?>" required></div>
                         </div>
