@@ -185,9 +185,10 @@ app_theme_css();
                 'aplicare directa'  => 'Aplicare directă',
                 'nebulizare'        => 'Nebulizare',
                 'amplasare'         => 'Amplasare',
+                'momeala'           => 'Momeală',
             ];
             $rawMethod = (string)($edit['default_application_method'] ?? '');
-            // Normalizez valorile vechi (text liber) catre cele 4 standard din PV
+            // Normalizez valorile vechi (text liber) catre cele 5 standard din PV
             $lc = mb_strtolower($rawMethod, 'UTF-8');
             if (strpos($lc, 'pulver') !== false) {
                 $currentMethod = 'pulverizare';
@@ -197,6 +198,8 @@ app_theme_css();
                 $currentMethod = 'amplasare';
             } elseif (strpos($lc, 'direct') !== false) {
                 $currentMethod = 'aplicare directa';
+            } elseif (strpos($lc, 'momea') !== false) {
+                $currentMethod = 'momeala';
             } else {
                 $currentMethod = '';
             }

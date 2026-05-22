@@ -1109,7 +1109,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                         <div>
                                                             <label>Aplicare</label>
                                                             <select name="materials[<?= (int)$index ?>][manual_application_method]">
-                                                                <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare'] as $value => $label): ?>
+                                                                <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare', 'momeala' => 'Momeală'] as $value => $label): ?>
                                                                     <option value="<?= pz_pv_h($value) ?>" <?= (($material['manual_application_method'] ?? ($material['application_method'] ?? '')) === $value) ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
                                                                 <?php endforeach; ?>
                                                             </select>
@@ -1157,7 +1157,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                         <div>
                                                             <label>Metoda aplicare</label>
                                                             <select name="materials[<?= (int)$index ?>][application_method]" class="application-method">
-                                                                <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare'] as $value => $label): ?>
+                                                                <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare', 'momeala' => 'Momeală'] as $value => $label): ?>
                                                                     <option value="<?= pz_pv_h($value) ?>" <?= (!empty($material['stock_product_id']) && (($material['application_method'] ?? '') === $value)) ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
                                                                 <?php endforeach; ?>
                                                             </select>
@@ -1215,7 +1215,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                                 </td>
                                                                 <td>
                                                                     <select name="materials[<?= (int)$index ?>][manual_application_method]">
-                                                                        <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare'] as $value => $label): ?>
+                                                                        <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare', 'momeala' => 'Momeală'] as $value => $label): ?>
                                                                             <option value="<?= pz_pv_h($value) ?>" <?= (($material['manual_application_method'] ?? ($material['application_method'] ?? '')) === $value) ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
                                                                         <?php endforeach; ?>
                                                                     </select>
@@ -1243,7 +1243,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                                 <td><input type="text" name="materials[<?= (int)$index ?>][unit]" class="material-unit" value="<?= pz_pv_h($material['unit'] ?? '') ?>" readonly placeholder="-"></td>
                                                                 <td>
                                                                     <select name="materials[<?= (int)$index ?>][application_method]" class="application-method">
-                                                                        <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare'] as $value => $label): ?>
+                                                                        <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare', 'momeala' => 'Momeală'] as $value => $label): ?>
                                                                             <option value="<?= pz_pv_h($value) ?>" <?= (($material['application_method'] ?? '') === $value) ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
                                                                         <?php endforeach; ?>
                                                                     </select>
@@ -2145,6 +2145,7 @@ function methodLabelToValue(value) {
     if (v.includes('nebul')) return 'nebulizare';
     if (v.includes('amplas')) return 'amplasare';
     if (v.includes('direct')) return 'aplicare directa';
+    if (v.includes('momea')) return 'momeala';
     return '';
 }
 function selectedSelectValue(select) {
@@ -2250,7 +2251,7 @@ function addMaterialRow() {
                 <div><label>Dilutie</label><input type="text" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></div>
                 <div><label>Cantitate</label><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][quantity]" placeholder="cant."></div>
                 <div><label>UM</label><input type="text" name="materials[${i}][unit]" class="material-unit" readonly placeholder="-"></div>
-                <div><label>Metoda aplicare</label><select name="materials[${i}][application_method]" class="application-method"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directa</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option></select></div>
+                <div><label>Metoda aplicare</label><select name="materials[${i}][application_method]" class="application-method"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directa</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option><option value="momeala">Momeală</option></select></div>
             </div>
             <input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value="">`;
     } else {
@@ -2262,7 +2263,7 @@ function addMaterialRow() {
             <td><input type="text" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></td>
             <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][quantity]" placeholder="cant."></td>
             <td><input type="text" name="materials[${i}][unit]" class="material-unit" readonly placeholder="-"></td>
-            <td><select name="materials[${i}][application_method]" class="application-method"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directa</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option></select></td>
+            <td><select name="materials[${i}][application_method]" class="application-method"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directa</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option><option value="momeala">Momeală</option></select></td>
             <td><input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value=""><button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button></td>`;
     }
     body.appendChild(row);
@@ -2293,7 +2294,7 @@ function addManualMaterialRow() {
             <div class="pv-material-mini-grid">
                 <div><label>Cantitate</label><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][manual_quantity]" placeholder="cant."></div>
                 <div><label>UM</label><select name="materials[${i}][manual_unit]" class="manual-unit"><option value="">Alege</option><option value="ml">ml</option><option value="l">l</option><option value="g">g</option><option value="kg">kg</option><option value="buc">buc</option><option value="plic">plic</option><option value="capcana">capcana</option><option value="doza">doza</option><option value="set">set</option></select></div>
-                <div><label>Aplicare</label><select name="materials[${i}][manual_application_method]"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directă</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option></select></div>
+                <div><label>Aplicare</label><select name="materials[${i}][manual_application_method]"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directă</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option><option value="momeala">Momeală</option></select></div>
             </div>
             <input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value="">`;
     } else {
@@ -2305,7 +2306,7 @@ function addManualMaterialRow() {
             <td><input type="text" name="materials[${i}][manual_work_concentration]" placeholder="ex: 1%"></td>
             <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][manual_quantity]" placeholder="cant."></td>
             <td><select name="materials[${i}][manual_unit]" class="manual-unit"><option value="">Alege</option><option value="ml">ml</option><option value="l">l</option><option value="g">g</option><option value="kg">kg</option><option value="buc">buc</option><option value="plic">plic</option><option value="capcana">capcana</option><option value="doza">doza</option><option value="set">set</option></select></td>
-            <td><select name="materials[${i}][manual_application_method]"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directă</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option></select></td>
+            <td><select name="materials[${i}][manual_application_method]"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directă</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option><option value="momeala">Momeală</option></select></td>
             <td><input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value=""><button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button></td>`;
     }
     body.appendChild(row);
