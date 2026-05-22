@@ -432,7 +432,7 @@ $totalPages = max(1, (int)ceil($totalRows / $perPage));
 
 $formDocument = $editingDocument ?: [
     'id' => 0,
-    'template_id' => $templates[0]['id'] ?? null,
+    'template_id' => null,
     'document_date' => date('Y-m-d'),
     'title' => '',
     'client_id' => null,
@@ -626,16 +626,14 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                                 </div>
 
                                 <div class="field">
-                                    <label>Șablon</label>
-                                    <select name="template_id">
+                                    <label>Șablon *</label>
+                                    <select name="template_id" required>
+                                        <option value="" disabled <?= empty($formDocument['template_id']) ? 'selected' : '' ?>>Alege șablon...</option>
                                         <?php foreach ($templates as $template): ?>
                                             <option value="<?= (int)$template['id'] ?>" <?= (int)($formDocument['template_id'] ?? 0) === (int)$template['id'] ? 'selected' : '' ?>>
-                                                <?= pz_addendum_h($template['name']) ?><?= !empty($template['is_default']) ? ' - implicit' : '' ?>
+                                                <?= pz_addendum_h($template['name']) ?>
                                             </option>
                                         <?php endforeach; ?>
-                                        <?php if (!$templates): ?>
-                                            <option value="">(șablon implicit)</option>
-                                        <?php endif; ?>
                                     </select>
                                 </div>
                             </div>

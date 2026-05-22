@@ -349,7 +349,7 @@ $formDocument = $editingDocument ?: [
     'id' => 0,
     'document_date' => date('Y-m-d'),
     'document_time' => date('H:i'),
-    'template_id' => $templates[0]['id'] ?? null,
+    'template_id' => null,
     'client_id' => 0,
     'client_location_id' => 0,
     'title' => '',
@@ -926,11 +926,12 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                             <input type="time" name="document_time" value="<?= pz_pv_h(substr((string)($formDocument['document_time'] ?? date('H:i')), 0, 5)) ?>">
                                         </div>
                                         <div class="field pv-template-field">
-                                            <label>Șablon</label>
-                                            <select name="template_id">
+                                            <label>Șablon *</label>
+                                            <select name="template_id" required>
+                                                <option value="" disabled <?= empty($formDocument['template_id']) ? 'selected' : '' ?>>Alege șablon...</option>
                                                 <?php foreach ($templates as $template): ?>
                                                     <option value="<?= (int)$template['id'] ?>" <?= (int)($formDocument['template_id'] ?? 0) === (int)$template['id'] ? 'selected' : '' ?>>
-                                                        <?= pz_pv_h($template['name']) ?><?= !empty($template['is_default']) ? ' - implicit' : '' ?>
+                                                        <?= pz_pv_h($template['name']) ?>
                                                     </option>
                                                 <?php endforeach; ?>
                                             </select>
