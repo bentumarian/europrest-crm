@@ -74,7 +74,7 @@ app_theme_css();
         <div class="stock-field"><label>Data de la</label><input type="date" name="date_from" value="<?= stock_h($dateFrom) ?>"></div>
         <div class="stock-field"><label>Data până la</label><input type="date" name="date_to" value="<?= stock_h($dateTo) ?>"></div>
     </div>
-    <div class="actions-row"><div></div><div class="stock-actions"><button class="btn accent" type="submit">Afișează</button><a class="btn" target="_blank" href="stock_work_registry_export_pdf.php?date_from=<?= urlencode($dateFrom) ?>&date_to=<?= urlencode($dateTo) ?>">Export PDF</a></div></div>
+    <div class="actions-row"><div></div><div class="stock-actions"><button class="btn accent" type="submit">Afișează</button><a class="btn" target="_blank" href="stock_work_registry_export_pdf.php?date_from=<?= urlencode($dateFrom) ?>&date_to=<?= urlencode($dateTo) ?>">Export PDF</a><a class="btn" href="stock_export.php?type=registry&date_from=<?= urlencode($dateFrom) ?>&date_to=<?= urlencode($dateTo) ?>">Export Excel</a></div></div>
 </form>
 <form class="stock-card" method="post">
     <?= csrf_field() ?>

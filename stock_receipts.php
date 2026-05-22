@@ -84,7 +84,50 @@ $isEditing = $editReceipt && empty($editReceipt['cancelled_at']);
 $editIsBio = $editProduct ? stock_is_biocide_group((string)$editProduct['product_group']) : false;
 
 $products = $pdo->query("SELECT id, name, product_group, unit_consumption, package_qty FROM stock_products WHERE is_active = 1 ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
-$receipts = $pdo->query("SELECT r.*, p.name AS product_name, p.product_group, p.unit_consumption FROM stock_receipts r INNER JOIN stock_products p ON p.id = r.product_id ORDER BY r.reception_date DESC, r.id DESC LIMIT 200")->fetchAll(PDO::FETCH_ASSOC);
+
+// Filtre listă recepții
+$filterSearch = trim((string)($_GET['q'] ?? ''));
+$filterStatus = trim((string)($_GET['status'] ?? '')); // '', 'active', 'cancelled'
+$filterFrom = trim((string)($_GET['from'] ?? ''));
+$filterTo = trim((string)($_GET['to'] ?? ''));
+$filterProduct = (int)($_GET['product_id'] ?? 0);
+
+$wh = ['1=1'];
+$pa = [];
+if ($filterSearch !== '') {
+    $wh[] = '(p.name LIKE ? OR r.document_no LIKE ? OR r.supplier LIKE ? OR r.lot LIKE ?)';
+    $like = '%' . $filterSearch . '%';
+    $pa[] = $like; $pa[] = $like; $pa[] = $like; $pa[] = $like;
+}
+if ($filterStatus === 'active') {
+    $wh[] = 'r.cancelled_at IS NULL';
+} elseif ($filterStatus === 'cancelled') {
+    $wh[] = 'r.cancelled_at IS NOT NULL';
+}
+if ($filterFrom !== '') {
+    $wh[] = 'r.reception_date >= ?';
+    $pa[] = $filterFrom;
+}
+if ($filterTo !== '') {
+    $wh[] = 'r.reception_date <= ?';
+    $pa[] = $filterTo;
+}
+if ($filterProduct > 0) {
+    $wh[] = 'r.product_id = ?';
+    $pa[] = $filterProduct;
+}
+$sqlRCount = 'SELECT COUNT(*) FROM stock_receipts r INNER JOIN stock_products p ON p.id = r.product_id WHERE ' . implode(' AND ', $wh);
+$stmtRCount = $pdo->prepare($sqlRCount);
+$stmtRCount->execute($pa);
+$totalReceipts = (int)$stmtRCount->fetchColumn();
+
+[$pageR, $perPageR, $offsetR, $totalPagesR] = stock_pagination_state($totalReceipts, 50);
+
+$sqlR = 'SELECT r.*, p.name AS product_name, p.product_group, p.unit_consumption FROM stock_receipts r INNER JOIN stock_products p ON p.id = r.product_id WHERE ' . implode(' AND ', $wh) . ' ORDER BY r.reception_date DESC, r.id DESC LIMIT ' . (int)$perPageR . ' OFFSET ' . (int)$offsetR;
+$stmtR = $pdo->prepare($sqlR);
+$stmtR->execute($pa);
+$receipts = $stmtR->fetchAll(PDO::FETCH_ASSOC);
+
 $productJson = [];
 foreach ($products as $p) { $productJson[(int)$p['id']] = $p; }
 
@@ -110,7 +153,7 @@ app_theme_css();
 .stock-edit-banner .small { color: var(--muted, #555); font-size: 12px; }
 </style>
 </head><body><div class="layout"><?php render_sidebar('stock', true); ?><main class="main"><div class="topbar"><div style="padding:0 20px;font-weight:900;">Gestiune - Intrări</div></div><div class="content">
-<div class="stock-hero"><div><h1>Intrări stoc</h1><p>Adaugă marfa în stoc. Pentru biocide, lotul și data expirării sunt obligatorii.</p></div><div class="stock-actions"><a class="btn" href="stock_products.php">Produse</a><?php if ($isEditing): ?><a class="btn" href="stock_receipts.php">Anulează editarea</a><?php else: ?><a class="btn accent" href="stock_receipts.php">Intrare nouă</a><?php endif; ?></div></div>
+<div class="stock-hero"><div><h1>Intrări stoc</h1><p>Adaugă marfa în stoc. Pentru biocide, lotul și data expirării sunt obligatorii.</p></div><div class="stock-actions"><?php if ($isEditing): ?><a class="btn" href="stock_receipts.php">Anulează editarea</a><?php endif; ?></div></div>
 <?php render_stock_module_nav('receipts'); ?>
 <?php if ($msg): ?><div class="notice notice-success"><?= stock_h($msg) ?></div><?php endif; ?>
 <?php if ($err): ?><div class="notice notice-danger"><?= stock_h($err) ?></div><?php endif; ?>
@@ -169,7 +212,25 @@ app_theme_css();
 </form>
 <?php endif; ?>
 
-<div class="stock-card"><h2 style="margin:0 0 14px;font-size:18px;">Ultimele intrări</h2>
+<form class="stock-card" method="get" style="margin-bottom:0;">
+    <h2 style="margin:0 0 14px;font-size:18px;">Filtrează intrări</h2>
+    <div class="stock-grid-4">
+        <div class="stock-field"><label>Căutare</label><input type="text" name="q" value="<?= stock_h($filterSearch) ?>" placeholder="Produs, document, furnizor, lot..." autocomplete="off"></div>
+        <div class="stock-field"><label>Produs</label><select name="product_id" onchange="this.form.submit()"><option value="0">Toate</option><?php foreach ($products as $p): ?><option value="<?= (int)$p['id'] ?>" <?= $filterProduct === (int)$p['id'] ? 'selected' : '' ?>><?= stock_h($p['name']) ?></option><?php endforeach; ?></select></div>
+        <div class="stock-field"><label>Status</label><select name="status" onchange="this.form.submit()"><option value="" <?= $filterStatus === '' ? 'selected' : '' ?>>Toate</option><option value="active" <?= $filterStatus === 'active' ? 'selected' : '' ?>>Doar active</option><option value="cancelled" <?= $filterStatus === 'cancelled' ? 'selected' : '' ?>>Doar anulate</option></select></div>
+        <div class="stock-field"><label>De la</label><input type="date" name="from" value="<?= stock_h($filterFrom) ?>" onchange="this.form.submit()"></div>
+        <div class="stock-field"><label>Până la</label><input type="date" name="to" value="<?= stock_h($filterTo) ?>" onchange="this.form.submit()"></div>
+    </div>
+    <div class="actions-row">
+        <a class="btn" href="stock_receipts.php">Resetează</a>
+        <div class="stock-actions">
+            <a class="btn" href="stock_export.php?type=receipts&<?= http_build_query(array_filter(['q' => $filterSearch, 'status' => $filterStatus, 'from' => $filterFrom, 'to' => $filterTo, 'product_id' => $filterProduct ?: null])) ?>">Export Excel</a>
+            <button type="submit" class="btn accent">Caută</button>
+        </div>
+    </div>
+</form>
+
+<div class="stock-card"><h2 style="margin:0 0 14px;font-size:18px;">Intrări recente (<?= (int)$totalReceipts ?>)</h2>
 <div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Data</th><th>Produs</th><th>Document</th><th>Furnizor</th><th>Cantitate</th><th>Lot</th><th>Expirare</th><th>Status</th><th>Acțiuni</th></tr></thead><tbody>
 <?php foreach ($receipts as $r):
     $rid = (int)$r['id'];
@@ -215,8 +276,10 @@ app_theme_css();
     </td>
 </tr>
 <?php endforeach; ?>
-<?php if (!$receipts): ?><tr><td colspan="9">Nu există intrări.</td></tr><?php endif; ?>
-</tbody></table></div></div>
+<?php if (!$receipts): ?><tr><td colspan="9">Nicio intrare nu corespunde filtrelor.</td></tr><?php endif; ?>
+</tbody></table></div>
+<?php stock_render_pagination($pageR, $totalPagesR, $totalReceipts); ?>
+</div>
 </div></main></div>
 <script>
 function stockConfirmCancel(form){

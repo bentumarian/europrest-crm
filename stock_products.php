@@ -112,7 +112,31 @@ try {
 
 $editId = (int)($_GET['edit'] ?? 0);
 $edit = $editId > 0 ? stock_get_product($pdo, $editId) : null;
-$products = $pdo->query("SELECT * FROM stock_products ORDER BY is_active DESC, product_group ASC, name ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+// Filtre listă produse
+$filterSearch = trim((string)($_GET['q'] ?? ''));
+$filterGroup = trim((string)($_GET['group'] ?? ''));
+$filterStatus = trim((string)($_GET['status'] ?? '')); // '', 'active', 'inactive'
+$where = ['1=1'];
+$params = [];
+if ($filterSearch !== '') {
+    $where[] = '(name LIKE ? OR active_substance LIKE ? OR aviz_no LIKE ?)';
+    $like = '%' . $filterSearch . '%';
+    $params[] = $like; $params[] = $like; $params[] = $like;
+}
+if ($filterGroup !== '' && array_key_exists($filterGroup, stock_group_options())) {
+    $where[] = 'product_group = ?';
+    $params[] = $filterGroup;
+}
+if ($filterStatus === 'active') {
+    $where[] = 'is_active = 1';
+} elseif ($filterStatus === 'inactive') {
+    $where[] = 'is_active = 0';
+}
+$sqlList = 'SELECT * FROM stock_products WHERE ' . implode(' AND ', $where) . ' ORDER BY is_active DESC, product_group ASC, name ASC';
+$stmtList = $pdo->prepare($sqlList);
+$stmtList->execute($params);
+$products = $stmtList->fetchAll(PDO::FETCH_ASSOC);
 $groups = stock_group_options();
 $units = stock_unit_options();
 
@@ -120,7 +144,7 @@ app_theme_css();
 ?>
 <!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Produse gestiune</title>
 </head><body><div class="layout"><?php render_sidebar('stock', true); ?><main class="main"><div class="topbar"><div style="padding:0 20px;font-weight:900;">Gestiune - Produse</div></div><div class="content">
-<div class="stock-hero"><div><h1>Nomenclator produse</h1><p>Produse și materiale DDD, cu stoc minim și măsuri de siguranță pentru PV.</p></div><div class="stock-actions"><a class="btn" href="avize_sanitare.php" target="_blank" rel="noopener">Pagina publică avize</a><a class="btn" href="stock.php">Dashboard</a><a class="btn accent" href="stock_products.php">Produs nou</a></div></div>
+<div class="stock-hero"><div><h1>Nomenclator produse</h1><p>Produse și materiale DDD, cu stoc minim și măsuri de siguranță pentru PV.</p></div><div class="stock-actions"><a class="btn" href="avize_sanitare.php" target="_blank" rel="noopener">Pagina publică avize</a><?php if ($edit): ?><a class="btn" href="stock_products.php">Anulează editarea</a><?php endif; ?></div></div>
 <?php render_stock_module_nav('products'); ?>
 <?php if ($msg): ?><div class="notice notice-success"><?= stock_h($msg) ?></div><?php endif; ?>
 <?php if ($err): ?><div class="notice notice-danger"><?= stock_h($err) ?></div><?php endif; ?>
@@ -161,10 +185,19 @@ app_theme_css();
 <div class="stock-field" style="margin-top:14px;"><label>Observații interne</label><textarea name="notes" rows="2"><?= stock_h($edit['notes'] ?? '') ?></textarea></div>
 <div class="actions-row"><label style="display:flex;gap:8px;align-items:center;margin:0;text-transform:none;letter-spacing:0;font-size:14px;"><input type="checkbox" name="is_active" value="1" style="width:auto;min-height:auto;" <?= ((int)($edit['is_active'] ?? 1) === 1 ? 'checked' : '') ?>> Produs activ</label><div class="stock-actions"><a class="btn" href="stock_products.php">Curăță</a><button class="btn accent" type="submit">Salvează produs</button></div></div>
 </form>
-<div class="stock-card"><h2 style="margin:0 0 14px;font-size:18px;">Listă produse</h2><div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Produs</th><th>Grupă</th><th>UM</th><th>Ambalaj</th><th>Stoc minim</th><th>Aviz</th><th>Valabilitate</th><th>Măsuri PV</th><th>Status</th><th>Acțiuni</th></tr></thead><tbody>
+<form class="stock-card" method="get" style="margin-bottom:0;">
+    <h2 style="margin:0 0 14px;font-size:18px;">Caută în nomenclator</h2>
+    <div class="stock-grid-3">
+        <div class="stock-field"><label>Căutare</label><input type="text" name="q" value="<?= stock_h($filterSearch) ?>" placeholder="Denumire, substanță activă, aviz..." autocomplete="off"></div>
+        <div class="stock-field"><label>Grupă</label><select name="group" onchange="this.form.submit()"><option value="">Toate grupele</option><?php foreach ($groups as $k => $v): ?><option value="<?= stock_h($k) ?>" <?= $filterGroup === $k ? 'selected' : '' ?>><?= stock_h($v) ?></option><?php endforeach; ?></select></div>
+        <div class="stock-field"><label>Status</label><select name="status" onchange="this.form.submit()"><option value="" <?= $filterStatus === '' ? 'selected' : '' ?>>Toate</option><option value="active" <?= $filterStatus === 'active' ? 'selected' : '' ?>>Doar active</option><option value="inactive" <?= $filterStatus === 'inactive' ? 'selected' : '' ?>>Doar inactive</option></select></div>
+    </div>
+    <div class="actions-row"><a class="btn" href="stock_products.php">Resetează</a><button type="submit" class="btn accent">Caută</button></div>
+</form>
+<div class="stock-card"><h2 style="margin:0 0 14px;font-size:18px;">Listă produse (<?= count($products) ?>)</h2><div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Produs</th><th>Grupă</th><th>UM</th><th>Ambalaj</th><th>Stoc minim</th><th>Aviz</th><th>Valabilitate</th><th>Măsuri PV</th><th>Status</th><th>Acțiuni</th></tr></thead><tbody>
 <?php foreach ($products as $p): $bio = stock_is_biocide_group($p['product_group']); ?>
 <tr><td><strong><?= stock_h($p['name']) ?></strong></td><td><?= stock_h(stock_group_label($p['product_group'])) ?></td><td><?= stock_h($p['unit_consumption']) ?></td><td><?= stock_h(stock_package_display($p['package_qty'], $p['unit_consumption'])) ?></td><td><?= stock_h(stock_unit_display($p['min_qty'] ?? 0, $p['unit_consumption'])) ?></td><td><?= stock_h($p['aviz_no'] ?: '-') ?></td><td><?= stock_h($p['aviz_valid_until'] ?: '-') ?></td><td><?= $bio ? (!empty($p['safety_measures']) ? '<span class="stock-badge green">Completat</span>' : '<span class="stock-badge red">Lipsă</span>') : '<span class="stock-badge">N/A</span>' ?></td><td><?= (int)$p['is_active'] === 1 ? '<span class="stock-badge green">Activ</span>' : '<span class="stock-badge red">Inactiv</span>' ?></td><td><a class="btn" href="stock_products.php?edit=<?= (int)$p['id'] ?>">Editează</a></td></tr>
-<?php endforeach; ?><?php if (!$products): ?><tr><td colspan="10">Nu există produse.</td></tr><?php endif; ?>
+<?php endforeach; ?><?php if (!$products): ?><tr><td colspan="10">Niciun produs nu corespunde filtrelor.</td></tr><?php endif; ?>
 </tbody></table></div></div>
 </div></main></div>
 <script>

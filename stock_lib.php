@@ -1110,6 +1110,68 @@ if (!function_exists('stock_registry_rows')) {
     }
 }
 
+if (!function_exists('stock_pagination_state')) {
+    /**
+     * Calculează starea paginării pe baza GET-ului.
+     * Returnează: [page, perPage, offset, totalPages]
+     */
+    function stock_pagination_state(int $totalRows, int $perPage = 50, ?int $requestedPage = null): array
+    {
+        if ($perPage < 1) { $perPage = 50; }
+        $totalPages = max(1, (int)ceil($totalRows / $perPage));
+        $page = $requestedPage !== null ? $requestedPage : (int)($_GET['page'] ?? 1);
+        if ($page < 1) { $page = 1; }
+        if ($page > $totalPages) { $page = $totalPages; }
+        $offset = ($page - 1) * $perPage;
+        return [$page, $perPage, $offset, $totalPages];
+    }
+}
+
+if (!function_exists('stock_render_pagination')) {
+    /**
+     * Afișează un nav simplu de paginare (prev / 1 .. n / next) care păstrează
+     * toate filtrele curente din query string.
+     */
+    function stock_render_pagination(int $page, int $totalPages, int $totalRows): void
+    {
+        if ($totalPages <= 1) {
+            echo '<div style="text-align:right;color:var(--muted);font-size:12.5px;margin-top:8px;">' . (int)$totalRows . ' înregistrări</div>';
+            return;
+        }
+        $params = $_GET;
+        $build = function(int $p) use ($params) {
+            $params['page'] = $p;
+            return '?' . http_build_query($params);
+        };
+        echo '<div class="stock-pagination" style="display:flex;gap:6px;justify-content:center;align-items:center;margin-top:12px;flex-wrap:wrap;">';
+        echo '<span style="color:var(--muted);font-size:12.5px;margin-right:auto;">' . (int)$totalRows . ' înregistrări · pagina ' . (int)$page . '/' . (int)$totalPages . '</span>';
+        if ($page > 1) {
+            echo '<a class="btn" href="' . htmlspecialchars($build($page - 1), ENT_QUOTES, 'UTF-8') . '">‹ Anterior</a>';
+        }
+        // Afișare paginare compactă cu ferestre de pagini în jurul celei curente
+        $window = 2;
+        $shown = [];
+        for ($i = 1; $i <= $totalPages; $i++) {
+            if ($i === 1 || $i === $totalPages || abs($i - $page) <= $window) {
+                $shown[] = $i;
+            }
+        }
+        $prev = 0;
+        foreach ($shown as $i) {
+            if ($prev !== 0 && $i > $prev + 1) {
+                echo '<span style="color:var(--muted);padding:0 4px;">…</span>';
+            }
+            $cls = $i === $page ? 'btn accent' : 'btn';
+            echo '<a class="' . $cls . '" href="' . htmlspecialchars($build($i), ENT_QUOTES, 'UTF-8') . '">' . (int)$i . '</a>';
+            $prev = $i;
+        }
+        if ($page < $totalPages) {
+            echo '<a class="btn" href="' . htmlspecialchars($build($page + 1), ENT_QUOTES, 'UTF-8') . '">Următor ›</a>';
+        }
+        echo '</div>';
+    }
+}
+
 if (!function_exists('stock_render_pdf_or_html')) {
     function stock_render_pdf_or_html(string $html, string $filename): void
     {

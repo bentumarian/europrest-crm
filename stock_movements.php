@@ -35,7 +35,49 @@ try {
 
 $products = stock_current_by_product($pdo);
 $activeProducts = array_values(array_filter($products, function ($p) { return (int)($p['is_active'] ?? 1) === 1; }));
-$rows = $pdo->query("SELECT m.*, p.name AS product_name, p.unit_consumption, r.lot, r.expires_at FROM stock_movements m INNER JOIN stock_products p ON p.id=m.product_id LEFT JOIN stock_receipts r ON r.id=m.receipt_id ORDER BY m.created_at DESC, m.id DESC LIMIT 300")->fetchAll(PDO::FETCH_ASSOC);
+
+// Filtre istoric mișcări
+$filterSearch = trim((string)($_GET['q'] ?? ''));
+$filterType = trim((string)($_GET['type'] ?? ''));
+$filterProduct = (int)($_GET['product_id'] ?? 0);
+$filterFrom = trim((string)($_GET['from'] ?? ''));
+$filterTo = trim((string)($_GET['to'] ?? ''));
+
+$wh = ['1=1'];
+$pa = [];
+if ($filterSearch !== '') {
+    $wh[] = '(p.name LIKE ? OR m.notes LIKE ? OR r.lot LIKE ?)';
+    $like = '%' . $filterSearch . '%';
+    $pa[] = $like; $pa[] = $like; $pa[] = $like;
+}
+if ($filterType !== '' && array_key_exists($filterType, stock_movement_labels())) {
+    $wh[] = 'm.movement_type = ?';
+    $pa[] = $filterType;
+}
+if ($filterProduct > 0) {
+    $wh[] = 'm.product_id = ?';
+    $pa[] = $filterProduct;
+}
+if ($filterFrom !== '') {
+    $wh[] = 'DATE(m.created_at) >= ?';
+    $pa[] = $filterFrom;
+}
+if ($filterTo !== '') {
+    $wh[] = 'DATE(m.created_at) <= ?';
+    $pa[] = $filterTo;
+}
+$sqlMCount = 'SELECT COUNT(*) FROM stock_movements m INNER JOIN stock_products p ON p.id=m.product_id LEFT JOIN stock_receipts r ON r.id=m.receipt_id WHERE ' . implode(' AND ', $wh);
+$stmtMCount = $pdo->prepare($sqlMCount);
+$stmtMCount->execute($pa);
+$totalMovements = (int)$stmtMCount->fetchColumn();
+
+[$pageM, $perPageM, $offsetM, $totalPagesM] = stock_pagination_state($totalMovements, 50);
+
+$sqlM = 'SELECT m.*, p.name AS product_name, p.unit_consumption, r.lot, r.expires_at FROM stock_movements m INNER JOIN stock_products p ON p.id=m.product_id LEFT JOIN stock_receipts r ON r.id=m.receipt_id WHERE ' . implode(' AND ', $wh) . ' ORDER BY m.created_at DESC, m.id DESC LIMIT ' . (int)$perPageM . ' OFFSET ' . (int)$offsetM;
+$stmtM = $pdo->prepare($sqlM);
+$stmtM->execute($pa);
+$rows = $stmtM->fetchAll(PDO::FETCH_ASSOC);
+
 $productJson = [];
 foreach ($activeProducts as $p) { $productJson[(int)$p['id']] = $p; }
 $receipts = stock_table_exists($pdo, 'stock_receipts')
@@ -84,7 +126,26 @@ app_theme_css();
 </div>
 <div class="actions-row"><div></div><button type="submit" class="btn accent">Salvează mișcarea</button></div>
 </form>
-<div class="stock-card"><h2 style="margin:0 0 14px;font-size:18px;">Istoric mișcări</h2><div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Data</th><th>Produs</th><th>Lot</th><th>Tip</th><th>Cantitate</th><th>Referință</th><th>Observații</th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><?= stock_h($r['created_at']) ?></td><td><?= stock_h($r['product_name']) ?></td><td><?= stock_h($r['lot'] ?: '-') ?></td><td><span class="stock-badge blue"><?= stock_h(stock_movement_label($r['movement_type'])) ?></span></td><td><?= stock_h(stock_unit_display($r['qty'], $r['unit_consumption'])) ?></td><td><?= stock_h(($r['reference_type'] ?: '-') . ($r['reference_id'] ? ' #' . $r['reference_id'] : '')) ?></td><td><?= stock_h($r['notes'] ?: '-') ?></td></tr><?php endforeach; ?><?php if(!$rows): ?><tr><td colspan="7">Nu există mișcări.</td></tr><?php endif; ?></tbody></table></div></div></div></main></div>
+
+<form class="stock-card" method="get" style="margin-bottom:0;">
+    <h2 style="margin:0 0 14px;font-size:18px;">Filtrează istoricul</h2>
+    <div class="stock-grid-4">
+        <div class="stock-field"><label>Căutare</label><input type="text" name="q" value="<?= stock_h($filterSearch) ?>" placeholder="Produs, observații, lot..." autocomplete="off"></div>
+        <div class="stock-field"><label>Tip mișcare</label><select name="type" onchange="this.form.submit()"><option value="">Toate</option><?php foreach (stock_movement_labels() as $k => $lbl): ?><option value="<?= stock_h($k) ?>" <?= $filterType === $k ? 'selected' : '' ?>><?= stock_h($lbl) ?></option><?php endforeach; ?></select></div>
+        <div class="stock-field"><label>Produs</label><select name="product_id" onchange="this.form.submit()"><option value="0">Toate</option><?php foreach ($activeProducts as $p): ?><option value="<?= (int)$p['id'] ?>" <?= $filterProduct === (int)$p['id'] ? 'selected' : '' ?>><?= stock_h($p['name']) ?></option><?php endforeach; ?></select></div>
+        <div class="stock-field"><label>De la</label><input type="date" name="from" value="<?= stock_h($filterFrom) ?>" onchange="this.form.submit()"></div>
+        <div class="stock-field"><label>Până la</label><input type="date" name="to" value="<?= stock_h($filterTo) ?>" onchange="this.form.submit()"></div>
+    </div>
+    <div class="actions-row">
+        <a class="btn" href="stock_movements.php">Resetează</a>
+        <div class="stock-actions">
+            <a class="btn" href="stock_export.php?type=movements&<?= http_build_query(array_filter(['q' => $filterSearch, 'type_filter' => $filterType, 'from' => $filterFrom, 'to' => $filterTo, 'product_id' => $filterProduct ?: null])) ?>">Export Excel</a>
+            <button type="submit" class="btn accent">Caută</button>
+        </div>
+    </div>
+</form>
+
+<div class="stock-card"><h2 style="margin:0 0 14px;font-size:18px;">Istoric mișcări (<?= (int)$totalMovements ?>)</h2><div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Data</th><th>Produs</th><th>Lot</th><th>Tip</th><th>Cantitate</th><th>Referință</th><th>Observații</th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><?= stock_h($r['created_at']) ?></td><td><?= stock_h($r['product_name']) ?></td><td><?= stock_h($r['lot'] ?: '-') ?></td><td><span class="stock-badge blue"><?= stock_h(stock_movement_label($r['movement_type'])) ?></span></td><td><?= stock_h(stock_unit_display($r['qty'], $r['unit_consumption'])) ?></td><td><?= stock_h(($r['reference_type'] ?: '-') . ($r['reference_id'] ? ' #' . $r['reference_id'] : '')) ?></td><td><?= stock_h($r['notes'] ?: '-') ?></td></tr><?php endforeach; ?><?php if(!$rows): ?><tr><td colspan="7">Nicio mișcare nu corespunde filtrelor.</td></tr><?php endif; ?></tbody></table></div><?php stock_render_pagination($pageM, $totalPagesM, $totalMovements); ?></div></div></main></div>
 <script>
 var products = <?= json_encode($productJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 var receipts = <?= json_encode($receiptJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
