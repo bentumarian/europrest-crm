@@ -1275,9 +1275,6 @@ if (!function_exists('stock_validate_product_data')) {
             if (trim((string)($data['aviz_valid_until'] ?? '')) === '') {
                 throw new RuntimeException('Valabilitatea avizului este obligatorie pentru produsul biocid.');
             }
-            if (trim((string)($data['safety_measures'] ?? '')) === '') {
-                throw new RuntimeException('Măsurile de siguranță pentru PV sunt obligatorii pentru produsul biocid.');
-            }
         }
     }
 }

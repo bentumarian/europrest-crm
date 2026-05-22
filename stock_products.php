@@ -70,7 +70,6 @@ try {
                 'product_concentration' => trim((string)($_POST['product_concentration'] ?? '')),
                 'contact_time' => trim((string)($_POST['contact_time'] ?? '')),
                 'default_application_method' => trim((string)($_POST['default_application_method'] ?? '')),
-                'safety_measures' => trim((string)($_POST['safety_measures'] ?? '')),
                 'notes' => trim((string)($_POST['notes'] ?? '')),
                 'is_active' => !empty($_POST['is_active']) ? 1 : 0,
             ];
@@ -91,16 +90,15 @@ try {
             if (!stock_is_biocide_group($data['product_group'])) {
                 $data['aviz_no'] = $data['aviz_no'] ?: null;
                 $data['aviz_valid_until'] = $data['aviz_valid_until'] ?: null;
-                $data['safety_measures'] = $data['safety_measures'] ?: null;
             }
 
             if ($id > 0) {
-                $sql = "UPDATE stock_products SET name=:name, product_group=:product_group, unit_consumption=:unit_consumption, package_qty=:package_qty, min_qty=:min_qty, aviz_no=:aviz_no, aviz_valid_until=:aviz_valid_until, active_substance=:active_substance, product_concentration=:product_concentration, contact_time=:contact_time, default_application_method=:default_application_method, safety_measures=:safety_measures, aviz_file=:aviz_file, notes=:notes, is_active=:is_active, updated_at=NOW() WHERE id=:id";
+                $sql = "UPDATE stock_products SET name=:name, product_group=:product_group, unit_consumption=:unit_consumption, package_qty=:package_qty, min_qty=:min_qty, aviz_no=:aviz_no, aviz_valid_until=:aviz_valid_until, active_substance=:active_substance, product_concentration=:product_concentration, contact_time=:contact_time, default_application_method=:default_application_method, aviz_file=:aviz_file, notes=:notes, is_active=:is_active, updated_at=NOW() WHERE id=:id";
                 $data['id'] = $id;
                 $pdo->prepare($sql)->execute($data);
                 $msg = 'Produs actualizat.';
             } else {
-                $sql = "INSERT INTO stock_products (name, product_group, unit_consumption, package_qty, min_qty, aviz_no, aviz_valid_until, active_substance, product_concentration, contact_time, default_application_method, safety_measures, aviz_file, notes, is_active, created_at) VALUES (:name, :product_group, :unit_consumption, :package_qty, :min_qty, :aviz_no, :aviz_valid_until, :active_substance, :product_concentration, :contact_time, :default_application_method, :safety_measures, :aviz_file, :notes, :is_active, NOW())";
+                $sql = "INSERT INTO stock_products (name, product_group, unit_consumption, package_qty, min_qty, aviz_no, aviz_valid_until, active_substance, product_concentration, contact_time, default_application_method, aviz_file, notes, is_active, created_at) VALUES (:name, :product_group, :unit_consumption, :package_qty, :min_qty, :aviz_no, :aviz_valid_until, :active_substance, :product_concentration, :contact_time, :default_application_method, :aviz_file, :notes, :is_active, NOW())";
                 $pdo->prepare($sql)->execute($data);
                 $msg = 'Produs adăugat.';
             }
@@ -181,7 +179,6 @@ app_theme_css();
     <div class="stock-field"><label>Timp contact / acțiune</label><input name="contact_time" value="<?= stock_h($edit['contact_time'] ?? '') ?>"></div>
     <div class="stock-field"><label>Metodă aplicare implicită</label><input name="default_application_method" value="<?= stock_h($edit['default_application_method'] ?? '') ?>"></div>
 </div>
-<div class="stock-field js-biocide-only" style="margin-top:14px;"><label>Măsuri de siguranță pentru PV *</label><textarea name="safety_measures" rows="5" placeholder="Acest text intră automat în PV sub tabelul cu produse biocide."><?= stock_h($edit['safety_measures'] ?? '') ?></textarea><small>Nu se completează fraze CLP. Se trec doar instrucțiunile utile pentru beneficiar.</small></div>
 <div class="stock-field" style="margin-top:14px;"><label>Observații interne</label><textarea name="notes" rows="2"><?= stock_h($edit['notes'] ?? '') ?></textarea></div>
 <div class="actions-row"><label style="display:flex;gap:8px;align-items:center;margin:0;text-transform:none;letter-spacing:0;font-size:14px;"><input type="checkbox" name="is_active" value="1" style="width:auto;min-height:auto;" <?= ((int)($edit['is_active'] ?? 1) === 1 ? 'checked' : '') ?>> Produs activ</label><div class="stock-actions"><a class="btn" href="stock_products.php">Curăță</a><button class="btn accent" type="submit">Salvează produs</button></div></div>
 </form>
@@ -194,10 +191,10 @@ app_theme_css();
     </div>
     <div class="actions-row"><a class="btn" href="stock_products.php">Resetează</a><button type="submit" class="btn accent">Caută</button></div>
 </form>
-<div class="stock-card"><h2 style="margin:0 0 14px;font-size:18px;">Listă produse (<?= count($products) ?>)</h2><div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Produs</th><th>Grupă</th><th>UM</th><th>Ambalaj</th><th>Stoc minim</th><th>Aviz</th><th>Valabilitate</th><th>Măsuri PV</th><th>Status</th><th>Acțiuni</th></tr></thead><tbody>
-<?php foreach ($products as $p): $bio = stock_is_biocide_group($p['product_group']); ?>
-<tr><td><strong><?= stock_h($p['name']) ?></strong></td><td><?= stock_h(stock_group_label($p['product_group'])) ?></td><td><?= stock_h($p['unit_consumption']) ?></td><td><?= stock_h(stock_package_display($p['package_qty'], $p['unit_consumption'])) ?></td><td><?= stock_h(stock_unit_display($p['min_qty'] ?? 0, $p['unit_consumption'])) ?></td><td><?= stock_h($p['aviz_no'] ?: '-') ?></td><td><?= stock_h($p['aviz_valid_until'] ?: '-') ?></td><td><?= $bio ? (!empty($p['safety_measures']) ? '<span class="stock-badge green">Completat</span>' : '<span class="stock-badge red">Lipsă</span>') : '<span class="stock-badge">N/A</span>' ?></td><td><?= (int)$p['is_active'] === 1 ? '<span class="stock-badge green">Activ</span>' : '<span class="stock-badge red">Inactiv</span>' ?></td><td><a class="btn" href="stock_products.php?edit=<?= (int)$p['id'] ?>">Editează</a></td></tr>
-<?php endforeach; ?><?php if (!$products): ?><tr><td colspan="10">Niciun produs nu corespunde filtrelor.</td></tr><?php endif; ?>
+<div class="stock-card"><h2 style="margin:0 0 14px;font-size:18px;">Listă produse (<?= count($products) ?>)</h2><div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Produs</th><th>Grupă</th><th>UM</th><th>Ambalaj</th><th>Stoc minim</th><th>Aviz</th><th>Valabilitate</th><th>Status</th><th>Acțiuni</th></tr></thead><tbody>
+<?php foreach ($products as $p): ?>
+<tr><td><strong><?= stock_h($p['name']) ?></strong></td><td><?= stock_h(stock_group_label($p['product_group'])) ?></td><td><?= stock_h($p['unit_consumption']) ?></td><td><?= stock_h(stock_package_display($p['package_qty'], $p['unit_consumption'])) ?></td><td><?= stock_h(stock_unit_display($p['min_qty'] ?? 0, $p['unit_consumption'])) ?></td><td><?= stock_h($p['aviz_no'] ?: '-') ?></td><td><?= stock_h($p['aviz_valid_until'] ?: '-') ?></td><td><?= (int)$p['is_active'] === 1 ? '<span class="stock-badge green">Activ</span>' : '<span class="stock-badge red">Inactiv</span>' ?></td><td><a class="btn" href="stock_products.php?edit=<?= (int)$p['id'] ?>">Editează</a></td></tr>
+<?php endforeach; ?><?php if (!$products): ?><tr><td colspan="9">Niciun produs nu corespunde filtrelor.</td></tr><?php endif; ?>
 </tbody></table></div></div>
 </div></main></div>
 <script>
