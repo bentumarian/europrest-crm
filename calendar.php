@@ -1052,6 +1052,8 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 .event:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(16, 32, 21, .24); }
 .event strong { display: block; font-size: 12px; font-weight: 650; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .event small { display: block; opacity: .94; margin-bottom: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.event .event-time { display: block; font-size: 10.5px; font-weight: 700; opacity: .88; letter-spacing: .02em; font-feature-settings: "tnum" 1; font-variant-numeric: tabular-nums; margin-bottom: 1px; }
+.event.done .event-time { color: #002050 !important; opacity: 1 !important; }
 .event.done { color: #002050 !important; border: 1px solid rgba(0,32,80,.18) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.75), 0 6px 14px rgba(0,32,80,.08) !important; padding-right: 72px !important; }
 .event.done strong, .event.done small { color: #002050 !important; opacity: 1 !important; }
 .event-done-badge { position:absolute; top:5px; right:6px; display:inline-flex; align-items:center; justify-content:center; width:auto; max-width:64px; height:16px; padding:0 6px; border-radius:999px; background:rgba(255,255,255,.82); border:1px solid rgba(0,32,80,.14); color:#002050; font-size:8px; font-weight:800; line-height:1; letter-spacing:.01em; text-transform:uppercase; white-space:nowrap; box-shadow:0 4px 10px rgba(0,32,80,.08); pointer-events:none; }
@@ -1157,7 +1159,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
     .team-dot { width: 24px; height: 24px; font-size: 10px; margin: 0 auto; }
     .slot-cell { min-width: <?= (int)$mobileMinTeamWidth ?>px !important; max-width: none !important; }
     .event { margin: 2px; padding: 0; border-radius: 8px; min-height: 30px; box-shadow: none; max-width: 100% !important; }
-    .event strong, .event small { display: none !important; }
+    .event strong, .event small, .event .event-time { display: none !important; }
     .event:hover { transform: none; box-shadow: none; }
 }
 @media(max-width: 520px) {
@@ -1639,6 +1641,8 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
         <div class="topbar calendar-topbar">
             <div class="calendar-toolbar">
 
+                <div class="pz-page-eyebrow" style="grid-column:1/-1;color:#fff;opacity:.72;margin-bottom:2px;">Operațional · Calendar tehnicieni</div>
+
                 <div class="calendar-line calendar-date-line">
                     <a class="btn nav-today-btn" href="calendar.php?date=<?= urlencode(date('Y-m-d')) ?>&view=<?= urlencode($view) ?>&team=<?= urlencode($selectedTeam) ?>">Azi</a>
                     <a class="btn nav-arrow" href="calendar.php?date=<?= urlencode($prevDate) ?>&view=<?= urlencode($view) ?>&team=<?= urlencode($selectedTeam) ?>">&lsaquo;</a>
@@ -1690,7 +1694,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 
                 <?php if ($isAdmin): ?>
                     <div class="calendar-action-line">
-                        <button class="btn accent" type="button" onclick="openCreateModal('<?= hcal($currentDate) ?>', '09:00', '<?= (int)$defaultTeamId ?>')">+ Programare nouă</button>
+                        <button class="pz-icon-btn primary lg" type="button" title="Programare nouă" aria-label="Programare nouă" onclick="openCreateModal('<?= hcal($currentDate) ?>', '09:00', '<?= (int)$defaultTeamId ?>')"><?= app_icon_svg('plus') ?></button>
                     </div>
                 <?php endif; ?>
 
@@ -1700,18 +1704,18 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
         <?php if (isset($_GET['success'])): ?><div class="notice notice-success">Programarea a fost adăugată cu succes.</div><?php endif; ?>
         <?php if (isset($_GET['sms_sent'])): ?><div class="notice notice-success">SMS-ul de confirmare a fost trimis.</div><?php endif; ?>
         <?php if (isset($_GET['sms_skipped'])): ?><div class="notice notice-warning">SMS-ul nu a fost trimis deoarece clientul are notificările SMS oprite.</div><?php endif; ?>
-        <?php if (isset($_GET['sms_error'])): ?><div class="notice notice-warning">Programarea a fost salvata, dar SMS-ul nu a putut fi trimis. Verifica logurile din Comunicare.</div><?php endif; ?>
-        <?php if (isset($_GET['drag_time_changed'])): ?><div class="notice notice-success">Programarea a fost mutată. SMS-ul nu se mai trimite automat la modificari; il poți trimite manual din fișa programării.</div><?php endif; ?>
+        <?php if (isset($_GET['sms_error'])): ?><div class="notice notice-warning">Programarea a fost salvată, dar SMS-ul nu a putut fi trimis. Verifică logurile din Comunicare.</div><?php endif; ?>
+        <?php if (isset($_GET['drag_time_changed'])): ?><div class="notice notice-success">Programarea a fost mutată. SMS-ul nu se mai trimite automat la modificări; il poți trimite manual din fișa programării.</div><?php endif; ?>
         <?php if (isset($_GET['drag_no_sms'])): ?><div class="notice notice-success">Programarea a fost mutată. SMS netrimis automat.</div><?php endif; ?>
-        <?php if (isset($_GET['updated_time_changed'])): ?><div class="notice notice-success">Programarea a fost actualizată. SMS-ul nu se mai trimite automat la modificari; il poți trimite manual din fișa programării.</div><?php endif; ?>
+        <?php if (isset($_GET['updated_time_changed'])): ?><div class="notice notice-success">Programarea a fost actualizată. SMS-ul nu se mai trimite automat la modificări; il poți trimite manual din fișa programării.</div><?php endif; ?>
         <?php if (isset($_GET['updated'])): ?><div class="notice notice-success">Programarea a fost actualizată.</div><?php endif; ?>
-        <?php if (isset($_GET['finished'])): ?><div class="notice notice-success">Lucrarea a fost finalizata. Acum poți emite PV, dacă este necesar.</div><?php endif; ?>
+        <?php if (isset($_GET['finished'])): ?><div class="notice notice-success">Lucrarea a fost finalizată. Acum poți emite PV, dacă este necesar.</div><?php endif; ?>
         <?php if (isset($_GET['pv_email_sent'])): ?><div class="notice notice-success">Emailul cu PV a fost trimis.</div><?php endif; ?>
         <?php if (isset($_GET['pv_email_error'])): ?><div class="notice notice-warning">Emailul cu PV nu a putut fi trimis.</div><?php endif; ?>
-        <?php if (isset($_GET['finish_error'])): ?><div class="notice notice-warning">Pentru finalizarea lucrării trebuie sa completezi mențiunile de finalizare.</div><?php endif; ?>
+        <?php if (isset($_GET['finish_error'])): ?><div class="notice notice-warning">Pentru finalizarea lucrării trebuie să completezi mențiunile de finalizare.</div><?php endif; ?>
         <?php if (isset($_GET['deleted'])): ?><div class="notice notice-warning">Programarea a fost ștearsă definitiv.</div><?php endif; ?>
-        <?php if (isset($_GET['conflict'])): ?><div class="notice notice-warning">Programarea nu a fost salvata. <?= hcal((string)($_GET['conflict_msg'] ?? 'Un operator este deja alocat in intervalul selectat.')) ?></div><?php endif; ?>
-        <?php if (isset($_GET['error'])): ?><div class="notice notice-warning">Actiunea nu a putut fi procesata. Verifica datele introduse.</div><?php endif; ?>
+        <?php if (isset($_GET['conflict'])): ?><div class="notice notice-warning">Programarea nu a fost salvata. <?= hcal((string)($_GET['conflict_msg'] ?? 'Un operator este deja alocat în intervalul selectat.')) ?></div><?php endif; ?>
+        <?php if (isset($_GET['error'])): ?><div class="notice notice-warning">Acțiunea nu a putut fi procesată. Verifică datele introduse.</div><?php endif; ?>
 
         <div class="content">
 
@@ -1797,9 +1801,10 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                                 $eventTitle = ($appt['client_name'] ?: 'Client') . ' - ' . substr($apptStartTime, 0, 5) . ' - ' . ($appt['service_type'] ?: 'Lucrare');
                             ?>
                             <div class="<?= hcal($cls) ?>" style="grid-column:<?= $gridColumn ?>;grid-row:<?= $gridRow ?>/span <?= $span ?>;background:<?= hcal($color) ?>;border-color:<?= hcal($borderColor) ?>;color:<?= hcal($eventTextColor) ?>;" <?php if ($isAdmin && !$isFinalizedEvent && $isPrimaryAssignment): ?>draggable="true" data-appointment-id="<?= (int)$appt['id'] ?>" ondragstart="handleAppointmentDragStart(event)" ondragend="handleAppointmentDragEnd(event)"<?php endif; ?> onclick="event.stopPropagation(); if (!window.pzAppointmentWasDragged) loadAppointment(<?= (int)$appt['id'] ?>)" title="<?= hcal($eventTitle) ?>">
+                                <span class="event-time"><?= hcal(substr($apptStartTime, 0, 5)) ?></span>
                                 <strong><?= hcal($appt['client_name'] ?: 'Client') ?></strong>
                                 <small><?= hcal($appt['service_type'] ?: 'Lucrare') ?></small>
-                                <?php if ($isFinalizedEvent): ?><span class="event-done-badge">Finalizata</span><?php endif; ?>
+                                <?php if ($isFinalizedEvent): ?><span class="event-done-badge">Finalizată</span><?php endif; ?>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -3392,4 +3397,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 </body>
-</html>
+</html>
