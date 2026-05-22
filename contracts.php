@@ -515,7 +515,7 @@ $totalPages = max(1, (int)ceil($totalRows / $perPage));
 $formPayload = $editingPayload ?: [];
 $formDocument = $editingDocument ?: [
     'id' => 0,
-    'template_id' => $templates[0]['id'] ?? null,
+    'template_id' => null,
     'document_date' => date('Y-m-d'),
     'title' => '',
     'client_id' => null,
@@ -953,11 +953,12 @@ foreach ($services as $service) {
                                         </div>
 
                                         <div class="field full">
-                                            <label>Șablon</label>
-                                            <select name="template_id">
+                                            <label>Șablon *</label>
+                                            <select name="template_id" required>
+                                                <option value="" disabled <?= empty($formDocument['template_id']) ? 'selected' : '' ?>>Alege șablon...</option>
                                                 <?php foreach ($templates as $template): ?>
                                                     <option value="<?= (int)$template['id'] ?>" <?= (int)($formDocument['template_id'] ?? 0) === (int)$template['id'] ? 'selected' : '' ?>>
-                                                        <?= pz_contract_h($template['name']) ?><?= !empty($template['is_default']) ? ' - implicit' : '' ?>
+                                                        <?= pz_contract_h($template['name']) ?>
                                                     </option>
                                                 <?php endforeach; ?>
                                             </select>
