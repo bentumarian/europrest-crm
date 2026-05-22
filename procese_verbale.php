@@ -2484,10 +2484,4 @@ try {
     var go = function () {
         if (!window.pzSearchPreview) { setTimeout(go, 30); return; }
         window.pzSearchPreview.attach('pvSearchInput',
-            <?= json_encode($previewPvList, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>,
-            { minChars: 1, maxResults: 8 }
-        );
-    };
-    go();
-})();
-</
+            <?= json_encode($previewPvL
