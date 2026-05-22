@@ -13,9 +13,16 @@
 require_once 'config.php';
 require_login();
 require_once 'stock_lib.php';
+require_once 'settings_lib.php';
 
 if (!is_admin()) { http_response_code(403); exit('Acces interzis'); }
 stock_ensure_schema($pdo);
+
+// Date companie pentru cap-de-fisier la export (apare la inceputul CSV-ului)
+$exportCompany = function_exists('pz_company_settings') ? pz_company_settings($pdo) : [];
+$exportCompanyName = trim((string)($exportCompany['company.display_name'] ?? '')) ?: trim((string)($exportCompany['company.legal_name'] ?? 'Compania'));
+$exportCompanyCui = trim((string)($exportCompany['company.cui'] ?? ''));
+$exportCompanyAddr = trim((string)($exportCompany['company.address'] ?? ''));
 
 $type = (string)($_GET['type'] ?? '');
 
@@ -159,6 +166,18 @@ if ($type === 'card') {
     $rows = stock_stock_summary_interval($pdo, $dateFrom, $dateTo, $productId, $group);
 
     stock_csv_send_headers('fisa_magazie_' . $dateFrom . '_' . $dateTo . '.csv');
+    // Header cu numele companiei + interval, ca utilizatorul sa vada de prima
+    // data a cui e fisa de magazie cand deschide CSV-ul.
+    stock_csv_row(['Fisa magazie - ' . $exportCompanyName]);
+    if ($exportCompanyCui !== '' || $exportCompanyAddr !== '') {
+        $meta = [];
+        if ($exportCompanyCui !== '') { $meta[] = 'CUI ' . $exportCompanyCui; }
+        if ($exportCompanyAddr !== '') { $meta[] = $exportCompanyAddr; }
+        stock_csv_row([implode(' / ', $meta)]);
+    }
+    stock_csv_row(['Interval: ' . date('d.m.Y', strtotime($dateFrom)) . ' - ' . date('d.m.Y', strtotime($dateTo))]);
+    stock_csv_row(['Generat: ' . date('d.m.Y H:i')]);
+    stock_csv_row([]); // rand gol intre header si tabel
     stock_csv_row(['Produs', 'Grupa', 'UM', 'Stoc initial', 'Intrari', 'Consum/iesiri', 'Stoc final', 'Stoc minim', 'Status']);
     foreach ($rows as $r) {
         $low = (float)$r['min_qty'] > 0 && (float)$r['final_qty'] <= (float)$r['min_qty'];
@@ -183,6 +202,16 @@ if ($type === 'registry') {
     $rows = stock_registry_rows($pdo, $dateFrom, $dateTo);
 
     stock_csv_send_headers('registru_lucrari_' . $dateFrom . '_' . $dateTo . '.csv');
+    stock_csv_row(['Registru evidenta lucrari DDD - ' . $exportCompanyName]);
+    if ($exportCompanyCui !== '' || $exportCompanyAddr !== '') {
+        $meta = [];
+        if ($exportCompanyCui !== '') { $meta[] = 'CUI ' . $exportCompanyCui; }
+        if ($exportCompanyAddr !== '') { $meta[] = $exportCompanyAddr; }
+        stock_csv_row([implode(' / ', $meta)]);
+    }
+    stock_csv_row(['Interval: ' . date('d.m.Y', strtotime($dateFrom)) . ' - ' . date('d.m.Y', strtotime($dateTo))]);
+    stock_csv_row(['Generat: ' . date('d.m.Y H:i')]);
+    stock_csv_row([]);
     stock_csv_row(['Data', 'Beneficiar', 'Procedura', 'Produs biocid', 'Nr. aviz', 'Lot', 'Cantitate', 'UM', 'Concentratie', 'Nr. PV', 'Lucratori']);
     foreach ($rows as $r) {
         stock_csv_row([
