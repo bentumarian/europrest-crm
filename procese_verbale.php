@@ -575,8 +575,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 .alert.success { background:var(--success-soft); color:var(--success); border:1px solid rgba(31,111,84,.16); }
 .filter-form { display:grid; grid-template-columns:minmax(220px,1fr) minmax(150px,.45fr) minmax(130px,.35fr) auto; gap:10px; align-items:end; }
 .pv-form-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
-.pv-basis-grid { display:grid; grid-template-columns:minmax(150px,.35fr) minmax(220px,.65fr); gap:8px; align-items:center; }
-.pv-basis-grid .basis-manual { grid-column:1 / -1; }
+.pv-basis-grid { display:grid; grid-template-columns:minmax(150px,.35fr) minmax(220px,1fr); gap:8px; align-items:center; }
 .field label { display:block; font-size:12px; font-weight:850; color:var(--muted); margin-bottom:5px; }
 .field input,.field select,.field textarea { width:100%; border:1px solid var(--accent-soft-2); border-radius:12px; background:#fff; color:var(--text); padding:10px 11px; font-size:13px; outline:none; transition:border-color .14s ease, box-shadow .14s ease; }
 .field input:hover:not(:focus), .field select:hover:not(:focus), .field textarea:hover:not(:focus) { border-color:var(--accent); }
@@ -915,17 +914,18 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                             <label>Ora PV</label>
                                             <input type="time" name="document_time" value="<?= pz_pv_h(substr((string)($formDocument['document_time'] ?? date('H:i')), 0, 5)) ?>">
                                         </div>
-                                        <div class="field pv-template-field">
-                                            <label>Șablon *</label>
-                                            <select name="template_id" required>
-                                                <option value="" disabled <?= empty($formDocument['template_id']) ? 'selected' : '' ?>>Alege șablon...</option>
-                                                <?php foreach ($templates as $template): ?>
-                                                    <option value="<?= (int)$template['id'] ?>" <?= (int)($formDocument['template_id'] ?? 0) === (int)$template['id'] ? 'selected' : '' ?>>
-                                                        <?= pz_pv_h($template['name']) ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
+                                        <?php
+                                            $autoTemplateId = (int)($formDocument['template_id'] ?? 0);
+                                            if ($autoTemplateId <= 0) {
+                                                foreach ($templates as $template) {
+                                                    if (!empty($template['is_default'])) { $autoTemplateId = (int)$template['id']; break; }
+                                                }
+                                                if ($autoTemplateId <= 0 && !empty($templates)) {
+                                                    $autoTemplateId = (int)$templates[0]['id'];
+                                                }
+                                            }
+                                        ?>
+                                        <input type="hidden" name="template_id" value="<?= (int)$autoTemplateId ?>">
                                         <div class="field full pv-basis-field">
                                             <label>In baza</label>
                                             <?php
