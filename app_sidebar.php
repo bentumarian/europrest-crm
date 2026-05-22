@@ -80,9 +80,9 @@ if (!function_exists('render_sidebar')) {
     if ($isAdmin) {
         $mainBeforeDocuments = [
             'dashboard' => ['label' => 'Dashboard', 'href' => 'dashboard.php', 'icon' => 'dashboard'],
-            'calendar'  => ['label' => 'Calendar', 'href' => 'calendar.php', 'icon' => 'calendar'],
-            'tasks'     => ['label' => 'Sarcini', 'href' => 'tasks.php', 'icon' => 'tasks'],
             'clients'   => ['label' => 'Contacte', 'href' => 'clients.php', 'icon' => 'clients'],
+            'tasks'     => ['label' => 'Sarcini', 'href' => 'tasks.php', 'icon' => 'tasks'],
+            'calendar'  => ['label' => 'Calendar', 'href' => 'calendar.php', 'icon' => 'calendar'],
         ];
 
         $documentItems = [
