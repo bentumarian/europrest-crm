@@ -152,7 +152,7 @@ app_theme_css();
 .stock-edit-banner strong { display: block; margin-bottom: 2px; }
 .stock-edit-banner .small { color: var(--muted, #555); font-size: 12px; }
 </style>
-</head><body><div class="layout"><?php render_sidebar('stock', true); ?><main class="main"><div class="topbar"><div style="padding:0 20px;font-weight:900;">Gestiune - Intrări</div></div><div class="content">
+</head><body><div class="layout"><?php render_sidebar('stock_receipts', true); ?><main class="main"><div class="content">
 <div class="stock-hero"><div><h1>Intrări stoc</h1><p>Adaugă marfa în stoc. Pentru biocide, lotul și data expirării sunt obligatorii.</p></div><div class="stock-actions"><?php if ($isEditing): ?><a class="btn" href="stock_receipts.php">Anulează editarea</a><?php endif; ?></div></div>
 <?php render_stock_module_nav('receipts'); ?>
 <?php if ($msg): ?><div class="notice notice-success"><?= stock_h($msg) ?></div><?php endif; ?>

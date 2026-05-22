@@ -39,7 +39,7 @@ app_theme_css();
 .stock-kpi.alert .value { color: #b42318; }
 .stock-kpi.warn .value { color: #b45309; }
 </style>
-</head><body><div class="layout"><?php render_sidebar('stock', true); ?><main class="main"><div class="topbar"><div style="padding:0 20px;font-weight:900;">Gestiune</div></div><div class="content">
+</head><body><div class="layout"><?php render_sidebar('stock', true); ?><main class="main"><div class="content">
 <div class="stock-hero"><div><h1>Gestiune stocuri DDD</h1><p>Nomenclator produse, intrări, ieșiri, inventar fizic, alerte de expirare și stoc minim.</p></div><div class="stock-actions"><a class="btn accent" href="stock_products.php">Produs nou</a><a class="btn" href="stock_receipts.php">Intrare stoc</a><a class="btn" href="stock_movements.php">Mișcare manuală</a><a class="btn" href="stock_inventory.php">Inventar fizic</a><a class="btn" href="stock_export.php?type=stock_current">Export Excel</a></div></div>
 <?php render_stock_module_nav('dashboard'); ?>
 

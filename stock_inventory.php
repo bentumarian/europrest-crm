@@ -63,7 +63,7 @@ app_theme_css();
 .inv-status-draft { background: #fffbeb; color: #b45309; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
 .inv-status-finalized { background: #ecfdf5; color: #15803d; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
 </style>
-</head><body><div class="layout"><?php render_sidebar('stock', true); ?><main class="main"><div class="topbar"><div style="padding:0 20px;font-weight:900;">Gestiune - Inventar fizic</div></div><div class="content">
+</head><body><div class="layout"><?php render_sidebar('stock_inventory', true); ?><main class="main"><div class="content">
 <div class="stock-hero">
     <div>
         <h1>Inventar fizic</h1>

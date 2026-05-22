@@ -143,7 +143,7 @@ $units = stock_unit_options();
 app_theme_css();
 ?>
 <!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Produse gestiune</title>
-</head><body><div class="layout"><?php render_sidebar('stock', true); ?><main class="main"><div class="topbar"><div style="padding:0 20px;font-weight:900;">Gestiune - Produse</div></div><div class="content">
+</head><body><div class="layout"><?php render_sidebar('stock_products', true); ?><main class="main"><div class="content">
 <div class="stock-hero"><div><h1>Nomenclator produse</h1><p>Produse și materiale DDD, cu stoc minim și măsuri de siguranță pentru PV.</p></div><div class="stock-actions"><a class="btn" href="avize_sanitare.php" target="_blank" rel="noopener">Pagina publică avize</a><?php if ($edit): ?><a class="btn" href="stock_products.php">Anulează editarea</a><?php endif; ?></div></div>
 <?php render_stock_module_nav('products'); ?>
 <?php if ($msg): ?><div class="notice notice-success"><?= stock_h($msg) ?></div><?php endif; ?>

@@ -28,7 +28,7 @@ app_theme_css();
 .days-filter { display: flex; gap: 8px; align-items: center; font-size: 13px; }
 .days-filter select { padding: 4px 8px; }
 </style>
-</head><body><div class="layout"><?php render_sidebar('stock', true); ?><main class="main"><div class="topbar"><div style="padding:0 20px;font-weight:900;">Gestiune - Notificări</div></div><div class="content">
+</head><body><div class="layout"><?php render_sidebar('stock_notifications', true); ?><main class="main"><div class="content">
 <div class="stock-hero">
     <div>
         <h1>Notificări gestiune</h1>

@@ -19,7 +19,7 @@ $groups = stock_group_options();
 app_theme_css();
 ?>
 <!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Fișa magazie</title>
-</head><body><div class="layout"><?php render_sidebar('stock', true); ?><main class="main"><div class="topbar"><div style="padding:0 20px;font-weight:900;">Gestiune - Fișa magazie</div></div><div class="content">
+</head><body><div class="layout"><?php render_sidebar('stock_card', true); ?><main class="main"><div class="content">
 <div class="stock-hero"><div><h1>Fișa magazie</h1><p>Raport cantitativ pentru contabilitate: stoc inițial + intrări - consum/ieșiri = stoc final.</p></div></div>
 <?php render_stock_module_nav('card'); ?>
 <form class="stock-card" method="get">
