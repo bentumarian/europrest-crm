@@ -430,11 +430,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                     <input type="date" name="date_from" value="<?= ib_h($dateFrom) ?>" aria-label="Data început">
                     <input type="date" name="date_to" value="<?= ib_h($dateTo) ?>" aria-label="Data final">
                     <div class="pz-search-wrap">
-                        <input type="search" id="workBillingSearchInput" name="q" value="<?= ib_h($q) ?>" placeholder="Client, locație, PV" aria-label="Căutare" autocomplete="off">
+                        <input type="search" id="workBillingSearchInput" name="q" value="<?= ib_h($q) ?>" placeholder="Caută" aria-label="Căutare" autocomplete="off">
                         <div class="pz-search-preview"></div>
                     </div>
                     <select name="status" aria-label="Status">
-                        <option value="active"       <?= $selectedStatus === 'active' ? 'selected' : '' ?>>Active (de verificat + de facturat)</option>
+                        <option value="active"       <?= $selectedStatus === 'active' ? 'selected' : '' ?>>Active</option>
                         <option value="to_review"    <?= $selectedStatus === 'to_review' ? 'selected' : '' ?>>De verificat</option>
                         <option value="to_invoice"   <?= $selectedStatus === 'to_invoice' ? 'selected' : '' ?>>De facturat</option>
                         <option value="invoiced"     <?= $selectedStatus === 'invoiced' ? 'selected' : '' ?>>Facturate</option>
@@ -446,11 +446,6 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                         <?php foreach ($services as $service): ?>
                             <option value="<?= ib_h($service['name']) ?>" <?= $selectedService === $service['name'] ? 'selected' : '' ?>><?= ib_h($service['name']) ?></option>
                         <?php endforeach; ?>
-                    </select>
-                    <select name="pv" aria-label="PV">
-                        <option value="all" <?= $selectedPv === 'all' ? 'selected' : '' ?>>Cu sau fără PV</option>
-                        <option value="with_pv" <?= $selectedPv === 'with_pv' ? 'selected' : '' ?>>Doar cu PV</option>
-                        <option value="without_pv" <?= $selectedPv === 'without_pv' ? 'selected' : '' ?>>Doar fără PV</option>
                     </select>
                     <button class="btn accent" type="submit">Aplică</button>
                     <a class="btn" href="work_billing.php">Resetează</a>
