@@ -870,35 +870,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                 <input type="hidden" id="pvQuickMode" value="1">
                             <?php endif; ?>
 
-                            <?php if (!empty($isQuickPvFromAppointment) && $activeAppointmentForPv): ?>
-                                <?php
-                                    $quickClient = (string)($activeAppointmentForPv['client_name'] ?? '');
-                                    $quickLocation = (string)($activeAppointmentForPv['location_name'] ?? '');
-                                    $quickAddress = (string)($activeAppointmentForPv['location_address'] ?? $activeAppointmentForPv['address'] ?? '');
-                                    $quickContact = (string)($activeAppointmentForPv['location_contact_person'] ?? $activeAppointmentForPv['contact_person'] ?? '');
-                                    $quickPhone = (string)($activeAppointmentForPv['location_phone'] ?? $activeAppointmentForPv['contact_phone'] ?? '');
-                                    $quickService = pz_pv_service_from_appointment($activeAppointmentForPv);
-                                    $quickDateTime = trim(pz_pv_date_ro($activeAppointmentForPv['appointment_date'] ?? '') . ' ' . pz_pv_time_ro($activeAppointmentForPv['start_time'] ?? ''));
-                                    $quickTeam = (string)($activeAppointmentForPv['team_member_name'] ?? '');
-                                    $quickSurface = pz_pv_surface_from_appointment($activeAppointmentForPv);
-                                ?>
-                                <div class="pv-quick-summary">
-                                    <div class="pv-quick-summary-head">
-                                        <div class="pv-quick-summary-title">PV rapid din programare</div>
-                                        <span class="pv-quick-badge">Date preluate automat</span>
-                                    </div>
-                                    <div class="pv-quick-summary-grid">
-                                        <div class="pv-quick-item"><div class="pv-quick-label">Client</div><div class="pv-quick-value"><?= pz_pv_h($quickClient ?: '-') ?></div></div>
-                                        <div class="pv-quick-item"><div class="pv-quick-label">Locație</div><div class="pv-quick-value"><?= pz_pv_h($quickLocation ?: '-') ?></div></div>
-                                        <div class="pv-quick-item"><div class="pv-quick-label">Adresa</div><div class="pv-quick-value"><?= pz_pv_h($quickAddress ?: '-') ?></div></div>
-                                        <div class="pv-quick-item"><div class="pv-quick-label">Contact</div><div class="pv-quick-value"><?= pz_pv_h(trim($quickContact . ($quickPhone !== '' ? ' / ' . $quickPhone : '')) ?: '-') ?></div></div>
-                                        <div class="pv-quick-item"><div class="pv-quick-label">Serviciu</div><div class="pv-quick-value"><?= pz_pv_h($quickService ?: '-') ?></div></div>
-                                        <div class="pv-quick-item"><div class="pv-quick-label">Data/Ora</div><div class="pv-quick-value"><?= pz_pv_h($quickDateTime ?: '-') ?></div></div>
-                                        <div class="pv-quick-item"><div class="pv-quick-label">Tehnician</div><div class="pv-quick-value"><?= pz_pv_h($quickTeam ?: '-') ?></div></div>
-                                        <div class="pv-quick-item"><div class="pv-quick-label">Suprafață</div><div class="pv-quick-value"><?= pz_pv_h($quickSurface ?: '-') ?></div></div>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
+                            <?php /* Cardul „PV rapid din programare" cu rezumatul preluat automat a fost ascuns la cererea echipei – tehnicianul vede direct formularul. */ ?>
 
                             <div class="panel" style="box-shadow:none;">
                                 <div class="panel-head">
@@ -947,7 +919,13 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                         </div>
                                         <div class="field span2">
                                             <label>Zona/e tratate *</label>
-                                            <input type="text" name="treated_areas" id="treatedAreas" value="<?= pz_pv_h($editingPayload['treated_areas'] ?? '') ?>" placeholder="ex: bucătărie, depozit, grupuri sanitare" required>
+                                            <?php
+                                                $treatedAreasValue = (string)($editingPayload['treated_areas'] ?? '');
+                                                if ($treatedAreasValue === '' && !empty($isQuickPvFromAppointment)) {
+                                                    $treatedAreasValue = 'Întreaga locație';
+                                                }
+                                            ?>
+                                            <input type="text" name="treated_areas" id="treatedAreas" value="<?= pz_pv_h($treatedAreasValue) ?>" placeholder="ex: bucătărie, depozit, grupuri sanitare" required>
                                         </div>
                                         <div class="field span2">
                                             <label>Suprafață *</label>
