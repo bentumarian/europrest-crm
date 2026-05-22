@@ -929,7 +929,7 @@ function reports_short_service_label(string $name): string {
 
             <section class="reports-hero">
                 <div>
-                    <div class="pz-page-eyebrow">Rapoarte</div>
+                    <div class="pz-page-eyebrow">Analiză operațională</div>
                     <h1>Rapoarte</h1>
                 </div>
             </section>
