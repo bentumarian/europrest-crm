@@ -523,9 +523,6 @@ if ($isOfferNew) {
     if ($formPaymentTerms === '') {
         $formPaymentTerms = 'Plata se efectueaza in termen de 5 zile de la emiterea facturii.';
     }
-    if ($formNotes === '') {
-        $formNotes = 'Serviciile suplimentare care nu sunt mentionate expres in prezenta oferta se vor factura separat, doar cu acordul beneficiarului.';
-    }
 }
 
 if (!$editingItems) {
