@@ -9,6 +9,9 @@ stock_ensure_schema($pdo);
 
 $msg = '';
 $err = '';
+// Daca POST-ul esueaza la validare, retin datele transmise ca sa repopulez
+// formularul si utilizatorul sa nu piarda ce a tastat.
+$failedReceipt = null;
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -77,6 +80,20 @@ try {
     }
 } catch (Throwable $e) {
     $err = $e->getMessage();
+    // Pastrez datele transmise ca sa le repopulez in formular.
+    if (($_POST['action'] ?? '') === 'save_receipt') {
+        $failedReceipt = [
+            'product_id'     => (int)($_POST['product_id'] ?? 0),
+            'reception_date' => (string)($_POST['reception_date'] ?? ''),
+            'document_no'    => (string)($_POST['document_no'] ?? ''),
+            'supplier'       => (string)($_POST['supplier'] ?? ''),
+            'lot'            => (string)($_POST['lot'] ?? ''),
+            'expires_at'     => (string)($_POST['expires_at'] ?? ''),
+            'qty'            => (string)($_POST['qty'] ?? ''),
+            'package_count'  => (string)($_POST['package_count'] ?? ''),
+            'notes'          => (string)($_POST['notes'] ?? ''),
+        ];
+    }
 }
 
 $editId = (int)($_GET['edit'] ?? 0);
@@ -229,6 +246,17 @@ app_theme_css();
         text-align: center;
     }
 }
+/* Highlight pe campurile required invalide dupa ce userul a interactionat
+   cu formularul (clasa .was-validated e aplicata la submit incercat). */
+form.was-validated input:required:invalid,
+form.was-validated select:required:invalid,
+form.was-validated textarea:required:invalid {
+    border-color: #b42318 !important;
+    box-shadow: 0 0 0 2px rgba(180, 35, 24, 0.12) !important;
+}
+form.was-validated input:required:invalid + .qty-unit-suffix {
+    color: #b42318;
+}
 </style>
 </head><body><div class="layout"><?php render_sidebar('stock_receipts', true); ?><main class="main"><div class="content">
 <div class="stock-hero"><div><h1>Intrări stoc</h1><p>Adaugă marfa în stoc. Pentru biocide, lotul și data expirării sunt obligatorii.</p></div><div class="stock-actions"><?php if ($isEditing): ?><a class="btn" href="stock_receipts.php">Anulează editarea</a><?php endif; ?></div></div>
@@ -268,16 +296,16 @@ app_theme_css();
 <?= csrf_field() ?><input type="hidden" name="action" value="save_receipt">
 <h2 style="margin:0 0 14px;font-size:18px;">Adaugă intrare stoc</h2>
 <div class="stock-grid">
-    <div class="stock-field"><label>Produs *</label><select name="product_id" id="product_id" required><option value="">Alege produs</option><?php foreach ($products as $p): ?><option value="<?= (int)$p['id'] ?>"><?= stock_h($p['name']) ?> - <?= stock_h(stock_group_label($p['product_group'])) ?></option><?php endforeach; ?></select><small id="productInfo"></small></div>
-    <div class="stock-field"><label>Data recepției *</label><input type="date" name="reception_date" required value="<?= date('Y-m-d') ?>"></div>
+    <div class="stock-field"><label>Produs *</label><select name="product_id" id="product_id" required><option value="">Alege produs</option><?php foreach ($products as $p): $selectedFailed = $failedReceipt && (int)$failedReceipt['product_id'] === (int)$p['id']; ?><option value="<?= (int)$p['id'] ?>" <?= $selectedFailed ? 'selected' : '' ?>><?= stock_h($p['name']) ?> - <?= stock_h(stock_group_label($p['product_group'])) ?></option><?php endforeach; ?></select><small id="productInfo"></small></div>
+    <div class="stock-field"><label>Data recepției *</label><input type="date" name="reception_date" required value="<?= stock_h($failedReceipt['reception_date'] ?? date('Y-m-d')) ?>"></div>
 </div>
 <div class="stock-grid" style="margin-top:14px;">
-    <div class="stock-field"><label>Document intrare *</label><input name="document_no" required placeholder="Factura / aviz"></div>
-    <div class="stock-field"><label>Furnizor</label><input name="supplier" placeholder="Denumire furnizor"></div>
+    <div class="stock-field"><label>Document intrare *</label><input name="document_no" required placeholder="Factura / aviz" value="<?= stock_h($failedReceipt['document_no'] ?? '') ?>"></div>
+    <div class="stock-field"><label>Furnizor</label><input name="supplier" placeholder="Denumire furnizor" value="<?= stock_h($failedReceipt['supplier'] ?? '') ?>"></div>
 </div>
 <div class="stock-grid js-biocide-receipt is-hidden" style="margin-top:14px;">
-    <div class="stock-field"><label>Lot produs biocid *</label><input name="lot" id="lot" placeholder="Ex: LOT123"></div>
-    <div class="stock-field"><label>Data expirării lotului *</label><input type="date" name="expires_at" id="expires_at"></div>
+    <div class="stock-field"><label>Lot produs biocid *</label><input name="lot" id="lot" placeholder="Ex: LOT123" data-biocide-required="1" value="<?= stock_h($failedReceipt['lot'] ?? '') ?>"></div>
+    <div class="stock-field"><label>Data expirării lotului *</label><input type="date" name="expires_at" id="expires_at" data-biocide-required="1" value="<?= stock_h($failedReceipt['expires_at'] ?? '') ?>"></div>
 </div>
 <div class="qty-card" style="margin-top:14px;">
     <input type="hidden" name="input_mode" value="qty">
@@ -285,7 +313,7 @@ app_theme_css();
         <div class="qty-field">
             <label>Cantitate intrată *</label>
             <div class="qty-input-wrap">
-                <input name="qty" id="qty" inputmode="decimal" value="0" autocomplete="off">
+                <input name="qty" id="qty" inputmode="decimal" value="<?= stock_h($failedReceipt['qty'] ?? '0') ?>" autocomplete="off" required>
                 <span class="qty-unit-suffix" id="qtyUnitSuffix">—</span>
             </div>
             <small id="qtyHelp" class="qty-helper">Selectează întâi produsul.</small>
@@ -294,7 +322,7 @@ app_theme_css();
         <div class="qty-field">
             <label>Număr ambalaje</label>
             <div class="qty-input-wrap">
-                <input name="package_count" id="package_count" inputmode="decimal" value="0" autocomplete="off">
+                <input name="package_count" id="package_count" inputmode="decimal" value="<?= stock_h($failedReceipt['package_count'] ?? '0') ?>" autocomplete="off">
                 <span class="qty-unit-suffix">ambalaje</span>
             </div>
             <small id="packageHelp" class="qty-helper">—</small>
@@ -304,7 +332,7 @@ app_theme_css();
         Total intrat în stoc: <strong id="qtySummaryValue">—</strong>
     </div>
 </div>
-<div class="stock-field" style="margin-top:14px;"><label>Observații</label><textarea name="notes" rows="2"></textarea></div>
+<div class="stock-field" style="margin-top:14px;"><label>Observații</label><textarea name="notes" rows="2"><?= stock_h($failedReceipt['notes'] ?? '') ?></textarea></div>
 <div class="actions-row"><div></div><button type="submit" class="btn accent">Salvează intrarea</button></div>
 </form>
 <?php endif; ?>
@@ -422,8 +450,10 @@ function rcptRefreshProductInfo() {
     var qtyHelp = document.getElementById('qtyHelp');
     var packageHelp = document.getElementById('packageHelp');
 
+    var isBio = p && rcptIsBio(p.product_group);
+
     if (p) {
-        bioFields.forEach(function (el) { el.classList.toggle('is-hidden', !rcptIsBio(p.product_group)); });
+        bioFields.forEach(function (el) { el.classList.toggle('is-hidden', !isBio); });
         info.textContent = 'Unitate consum: ' + p.unit_consumption + '. 1 ambalaj = ' + rcptUnitFull(parseFloat(p.package_qty || 1), p.unit_consumption);
         qtySuffix.textContent = p.unit_consumption;
         qtyHelp.textContent = 'Introdu cantitatea în ' + p.unit_consumption + ' sau completează numărul de ambalaje în dreapta.';
@@ -435,6 +465,20 @@ function rcptRefreshProductInfo() {
         qtyHelp.textContent = 'Selectează întâi produsul.';
         packageHelp.textContent = '—';
     }
+
+    // Toggle required + disabled pe campurile biocide in functie de vizibilitate.
+    // HTML5 nu valideaza campurile disabled, deci utilizatorul nu va fi blocat
+    // pe campuri ascunse cand selecteaza Materiale.
+    document.querySelectorAll('[data-biocide-required="1"]').forEach(function (input) {
+        if (isBio) {
+            input.required = true;
+            input.disabled = false;
+        } else {
+            input.required = false;
+            input.disabled = true;
+        }
+    });
+
     rcptUpdateSummary();
 }
 
@@ -484,6 +528,34 @@ document.getElementById('product_id').addEventListener('change', function () {
 });
 document.getElementById('qty').addEventListener('input', rcptOnQtyInput);
 document.getElementById('package_count').addEventListener('input', rcptOnPackageInput);
+
+// Marcheaza formularul ca 'was-validated' la primul submit incercat, ca sa
+// se vada chenarele rosii pe campurile obligatorii goale. HTML5 are deja
+// popup nativ care indica primul camp invalid, dar adaugam si highlight
+// permanent pana e completat.
+var receiptForm = document.getElementById('receiptForm');
+if (receiptForm) {
+    receiptForm.addEventListener('submit', function (e) {
+        receiptForm.classList.add('was-validated');
+        if (!receiptForm.checkValidity()) {
+            // browser-ul va focus automat primul invalid, dar scrollam ca sa fie sigur vizibil
+            var firstInvalid = receiptForm.querySelector(':invalid');
+            if (firstInvalid) {
+                setTimeout(function () { firstInvalid.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 50);
+            }
+        }
+    });
+}
+
+// Daca formularul s-a intors cu eroare de la server, scroll automat la mesajul
+// de eroare, ca sa nu trebuiasca utilizatorul sa scrolleze sa-l vada.
+<?php if ($err && $failedReceipt): ?>
+window.addEventListener('DOMContentLoaded', function () {
+    var errBox = document.querySelector('.notice-danger');
+    if (errBox) errBox.scrollIntoView({ block: 'center', behavior: 'smooth' });
+});
+<?php endif; ?>
+
 rcptRefreshProductInfo();
 <?php endif; ?>
 </script>
