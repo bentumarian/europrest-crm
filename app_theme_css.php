@@ -2007,6 +2007,16 @@ if (!function_exists('app_theme_css')) {
         .stock-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
         .stock-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
 
+        /* Override is-hidden pentru containerele grid - regula generala
+           .is-hidden { display:none } era ignorata pentru ca .stock-grid
+           defineste display:grid cu !important si vine dupa in cascada. */
+        .stock-grid.is-hidden,
+        .stock-grid-3.is-hidden,
+        .stock-grid-4.is-hidden,
+        .stock-kpis.is-hidden {
+            display: none !important;
+        }
+
         .stock-kpis {
             display: grid !important;
             grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
