@@ -3502,6 +3502,45 @@ if (!function_exists('app_theme_css')) {
 
         .status-pill.status-storno::before { background: var(--pz-mu); }
         </style>
+        <!-- Flatpickr — datepicker custom RO (locale ro, format dd.mm.YYYY) -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.css">
+        <style>
+        /* Aliniem Flatpickr la paleta PestZone */
+        .flatpickr-calendar { font-family: var(--font); border: 1px solid var(--pz-line); box-shadow: 0 4px 12px rgba(15, 23, 42, .08); border-radius: 8px; }
+        .flatpickr-day.selected, .flatpickr-day.selected:hover { background: var(--pz-bl); border-color: var(--pz-bl); }
+        .flatpickr-day.today { border-color: var(--pz-bl); }
+        .flatpickr-day.today:hover { background: var(--pz-bls); color: var(--pz-bld); }
+        .flatpickr-day:hover { background: var(--pz-soft); }
+        .flatpickr-current-month .cur-year { font-weight: 600; color: var(--pz-title); }
+        .flatpickr-current-month .cur-month { font-weight: 600; color: var(--pz-title); }
+        .flatpickr-weekday { color: var(--pz-mu); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+        </style>
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/l10n/ro.js"></script>
+        <script>
+        (function() {
+            function initFlatpickr() {
+                if (typeof flatpickr === 'undefined') return;
+                try { flatpickr.localize(flatpickr.l10ns.ro); } catch(e) {}
+                document.querySelectorAll('input[type="date"]:not([data-no-flatpickr])').forEach(function(input) {
+                    if (input._flatpickr) return;
+                    flatpickr(input, {
+                        locale: 'ro',
+                        dateFormat: 'Y-m-d',
+                        altInput: true,
+                        altFormat: 'd.m.Y',
+                        allowInput: true,
+                        disableMobile: false
+                    });
+                });
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initFlatpickr);
+            } else {
+                initFlatpickr();
+            }
+        })();
+        </script>
         <?php
     }
 }
