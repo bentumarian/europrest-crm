@@ -415,9 +415,10 @@ $isNew = (int)$form['id'] <= 0;
 .field textarea.editor { min-height:520px; font-family:var(--mono); font-size:12px; line-height:1.45; resize:vertical; white-space:pre-wrap; }
 
 .option-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:4px; }
-.check-pill { display:inline-flex; align-items:center; gap:7px; padding:7px 10px; border:1px solid var(--pz-line); border-radius:var(--pz-rs); background:#fff; font-size:12px; font-weight:700; color:var(--text); cursor:pointer; }
-.check-pill input { width:auto; }
-.check-pill:hover { border-color:var(--accent); }
+.check-pill { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; height:32px; border:1px solid var(--pz-line); border-radius:4px; background:#fff; font-size:12.5px; font-weight:500; color:var(--pz-text); cursor:pointer; transition:background .12s, border-color .12s, color .12s; box-sizing:border-box; }
+.check-pill input { width:14px; height:14px; margin:0; accent-color:var(--pz-bl); cursor:pointer; }
+.check-pill:hover { border-color:var(--pz-mu); background:var(--pz-soft); }
+.check-pill:has(input:checked) { background:var(--pz-bls); border-color:var(--pz-blb); color:var(--pz-bld); font-weight:600; }
 
 .editor-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; margin-top:12px; }
 
@@ -442,12 +443,11 @@ $isNew = (int)$form['id'] <= 0;
 
 /* Hero compact, fara gradient / shadow puternic — aliniat cu restul aplicatiei */
 .template-hero {
-    background:var(--pz-brand); color:#fff; border-radius:var(--pz-r); padding:18px 20px;
-    box-shadow:none; margin-bottom:12px;
-    display:flex; flex-direction:column; gap:4px;
+    background:var(--pz-surf); color:var(--pz-title); border:1px solid var(--pz-line); border-radius:8px; padding:22px 24px;
+    box-shadow:none; margin-bottom:16px;
+    display:block;
 }
-.template-hero h1 { font-size:22px; font-weight:900; letter-spacing:-.03em; margin:0; color:#fff; }
-.template-hero p { color:rgba(255,255,255,.78); margin:2px 0 0; max-width:920px; font-size:13px; line-height:1.45; }
+.template-hero h1 { font-size:22px; font-weight:700; letter-spacing:0; margin:0; color:var(--pz-title); }
 
 @media(max-width: 1120px) {
     .editor-layout { grid-template-columns:1fr; }
@@ -492,11 +492,8 @@ $isNew = (int)$form['id'] <= 0;
 
         <div class="content">
             <section class="template-hero">
+                <div class="pz-page-eyebrow">Setări · Șabloane documente</div>
                 <h1><?= $isNew ? 'Șablon nou' : 'Editare șablon' ?></h1>
-                <p>
-                    Acest editor modifica șabloanele folosite de motorul unic de documente.
-                    Acelasi format va fi folosit la oferta, contract si proces verbal, in functie de tipul ales.
-                </p>
             </section>
 
             <form method="post" id="templateForm">
@@ -752,4 +749,4 @@ templateForm.addEventListener('submit', function() { syncEditor(); });
 initTiny();
 </script>
 </body>
-</html>
+</html>
