@@ -2009,9 +2009,29 @@ if (!function_exists('app_theme_css')) {
 
         .stock-kpis {
             display: grid !important;
-            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
             gap: 12px !important;
             margin-bottom: 14px !important;
+        }
+
+        .stock-kpi {
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            gap: 6px !important;
+            padding: 14px 16px !important;
+            min-height: 78px !important;
+            text-decoration: none !important;
+        }
+        a.stock-kpi:hover {
+            background: var(--surface-alt, #f3f6fb) !important;
+        }
+        .stock-kpi .label {
+            line-height: 1.2 !important;
+            text-transform: uppercase !important;
+        }
+        .stock-kpi .value {
+            line-height: 1.1 !important;
         }
 
         .stock-field label {
