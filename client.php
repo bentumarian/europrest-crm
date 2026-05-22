@@ -259,7 +259,7 @@ if ($client) {
     }
 
     $pz_page_title = 'Dosar client';
-    $pz_page_breadcrumbs = ['Contacte', (string)($client['name'] ?? 'Client')];
+    $pz_page_breadcrumbs = ['Clienți', (string)($client['name'] ?? 'Client')];
 }
 ?>
 <!DOCTYPE html>

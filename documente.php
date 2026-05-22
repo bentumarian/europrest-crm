@@ -410,7 +410,7 @@ foreach ($stats as $stat) {
                             <input type="date" name="date_to" value="<?= pz_docs_h($dateTo) ?>">
                         </div>
                         <div class="field">
-                            <label>Randuri</label>
+                            <label>Rânduri</label>
                             <select name="per_page">
                                 <?php foreach ($perPageOptions as $option): ?>
                                     <option value="<?= (int)$option ?>" <?= $perPage === $option ? 'selected' : '' ?>><?= (int)$option ?></option>
@@ -419,7 +419,7 @@ foreach ($stats as $stat) {
                         </div>
                         <div class="field">
                             <label>&nbsp;</label>
-                            <button class="btn dark" type="submit">Aplica</button>
+                            <button class="btn dark" type="submit">Aplică</button>
                         </div>
                     </form>
                 </div>

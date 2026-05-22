@@ -677,8 +677,8 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="cancel">
                                 <input type="hidden" name="document_id" value="<?= (int)$document['id'] ?>">
-                                <input type="text" name="cancel_reason" placeholder="Motiv anulare (optional)">
-                                <button class="btn danger" type="submit">Anuleaza documentul</button>
+                                <input type="text" name="cancel_reason" placeholder="Motiv anulare (opțional)">
+                                <button class="btn danger" type="submit">Anulează documentul</button>
                             </form>
                         <?php else: ?>
                             <span class="badge cancelled">Fara actiuni disponibile</span>

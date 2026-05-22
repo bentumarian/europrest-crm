@@ -1532,7 +1532,7 @@ if (!$invoiceItems) {
                                 <span>Cod</span>
                                 <span>Cant.</span>
                                 <span>U.M.</span>
-                                <span>Pret</span>
+                                <span>Preț</span>
                                 <span>TVA</span>
                                 <span></span>
                             </div>
@@ -1544,14 +1544,14 @@ if (!$invoiceItems) {
                                             <div><label>Cod</label><input name="item_product_code[<?= (int)$idx ?>]" value="<?= inv_h($item['product_code'] ?? '') ?>"></div>
                                             <div><label>Cantitate</label><input type="number" step="0.001" min="0.001" name="item_quantity[<?= (int)$idx ?>]" value="<?= inv_h($item['quantity'] ?? '1') ?>"></div>
                                             <div><label>UM</label><select name="item_unit_name[<?= (int)$idx ?>]"><?php $selectedUnit = (string)($item['unit_name'] ?? 'buc'); ?><?php foreach ($invoiceUnitOptions as $unitOption): ?><option value="<?= inv_h($unitOption) ?>" <?= $selectedUnit === $unitOption ? 'selected' : '' ?>><?= inv_h($unitOption) ?></option><?php endforeach; ?></select></div>
-                                            <div><label>Pret</label><input type="number" step="0.01" min="0" name="item_unit_price[<?= (int)$idx ?>]" value="<?= inv_h($item['unit_price'] ?? '0.00') ?>" required></div>
+                                            <div><label>Preț</label><input type="number" step="0.01" min="0" name="item_unit_price[<?= (int)$idx ?>]" value="<?= inv_h($item['unit_price'] ?? '0.00') ?>" required></div>
                                             <div><label>TVA</label><select name="item_vat_code[<?= (int)$idx ?>]"><?php foreach ($allowedVatCodes as $code): ?><?php if (isset($vatOptions[$code])): ?><option value="<?= inv_h($code) ?>" <?= ($item['vat_code'] ?? $defaultVatCode) === $code ? 'selected' : '' ?>><?= inv_h($vatOptions[$code]) ?></option><?php endif; ?><?php endforeach; ?></select></div>
                                             <button class="btn ghost item-remove" type="button" onclick="removeInvoiceItem(this)">X</button>
                                         </div>
                                         <div class="invoice-item-extra">
                                             <div><label>Descriere</label><input name="item_product_description[<?= (int)$idx ?>]" value="<?= inv_h($item['product_description'] ?? '') ?>"></div>
                                             <div><label>Tip</label><select name="item_is_service[<?= (int)$idx ?>]"><option value="1" <?= ($item['is_service'] ?? '1') === '1' ? 'selected' : '' ?>>Serviciu</option><option value="0" <?= ($item['is_service'] ?? '1') === '0' ? 'selected' : '' ?>>Produs</option></select></div>
-                                            <label class="tax-included-label"><input type="checkbox" name="item_is_tax_included[<?= (int)$idx ?>]" value="1" <?= ($item['is_tax_included'] ?? '0') === '1' ? 'checked' : '' ?>> Pret cu TVA inclus</label>
+                                            <label class="tax-included-label"><input type="checkbox" name="item_is_tax_included[<?= (int)$idx ?>]" value="1" <?= ($item['is_tax_included'] ?? '0') === '1' ? 'checked' : '' ?>> Preț cu TVA inclus</label>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -1888,14 +1888,14 @@ function addInvoiceItem() {
             <div><label>Cod</label><input name="item_product_code[${idx}]"></div>
             <div><label>Cantitate</label><input type="number" step="0.001" min="0.001" name="item_quantity[${idx}]" value="1"></div>
             <div><label>UM</label><select name="item_unit_name[${idx}]">${invoiceUnitOptionsHtml('buc')}</select></div>
-            <div><label>Pret</label><input type="number" step="0.01" min="0" name="item_unit_price[${idx}]" value="0.00" required></div>
+            <div><label>Preț</label><input type="number" step="0.01" min="0" name="item_unit_price[${idx}]" value="0.00" required></div>
             <div><label>TVA</label><select name="item_vat_code[${idx}]">${invoiceVatOptionsHtml()}</select></div>
             <button class="btn ghost item-remove" type="button" onclick="removeInvoiceItem(this)">X</button>
         </div>
         <div class="invoice-item-extra">
             <div><label>Descriere</label><input name="item_product_description[${idx}]"></div>
             <div><label>Tip</label><select name="item_is_service[${idx}]"><option value="1" selected>Serviciu</option><option value="0">Produs</option></select></div>
-            <label class="tax-included-label"><input type="checkbox" name="item_is_tax_included[${idx}]" value="1"> Pret cu TVA inclus</label>
+            <label class="tax-included-label"><input type="checkbox" name="item_is_tax_included[${idx}]" value="1"> Preț cu TVA inclus</label>
         </div>
     `;
     box.appendChild(row);

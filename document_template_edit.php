@@ -130,7 +130,7 @@ function dte_set_default(PDO $pdo, int $templateId, string $type): void
 
 function dte_demo_tokens(): array
 {
-    $itemsTable = '<table class="pzdoc-table"><thead><tr><th>Serviciu</th><th>Descriere</th><th>Cant.</th><th>Pret</th><th>Total</th></tr></thead><tbody>'
+    $itemsTable = '<table class="pzdoc-table"><thead><tr><th>Serviciu</th><th>Descriere</th><th>Cant.</th><th>Preț</th><th>Total</th></tr></thead><tbody>'
         . '<tr><td>Dezinsectie</td><td>Tratament general spatii interioare</td><td>1</td><td>450.00</td><td>450.00</td></tr>'
         . '<tr><td>Deratizare</td><td>Monitorizare si completare statii</td><td>1</td><td>350.00</td><td>350.00</td></tr>'
         . '</tbody></table>';

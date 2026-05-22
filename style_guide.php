@@ -428,14 +428,14 @@ $pz_topbar_opts      = ['placeholder' => 'Caută în ghid...'];
             <div class="sg-card-head">
                 <div>
                     <h2>A · Listă (titlu + count + acțiune primară)</h2>
-                    <p>Folosit pe pagini cu listare: Contacte, Facturi, Sarcini.</p>
+                    <p>Folosit pe pagini cu listare: Clienți, Facturi, Sarcini.</p>
                 </div>
             </div>
             <div class="sg-card-body">
                 <div style="border:1px dashed var(--pz-line);border-radius:6px;padding:14px;background:var(--pz-soft)">
                     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
                         <div style="display:flex;align-items:baseline;gap:10px">
-                            <h1 style="font-size:22px">Contacte</h1>
+                            <h1 style="font-size:22px">Clienți</h1>
                             <span class="sg-chip">685</span>
                         </div>
                         <div style="display:flex;gap:6px">
@@ -781,7 +781,7 @@ $pz_topbar_opts      = ['placeholder' => 'Caută în ghid...'];
                     <div class="sg-rule">Culorile vin doar din tokens <code>--pz-*</code> — fără valori hardcodate</div>
                     <div class="sg-rule">Iconuri din <code>app_icon_svg('name')</code> — fără SVG-uri inline noi</div>
                     <div class="sg-rule">Diacritice corecte (ș ț ă â î) — UTF-8</div>
-                    <div class="sg-rule">Plurale folosite consistent (Contacte, Facturi, Sarcini)</div>
+                    <div class="sg-rule">Plurale folosite consistent (Clienți, Facturi, Sarcini)</div>
                     <div class="sg-rule">Toate sumele afișate cu sufix „lei" și fără zecimale</div>
                 </div>
             </div>

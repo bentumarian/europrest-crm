@@ -1085,14 +1085,14 @@ foreach ($services as $service) {
                             </select>
                         </div>
                         <div class="field">
-                            <label>Randuri</label>
+                            <label>Rânduri</label>
                             <select name="per_page">
                                 <?php foreach ([20, 50, 100] as $nr): ?>
                                     <option value="<?= $nr ?>" <?= $perPage === $nr ? 'selected' : '' ?>><?= $nr ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <button class="btn primary" type="submit">Filtreaza</button>
+                        <button class="btn primary" type="submit">Filtrează</button>
                     </form>
 
                     <div class="docs-list" style="margin-top:12px;">

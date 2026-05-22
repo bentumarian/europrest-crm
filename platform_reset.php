@@ -536,14 +536,14 @@ foreach ($contactResetTables as $table) {
 
             <section class="danger-box">
                 <h2 class="danger-title">Atentie: actiune ireversibila</h2>
-                <p class="danger-text">Aceasta actiune sterge contracte, sarcini, programari, documente/PV/oferte/contracte generate, statusurile de facturare, facturi/incasari locale, e-Factura, valori de interventii, loguri de email/SMS si date operationale. Contactele si punctele de lucru se pastreaza, cu exceptia cazului in care bifezi separat stergerea lor. Nu apasa butonul fara backup complet al bazei de date si fisierelor.</p>
+                <p class="danger-text">Aceasta actiune sterge contracte, sarcini, programari, documente/PV/oferte/contracte generate, statusurile de facturare, facturi/incasari locale, e-Factura, valori de interventii, loguri de email/SMS si date operationale. Clienții și punctele de lucru se păstrează, cu excepția cazului în care bifezi separat ștergerea lor. Nu apăsa butonul fără backup complet al bazei de date și al fișierelor.</p>
             </section>
 
             <section class="safe-box">
                 <h2>Se pastreaza</h2>
                 <div class="kept-list">
                     <div>Utilizatorii si parolele</div>
-                    <div>Contactele / clientii si punctele de lucru, daca nu bifezi stergerea separata</div>
+                    <div>Clienții și punctele de lucru, dacă nu bifezi ștergerea separată</div>
                     <div>Datele companiei si setarile platformei</div>
                     <div>Serviciile din nomenclator</div>
                     <div>Tehnicienii / operatorii</div>
@@ -557,7 +557,7 @@ foreach ($contactResetTables as $table) {
 
             <section class="safe-box">
                 <h2>Date care vor fi șterse</h2>
-                <p class="small-note">Resetarea standard pastreaza contactele. Tabelele de mai jos sunt date operationale care se golesc la reset.</p>
+                <p class="small-note">Resetarea standard păstrează clienții. Tabelele de mai jos sunt date operationale care se golesc la reset.</p>
                 <div class="grid-counts">
                     <?php foreach($counts as $table => $count): ?>
                         <div class="count-card">
@@ -570,8 +570,8 @@ foreach ($contactResetTables as $table) {
 
             <section class="safe-box">
                 <div class="section-title-row">
-                    <h2>Contacte pastrate implicit</h2>
-                    <a class="btn accent" href="platform_reset.php?export_clients=1">Export clienti</a>
+                    <h2>Clienți păstrați implicit</h2>
+                    <a class="btn accent" href="platform_reset.php?export_clients=1">Export clienți</a>
                 </div>
                 <p class="small-note">Aceste tabele se sterg doar daca bifezi separat optiunea din formularul de confirmare.</p>
                 <div class="grid-counts">
@@ -613,7 +613,7 @@ foreach ($contactResetTables as $table) {
 
                     <div class="actions">
                         <a class="btn ghost" href="settings.php">Renunță</a>
-                        <button class="btn btn-danger" type="submit">Reseteaza platforma</button>
+                        <button class="btn btn-danger" type="submit">Resetează platforma</button>
                     </div>
                 </form>
             </section>

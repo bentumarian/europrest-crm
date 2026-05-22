@@ -80,7 +80,7 @@ if (!function_exists('render_sidebar')) {
     if ($isAdmin) {
         $mainBeforeDocuments = [
             'dashboard' => ['label' => 'Dashboard', 'href' => 'dashboard.php', 'icon' => 'dashboard'],
-            'clients'   => ['label' => 'Contacte', 'href' => 'clients.php', 'icon' => 'clients'],
+            'clients'   => ['label' => 'Clienți', 'href' => 'clients.php', 'icon' => 'clients'],
             'tasks'     => ['label' => 'Sarcini', 'href' => 'tasks.php', 'icon' => 'tasks'],
             'calendar'  => ['label' => 'Calendar', 'href' => 'calendar.php', 'icon' => 'calendar'],
         ];
@@ -604,7 +604,7 @@ if (!function_exists('render_sidebar')) {
             'dashboard'              => ['Dashboard',  []],
             'calendar'               => ['Calendar',   []],
             'tasks'                  => ['Sarcini',    []],
-            'clients'                => ['Contacte',   []],
+            'clients'                => ['Clienți',    []],
             'stock'                  => ['Gestiune',   []],
             'facturare'              => ['Financiar',  ['Facturi']],
             'factura'                => ['Financiar',  ['Facturi', 'Factură']],

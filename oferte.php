@@ -951,7 +951,7 @@ foreach ($services as $service) {
                             </select>
                         </div>
                         <div class="field">
-                            <button class="btn primary" type="submit">Filtreaza</button>
+                            <button class="btn primary" type="submit">Filtrează</button>
                         </div>
                     </form>
                 </div>

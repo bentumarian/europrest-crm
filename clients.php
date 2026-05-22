@@ -855,7 +855,7 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Contacte - PestZone</title>
+<title>Clienți - PestZone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">

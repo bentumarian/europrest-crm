@@ -747,7 +747,7 @@ a.btn.small {
                         </select>
                     </div>
 
-                    <button class="btn" type="submit">Filtreaza</button>
+                    <button class="btn" type="submit">Filtrează</button>
                 </form>
             </section>
 

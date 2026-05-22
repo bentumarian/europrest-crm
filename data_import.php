@@ -1432,10 +1432,10 @@ th { background:var(--surface-soft); color:var(--muted); font-size:11px; text-tr
                         <div class="grid-2">
                             <div><strong>Clienți creati:</strong> <?= (int)$result['created'] ?></div>
                             <div><strong>Clienți actualizati:</strong> <?= (int)$result['updated'] ?></div>
-                            <div><strong>Randuri sarite:</strong> <?= (int)$result['skipped'] ?></div>
+                            <div><strong>Rânduri sărite:</strong> <?= (int)$result['skipped'] ?></div>
                             <div><strong>Locații create:</strong> <?= (int)$result['locations_created'] ?></div>
                         </div>
-                        <a class="btn accent" href="clients.php">Mergi la Contacte</a>
+                        <a class="btn accent" href="clients.php">Mergi la Clienți</a>
                     </div>
                 </div>
             <?php endif; ?>

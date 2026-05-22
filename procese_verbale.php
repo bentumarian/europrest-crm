@@ -1335,10 +1335,10 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                 <div style="margin:14px 0;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:#f8fafc;">
                                     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;color:var(--text);">
                                         <input type="checkbox" name="apply_company_stamp" value="1" <?= $stampChecked ? 'checked' : '' ?> style="width:18px;height:18px;">
-                                        <span>Aplica ștampila firmei pe acest PV</span>
+                                        <span>Aplică ștampila firmei pe acest PV</span>
                                     </label>
                                     <div style="margin-top:6px;font-size:12px;color:var(--muted);padding-left:28px;">
-                                        Ștampila incarcata in <em>Setări → Design documente</em> apare langa semnătura emitent. Operatorii din teren primesc bifa automat.
+                                        Ștampila încărcată în <em>Setări → Design documente</em> apare lângă semnătura emitent. Operatorii din teren primesc bifa automat.
                                     </div>
                                 </div>
                             <?php endif; ?>
@@ -1389,14 +1389,14 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                             </select>
                         </div>
                         <div class="field">
-                            <label>Randuri</label>
+                            <label>Rânduri</label>
                             <select name="per_page">
                                 <?php foreach ([20, 50, 100] as $n): ?>
                                     <option value="<?= (int)$n ?>" <?= $perPage === $n ? 'selected' : '' ?>><?= (int)$n ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <button class="btn primary" type="submit">Filtreaza</button>
+                        <button class="btn primary" type="submit">Filtrează</button>
                     </form>
                 </div>
             </section>

@@ -1740,7 +1740,7 @@ foreach ($tasks as $task) {
                     <input type="hidden" name="month" value="<?= h($selectedMonthObj->format('Y-m')) ?>">
                     <select name="filter" onchange="this.form.submit()">
                         <option value="all" <?= $taskFilter === 'all' ? 'selected' : '' ?>>Toate</option>
-                        <option value="overdue" <?= $taskFilter === 'overdue' ? 'selected' : '' ?>>Intarziate</option>
+                        <option value="overdue" <?= $taskFilter === 'overdue' ? 'selected' : '' ?>>Întârziate</option>
                         <option value="today" <?= $taskFilter === 'today' ? 'selected' : '' ?>>Azi</option>
                         <option value="future" <?= $taskFilter === 'future' ? 'selected' : '' ?>>Viitoare</option>
                         <option value="skipped" <?= $taskFilter === 'skipped' ? 'selected' : '' ?>>Omise</option>
@@ -1752,7 +1752,7 @@ foreach ($tasks as $task) {
                             <option value="<?= h($serviceName) ?>" <?= $taskService === $serviceName ? 'selected' : '' ?>><?= h($serviceName) ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <button class="btn" type="submit">Filtreaza</button>
+                    <button class="btn" type="submit">Filtrează</button>
                     <?php if ($taskFilter !== 'all' || $taskSearch !== '' || $taskService !== ''): ?>
                         <a class="btn" href="<?= h(task_page_url(['month' => $selectedMonthObj->format('Y-m')])) ?>">Reset</a>
                     <?php endif; ?>
@@ -1829,7 +1829,7 @@ foreach ($tasks as $task) {
 
             <section class="tasks-calendar-card">
                 <div class="tasks-status-legend" aria-label="Legenda sarcini">
-                    <span><i class="legend-dot overdue"></i>Intarziate</span>
+                    <span><i class="legend-dot overdue"></i>Întârziate</span>
                     <span><i class="legend-dot today"></i>Azi</span>
                     <span><i class="legend-dot future"></i>Viitoare</span>
                     <span><i class="legend-dot skipped"></i>Omise</span>

@@ -1682,7 +1682,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                                         <span class="cal-team-name"><?= hcal($team['name']) ?></span>
                                     </label>
                                 <?php endforeach; ?>
-                                <button class="btn accent cal-team-apply" type="submit">Aplica</button>
+                                <button class="btn accent cal-team-apply" type="submit">Aplică</button>
                             </div>
                         </div>
                     <?php endif; ?>
