@@ -869,7 +869,7 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
 .clients-search { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .clients-search input { height: 42px; min-width: 0; }
 .clients-search .btn, .clients-toolbar > .btn { height: 42px; justify-content: center; white-space: nowrap; }
-.clients-page-title { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.clients-page-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .clients-page-title h1 { margin: 0; font-size: 20px; line-height: 1.2; font-weight: 800; color: var(--text); letter-spacing: 0; }
 .clients-count-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 30px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 13px; font-weight: 800; }
 .clients-layout { display: grid; grid-template-columns: <?= $selectedClient ? 'minmax(280px, .75fr) minmax(0, 1.25fr)' : '1fr' ?>; gap: 14px; align-items: start; }

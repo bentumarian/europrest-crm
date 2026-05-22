@@ -1759,9 +1759,7 @@ foreach ($tasks as $task) {
                 </form>
 
                 <div class="tasks-action-line">
-                    <button class="btn accent" type="button" onclick="openCreateTaskModal('<?= h($currentDate) ?>')">
-                        + Sarcină nouă
-                    </button>
+                    <button class="pz-icon-btn primary lg" type="button" title="Sarcină nouă" aria-label="Sarcină nouă" onclick="openCreateTaskModal('<?= h($currentDate) ?>')"><?= app_icon_svg('plus') ?></button>
                 </div>
 
             </div>
@@ -1807,6 +1805,7 @@ foreach ($tasks as $task) {
 
             <section class="tasks-hero">
                 <div class="tasks-hero-copy">
+                    <div class="pz-page-eyebrow" style="color:rgba(255,255,255,.7);">Operațional</div>
                     <h1>Priorități de lucru</h1>
                     <p>Sarcinile importante sunt aici, la vedere, ca ziua să rămână sub control.</p>
                 </div>
@@ -2855,4 +2854,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 </body>
-</html>
+</ht
