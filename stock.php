@@ -28,6 +28,7 @@ if (stock_table_exists($pdo, 'stock_inventories')) {
         }
     } catch (Throwable $e) { /* tolerăm lipsa tabelului */ }
 }
+$deferredPvsCount = count(stock_deferred_pvs_list($pdo));
 $totalAlerts = $lowStock + $expiringSoonCount + $expiredCount;
 
 app_theme_css();
@@ -60,6 +61,10 @@ app_theme_css();
         <div class="label">Expirate cu stoc</div>
         <div class="value"><?= (int)$expiredCount ?></div>
     </a>
+    <a class="stock-kpi <?= $deferredPvsCount > 0 ? 'warn' : '' ?>" href="stock_deferred_pvs.php">
+        <div class="label">PV fără consum</div>
+        <div class="value"><?= (int)$deferredPvsCount ?></div>
+    </a>
     <div class="stock-kpi">
         <div class="label">Mișcări totale</div>
         <div class="value"><?= (int)$movementsCount ?></div>
@@ -74,6 +79,13 @@ app_theme_css();
     <div class="notice notice-warning" style="background:#fffbeb;border-color:#fde68a;color:#92400e;">
         <strong>Inventar în desfășurare:</strong> există un inventar (#<?= (int)$openInventoryId ?>) neînchis.
         <a href="stock_inventory.php?id=<?= (int)$openInventoryId ?>" style="font-weight:900;text-decoration:underline;">Continuă numărătoarea</a>
+    </div>
+<?php endif; ?>
+
+<?php if ($deferredPvsCount > 0): ?>
+    <div class="notice notice-warning" style="background:#fffbeb;border-color:#fde68a;color:#92400e;">
+        <strong>PV-uri emise în alb:</strong> <?= (int)$deferredPvsCount ?> PV(uri) așteaptă completarea cantităților consumate.
+        <a href="stock_deferred_pvs.php" style="font-weight:900;text-decoration:underline;">Finalizează consumul</a>
     </div>
 <?php endif; ?>
 

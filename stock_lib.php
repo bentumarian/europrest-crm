@@ -1228,6 +1228,236 @@ if (!function_exists('stock_inventory_finalize')) {
     }
 }
 
+if (!function_exists('stock_pick_fifo_lot')) {
+    /**
+     * Întoarce ID-ul recepției (lot) cu cea mai apropiată expirare și stoc > 0
+     * pentru un produs dat. NULL dacă nu există stoc disponibil.
+     */
+    function stock_pick_fifo_lot(PDO $pdo, int $productId, float $neededQty = 0.001): ?int
+    {
+        if ($productId <= 0 || !stock_table_exists($pdo, 'stock_receipts')) {
+            return null;
+        }
+        $stmt = $pdo->prepare("
+            SELECT id FROM stock_receipts
+            WHERE product_id = ?
+              AND cancelled_at IS NULL
+            ORDER BY COALESCE(expires_at, '2999-12-31') ASC, reception_date ASC, id ASC
+        ");
+        $stmt->execute([$productId]);
+        $candidates = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        foreach ($candidates as $receiptId) {
+            $available = stock_available_qty_for_receipt($pdo, (int)$receiptId);
+            if ($available >= $neededQty - 0.0001) {
+                return (int)$receiptId;
+            }
+        }
+        // Nu există un lot care să acopere integral cererea - returnez primul cu stoc > 0
+        foreach ($candidates as $receiptId) {
+            $available = stock_available_qty_for_receipt($pdo, (int)$receiptId);
+            if ($available > 0.0001) {
+                return (int)$receiptId;
+            }
+        }
+        return null;
+    }
+}
+
+if (!function_exists('stock_deferred_pvs_list')) {
+    /**
+     * Lista PV-urilor emise cu flag-ul stock_consumption_deferred = '1',
+     * neînchise încă (nu au consumuri).
+     */
+    function stock_deferred_pvs_list(PDO $pdo): array
+    {
+        if (!stock_table_exists($pdo, 'documents')) {
+            return [];
+        }
+        $sql = "
+            SELECT d.id, d.document_number, d.document_date, d.document_time,
+                   d.client_name_snapshot, d.payload_json
+            FROM documents d
+            WHERE d.document_type = 'proces_verbal'
+              AND d.status = 'issued'
+              AND d.payload_json LIKE '%\"stock_consumption_deferred\":\"1\"%'
+            ORDER BY d.document_date DESC, d.id DESC
+            LIMIT 200
+        ";
+        try {
+            $rows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Throwable $e) {
+            return [];
+        }
+        // Adaug numarul de materiale + numarul de PV-uri care au deja consumuri
+        // (consumate intre timp - le filtram din lista)
+        $result = [];
+        foreach ($rows as $row) {
+            $documentId = (int)$row['id'];
+            if (stock_count_document_consumes($pdo, $documentId) > 0) {
+                continue;
+            }
+            $matCountStmt = $pdo->prepare("
+                SELECT COUNT(*) FROM document_materials
+                WHERE document_id = ? AND TRIM(COALESCE(material_name, '')) <> ''
+            ");
+            $matCountStmt->execute([$documentId]);
+            $row['materials_count'] = (int)$matCountStmt->fetchColumn();
+            $result[] = $row;
+        }
+        return $result;
+    }
+}
+
+if (!function_exists('stock_deferred_pv_materials')) {
+    /**
+     * Lista materialelor unui PV deferred, cu produs rezolvat și sugestie FIFO de lot.
+     */
+    function stock_deferred_pv_materials(PDO $pdo, int $documentId): array
+    {
+        if ($documentId <= 0 || !stock_table_exists($pdo, 'document_materials')) {
+            return [];
+        }
+        $stmt = $pdo->prepare("
+            SELECT m.*, p.name AS product_name, p.product_group, p.unit_consumption,
+                   p.package_qty
+            FROM document_materials m
+            LEFT JOIN stock_products p ON p.id = m.stock_product_id
+            WHERE m.document_id = ?
+              AND TRIM(COALESCE(m.material_name, '')) <> ''
+            ORDER BY m.sort_order ASC, m.id ASC
+        ");
+        $stmt->execute([$documentId]);
+        $materials = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        // Pentru fiecare material adaug sugestia FIFO + disponibil pe acel lot
+        foreach ($materials as &$material) {
+            $productId = (int)($material['stock_product_id'] ?? 0);
+            if ($productId <= 0 && !empty($material['material_name'])) {
+                // Încearcă rezolvare după nume
+                [$resolvedPid, $resolvedRid] = stock_resolve_document_material_stock($pdo, $material, 0);
+                $productId = $resolvedPid > 0 ? $resolvedPid : 0;
+                $material['stock_product_id'] = $productId ?: null;
+            }
+            $fifoLot = $productId > 0 ? stock_pick_fifo_lot($pdo, $productId) : null;
+            $material['fifo_lot_id'] = $fifoLot;
+            $material['fifo_lot_available'] = $fifoLot ? stock_available_qty_for_receipt($pdo, $fifoLot) : 0;
+            if ($fifoLot) {
+                $lotStmt = $pdo->prepare("SELECT lot, expires_at FROM stock_receipts WHERE id = ? LIMIT 1");
+                $lotStmt->execute([$fifoLot]);
+                $lotRow = $lotStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+                $material['fifo_lot_label'] = (string)($lotRow['lot'] ?? '-');
+                $material['fifo_lot_expires'] = (string)($lotRow['expires_at'] ?? '');
+            } else {
+                $material['fifo_lot_label'] = '';
+                $material['fifo_lot_expires'] = '';
+            }
+        }
+        unset($material);
+        return $materials;
+    }
+}
+
+if (!function_exists('stock_finalize_deferred_pv')) {
+    /**
+     * Finalizează consumul unui PV emis în alb:
+     * - Pentru fiecare material cu cantitate > 0 în $qtyMap, actualizează
+     *   document_materials.quantity și asignează FIFO lot.
+     * - Șterge flag-ul stock_consumption_deferred din payload_json.
+     * - Apelează stock_consume_document_materials() care creează mișcările.
+     *
+     * @param array $qtyMap  Map document_material_id => cantitate reală
+     */
+    function stock_finalize_deferred_pv(PDO $pdo, int $documentId, array $qtyMap): void
+    {
+        if ($documentId <= 0) {
+            throw new RuntimeException('Document invalid.');
+        }
+        $stmt = $pdo->prepare("SELECT * FROM documents WHERE id = ? LIMIT 1");
+        $stmt->execute([$documentId]);
+        $document = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$document) {
+            throw new RuntimeException('PV-ul nu mai există.');
+        }
+        if (($document['document_type'] ?? '') !== 'proces_verbal' || ($document['status'] ?? '') !== 'issued') {
+            throw new RuntimeException('Doar PV-urile emise pot fi finalizate.');
+        }
+        $payload = [];
+        if (!empty($document['payload_json'])) {
+            $decoded = json_decode((string)$document['payload_json'], true);
+            if (is_array($decoded)) { $payload = $decoded; }
+        }
+        if (($payload['stock_consumption_deferred'] ?? '') !== '1') {
+            throw new RuntimeException('Acest PV nu este emis în alb sau a fost deja finalizat.');
+        }
+
+        $materials = stock_deferred_pv_materials($pdo, $documentId);
+        if (!$materials) {
+            throw new RuntimeException('PV-ul nu are materiale declarate.');
+        }
+
+        // Verific ca cel puțin un material să aibă cantitate validă
+        $anyQty = false;
+        foreach ($materials as $material) {
+            $mid = (int)$material['id'];
+            $qty = stock_decimal($qtyMap[$mid] ?? 0);
+            if ($qty > 0) { $anyQty = true; break; }
+        }
+        if (!$anyQty) {
+            throw new RuntimeException('Introdu cel puțin o cantitate consumată.');
+        }
+
+        $startedTx = false;
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $startedTx = true;
+        }
+        try {
+            foreach ($materials as $material) {
+                $mid = (int)$material['id'];
+                $qty = stock_decimal($qtyMap[$mid] ?? 0);
+                if ($qty <= 0) {
+                    // Material fără cantitate - îl golesc ca să fie sărit de
+                    // consume function (validare cere qty > 0; setând qty NULL
+                    // dar... preferinm să-l ștergem din document_materials)
+                    $pdo->prepare("DELETE FROM document_materials WHERE id = ?")
+                        ->execute([$mid]);
+                    continue;
+                }
+                $productId = (int)($material['stock_product_id'] ?? 0);
+                if ($productId <= 0) {
+                    throw new RuntimeException('Produsul "' . ($material['material_name'] ?? '?') . '" nu a putut fi rezolvat din nomenclator.');
+                }
+                $fifoLot = stock_pick_fifo_lot($pdo, $productId, $qty);
+                if (!$fifoLot) {
+                    throw new RuntimeException('Nu există stoc disponibil pentru "' . ($material['material_name'] ?? '?') . '". Adaugă întâi o intrare în stoc.');
+                }
+                $pdo->prepare("
+                    UPDATE document_materials
+                    SET quantity = ?,
+                        stock_product_id = ?,
+                        stock_receipt_id = ?
+                    WHERE id = ?
+                ")->execute([$qty, $productId, $fifoLot, $mid]);
+            }
+
+            // Sterg flag-ul deferred din payload
+            $payload['stock_consumption_deferred'] = '0';
+            $payload['stock_consumption_finalized_at'] = date('Y-m-d H:i:s');
+            $payload['stock_consumption_finalized_by'] = function_exists('current_user_id') ? current_user_id() : null;
+            $pdo->prepare("UPDATE documents SET payload_json = ? WHERE id = ?")
+                ->execute([json_encode($payload, JSON_UNESCAPED_UNICODE), $documentId]);
+
+            // Generez consumurile (acum că flag-ul nu mai blochează)
+            stock_consume_document_materials($pdo, $documentId);
+
+            if ($startedTx) { $pdo->commit(); }
+        } catch (Throwable $e) {
+            if ($startedTx && $pdo->inTransaction()) { $pdo->rollBack(); }
+            throw $e;
+        }
+    }
+}
+
 if (!function_exists('stock_inventory_list')) {
     function stock_inventory_list(PDO $pdo, int $limit = 50): array
     {

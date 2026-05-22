@@ -39,6 +39,7 @@ if (!function_exists('render_stock_module_nav')) {
             'receipts' => ['label' => 'Intrări', 'href' => 'stock_receipts.php'],
             'movements' => ['label' => 'Mișcări', 'href' => 'stock_movements.php'],
             'inventory' => ['label' => 'Inventar', 'href' => 'stock_inventory.php'],
+            'deferred_pvs' => ['label' => 'PV fără consum', 'href' => 'stock_deferred_pvs.php'],
             'notifications' => ['label' => 'Notificări', 'href' => 'stock_notifications.php'],
             'card' => ['label' => 'Fișa magazie', 'href' => 'stock_card.php'],
             'registry' => ['label' => 'Registru lucrări', 'href' => 'stock_work_registry.php'],

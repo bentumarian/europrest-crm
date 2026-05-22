@@ -622,6 +622,9 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                     <?php if ($stockConsumptionDeferred): ?>
                         <div class="document-alert warning">
                             Consum stoc neînchis. PV-ul este emis, dar cantitatea nu a fost scăzută din gestiune și nu apare în registrul de consum.
+                            <?php if (function_exists('is_admin') && is_admin()): ?>
+                                <a href="stock_deferred_pvs.php?id=<?= (int)$document['id'] ?>" style="font-weight:700;text-decoration:underline;margin-left:6px;">Finalizează consumul acum →</a>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
                 <?php endif; ?>

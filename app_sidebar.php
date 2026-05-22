@@ -48,7 +48,7 @@ if (!function_exists('render_sidebar')) {
         $active = 'settings';
     }
 
-    $stockActiveKeys = ['stock', 'stock_products', 'stock_receipts', 'stock_movements', 'stock_card', 'stock_inventory', 'stock_notifications', 'stock_work_registry'];
+    $stockActiveKeys = ['stock', 'stock_products', 'stock_receipts', 'stock_movements', 'stock_card', 'stock_inventory', 'stock_notifications', 'stock_work_registry', 'stock_deferred_pvs'];
     if (in_array($active, $stockActiveKeys, true)) {
         $active = 'stock';
     }
@@ -610,6 +610,7 @@ if (!function_exists('render_sidebar')) {
             'stock_receipts'         => ['Gestiune',   ['Intrări']],
             'stock_movements'        => ['Gestiune',   ['Mișcări']],
             'stock_inventory'        => ['Gestiune',   ['Inventar fizic']],
+            'stock_deferred_pvs'     => ['Gestiune',   ['PV fără consum']],
             'stock_notifications'    => ['Gestiune',   ['Notificări']],
             'stock_card'             => ['Gestiune',   ['Fișa magazie']],
             'stock_work_registry'    => ['Gestiune',   ['Registru lucrări']],
