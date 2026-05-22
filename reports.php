@@ -926,6 +926,7 @@ function reports_short_service_label(string $name): string {
 
             <section class="reports-hero">
                 <div>
+                    <div class="pz-page-eyebrow">Rapoarte</div>
                     <h1>Rapoarte</h1>
                     <p>Analiză rapidă pentru programări, tehnicieni, servicii și sarcini.</p>
                 </div>
@@ -938,29 +939,26 @@ function reports_short_service_label(string $name): string {
                 <a class="btn" href="reports.php?date_from=<?= r_h($currentYearStart) ?>&date_to=<?= r_h($currentYearEnd) ?>&team=all&service=all&status=all">An curent</a>
             </div>
 
-            <section class="kpi-grid">
-                <div class="kpi-card">
-                    <div class="kpi-label">Programări</div>
-                    <div class="kpi-value"><?= (int)$totalAppointments ?></div>
-                    <div class="kpi-sub">În perioada selectată</div>
+            <section class="pz-kpi-grid">
+                <div class="pz-kpi-card bl">
+                    <div class="pz-kpi-label">Programări</div>
+                    <div class="pz-kpi-value"><?= (int)$totalAppointments ?></div>
+                    <div class="pz-kpi-sub mu">În perioada selectată</div>
                 </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-label">Finalizate</div>
-                    <div class="kpi-value"><?= (int)$completedAppointments ?></div>
-                    <div class="kpi-sub"><?= (int)$completionRate ?>% rata finalizare</div>
+                <div class="pz-kpi-card gr">
+                    <div class="pz-kpi-label">Finalizate</div>
+                    <div class="pz-kpi-value"><?= (int)$completedAppointments ?></div>
+                    <div class="pz-kpi-sub mu"><?= (int)$completionRate ?>% rată finalizare</div>
                 </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-label">Mențiuni finalizare</div>
-                    <div class="kpi-value"><?= (int)$withCompletionNotes ?></div>
-                    <div class="kpi-sub"><?= (int)$completionNotesRate ?>% din lucrări finalizate</div>
+                <div class="pz-kpi-card mu">
+                    <div class="pz-kpi-label">Mențiuni finalizare</div>
+                    <div class="pz-kpi-value"><?= (int)$withCompletionNotes ?></div>
+                    <div class="pz-kpi-sub mu"><?= (int)$completionNotesRate ?>% din lucrări finalizate</div>
                 </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-label">Sarcini active</div>
-                    <div class="kpi-value"><?= (int)$tasksTotal ?></div>
-                    <div class="kpi-sub"><?= (int)$tasksOverdue ?> întârziate</div>
+                <div class="pz-kpi-card or">
+                    <div class="pz-kpi-label">Sarcini active</div>
+                    <div class="pz-kpi-value"><?= (int)$tasksTotal ?></div>
+                    <div class="pz-kpi-sub mu"><?= (int)$tasksOverdue ?> întârziate</div>
                 </div>
             </section>
 

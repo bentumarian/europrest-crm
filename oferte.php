@@ -915,11 +915,12 @@ foreach ($services as $service) {
             <section class="panel">
                 <div class="panel-head">
                     <div>
+                        <div class="pz-page-eyebrow">Documente</div>
                         <div class="panel-title">Lista oferte</div>
-                        <div class="panel-subtitle">Caută după numar, client, CUI sau titlu.</div>
+                        <div class="panel-subtitle">Caută după număr, client, CUI sau titlu.</div>
                     </div>
                 
-                    <a class="btn primary" href="offers?new=1<?= !empty($filters['client_id']) ? '&client_id=' . (int)$filters['client_id'] : '' ?>">+ Ofertă nouă</a>
+                    <a class="pz-icon-btn primary lg" title="Ofertă nouă" aria-label="Ofertă nouă" href="offers?new=1<?= !empty($filters['client_id']) ? '&client_id=' . (int)$filters['client_id'] : '' ?>"><?= app_icon_svg('plus') ?></a>
                 </div>
                 <div class="panel-body">
                     <form class="filter-form" method="get">
@@ -983,12 +984,12 @@ foreach ($services as $service) {
                                 Total fără TVA<br>
                                 <strong><?= pz_offer_h(pz_offer_money($doc['total_amount'] ?? 0, $doc['currency'] ?? 'RON')) ?></strong>
                             </div>
-                            <div class="doc-actions">
-                                <a class="btn small" href="document_view.php?id=<?= (int)$doc['id'] ?>">Vezi</a>
+                            <div class="doc-actions pz-actions">
+                                <a class="pz-icon-btn" title="Vezi" aria-label="Vezi ofertă" href="document_view.php?id=<?= (int)$doc['id'] ?>"><?= app_icon_svg('eye') ?></a>
                                 <?php if (($doc['status'] ?? '') === 'draft'): ?>
-                                    <a class="btn small" href="offers?edit=<?= (int)$doc['id'] ?>">Editează</a>
+                                    <a class="pz-icon-btn" title="Editează" aria-label="Editează draft" href="offers?edit=<?= (int)$doc['id'] ?>"><?= app_icon_svg('edit') ?></a>
                                 <?php endif; ?>
-                                <a class="btn small" href="document_pdf.php?id=<?= (int)$doc['id'] ?>&mode=inline" target="_blank">PDF</a>
+                                <a class="pz-icon-btn" title="Deschide PDF" aria-label="Deschide PDF" href="document_pdf.php?id=<?= (int)$doc['id'] ?>&mode=inline" target="_blank"><?= app_icon_svg('pdf') ?></a>
                             </div>
                         </article>
                     <?php endforeach; ?>
@@ -1411,4 +1412,4 @@ try {
     };
     go();
 })();
-</script>
+</script>

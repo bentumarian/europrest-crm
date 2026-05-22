@@ -335,10 +335,11 @@ function ro_short_date_dashboard(string $date): string {
         <div class="content">
             <section class="dashboard-hero">
                 <div>
+                    <div class="pz-page-eyebrow">Operațional</div>
                     <h1>Bun venit în PestZone</h1>
                     <p>
                         Ai o privire rapidă asupra lucrărilor de astăzi, sarcinilor de birou,
-                        tehnicienilor activi si clienților.
+                        tehnicienilor activi și clienților.
                     </p>
                 </div>
 
@@ -349,29 +350,26 @@ function ro_short_date_dashboard(string $date): string {
                 </div>
             </section>
 
-            <section class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Lucrări azi</div>
-                    <div class="stat-value"><?= (int)$todayAppointments ?></div>
-                    <div class="stat-note">Programări active pentru astăzi</div>
+            <section class="pz-kpi-grid">
+                <div class="pz-kpi-card bl">
+                    <div class="pz-kpi-label">Lucrări azi</div>
+                    <div class="pz-kpi-value"><?= (int)$todayAppointments ?></div>
+                    <div class="pz-kpi-sub mu">Programări active pentru astăzi</div>
                 </div>
-
-                <div class="stat-card">
-                    <div class="stat-label">Finalizate azi</div>
-                    <div class="stat-value"><?= (int)$todayFinalized ?></div>
-                    <div class="stat-note">Lucrări marcate finalizate</div>
+                <div class="pz-kpi-card gr">
+                    <div class="pz-kpi-label">Finalizate azi</div>
+                    <div class="pz-kpi-value"><?= (int)$todayFinalized ?></div>
+                    <div class="pz-kpi-sub mu">Lucrări marcate finalizate</div>
                 </div>
-
-                <div class="stat-card">
-                    <div class="stat-label">Sarcini deschise</div>
-                    <div class="stat-value"><?= (int)$openTasks ?></div>
-                    <div class="stat-note"><?= (int)$lateTasks ?> întârziate</div>
+                <div class="pz-kpi-card or">
+                    <div class="pz-kpi-label">Sarcini deschise</div>
+                    <div class="pz-kpi-value"><?= (int)$openTasks ?></div>
+                    <div class="pz-kpi-sub mu"><?= (int)$lateTasks ?> întârziate</div>
                 </div>
-
-                <div class="stat-card">
-                    <div class="stat-label">Clienți / tehnicieni</div>
-                    <div class="stat-value"><?= (int)$totalClients ?></div>
-                    <div class="stat-note"><?= (int)$activeTeams ?> tehnicieni activi</div>
+                <div class="pz-kpi-card mu">
+                    <div class="pz-kpi-label">Clienți / tehnicieni</div>
+                    <div class="pz-kpi-value"><?= (int)$totalClients ?></div>
+                    <div class="pz-kpi-sub mu"><?= (int)$activeTeams ?> tehnicieni activi</div>
                 </div>
             </section>
 

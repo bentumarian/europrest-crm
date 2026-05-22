@@ -1459,7 +1459,6 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
                 </div>
                 <a class="btn" href="clients.php" title="Resetare filtre" aria-label="Resetare filtre">↻</a>
                 <a class="btn" href="clients_dedupe.php" title="Corelează telefonul și emailul între firme cu același reprezentant legal">🔗 Corelare reprezentanți</a>
-                <button class="btn accent add-client-btn" type="button" onclick="openClientModal()">+ Client nou</button>
             </form>
         </div>
 
@@ -1482,21 +1481,27 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
 
         <div class="content">
             <section class="clients-page-title">
-                <h1>Clienți</h1>
-                <span class="clients-count-pill"><?= (int)$totalClients ?></span>
+                <div>
+                    <div class="pz-page-eyebrow">Clienți</div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <h1 style="margin:0;">Clienți</h1>
+                        <span class="clients-count-pill"><?= (int)$totalClients ?></span>
+                    </div>
+                </div>
+                <button class="pz-icon-btn primary lg" type="button" title="Adaugă client" aria-label="Adaugă client" onclick="openClientModal()"><?= app_icon_svg('plus') ?></button>
             </section>
 
             <section class="clients-layout">
                 <div class="clients-list-card">
                     <div class="card-head">
                         <div>
-                            <div class="card-title">Listă contacte</div>
+                            <div class="card-title">Listă clienți</div>
                             <div class="card-subtitle">Afișare <?= (int)$fromResult ?>-<?= (int)$toResult ?> din <?= (int)$totalClients ?></div>
                         </div>
                     </div>
 
                     <?php if (!$clients): ?>
-                        <div class="empty-state">Nu există contacte pentru filtrul selectat.</div>
+                        <div class="empty-state">Nu există clienți pentru filtrul selectat.</div>
                     <?php else: ?>
                         <div class="clients-table-wrap">
                             <table class="clients-table">

@@ -480,6 +480,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 
             <section class="ib-hero">
                 <div>
+                    <div class="pz-page-eyebrow">Financiar</div>
                     <h1>De facturat <span class="count-badge"><?= (int)count($rows) ?></span></h1>
                     <p>Poziții generate din programări finalizate. Selectează una sau mai multe poziții ale aceluiași client și emite factura.</p>
                 </div>
@@ -495,26 +496,26 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                 <a class="btn" href="work_billing.php?date_from=<?= ib_h($dateFrom) ?>&date_to=<?= ib_h($dateTo) ?>&status=all&service=all&pv=all">Toate statusurile</a>
             </div>
 
-            <section class="kpi-grid">
-                <div class="kpi-card">
-                    <div class="kpi-label">Total poziții</div>
-                    <div class="kpi-value"><?= (int)$totalCount ?></div>
-                    <div class="kpi-sub"><?= ib_h(ib_money_label($totalAmount)) ?> fără TVA</div>
+            <section class="pz-kpi-grid">
+                <div class="pz-kpi-card mu">
+                    <div class="pz-kpi-label">Total poziții</div>
+                    <div class="pz-kpi-value"><?= (int)$totalCount ?></div>
+                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($totalAmount)) ?> fără TVA</div>
                 </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">De verificat</div>
-                    <div class="kpi-value"><?= (int)$summary['to_review']['count'] ?></div>
-                    <div class="kpi-sub"><?= ib_h(ib_money_label($summary['to_review']['amount'])) ?> fără TVA</div>
+                <div class="pz-kpi-card or">
+                    <div class="pz-kpi-label">De verificat</div>
+                    <div class="pz-kpi-value"><?= (int)$summary['to_review']['count'] ?></div>
+                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['to_review']['amount'])) ?> fără TVA</div>
                 </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">De facturat</div>
-                    <div class="kpi-value"><?= (int)$summary['to_invoice']['count'] ?></div>
-                    <div class="kpi-sub"><?= ib_h(ib_money_label($summary['to_invoice']['amount'])) ?> fără TVA</div>
+                <div class="pz-kpi-card bl">
+                    <div class="pz-kpi-label">De facturat</div>
+                    <div class="pz-kpi-value"><?= (int)$summary['to_invoice']['count'] ?></div>
+                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['to_invoice']['amount'])) ?> fără TVA</div>
                 </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">Facturate</div>
-                    <div class="kpi-value"><?= (int)$summary['invoiced']['count'] ?></div>
-                    <div class="kpi-sub"><?= ib_h(ib_money_label($summary['invoiced']['amount'])) ?> fără TVA</div>
+                <div class="pz-kpi-card gr">
+                    <div class="pz-kpi-label">Facturate</div>
+                    <div class="pz-kpi-value"><?= (int)$summary['invoiced']['count'] ?></div>
+                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['invoiced']['amount'])) ?> fără TVA</div>
                 </div>
             </section>
 

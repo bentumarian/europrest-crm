@@ -1361,11 +1361,12 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
             <section class="panel">
                 <div class="panel-head">
                     <div>
+                        <div class="pz-page-eyebrow">Documente</div>
                         <div class="panel-title">Lista procese verbale</div>
-                        <div class="panel-subtitle">Drafturi, PV emise si PV anulate.</div>
+                        <div class="panel-subtitle">Drafturi, PV emise și PV anulate.</div>
                     </div>
                 
-                    <a class="btn primary" href="service-reports?new=1<?= $filterClientId > 0 ? '&client_id=' . (int)$filterClientId : '' ?>">+ PV nou</a>
+                    <a class="pz-icon-btn primary lg" title="PV nou" aria-label="PV nou" href="service-reports?new=1<?= $filterClientId > 0 ? '&client_id=' . (int)$filterClientId : '' ?>"><?= app_icon_svg('plus') ?></a>
                 </div>
                 <div class="panel-body">
                     <form class="filter-form" method="get">
@@ -1429,12 +1430,12 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                 Creat<br>
                                 <strong><?= pz_pv_h(pz_pv_date_ro(substr((string)($doc['created_at'] ?? ''), 0, 10))) ?></strong>
                             </div>
-                            <div class="doc-actions">
-                                <a class="btn small" href="document_view.php?id=<?= (int)$doc['id'] ?>">Vezi</a>
+                            <div class="doc-actions pz-actions">
+                                <a class="pz-icon-btn" title="Vezi" aria-label="Vezi proces verbal" href="document_view.php?id=<?= (int)$doc['id'] ?>"><?= app_icon_svg('eye') ?></a>
                                 <?php if (($doc['status'] ?? '') === 'draft'): ?>
-                                    <a class="btn small" href="service-reports?edit=<?= (int)$doc['id'] ?>">Editează</a>
+                                    <a class="pz-icon-btn" title="Editează" aria-label="Editează draft" href="service-reports?edit=<?= (int)$doc['id'] ?>"><?= app_icon_svg('edit') ?></a>
                                 <?php endif; ?>
-                                <a class="btn small" href="document_pdf.php?id=<?= (int)$doc['id'] ?>&mode=inline" target="_blank">PDF</a>
+                                <a class="pz-icon-btn" title="Deschide PDF" aria-label="Deschide PDF" href="document_pdf.php?id=<?= (int)$doc['id'] ?>&mode=inline" target="_blank"><?= app_icon_svg('pdf') ?></a>
                             </div>
                         </article>
                     <?php endforeach; ?>
@@ -2504,4 +2505,4 @@ try {
     };
     go();
 })();
-</script>
+</

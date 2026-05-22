@@ -3218,6 +3218,180 @@ if (!function_exists('app_theme_css')) {
         :where(.topbar input, .topbar select, .app-topbar input, .app-topbar select) {
             font-weight: var(--type-weight-regular) !important;
         }
+
+                /* ═══════════════════════════════════════════════════════════════
+           PestZone — componente UI standardizate (linia vizuală finală)
+           Vezi DESIGN_LINE.md pentru reguli complete.
+           Prefix .pz-* — pot fi adăugate progresiv pe pagini existente.
+           ═══════════════════════════════════════════════════════════════ */
+
+        /* Kicker uppercase pentru header pagină — adăugabil oriunde
+           (înainte de <h1>) ca <div class="pz-page-eyebrow">CONTEXT</div> */
+        .pz-page-eyebrow {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--pz-mu);
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            line-height: 1.2;
+        }
+
+        /* Grid pentru KPI cards — 4 coloane desktop, 2 tablet, 1 mobile */
+        .pz-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 1100px) {
+            .pz-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 560px) {
+            .pz-kpi-grid { grid-template-columns: 1fr; gap: 10px; }
+        }
+
+        /* KPI card cu accent-bar stânga.
+           Modifier de culoare obligatoriu: .bl (info), .gr (succes),
+           .or (atenție), .re (pericol), .mu (neutru). */
+        .pz-kpi-card {
+            position: relative;
+            background: var(--pz-surf);
+            border: 1px solid var(--pz-line);
+            border-radius: 8px;
+            padding: 16px 18px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .pz-kpi-card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--pz-mu);
+        }
+        .pz-kpi-card.bl::before { background: var(--pz-bl); }
+        .pz-kpi-card.gr::before { background: var(--pz-gr-acc, #22C55E); }
+        .pz-kpi-card.or::before { background: var(--pz-or-acc, #F97316); }
+        .pz-kpi-card.re::before { background: var(--pz-re-acc, #EF4444); }
+        .pz-kpi-card.mu::before { background: var(--pz-fa, #94A3B8); }
+
+        .pz-kpi-card .pz-kpi-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--pz-mu);
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            line-height: 1.2;
+            margin: 0;
+        }
+        .pz-kpi-card .pz-kpi-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--pz-title);
+            line-height: 1.15;
+            font-feature-settings: "tnum" 1;
+            font-variant-numeric: tabular-nums;
+            margin: 2px 0 0;
+        }
+        .pz-kpi-card .pz-kpi-sub {
+            font-size: 12px;
+            color: var(--pz-text);
+            line-height: 1.35;
+            margin: 0;
+        }
+        .pz-kpi-card .pz-kpi-sub.mu { color: var(--pz-mu); }
+
+        @media (max-width: 560px) {
+            .pz-kpi-card { padding: 14px 16px; }
+            .pz-kpi-card .pz-kpi-value { font-size: 22px; }
+        }
+
+        /* Buton-icon pentru acțiuni în tabele și liste (28×28, doar icon, tooltip via title)
+           Variante: .danger (roșu pentru ștergere), .primary (albastru solid). */
+        .pz-icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border: 0;
+            background: transparent;
+            color: var(--pz-mu);
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            padding: 0;
+            line-height: 1;
+            transition: background-color .12s ease, color .12s ease;
+        }
+        .pz-icon-btn:hover,
+        .pz-icon-btn:focus-visible {
+            background: var(--pz-soft);
+            color: var(--pz-title);
+            outline: none;
+        }
+        .pz-icon-btn:focus-visible {
+            box-shadow: 0 0 0 2px var(--pz-blb);
+        }
+        .pz-icon-btn:active {
+            background: var(--pz-lines);
+        }
+        .pz-icon-btn svg,
+        .pz-icon-btn .nav-icon,
+        .pz-icon-btn .nav-icon svg {
+            width: 16px;
+            height: 16px;
+            display: block;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .pz-icon-btn.danger {
+            color: var(--pz-mu);
+        }
+        .pz-icon-btn.danger:hover,
+        .pz-icon-btn.danger:focus-visible {
+            background: var(--pz-res);
+            color: var(--pz-re);
+        }
+        .pz-icon-btn.primary {
+            background: var(--pz-bl);
+            color: #fff;
+        }
+        .pz-icon-btn.primary:hover,
+        .pz-icon-btn.primary:focus-visible {
+            background: var(--pz-bld);
+            color: #fff;
+        }
+
+        /* Grup compact de iconuri în coloana Acțiuni (gap mic, fără wrap) */
+        .pz-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            white-space: nowrap;
+        }
+
+        /* Variantă mare (32×32) — pentru butonul „+" iconic din header pagini.
+           Folosire: <a class="pz-icon-btn primary lg" title="Adaugă X"><icon plus></a> */
+        .pz-icon-btn.lg {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+        }
+        .pz-icon-btn.lg svg,
+        .pz-icon-btn.lg .nav-icon,
+        .pz-icon-btn.lg .nav-icon svg {
+            width: 18px;
+            height: 18px;
+        }
         </style>
         <?php
     }

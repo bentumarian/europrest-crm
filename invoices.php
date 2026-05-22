@@ -286,6 +286,7 @@ $statusLabels = [
         <div class="content billing-home">
             <section class="hero">
                 <div>
+                    <div class="pz-page-eyebrow">Financiar</div>
                     <h1>Facturi <span class="count-badge"><?= (int)$stats['all'] ?></span></h1>
                     <p>Raport facturi, solduri, statusuri și acțiuni financiare.</p>
                 </div>
@@ -314,11 +315,24 @@ $statusLabels = [
                 </div>
             </section>
 
-            <section class="metrics">
-                <div class="metric"><span>Facturat</span><strong><?= bill_h(bill_money($stats['gross'])) ?></strong></div>
-                <div class="metric"><span>Încasat</span><strong><?= bill_h(bill_money($stats['paid_amount'])) ?></strong></div>
-                <div class="metric"><span>Sold neachitat</span><strong><?= bill_h(bill_money($stats['unpaid_amount'])) ?></strong></div>
-                <div class="metric"><span>Termen depasit</span><strong><?= (int)$stats['overdue'] ?> facturi</strong></div>
+            <section class="pz-kpi-grid">
+                <div class="pz-kpi-card bl">
+                    <div class="pz-kpi-label">Facturat</div>
+                    <div class="pz-kpi-value"><?= bill_h(bill_money($stats['gross'])) ?></div>
+                </div>
+                <div class="pz-kpi-card gr">
+                    <div class="pz-kpi-label">Încasat</div>
+                    <div class="pz-kpi-value"><?= bill_h(bill_money($stats['paid_amount'])) ?></div>
+                </div>
+                <div class="pz-kpi-card or">
+                    <div class="pz-kpi-label">Sold neachitat</div>
+                    <div class="pz-kpi-value"><?= bill_h(bill_money($stats['unpaid_amount'])) ?></div>
+                </div>
+                <div class="pz-kpi-card re">
+                    <div class="pz-kpi-label">Termen depășit</div>
+                    <div class="pz-kpi-value"><?= (int)$stats['overdue'] ?></div>
+                    <div class="pz-kpi-sub mu">facturi</div>
+                </div>
             </section>
 
             <nav class="tabs" aria-label="Filtre facturi">
