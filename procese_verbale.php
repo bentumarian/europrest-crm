@@ -606,6 +606,11 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 
 /* === TOGGLE PILLS pentru servicii === */
 .pz-pills { display:flex; flex-wrap:wrap; gap:8px; }
+@media (max-width: 700px) {
+    #servicesPills { flex-wrap: nowrap !important; gap: 4px !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    #servicesPills .pz-pill { flex: 1 1 0; min-width: 0; min-height: 36px; padding: 6px 6px 6px 24px !important; font-size: 11px !important; text-align: center; justify-content: center; white-space: nowrap; }
+    #servicesPills .pz-pill::before { left: 6px !important; }
+}
 .pz-pill { position:relative; min-height:34px; display:inline-flex; align-items:center; padding:7px 13px 7px 36px; border-radius:6px; border:1px solid var(--border); background:#fff; color:var(--text); font-size:12.5px; font-weight:850; cursor:pointer; transition:border-color .14s ease, background .14s ease, color .14s ease; user-select:none; }
 .pz-pill::before { content:''; position:absolute; left:12px; top:50%; transform:translateY(-50%); width:15px; height:15px; border-radius:4px; border:1.5px solid #cbd5e1; background:#fff; transition:all .14s ease; box-sizing:border-box; }
 .pz-pill:hover { border-color:var(--accent); background:var(--accent-soft); }
@@ -896,65 +901,10 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                 </div>
                             <?php endif; ?>
 
-                            <div class="panel <?= !empty($isQuickPvFromAppointment) ? 'pv-quick-hidden' : '' ?>" style="box-shadow:none;">
+                            <div class="panel" style="box-shadow:none;">
                                 <div class="panel-head">
                                     <div>
-                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">1</span><span>Document</span></div>
-                                        <div class="panel-subtitle">Numarul PV se genereaza la emitere. Aici completezi data si ora.</div>
-                                    </div>
-                                </div>
-                                <div class="panel-body">
-                                    <div class="pv-form-grid pv-document-grid">
-                                        <input type="hidden" name="appointment_id" id="appointmentSelect" value="<?= (int)($formDocument['appointment_id'] ?? $selectedAppointmentId ?? 0) ?>">
-                                        <div class="field pv-date-field">
-                                            <label>Data PV</label>
-                                            <input type="date" name="document_date" value="<?= pz_pv_h($formDocument['document_date'] ?? date('Y-m-d')) ?>">
-                                        </div>
-                                        <div class="field pv-time-field">
-                                            <label>Ora PV</label>
-                                            <input type="time" name="document_time" value="<?= pz_pv_h(substr((string)($formDocument['document_time'] ?? date('H:i')), 0, 5)) ?>">
-                                        </div>
-                                        <?php
-                                            $autoTemplateId = (int)($formDocument['template_id'] ?? 0);
-                                            if ($autoTemplateId <= 0) {
-                                                foreach ($templates as $template) {
-                                                    if (!empty($template['is_default'])) { $autoTemplateId = (int)$template['id']; break; }
-                                                }
-                                                if ($autoTemplateId <= 0 && !empty($templates)) {
-                                                    $autoTemplateId = (int)$templates[0]['id'];
-                                                }
-                                            }
-                                        ?>
-                                        <input type="hidden" name="template_id" value="<?= (int)$autoTemplateId ?>">
-                                        <div class="field full pv-basis-field">
-                                            <label>In baza</label>
-                                            <?php
-                                                $basisType = pz_pv_str($editingPayload['basis_type'] ?? '', 60);
-                                                $selectedContractId = (int)($formDocument['contract_id'] ?? ($editingPayload['selected_contract_id'] ?? 0));
-                                                if ($basisType === '' && $selectedContractId > 0) { $basisType = 'contract'; }
-                                                if ($basisType === '') { $basisType = 'auto'; }
-                                            ?>
-                                            <div class="pv-basis-grid">
-                                                <select name="basis_type" id="basisType" data-selected="<?= pz_pv_h($basisType) ?>">
-                                                    <option value="auto" <?= $basisType === 'auto' ? 'selected' : '' ?>>Automat</option>
-                                                    <option value="contract" <?= $basisType === 'contract' ? 'selected' : '' ?>>Contract existent</option>
-                                                    <option value="nota_comanda" <?= $basisType === 'nota_comanda' ? 'selected' : '' ?>>Nota de comanda</option>
-                                                    <option value="achizitie_directa" <?= $basisType === 'achizitie_directa' ? 'selected' : '' ?>>Achizitie directa</option>
-                                                    <option value="manual" <?= $basisType === 'manual' ? 'selected' : '' ?>>Alta baza</option>
-                                                </select>
-                                                <select name="contract_id" id="contractSelect" data-selected="<?= (int)$selectedContractId ?>"></select>
-                                                <input type="text" name="basis_manual_text" id="basisManualText" class="basis-manual" value="<?= pz_pv_h($editingPayload['basis_manual_text'] ?? '') ?>" placeholder="ex: Nota de comanda nr. 123 / Achizitie directa / alta baza">
-                                            </div>
-                                            <div class="client-help" id="basisHelp">Dacă există contract pentru client, se selecteaza automat. Altfel poți completa manual.</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="panel" style="box-shadow:none; margin-top:14px;">
-                                <div class="panel-head">
-                                    <div>
-                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">2</span><span>Client și locație</span></div>
+                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">1</span><span>Client și locație</span></div>
                                         <div class="panel-subtitle">Căutare după nume client, CUI, reprezentant, email sau telefon.</div>
                                     </div>
                                 </div>
@@ -1044,6 +994,61 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                 <?php endforeach; ?>
                                             </div>
                                             <div class="client-help">Click pe servicii pentru a le selecta. Vor aparea ca rand cu bife in PDF.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="panel <?= !empty($isQuickPvFromAppointment) ? 'pv-quick-hidden' : '' ?>" style="box-shadow:none; margin-top:14px;">
+                                <div class="panel-head">
+                                    <div>
+                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">2</span><span>Document</span></div>
+                                        <div class="panel-subtitle">Numarul PV se genereaza la emitere. Aici completezi data si ora.</div>
+                                    </div>
+                                </div>
+                                <div class="panel-body">
+                                    <div class="pv-form-grid pv-document-grid">
+                                        <input type="hidden" name="appointment_id" id="appointmentSelect" value="<?= (int)($formDocument['appointment_id'] ?? $selectedAppointmentId ?? 0) ?>">
+                                        <div class="field pv-date-field">
+                                            <label>Data PV</label>
+                                            <input type="date" name="document_date" value="<?= pz_pv_h($formDocument['document_date'] ?? date('Y-m-d')) ?>">
+                                        </div>
+                                        <div class="field pv-time-field">
+                                            <label>Ora PV</label>
+                                            <input type="time" name="document_time" value="<?= pz_pv_h(substr((string)($formDocument['document_time'] ?? date('H:i')), 0, 5)) ?>">
+                                        </div>
+                                        <?php
+                                            $autoTemplateId = (int)($formDocument['template_id'] ?? 0);
+                                            if ($autoTemplateId <= 0) {
+                                                foreach ($templates as $template) {
+                                                    if (!empty($template['is_default'])) { $autoTemplateId = (int)$template['id']; break; }
+                                                }
+                                                if ($autoTemplateId <= 0 && !empty($templates)) {
+                                                    $autoTemplateId = (int)$templates[0]['id'];
+                                                }
+                                            }
+                                        ?>
+                                        <input type="hidden" name="template_id" value="<?= (int)$autoTemplateId ?>">
+                                        <div class="field full pv-basis-field">
+                                            <label>In baza</label>
+                                            <?php
+                                                $basisType = pz_pv_str($editingPayload['basis_type'] ?? '', 60);
+                                                $selectedContractId = (int)($formDocument['contract_id'] ?? ($editingPayload['selected_contract_id'] ?? 0));
+                                                if ($basisType === '' && $selectedContractId > 0) { $basisType = 'contract'; }
+                                                if ($basisType === '') { $basisType = 'auto'; }
+                                            ?>
+                                            <div class="pv-basis-grid">
+                                                <select name="basis_type" id="basisType" data-selected="<?= pz_pv_h($basisType) ?>">
+                                                    <option value="auto" <?= $basisType === 'auto' ? 'selected' : '' ?>>Automat</option>
+                                                    <option value="contract" <?= $basisType === 'contract' ? 'selected' : '' ?>>Contract existent</option>
+                                                    <option value="nota_comanda" <?= $basisType === 'nota_comanda' ? 'selected' : '' ?>>Nota de comanda</option>
+                                                    <option value="achizitie_directa" <?= $basisType === 'achizitie_directa' ? 'selected' : '' ?>>Achizitie directa</option>
+                                                    <option value="manual" <?= $basisType === 'manual' ? 'selected' : '' ?>>Alta baza</option>
+                                                </select>
+                                                <select name="contract_id" id="contractSelect" data-selected="<?= (int)$selectedContractId ?>"></select>
+                                                <input type="text" name="basis_manual_text" id="basisManualText" class="basis-manual" value="<?= pz_pv_h($editingPayload['basis_manual_text'] ?? '') ?>" placeholder="ex: Nota de comanda nr. 123 / Achizitie directa / alta baza">
+                                            </div>
+                                            <div class="client-help" id="basisHelp">Dacă există contract pentru client, se selecteaza automat. Altfel poți completa manual.</div>
                                         </div>
                                     </div>
                                 </div>
