@@ -3535,6 +3535,87 @@ if (!function_exists('app_theme_css')) {
             min-height: 32px !important;
         }
 
+        /* ═══════════════════════════════════════════════════════════════
+           UNIFORMIZARE FORMULARE EMITERE DOCUMENTE — toate inputurile,
+           selectele, butoanele la 32px. Aplicat pe Contracte, Oferte,
+           Procese Verbale, Acte adiționale.
+           Override forțat peste stilurile locale (variau 7-10px padding,
+           radius 4-12px, font 12.5-13px). */
+        #contractForm .field input:not([type="checkbox"]):not([type="radio"]),
+        #contractForm .field select,
+        #offerForm .field input:not([type="checkbox"]):not([type="radio"]),
+        #offerForm .field select,
+        #pvForm .field input:not([type="checkbox"]):not([type="radio"]),
+        #pvForm .field select,
+        #addendumForm .field input:not([type="checkbox"]):not([type="radio"]),
+        #addendumForm .field select,
+        #contractForm .items-table input:not([type="checkbox"]):not([type="radio"]),
+        #contractForm .items-table select,
+        #offerForm .items-table input:not([type="checkbox"]):not([type="radio"]),
+        #offerForm .items-table select,
+        #pvForm .items-table input:not([type="checkbox"]):not([type="radio"]),
+        #pvForm .items-table select {
+            height: 32px !important;
+            min-height: 32px !important;
+            box-sizing: border-box !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+            font-size: 12.5px !important;
+            border-radius: 4px !important;
+            line-height: 30px !important;
+        }
+        /* Textarea-urile rămân cu auto-height dar cu styling consistent */
+        #contractForm .field textarea,
+        #offerForm .field textarea,
+        #pvForm .field textarea,
+        #addendumForm .field textarea,
+        #contractForm .items-table textarea,
+        #offerForm .items-table textarea,
+        #pvForm .items-table textarea {
+            min-height: 64px !important;
+            padding: 8px 10px !important;
+            font-size: 12.5px !important;
+            border-radius: 4px !important;
+            line-height: 1.4 !important;
+        }
+        /* Label-urile — păstrează aspect dar consistent */
+        #contractForm .field label,
+        #offerForm .field label,
+        #pvForm .field label,
+        #addendumForm .field label {
+            font-size: 11px !important;
+            font-weight: 500 !important;
+            text-transform: uppercase !important;
+            letter-spacing: .04em !important;
+            color: var(--pz-mu) !important;
+            margin-bottom: 4px !important;
+        }
+        /* Butoane mici din formulare la 32px (consistente cu inputurile) */
+        #contractForm .btn:not(.primary):not(.danger):not(.icon-btn):not(.pz-icon-btn),
+        #offerForm .btn:not(.primary):not(.danger):not(.icon-btn):not(.pz-icon-btn),
+        #pvForm .btn:not(.primary):not(.danger):not(.icon-btn):not(.pz-icon-btn),
+        #addendumForm .btn:not(.primary):not(.danger):not(.icon-btn):not(.pz-icon-btn) {
+            min-height: 32px !important;
+            height: 32px !important;
+        }
+        /* Flatpickr altInput pe formulare emitere */
+        #contractForm input.flatpickr-input,
+        #offerForm input.flatpickr-input,
+        #pvForm input.flatpickr-input,
+        #addendumForm input.flatpickr-input {
+            height: 32px !important;
+            min-height: 32px !important;
+        }
+        /* Items-table — în rândurile cu select/input compacte */
+        #contractForm .items-table td,
+        #offerForm .items-table td,
+        #pvForm .items-table td {
+            padding-top: 6px !important;
+            padding-bottom: 6px !important;
+        }
+
         /* Auto-dot pe badge-urile existente cu clase semantice de status.
            Aplicare automată pe markup-ul existent — nu necesită schimbări pe pagini. */
         :is(.badge.draft, .badge.issued, .badge.cancelled,
