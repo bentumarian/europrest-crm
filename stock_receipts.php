@@ -5,7 +5,7 @@ require_once 'app_ui.php';
 require_once 'stock_lib.php';
 
 if (!is_admin()) { header('Location: calendar.php'); exit; }
-if (!stock_table_exists($pdo, 'stock_products')) { header('Location: stock_install.php'); exit; }
+stock_ensure_schema($pdo);
 
 $msg = '';
 $err = '';
@@ -14,6 +14,7 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         csrf_require();
         $action = $_POST['action'] ?? '';
+
         if ($action === 'save_receipt') {
             $productId = (int)($_POST['product_id'] ?? 0);
             $inputMode = (string)($_POST['input_mode'] ?? 'qty');
@@ -54,25 +55,94 @@ try {
                 $data['product_id'], $receiptId, $data['qty'], $receiptId, 'Intrare stoc: ' . $data['document_no'], function_exists('current_user_id') ? current_user_id() : null
             ]);
             $msg = 'Intrarea în stoc a fost salvată.';
+        } elseif ($action === 'update_receipt') {
+            $receiptId = (int)($_POST['id'] ?? 0);
+            stock_update_receipt_metadata($pdo, $receiptId, [
+                'reception_date' => $_POST['reception_date'] ?? '',
+                'document_no'    => $_POST['document_no'] ?? '',
+                'supplier'       => $_POST['supplier'] ?? '',
+                'lot'            => $_POST['lot'] ?? '',
+                'expires_at'     => $_POST['expires_at'] ?? '',
+                'notes'          => $_POST['notes'] ?? '',
+            ]);
+            $msg = 'Recepția a fost actualizată. Pentru corecții de cantitate folosește Ajustare plus / minus din Mișcări stoc.';
+        } elseif ($action === 'cancel_receipt') {
+            $receiptId = (int)($_POST['id'] ?? 0);
+            $reason = (string)($_POST['cancel_reason'] ?? '');
+            stock_cancel_receipt($pdo, $receiptId, $reason);
+            $msg = 'Recepția a fost anulată. Stocul a fost ajustat automat și mișcarea apare în istoric.';
         }
     }
 } catch (Throwable $e) {
     $err = $e->getMessage();
 }
 
+$editId = (int)($_GET['edit'] ?? 0);
+$editReceipt = $editId > 0 ? stock_get_receipt($pdo, $editId) : null;
+$editProduct = $editReceipt ? stock_get_product($pdo, (int)$editReceipt['product_id']) : null;
+$isEditing = $editReceipt && empty($editReceipt['cancelled_at']);
+$editIsBio = $editProduct ? stock_is_biocide_group((string)$editProduct['product_group']) : false;
+
 $products = $pdo->query("SELECT id, name, product_group, unit_consumption, package_qty FROM stock_products WHERE is_active = 1 ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
 $receipts = $pdo->query("SELECT r.*, p.name AS product_name, p.product_group, p.unit_consumption FROM stock_receipts r INNER JOIN stock_products p ON p.id = r.product_id ORDER BY r.reception_date DESC, r.id DESC LIMIT 200")->fetchAll(PDO::FETCH_ASSOC);
 $productJson = [];
 foreach ($products as $p) { $productJson[(int)$p['id']] = $p; }
 
+// Calculez consumul pentru fiecare recepție afișată, ca să știu dacă mai poate fi anulată
+$receiptConsumedMap = [];
+foreach ($receipts as $r) {
+    $receiptConsumedMap[(int)$r['id']] = stock_receipt_consumed_qty($pdo, (int)$r['id']);
+}
+
 app_theme_css();
 ?>
 <!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Intrări stoc</title>
+<style>
+.receipt-cancelled td { opacity: .55; text-decoration: line-through; }
+.receipt-cancelled td .stock-badge { opacity: 1; text-decoration: none; }
+.stock-actions-inline { display: flex; gap: 6px; flex-wrap: wrap; }
+.stock-actions-inline form { margin: 0; }
+.btn-mini { padding: 4px 9px; font-size: 12px; border-radius: 6px; }
+.btn-danger { background: #b42318; color: #fff; border-color: #b42318; }
+.btn-danger:hover { background: #8a1a13; }
+.stock-edit-banner { background: var(--surface-alt, #f3f6fb); border-left: 4px solid var(--accent, #2563eb); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; }
+.stock-edit-banner strong { display: block; margin-bottom: 2px; }
+.stock-edit-banner .small { color: var(--muted, #555); font-size: 12px; }
+</style>
 </head><body><div class="layout"><?php render_sidebar('stock', true); ?><main class="main"><div class="topbar"><div style="padding:0 20px;font-weight:900;">Gestiune - Intrări</div></div><div class="content">
-<div class="stock-hero"><div><h1>Intrări stoc</h1><p>Adaugă marfa în stoc. Pentru biocide, lotul și data expirării sunt obligatorii.</p></div><div class="stock-actions"><a class="btn" href="stock_products.php">Produse</a><a class="btn accent" href="stock_receipts.php">Intrare nouă</a></div></div>
+<div class="stock-hero"><div><h1>Intrări stoc</h1><p>Adaugă marfa în stoc. Pentru biocide, lotul și data expirării sunt obligatorii.</p></div><div class="stock-actions"><a class="btn" href="stock_products.php">Produse</a><?php if ($isEditing): ?><a class="btn" href="stock_receipts.php">Anulează editarea</a><?php else: ?><a class="btn accent" href="stock_receipts.php">Intrare nouă</a><?php endif; ?></div></div>
 <?php render_stock_module_nav('receipts'); ?>
 <?php if ($msg): ?><div class="notice notice-success"><?= stock_h($msg) ?></div><?php endif; ?>
 <?php if ($err): ?><div class="notice notice-danger"><?= stock_h($err) ?></div><?php endif; ?>
+
+<?php if ($isEditing): ?>
+<form class="stock-card" method="post">
+<?= csrf_field() ?>
+<input type="hidden" name="action" value="update_receipt">
+<input type="hidden" name="id" value="<?= (int)$editReceipt['id'] ?>">
+<h2 style="margin:0 0 14px;font-size:18px;">Editează recepția #<?= (int)$editReceipt['id'] ?></h2>
+<div class="stock-edit-banner">
+    <strong>Produs: <?= stock_h($editProduct['name'] ?? '-') ?> · <?= stock_h(stock_unit_display((float)$editReceipt['qty'], (string)$editProduct['unit_consumption'])) ?></strong>
+    <span class="small">Produsul și cantitatea nu pot fi modificate. Pentru corecții cantitative, folosește <strong>Ajustare plus / minus</strong> din pagina Mișcări stoc, sau anulează această recepție și introdu una corectă.</span>
+</div>
+<div class="stock-grid">
+    <div class="stock-field"><label>Data recepției *</label><input type="date" name="reception_date" required value="<?= stock_h($editReceipt['reception_date']) ?>"></div>
+    <div class="stock-field"><label>Document intrare *</label><input name="document_no" required value="<?= stock_h($editReceipt['document_no']) ?>"></div>
+</div>
+<div class="stock-grid" style="margin-top:14px;">
+    <div class="stock-field"><label>Furnizor</label><input name="supplier" value="<?= stock_h($editReceipt['supplier'] ?? '') ?>"></div>
+    <div class="stock-field"><label>&nbsp;</label></div>
+</div>
+<?php if ($editIsBio): ?>
+<div class="stock-grid" style="margin-top:14px;">
+    <div class="stock-field"><label>Lot biocid *</label><input name="lot" required value="<?= stock_h($editReceipt['lot'] ?? '') ?>"></div>
+    <div class="stock-field"><label>Data expirării *</label><input type="date" name="expires_at" required value="<?= stock_h($editReceipt['expires_at'] ?? '') ?>"></div>
+</div>
+<?php endif; ?>
+<div class="stock-field" style="margin-top:14px;"><label>Observații</label><textarea name="notes" rows="2"><?= stock_h($editReceipt['notes'] ?? '') ?></textarea></div>
+<div class="actions-row"><a class="btn" href="stock_receipts.php">Renunță</a><button type="submit" class="btn accent">Salvează modificările</button></div>
+</form>
+<?php else: ?>
 <form class="stock-card" method="post" id="receiptForm">
 <?= csrf_field() ?><input type="hidden" name="action" value="save_receipt">
 <h2 style="margin:0 0 14px;font-size:18px;">Adaugă intrare stoc</h2>
@@ -97,11 +167,67 @@ app_theme_css();
 <div class="stock-field" style="margin-top:14px;"><label>Observații</label><textarea name="notes" rows="2"></textarea></div>
 <div class="actions-row"><div></div><button type="submit" class="btn accent">Salvează intrarea</button></div>
 </form>
-<div class="stock-card"><h2 style="margin:0 0 14px;font-size:18px;">Ultimele intrări</h2><div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Data</th><th>Produs</th><th>Document</th><th>Furnizor</th><th>Cantitate</th><th>Lot</th><th>Expirare</th><th>Observații</th></tr></thead><tbody>
-<?php foreach ($receipts as $r): ?><tr><td><?= stock_h($r['reception_date']) ?></td><td><strong><?= stock_h($r['product_name']) ?></strong><br><span style="color:var(--muted);font-size:12px;"><?= stock_h(stock_group_label($r['product_group'])) ?></span></td><td><?= stock_h($r['document_no']) ?></td><td><?= stock_h($r['supplier'] ?: '-') ?></td><td><?= stock_h(stock_unit_display($r['qty'], $r['unit_consumption'])) ?></td><td><?= stock_h($r['lot'] ?: '-') ?></td><td><?= stock_h($r['expires_at'] ?: '-') ?></td><td><?= stock_h($r['notes'] ?: '-') ?></td></tr><?php endforeach; ?><?php if (!$receipts): ?><tr><td colspan="8">Nu există intrări.</td></tr><?php endif; ?>
+<?php endif; ?>
+
+<div class="stock-card"><h2 style="margin:0 0 14px;font-size:18px;">Ultimele intrări</h2>
+<div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Data</th><th>Produs</th><th>Document</th><th>Furnizor</th><th>Cantitate</th><th>Lot</th><th>Expirare</th><th>Status</th><th>Acțiuni</th></tr></thead><tbody>
+<?php foreach ($receipts as $r):
+    $rid = (int)$r['id'];
+    $consumed = (float)($receiptConsumedMap[$rid] ?? 0);
+    $isCancelled = !empty($r['cancelled_at']);
+    $canCancel = !$isCancelled && $consumed <= 0.0001;
+?>
+<tr class="<?= $isCancelled ? 'receipt-cancelled' : '' ?>">
+    <td><?= stock_h($r['reception_date']) ?></td>
+    <td><strong><?= stock_h($r['product_name']) ?></strong><br><span style="color:var(--muted);font-size:12px;"><?= stock_h(stock_group_label($r['product_group'])) ?></span></td>
+    <td><?= stock_h($r['document_no']) ?><?php if ($r['notes']): ?><br><span style="color:var(--muted);font-size:12px;"><?= stock_h($r['notes']) ?></span><?php endif; ?></td>
+    <td><?= stock_h($r['supplier'] ?: '-') ?></td>
+    <td><?= stock_h(stock_unit_display($r['qty'], $r['unit_consumption'])) ?><?php if ($consumed > 0): ?><br><span style="color:var(--muted);font-size:12px;">consumat: <?= stock_h(stock_unit_display($consumed, $r['unit_consumption'])) ?></span><?php endif; ?></td>
+    <td><?= stock_h($r['lot'] ?: '-') ?></td>
+    <td><?= stock_h($r['expires_at'] ?: '-') ?></td>
+    <td>
+        <?php if ($isCancelled): ?>
+            <span class="stock-badge red">Anulată</span>
+            <?php if (!empty($r['cancel_reason'])): ?><br><span style="color:var(--muted);font-size:11px;"><?= stock_h($r['cancel_reason']) ?></span><?php endif; ?>
+        <?php else: ?>
+            <span class="stock-badge green">Activă</span>
+        <?php endif; ?>
+    </td>
+    <td>
+        <?php if (!$isCancelled): ?>
+            <div class="stock-actions-inline">
+                <a class="btn btn-mini" href="stock_receipts.php?edit=<?= $rid ?>">Editează</a>
+                <?php if ($canCancel): ?>
+                    <form method="post" onsubmit="return stockConfirmCancel(this);">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="cancel_receipt">
+                        <input type="hidden" name="id" value="<?= $rid ?>">
+                        <input type="hidden" name="cancel_reason" value="">
+                        <button type="submit" class="btn btn-mini btn-danger">Anulează</button>
+                    </form>
+                <?php else: ?>
+                    <span class="stock-badge" title="Lotul a fost consumat - anulează întâi mișcările minus">Consumat</span>
+                <?php endif; ?>
+            </div>
+        <?php else: ?>
+            <span style="color:var(--muted);font-size:12px;">—</span>
+        <?php endif; ?>
+    </td>
+</tr>
+<?php endforeach; ?>
+<?php if (!$receipts): ?><tr><td colspan="9">Nu există intrări.</td></tr><?php endif; ?>
 </tbody></table></div></div>
 </div></main></div>
 <script>
+function stockConfirmCancel(form){
+    var reason = prompt('Motivul anulării recepției? (apare în istoricul de stoc)');
+    if (reason === null) return false;
+    reason = (reason || '').trim();
+    if (reason === '') { alert('Motivul este obligatoriu.'); return false; }
+    form.querySelector('input[name="cancel_reason"]').value = reason;
+    return confirm('Confirmi anularea recepției? Operațiunea generează automat o mișcare de ajustare minus și nu poate fi anulată.');
+}
+<?php if (!$isEditing): ?>
 var products = <?= json_encode($productJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 function n(v){v=(v||'').toString().replace(',', '.');var x=parseFloat(v);return isNaN(x)?0:x;}
 function f(x){return (Math.round(x*1000)/1000).toString();}
@@ -109,5 +235,6 @@ function unitDisplay(q,u){if(u==='ml') return f(q)+' ml / '+f(q/1000)+' L'; if(u
 function isBioGroup(g){return ['dezinsectie','dezinfectie','deratizare'].indexOf(g)>=0;}
 function refreshReceipt(){var id=document.getElementById('product_id').value;var p=products[id];var mode=document.getElementById('input_mode').value;document.getElementById('packagesBox').style.display=mode==='packages'?'grid':'none';document.getElementById('directQtyBox').style.display=mode==='qty'?'grid':'none';var qty=0;if(p){var bio=isBioGroup(p.product_group);document.querySelectorAll('.js-biocide-receipt').forEach(function(el){el.classList.toggle('is-hidden', !bio);});document.getElementById('productInfo').textContent='Unitate consum: '+p.unit_consumption+'. 1 ambalaj = '+unitDisplay(parseFloat(p.package_qty||1),p.unit_consumption);document.getElementById('qtyHelp').textContent='Introdu cantitatea în '+p.unit_consumption;document.getElementById('packageHelp').textContent='1 ambalaj = '+unitDisplay(parseFloat(p.package_qty||1),p.unit_consumption);qty=mode==='packages'?n(document.getElementById('package_count').value)*parseFloat(p.package_qty||1):n(document.getElementById('qty').value);document.getElementById('qty_preview').value=unitDisplay(qty,p.unit_consumption);}else{document.querySelectorAll('.js-biocide-receipt').forEach(function(el){el.classList.add('is-hidden');});document.getElementById('productInfo').textContent='';document.getElementById('qty_preview').value='0';}}
 ['product_id','input_mode','qty','package_count'].forEach(function(id){document.getElementById(id).addEventListener('change',refreshReceipt);document.getElementById(id).addEventListener('input',refreshReceipt);});refreshReceipt();
+<?php endif; ?>
 </script>
 </body></html>

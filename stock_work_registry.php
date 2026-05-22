@@ -4,7 +4,7 @@ require_login();
 require_once 'app_ui.php';
 require_once 'stock_lib.php';
 if (!is_admin()) { header('Location: calendar.php'); exit; }
-if (!stock_table_exists($pdo, 'stock_movements')) { header('Location: stock_install.php'); exit; }
+stock_ensure_schema($pdo);
 
 $dateFrom = stock_date_or_default($_GET['date_from'] ?? $_POST['date_from'] ?? '', date('Y-m-01'));
 $dateTo = stock_date_or_default($_GET['date_to'] ?? $_POST['date_to'] ?? '', date('Y-m-t'));

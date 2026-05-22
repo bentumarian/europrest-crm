@@ -5,7 +5,7 @@ require_once 'app_ui.php';
 require_once 'stock_lib.php';
 
 if (!is_admin()) { header('Location: calendar.php'); exit; }
-if (!stock_table_exists($pdo, 'stock_products')) { header('Location: stock_install.php'); exit; }
+stock_ensure_schema($pdo);
 
 $msg = '';
 $err = '';

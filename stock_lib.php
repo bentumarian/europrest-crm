@@ -154,6 +154,131 @@ if (!function_exists('stock_add_column_if_missing')) {
     }
 }
 
+if (!function_exists('stock_ensure_schema')) {
+    /**
+     * Crează idempotent toate tabelele și coloanele necesare pentru modulul Gestiune.
+     * Se rulează automat la prima accesare a oricărei pagini stock_*.php, fără pași manuali.
+     */
+    function stock_ensure_schema(PDO $pdo): void
+    {
+        try {
+            if (!stock_table_exists($pdo, 'stock_products')) {
+                $pdo->exec("
+                    CREATE TABLE IF NOT EXISTS stock_products (
+                        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                        name VARCHAR(255) NOT NULL,
+                        product_group VARCHAR(40) NOT NULL DEFAULT 'materiale',
+                        unit_consumption VARCHAR(10) NOT NULL DEFAULT 'buc',
+                        package_qty DECIMAL(14,3) NOT NULL DEFAULT 1,
+                        min_qty DECIMAL(14,3) NOT NULL DEFAULT 0,
+                        aviz_no VARCHAR(120) NULL,
+                        aviz_valid_until DATE NULL,
+                        aviz_file VARCHAR(255) NULL,
+                        active_substance VARCHAR(255) NULL,
+                        product_concentration VARCHAR(120) NULL,
+                        contact_time VARCHAR(120) NULL,
+                        default_application_method VARCHAR(120) NULL,
+                        safety_measures TEXT NULL,
+                        notes TEXT NULL,
+                        is_active TINYINT(1) NOT NULL DEFAULT 1,
+                        created_at DATETIME NULL,
+                        updated_at DATETIME NULL,
+                        PRIMARY KEY (id),
+                        KEY idx_stock_products_group (product_group),
+                        KEY idx_stock_products_active (is_active)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+            }
+
+            if (!stock_table_exists($pdo, 'stock_receipts')) {
+                $pdo->exec("
+                    CREATE TABLE IF NOT EXISTS stock_receipts (
+                        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                        product_id INT UNSIGNED NOT NULL,
+                        reception_date DATE NOT NULL,
+                        document_no VARCHAR(120) NOT NULL,
+                        supplier VARCHAR(255) NULL,
+                        qty DECIMAL(14,3) NOT NULL DEFAULT 0,
+                        package_count DECIMAL(14,3) NULL,
+                        lot VARCHAR(120) NULL,
+                        expires_at DATE NULL,
+                        notes TEXT NULL,
+                        created_by INT UNSIGNED NULL,
+                        created_at DATETIME NULL,
+                        cancelled_at DATETIME NULL,
+                        cancelled_by INT UNSIGNED NULL,
+                        cancel_reason TEXT NULL,
+                        PRIMARY KEY (id),
+                        KEY idx_stock_receipts_product (product_id),
+                        KEY idx_stock_receipts_date (reception_date),
+                        KEY idx_stock_receipts_expires (expires_at),
+                        KEY idx_stock_receipts_cancelled (cancelled_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+            }
+
+            if (!stock_table_exists($pdo, 'stock_movements')) {
+                $pdo->exec("
+                    CREATE TABLE IF NOT EXISTS stock_movements (
+                        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                        product_id INT UNSIGNED NOT NULL,
+                        receipt_id INT UNSIGNED NULL,
+                        movement_type VARCHAR(40) NOT NULL,
+                        qty DECIMAL(14,3) NOT NULL DEFAULT 0,
+                        reference_type VARCHAR(60) NULL,
+                        reference_id INT UNSIGNED NULL,
+                        notes TEXT NULL,
+                        created_by INT UNSIGNED NULL,
+                        created_at DATETIME NULL,
+                        procedure_at DATETIME NULL,
+                        beneficiary_name VARCHAR(255) NULL,
+                        procedure_type VARCHAR(40) NULL,
+                        work_concentration VARCHAR(120) NULL,
+                        pv_no VARCHAR(120) NULL,
+                        workers_names VARCHAR(255) NULL,
+                        PRIMARY KEY (id),
+                        KEY idx_stock_movements_product (product_id),
+                        KEY idx_stock_movements_receipt (receipt_id),
+                        KEY idx_stock_movements_type (movement_type),
+                        KEY idx_stock_movements_reference (reference_type, reference_id),
+                        KEY idx_stock_movements_created (created_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+            }
+
+            // Coloane care s-ar putea să lipsească pe instalări vechi - se adaugă idempotent.
+            stock_add_column_if_missing($pdo, 'stock_products', 'aviz_file', "VARCHAR(255) NULL AFTER aviz_valid_until");
+            stock_add_column_if_missing($pdo, 'stock_products', 'active_substance', "VARCHAR(255) NULL");
+            stock_add_column_if_missing($pdo, 'stock_products', 'product_concentration', "VARCHAR(120) NULL");
+            stock_add_column_if_missing($pdo, 'stock_products', 'contact_time', "VARCHAR(120) NULL");
+            stock_add_column_if_missing($pdo, 'stock_products', 'default_application_method', "VARCHAR(120) NULL");
+            stock_add_column_if_missing($pdo, 'stock_products', 'safety_measures', "TEXT NULL");
+            stock_add_column_if_missing($pdo, 'stock_products', 'notes', "TEXT NULL");
+            stock_add_column_if_missing($pdo, 'stock_products', 'is_active', "TINYINT(1) NOT NULL DEFAULT 1");
+            stock_add_column_if_missing($pdo, 'stock_products', 'updated_at', "DATETIME NULL");
+
+            stock_add_column_if_missing($pdo, 'stock_receipts', 'package_count', "DECIMAL(14,3) NULL");
+            stock_add_column_if_missing($pdo, 'stock_receipts', 'lot', "VARCHAR(120) NULL");
+            stock_add_column_if_missing($pdo, 'stock_receipts', 'expires_at', "DATE NULL");
+            stock_add_column_if_missing($pdo, 'stock_receipts', 'cancelled_at', "DATETIME NULL");
+            stock_add_column_if_missing($pdo, 'stock_receipts', 'cancelled_by', "INT UNSIGNED NULL");
+            stock_add_column_if_missing($pdo, 'stock_receipts', 'cancel_reason', "TEXT NULL");
+
+            stock_add_column_if_missing($pdo, 'stock_movements', 'receipt_id', "INT UNSIGNED NULL AFTER product_id");
+            stock_add_column_if_missing($pdo, 'stock_movements', 'reference_type', "VARCHAR(60) NULL");
+            stock_add_column_if_missing($pdo, 'stock_movements', 'reference_id', "INT UNSIGNED NULL");
+            stock_add_column_if_missing($pdo, 'stock_movements', 'procedure_at', "DATETIME NULL");
+            stock_add_column_if_missing($pdo, 'stock_movements', 'beneficiary_name', "VARCHAR(255) NULL");
+            stock_add_column_if_missing($pdo, 'stock_movements', 'procedure_type', "VARCHAR(40) NULL");
+            stock_add_column_if_missing($pdo, 'stock_movements', 'work_concentration', "VARCHAR(120) NULL");
+            stock_add_column_if_missing($pdo, 'stock_movements', 'pv_no', "VARCHAR(120) NULL");
+            stock_add_column_if_missing($pdo, 'stock_movements', 'workers_names', "VARCHAR(255) NULL");
+        } catch (Throwable $e) {
+            error_log('PestZone stock schema ensure error: ' . $e->getMessage());
+        }
+    }
+}
+
 if (!function_exists('stock_get_product')) {
     function stock_get_product(PDO $pdo, int $id): ?array
     {
@@ -237,6 +362,95 @@ if (!function_exists('stock_lots_for_product')) {
     }
 }
 
+if (!function_exists('stock_expiring_lots_query')) {
+    /**
+     * Query intern reutilizabil pentru loturi cu stoc disponibil > 0.
+     * Returnează doar loturile active (cancelled_at IS NULL) cu cantitate netă rămasă.
+     *
+     * @param string $where  Clauză WHERE suplimentară (fără AND la început), referă r.* și p.*
+     */
+    function stock_expiring_lots_query(PDO $pdo, string $where = '', array $params = []): array
+    {
+        if (!stock_table_exists($pdo, 'stock_receipts') || !stock_table_exists($pdo, 'stock_products')) {
+            return [];
+        }
+        $extraWhere = trim($where) !== '' ? (' AND ' . $where) : '';
+        $sql = "
+            SELECT
+                r.id AS receipt_id,
+                r.product_id,
+                r.lot,
+                r.expires_at,
+                r.reception_date,
+                r.document_no,
+                r.qty AS received_qty,
+                p.name AS product_name,
+                p.product_group,
+                p.unit_consumption,
+                p.aviz_no,
+                (
+                    r.qty
+                    + COALESCE((SELECT SUM(qty) FROM stock_movements m
+                        WHERE m.receipt_id = r.id
+                          AND m.movement_type IN ('adjust_plus','return')), 0)
+                    - COALESCE((SELECT SUM(qty) FROM stock_movements m
+                        WHERE m.receipt_id = r.id
+                          AND m.movement_type IN ('consume','adjust_minus','loss','expired')), 0)
+                ) AS available_qty
+            FROM stock_receipts r
+            INNER JOIN stock_products p ON p.id = r.product_id
+            WHERE r.cancelled_at IS NULL
+              AND r.expires_at IS NOT NULL
+              $extraWhere
+            HAVING available_qty > 0.0001
+            ORDER BY r.expires_at ASC, r.id ASC
+            LIMIT 200
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+}
+
+if (!function_exists('stock_expiring_soon_rows')) {
+    /**
+     * Loturi care expiră în următoarele $days zile (default 30) și au încă stoc disponibil.
+     */
+    function stock_expiring_soon_rows(PDO $pdo, int $days = 30): array
+    {
+        $days = max(1, $days);
+        return stock_expiring_lots_query(
+            $pdo,
+            'r.expires_at >= CURDATE() AND r.expires_at <= DATE_ADD(CURDATE(), INTERVAL ? DAY)',
+            [$days]
+        );
+    }
+}
+
+if (!function_exists('stock_already_expired_with_stock_rows')) {
+    /**
+     * Loturi deja expirate dar care au încă stoc neutilizat (risc de consum eronat).
+     */
+    function stock_already_expired_with_stock_rows(PDO $pdo): array
+    {
+        return stock_expiring_lots_query($pdo, 'r.expires_at < CURDATE()');
+    }
+}
+
+if (!function_exists('stock_count_expiring_soon')) {
+    function stock_count_expiring_soon(PDO $pdo, int $days = 30): int
+    {
+        return count(stock_expiring_soon_rows($pdo, $days));
+    }
+}
+
+if (!function_exists('stock_count_already_expired')) {
+    function stock_count_already_expired(PDO $pdo): int
+    {
+        return count(stock_already_expired_with_stock_rows($pdo));
+    }
+}
+
 
 if (!function_exists('stock_available_qty_for_receipt')) {
     function stock_available_qty_for_receipt(PDO $pdo, int $receiptId): float
@@ -273,7 +487,10 @@ if (!function_exists('stock_insert_movement_dynamic')) {
     function stock_insert_movement_dynamic(PDO $pdo, array $data): void
     {
         if (!stock_table_exists($pdo, 'stock_movements')) {
-            throw new RuntimeException('Tabelul stock_movements nu există. Ruleaza stock_install.php.');
+            stock_ensure_schema($pdo);
+            if (!stock_table_exists($pdo, 'stock_movements')) {
+                throw new RuntimeException('Tabelul stock_movements nu există și nu poate fi creat automat.');
+            }
         }
 
         $columns = [
@@ -509,6 +726,168 @@ if (!function_exists('stock_return_document_materials_on_cancel')) {
     }
 }
 
+if (!function_exists('stock_receipt_consumed_qty')) {
+    /**
+     * Cantitatea consumată (minus) de pe lot, excluzând mișcarea automată de anulare a recepției.
+     */
+    function stock_receipt_consumed_qty(PDO $pdo, int $receiptId): float
+    {
+        if ($receiptId <= 0 || !stock_table_exists($pdo, 'stock_movements')) {
+            return 0.0;
+        }
+        $stmt = $pdo->prepare("
+            SELECT COALESCE(SUM(qty), 0)
+            FROM stock_movements
+            WHERE receipt_id = ?
+              AND movement_type IN ('consume','adjust_minus','loss','expired')
+              AND COALESCE(reference_type, '') <> 'stock_receipt_cancel'
+        ");
+        $stmt->execute([$receiptId]);
+        return round((float)$stmt->fetchColumn(), 3);
+    }
+}
+
+if (!function_exists('stock_get_receipt')) {
+    function stock_get_receipt(PDO $pdo, int $id): ?array
+    {
+        if ($id <= 0 || !stock_table_exists($pdo, 'stock_receipts')) {
+            return null;
+        }
+        $stmt = $pdo->prepare('SELECT * FROM stock_receipts WHERE id = ? LIMIT 1');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+}
+
+if (!function_exists('stock_update_receipt_metadata')) {
+    /**
+     * Actualizează metadata recepției - NU permite modificarea cantității sau produsului.
+     * Pentru corecții cantitative se folosesc ajustări plus/minus în Mișcări stoc.
+     */
+    function stock_update_receipt_metadata(PDO $pdo, int $receiptId, array $data): void
+    {
+        $existing = stock_get_receipt($pdo, $receiptId);
+        if (!$existing) {
+            throw new RuntimeException('Recepția nu mai există.');
+        }
+        if (!empty($existing['cancelled_at'])) {
+            throw new RuntimeException('Recepție anulată - nu mai poate fi editată.');
+        }
+
+        $product = stock_get_product($pdo, (int)$existing['product_id']);
+        if (!$product) {
+            throw new RuntimeException('Produsul asociat recepției nu mai există.');
+        }
+
+        $isBio = stock_is_biocide_group((string)$product['product_group']);
+
+        $receptionDate = trim((string)($data['reception_date'] ?? ''));
+        if ($receptionDate === '') {
+            throw new RuntimeException('Data recepției este obligatorie.');
+        }
+        $documentNo = trim((string)($data['document_no'] ?? ''));
+        if ($documentNo === '') {
+            throw new RuntimeException('Numărul facturii / avizului este obligatoriu.');
+        }
+
+        $lot = $isBio ? trim((string)($data['lot'] ?? '')) : null;
+        $expiresAt = $isBio ? (trim((string)($data['expires_at'] ?? '')) ?: null) : null;
+        if ($isBio) {
+            if ($lot === '' || $lot === null) {
+                throw new RuntimeException('Lotul este obligatoriu pentru produsele biocide.');
+            }
+            if ($expiresAt === null) {
+                throw new RuntimeException('Data expirării lotului este obligatorie pentru produsele biocide.');
+            }
+        }
+
+        $stmt = $pdo->prepare("
+            UPDATE stock_receipts
+            SET reception_date = :reception_date,
+                document_no = :document_no,
+                supplier = :supplier,
+                lot = :lot,
+                expires_at = :expires_at,
+                notes = :notes
+            WHERE id = :id
+        ");
+        $stmt->execute([
+            'reception_date' => $receptionDate,
+            'document_no'    => $documentNo,
+            'supplier'       => trim((string)($data['supplier'] ?? '')) ?: null,
+            'lot'            => $lot ?: null,
+            'expires_at'     => $expiresAt,
+            'notes'          => trim((string)($data['notes'] ?? '')) ?: null,
+            'id'             => $receiptId,
+        ]);
+    }
+}
+
+if (!function_exists('stock_cancel_receipt')) {
+    /**
+     * Anulează o recepție:
+     * - Refuză anularea dacă lotul a fost deja consumat (PV, ajustări minus, pierderi, expirate).
+     * - Generează automat o mișcare adjust_minus = qty recepție (pista de audit + corecție stoc).
+     * - Marchează recepția cu cancelled_at / cancelled_by / cancel_reason.
+     */
+    function stock_cancel_receipt(PDO $pdo, int $receiptId, string $reason): void
+    {
+        $existing = stock_get_receipt($pdo, $receiptId);
+        if (!$existing) {
+            throw new RuntimeException('Recepția nu mai există.');
+        }
+        if (!empty($existing['cancelled_at'])) {
+            throw new RuntimeException('Recepție deja anulată.');
+        }
+
+        $consumed = stock_receipt_consumed_qty($pdo, $receiptId);
+        if ($consumed > 0.0001) {
+            throw new RuntimeException('Nu poți anula recepția: din acest lot s-au scos deja ' . stock_fmt_qty($consumed) . ' unități (PV/ajustări/pierderi). Anulează întâi mișcările respective.');
+        }
+
+        $reason = trim($reason);
+        if ($reason === '') {
+            throw new RuntimeException('Introdu motivul anulării recepției.');
+        }
+
+        $startedTx = false;
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $startedTx = true;
+        }
+        try {
+            stock_insert_movement_dynamic($pdo, [
+                'product_id'     => (int)$existing['product_id'],
+                'receipt_id'     => $receiptId,
+                'movement_type'  => 'adjust_minus',
+                'qty'            => (float)$existing['qty'],
+                'reference_type' => 'stock_receipt_cancel',
+                'reference_id'   => $receiptId,
+                'notes'          => 'Anulare recepție #' . $receiptId . ' (' . (string)$existing['document_no'] . '): ' . $reason,
+            ]);
+
+            $stmt = $pdo->prepare("
+                UPDATE stock_receipts
+                SET cancelled_at = NOW(),
+                    cancelled_by = :cancelled_by,
+                    cancel_reason = :reason
+                WHERE id = :id
+            ");
+            $stmt->execute([
+                'cancelled_by' => function_exists('current_user_id') ? current_user_id() : null,
+                'reason'       => $reason,
+                'id'           => $receiptId,
+            ]);
+
+            if ($startedTx) { $pdo->commit(); }
+        } catch (Throwable $e) {
+            if ($startedTx && $pdo->inTransaction()) { $pdo->rollBack(); }
+            throw $e;
+        }
+    }
+}
+
 if (!function_exists('stock_validate_product_data')) {
     function stock_validate_product_data(array $data): void
     {
@@ -573,6 +952,12 @@ if (!function_exists('stock_validate_receipt_data')) {
 }
 
 if (!function_exists('stock_validate_outgoing_data')) {
+    /**
+     * Validează o mișcare manuală de stoc (ieșire sau ajustare plus).
+     * Tipuri permise:
+     *   - loss, expired, adjust_minus → scad stocul, verifică plafon
+     *   - adjust_plus → adaugă în stoc, NU verifică plafon
+     */
     function stock_validate_outgoing_data(PDO $pdo, array $data): array
     {
         $productId = (int)($data['product_id'] ?? 0);
@@ -581,30 +966,40 @@ if (!function_exists('stock_validate_outgoing_data')) {
         if (!$product) {
             throw new RuntimeException('Produsul selectat nu există.');
         }
-        $allowed = ['loss', 'expired', 'adjust_minus'];
-        if (!in_array((string)($data['movement_type'] ?? ''), $allowed, true)) {
-            throw new RuntimeException('Tipul ieșirii din stoc este invalid.');
+        $movementType = (string)($data['movement_type'] ?? '');
+        $allowed = ['loss', 'expired', 'adjust_minus', 'adjust_plus'];
+        if (!in_array($movementType, $allowed, true)) {
+            throw new RuntimeException('Tipul mișcării din stoc este invalid.');
         }
         $qty = (float)($data['qty'] ?? 0);
         if ($qty <= 0) {
-            throw new RuntimeException('Cantitatea scoasă din stoc trebuie să fie mai mare decât zero.');
+            throw new RuntimeException('Cantitatea trebuie să fie mai mare decât zero.');
         }
-        $currentQty = stock_current_qty_for_product($pdo, $productId);
-        if ($qty > $currentQty) {
-            throw new RuntimeException('Cantitatea depășește stocul disponibil. Disponibil: ' . stock_unit_display($currentQty, (string)$product['unit_consumption']));
+        $isPlus = ($movementType === 'adjust_plus');
+        if (!$isPlus) {
+            $currentQty = stock_current_qty_for_product($pdo, $productId);
+            if ($qty > $currentQty) {
+                throw new RuntimeException('Cantitatea depășește stocul disponibil. Disponibil: ' . stock_unit_display($currentQty, (string)$product['unit_consumption']));
+            }
         }
         if (stock_is_biocide_group((string)($product['product_group'] ?? '')) && $receiptId <= 0) {
-            throw new RuntimeException('Selectează lotul pentru produsul biocid înainte de ieșirea din stoc.');
+            throw new RuntimeException('Selectează lotul pentru produsul biocid înainte de ' . ($isPlus ? 'ajustarea plus.' : 'ieșirea din stoc.'));
         }
         if ($receiptId > 0) {
-            $stmt = $pdo->prepare('SELECT id FROM stock_receipts WHERE id = ? AND product_id = ? LIMIT 1');
+            $stmt = $pdo->prepare('SELECT id, cancelled_at FROM stock_receipts WHERE id = ? AND product_id = ? LIMIT 1');
             $stmt->execute([$receiptId, $productId]);
-            if (!$stmt->fetchColumn()) {
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
                 throw new RuntimeException('Lotul selectat nu aparține produsului ales.');
             }
-            $available = stock_available_qty_for_receipt($pdo, $receiptId);
-            if ($qty > $available + 0.0001) {
-                throw new RuntimeException('Cantitatea depășește stocul disponibil pe lot. Disponibil: ' . stock_unit_display($available, (string)$product['unit_consumption']));
+            if (!empty($row['cancelled_at'])) {
+                throw new RuntimeException('Lotul selectat aparține unei recepții anulate.');
+            }
+            if (!$isPlus) {
+                $available = stock_available_qty_for_receipt($pdo, $receiptId);
+                if ($qty > $available + 0.0001) {
+                    throw new RuntimeException('Cantitatea depășește stocul disponibil pe lot. Disponibil: ' . stock_unit_display($available, (string)$product['unit_consumption']));
+                }
             }
         }
         return $product;

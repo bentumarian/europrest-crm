@@ -2172,14 +2172,20 @@ function populateReceiptSelect(row) {
         syncLotRow(receiptSelect);
         return;
     }
+    // Loturile sunt deja sortate ascendent după expires_at în receiptsData (FIFO).
+    // Prima opțiune este lotul cu expirare cea mai apropiată - se preselectează automat
+    // mai jos, dar tehnicianul poate alege alt lot din dropdown.
     receiptsData.filter(r => Number(r.product_id) === productId).forEach(r => {
         const option = document.createElement('option');
         option.value = r.id;
-        option.textContent = r.lot ? String(r.lot) : 'Fără lot';
-        option.title = (r.lot ? 'Lot ' + r.lot : 'Lot fără nume') + (r.expires_at ? ' / exp. ' + r.expires_at : '') + (r.qty ? ' / disponibil ' + r.qty : '');
+        const lotLabel = r.lot ? String(r.lot) : 'Fără lot';
+        const expLabel = r.expires_at ? ' · exp. ' + r.expires_at : '';
+        option.textContent = lotLabel + expLabel;
+        option.title = (r.lot ? 'Lot ' + r.lot : 'Lot fără nume') + (r.expires_at ? ' / exp. ' + r.expires_at : '') + (r.qty ? ' / cantitate totală ' + r.qty : '');
         if (Number(r.id) === selected) option.selected = true;
         receiptSelect.appendChild(option);
     });
+    // FIFO sugerat: dacă nu există o selecție anterioară, ia primul lot (cel cu expirarea cea mai apropiată).
     if (!receiptSelect.value && receiptSelect.options.length > 1) receiptSelect.selectedIndex = 1;
     syncLotRow(receiptSelect);
 }

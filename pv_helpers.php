@@ -332,7 +332,10 @@ function pz_pv_fetch_receipts(PDO $pdo): array {
         return [];
     }
 
-    $stmt = $pdo->query("\n        SELECT id, product_id, lot, expires_at, qty, reception_date\n        FROM stock_receipts\n        ORDER BY product_id ASC, COALESCE(expires_at, '2999-12-31') ASC, reception_date ASC, id ASC\n        LIMIT 5000\n    ");
+    // Exclude recepțiile anulate ca să nu apară în dropdown-ul de loturi din PV.
+    $hasCancelled = function_exists('stock_column_exists') ? stock_column_exists($pdo, 'stock_receipts', 'cancelled_at') : false;
+    $cancelledFilter = $hasCancelled ? "WHERE cancelled_at IS NULL" : '';
+    $stmt = $pdo->query("\n        SELECT id, product_id, lot, expires_at, qty, reception_date\n        FROM stock_receipts\n        $cancelledFilter\n        ORDER BY product_id ASC, COALESCE(expires_at, '2999-12-31') ASC, reception_date ASC, id ASC\n        LIMIT 5000\n    ");
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
