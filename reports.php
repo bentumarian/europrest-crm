@@ -532,9 +532,9 @@ function reports_short_service_label(string $name): string {
 <?php app_theme_css(); ?>
 
 <style>
-.reports-hero { background: var(--pz-brand) !important; color: #fff !important; border: none !important; box-shadow: none !important; border-radius: var(--pz-r) !important; }
-.reports-hero h1, .reports-hero p { font-weight: 700 !important; }
-.reports-hero p { color: rgba(255,255,255,.75) !important; }
+.reports-hero { background: var(--pz-surf) !important; color: var(--pz-title) !important; border: 1px solid var(--pz-line) !important; box-shadow: none !important; border-radius: 8px !important; padding: 22px 24px !important; }
+.reports-hero h1 { color: var(--pz-title) !important; font-weight: 700 !important; }
+.reports-hero p { color: var(--pz-mu) !important; font-weight: 500 !important; }
 .reports-choice-menu { box-shadow: none !important; border: 1px solid var(--pz-line) !important; border-radius: var(--pz-rs) !important; }
 .kpi-card, .report-card, .table-card { box-shadow: none !important; border-radius: var(--pz-r) !important; }
 .status-pill { border-radius: var(--pz-rs) !important; font-weight: 600 !important; }
@@ -652,10 +652,13 @@ function reports_short_service_label(string $name): string {
     color: var(--accent);
 }
 .reports-filters .btn { height: 42px; white-space: nowrap; }
-.reports-hero { background: linear-gradient(135deg, #10243E, #163B63); color: #fff; border-radius: var(--radius-lg); padding: 22px 24px; box-shadow: var(--shadow-lg); margin-bottom: 16px; display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; align-items: center; }
-.reports-hero h1 { font-size: 24px; font-weight: 900; letter-spacing: -.03em; margin: 0; }
-.reports-hero p { color: rgba(255, 255, 255, .72); margin: 4px 0 0; max-width: 780px; }
-.quick-range { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.reports-hero { background: var(--pz-surf); color: var(--pz-title); border: 1px solid var(--pz-line); border-radius: 8px; padding: 22px 24px; margin-bottom: 16px; display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; align-items: center; }
+.reports-hero h1 { font-size: 22px; font-weight: 700; letter-spacing: 0; margin: 0; color: var(--pz-title); }
+.reports-hero p { color: var(--pz-mu); margin: 4px 0 0; max-width: 780px; font-weight: 500; }
+.quick-range { display: flex; gap: 0; flex-wrap: wrap; border-bottom: 1px solid var(--pz-line); margin: 0 0 18px; align-items: stretch; }
+.quick-range .btn { padding: 10px 14px; font-size: 13px; font-weight: 500; color: var(--pz-text); text-decoration: none; background: transparent; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; border-radius: 0; min-height: 0; box-shadow: none; transition: color .12s ease, border-color .12s ease; }
+.quick-range .btn:hover { color: var(--pz-title); background: transparent; border-bottom-color: transparent; }
+.quick-range .btn.active { color: var(--pz-bl); border-bottom-color: var(--pz-bl); font-weight: 600; background: transparent; }
 .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
 .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 16px; }
 .kpi-label { font-size: 12px; color: var(--muted); font-weight: 900; text-transform: uppercase; letter-spacing: .05em; }
@@ -928,7 +931,6 @@ function reports_short_service_label(string $name): string {
                 <div>
                     <div class="pz-page-eyebrow">Rapoarte</div>
                     <h1>Rapoarte</h1>
-                    <p>Analiză rapidă pentru programări, tehnicieni, servicii și sarcini.</p>
                 </div>
             </section>
 
