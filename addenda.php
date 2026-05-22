@@ -684,6 +684,7 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                 </section>
             <?php endif; ?>
 
+            <?php if (!$showForm): ?>
             <section class="panel">
                 <div class="panel-head">
                     <div>
@@ -775,6 +776,7 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                     <?php endif; ?>
                 </div>
             </section>
+            <?php endif; ?>
         </div>
     </main>
 </div>

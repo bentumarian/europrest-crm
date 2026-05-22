@@ -1357,7 +1357,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                 </section>
             <?php endif; ?>
 
-            <?php if ($isAdmin): ?>
+            <?php if ($isAdmin && empty($_GET['new']) && empty($editingDocument) && $selectedAppointmentId <= 0): ?>
             <section class="panel">
                 <div class="panel-head">
                     <div>

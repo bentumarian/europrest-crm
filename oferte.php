@@ -912,6 +912,7 @@ foreach ($services as $service) {
                 </section>
             <?php endif; ?>
 
+            <?php if (empty($_GET['new']) && empty($editingDocument)): ?>
             <section class="panel">
                 <div class="panel-head">
                     <div>
@@ -1003,6 +1004,7 @@ foreach ($services as $service) {
                         <a class="btn small" href="<?= pz_offer_h(pz_offer_current_url(['page' => $page + 1])) ?>">Înainte</a>
                     <?php endif; ?>
                 </div>
+            <?php endif; ?>
             <?php endif; ?>
         </div>
     </main>
