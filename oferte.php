@@ -667,6 +667,19 @@ foreach ($services as $service) {
 .offer-mini-note { border:1px solid var(--accent-soft-2); background:var(--accent-soft); color:var(--accent-deep); border-radius:14px; padding:10px 12px; font-size:12px; font-weight:800; line-height:1.45; margin:0 0 12px; }
 .offer-template-vars { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
 .offer-template-vars code { background:#fff; border:1px solid var(--border2); border-radius:999px; padding:4px 8px; color:var(--muted); font-size:11px; }
+
+/* === Secțiuni numerotate cu cifră pe cerc gri (aliniat cu Contracte) === */
+.contract-section { margin-bottom:22px; }
+.contract-section:last-child { margin-bottom:0; }
+.contract-section-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.contract-section-titlewrap { display:flex; align-items:center; gap:10px; min-width:0; }
+.contract-step-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--pz-soft); border:1px solid var(--pz-line); color:var(--pz-fa); font-size:12px; font-weight:600; flex:0 0 22px; }
+.contract-section-title { font-size:14px; font-weight:600; color:var(--pz-title); margin:0; }
+.contract-section-hint { font-size:12px; color:var(--pz-mu); margin-left:6px; }
+.contract-section-body { padding-left:32px; }
+@media (max-width: 720px) {
+    .contract-section-body { padding-left:0; }
+}
 .form-actions { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
 .form-actions .right { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
 .btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:38px; border-radius:12px; padding:0 13px; border:1px solid var(--border); background:#fff; color:var(--text); font-size:13px; font-weight:900; text-decoration:none; cursor:pointer; white-space:nowrap; }
@@ -718,9 +731,8 @@ foreach ($services as $service) {
                     <div class="panel-head">
                         <div>
                             <div class="panel-title"><?= $editingDocument ? 'Editează oferta draft' : 'Ofertă nouă' ?></div>
-                            <div class="panel-subtitle">Completează oferta in ordinea șablonului: date, client, servicii, discount si conditii de plata.</div>
                         </div>
-                        <a class="btn small" href="offers">Inchide formularul</a>
+                        <a class="btn small" href="offers"><i style="font-style:normal;margin-right:4px;">×</i>Închide formularul</a>
                     </div>
                     <div class="panel-body">
                         <form method="post" id="offerForm">
@@ -730,21 +742,14 @@ foreach ($services as $service) {
                         <input type="hidden" name="delivery_terms" value="<?= pz_offer_h($formDeliveryTerms) ?>">
                         <input type="hidden" name="offer_footer" value="<?= pz_offer_h($formOfferFooter) ?>">
 
-                            <div class="offer-mini-note">
-                                Completează oferta in aceeași ordine in care apare in șablon: denumire, data/numar/valabilitate, client, servicii cu descriere, discount, total fără TVA, conditii de plata si semnaturi.
-                                <div class="offer-template-vars">
-                                    <code>{{document_title}}</code><code>{{client_block}}</code><code>{{items_table}}</code><code>{{discount_block}}</code><code>{{total_without_vat}}</code>
+                            <div class="contract-section" data-contract-step="1">
+                                <div class="contract-section-head">
+                                    <div class="contract-section-titlewrap">
+                                        <span class="contract-step-num">1</span>
+                                        <h3 class="contract-section-title">Client și date ofertă</h3>
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div class="offer-fill-map" aria-label="Ordine completare oferta">
-                                <div class="offer-fill-step"><strong>1</strong><div>Date oferta</div><span>Denumire, data, valabilitate, moneda</span></div>
-                                <div class="offer-fill-step"><strong>2</strong><div>Client</div><span>Beneficiar</span></div>
-                                <div class="offer-fill-step"><strong>3</strong><div>Servicii</div><span>Nomenclator, descriere, pret, cantitate</span></div>
-                                <div class="offer-fill-step"><strong>4</strong><div>Discount si total</div><span>Subtotal, discount, total fără TVA</span></div>
-                            </div>
-
-                            <div class="offer-section-title">1. Date oferta si beneficiar</div>
+                                <div class="contract-section-body">
                             <div class="offer-form-grid">
                                 <div class="field span2">
                                     <label>Client *</label>
@@ -801,16 +806,20 @@ foreach ($services as $service) {
                                 </div>
 
                             </div>
+                                </div>
+                            </div>
 
-                            <div class="offer-section-title">2. Servicii ofertate si descrieri</div>
-                            <div class="panel" style="margin-top:10px;">
-                                <div class="panel-head">
-                                    <div>
-                                        <div class="panel-title">Servicii ofertate</div>
-                                        <div class="panel-subtitle">Alege din nomenclator sau scrie manual. Descrierea se precompleteaza din serviciu si rămâne editabila.</div>
+                            <div class="contract-section" data-contract-step="2">
+                                <div class="contract-section-head">
+                                    <div class="contract-section-titlewrap">
+                                        <span class="contract-step-num">2</span>
+                                        <h3 class="contract-section-title">Servicii ofertate</h3>
+                                        <span class="contract-section-hint">denumire × cantitate × preț</span>
                                     </div>
                                     <button class="btn small primary" type="button" onclick="addItemRow()">+ Adaugă serviciu</button>
                                 </div>
+                                <div class="contract-section-body">
+                            <div class="panel" style="margin-top:0; box-shadow:none; border:1px solid var(--pz-line);">
                                 <div class="panel-body">
                                     <div class="items-wrap">
                                         <table class="items-table">
@@ -854,7 +863,7 @@ foreach ($services as $service) {
                                             </tbody>
                                         </table>
                                     </div>
-                                    <div class="offer-section-title">3. Discount si total fără TVA</div>
+                                    <div class="offer-section-title" style="margin-top:18px;border-top:1px solid var(--pz-lines);padding-top:14px;">Discount și total fără TVA</div>
                                     <div class="offer-discount-box">
                                         <div class="offer-discount-controls">
                                             <div class="field">
@@ -879,8 +888,18 @@ foreach ($services as $service) {
                                     </div>
                                 </div>
                             </div>
+                                </div>
+                            </div>
 
-                            <div class="offer-section-title">4. Conditii comerciale si observatii</div>
+                            <div class="contract-section" data-contract-step="3">
+                                <div class="contract-section-head">
+                                    <div class="contract-section-titlewrap">
+                                        <span class="contract-step-num">3</span>
+                                        <h3 class="contract-section-title">Condiții comerciale</h3>
+                                        <span class="contract-section-hint">plată și observații</span>
+                                    </div>
+                                </div>
+                                <div class="contract-section-body">
                             <div class="offer-form-grid">
                                 <div class="field span2">
                                     <label>Conditii de plata</label>
@@ -894,6 +913,19 @@ foreach ($services as $service) {
                                 <div class="field full">
                                     <label>Note interne</label>
                                     <textarea name="internal_notes" placeholder="Nu apar in document dacă șablonul nu folosește {{internal_notes}}."><?= pz_offer_h($formDocument['internal_notes'] ?? '') ?></textarea>
+                                </div>
+                            </div>
+
+                            </div>
+                            </div>
+
+                            <div class="contract-section" data-contract-step="4">
+                                <div class="contract-section-head">
+                                    <div class="contract-section-titlewrap">
+                                        <span class="contract-step-num">4</span>
+                                        <h3 class="contract-section-title">Emitere</h3>
+                                        <span class="contract-section-hint">salvezi draft sau emiți cu număr</span>
+                                    </div>
                                 </div>
                             </div>
 
