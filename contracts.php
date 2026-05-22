@@ -754,7 +754,8 @@ foreach ($services as $service) {
 .ctype-tabs { display:inline-flex; background:var(--pz-surf); border:1px solid var(--pz-line); border-radius:6px; padding:3px; gap:2px; }
 .ctype-tabs .ctype-tab { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; background:transparent; border:0; border-radius:4px; font-size:13px; font-weight:500; color:var(--pz-text); cursor:pointer; transition:background .12s, color .12s; line-height:1; }
 .ctype-tabs .ctype-tab:hover { color:var(--pz-title); }
-.ctype-tabs .ctype-tab.is-active { background:var(--pz-bl); color:#fff; }
+.ctype-tabs .ctype-tab.is-active, .ctype-tabs .ctype-tab.is-active * { background:var(--pz-bl); color:#fff !important; }
+.ctype-tabs .ctype-tab.is-active .ctype-tab-icon svg { stroke:#fff !important; }
 .ctype-tab-icon { display:inline-flex; width:14px; height:14px; }
 .ctype-tab-icon svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
 .ctype-tabs-row { background:var(--pz-soft); border-bottom:1px solid var(--pz-lines); padding:14px 18px; margin:-14px -16px 16px; }
@@ -888,11 +889,11 @@ foreach ($services as $service) {
                                     <label class="ctype-tab<?= $contractTypeValue === 'execution' ? ' is-active' : '' ?>" data-value="execution" role="tab">
                                         <input type="radio" name="contract_type" value="execution"<?= $contractTypeValue === 'execution' ? ' checked' : '' ?> style="position:absolute;opacity:0;pointer-events:none;">
                                         <span class="ctype-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
-                                        Execuție / Punctual
+                                        Standard
                                     </label>
                                 </div>
                                 <div class="ctype-tabs-help" data-contract-mode="recurrent"<?= $contractTypeValue === 'execution' ? ' style="display:none"' : '' ?>>Tabel locații × servicii × frecvență. Generează automat sarcini periodice.</div>
-                                <div class="ctype-tabs-help" data-contract-mode="execution"<?= $contractTypeValue === 'execution' ? '' : ' style="display:none"' ?>>Treci manual obiectul contractului. Fără tabel servicii.</div>
+                                <div class="ctype-tabs-help" data-contract-mode="execution"<?= $contractTypeValue === 'execution' ? '' : ' style="display:none"' ?>>Contract standard cu obiect descris manual. Fără tabel servicii.</div>
                             </div>
 
                             <div class="contract-section" data-contract-step="1">
@@ -906,7 +907,7 @@ foreach ($services as $service) {
                                     <div class="field">
                                         <input type="hidden" name="client_id" id="clientSelect" value="<?= (int)($formDocument['client_id'] ?? 0) ?>" data-selected="<?= (int)($formDocument['client_id'] ?? 0) ?>">
                                         <div class="pz-autocomplete" id="clientAutocomplete">
-                                            <input type="text" class="pz-autocomplete-input" id="clientSearchInput" placeholder="Caută după nume client, CUI, telefon, reprezentant..." autocomplete="off" autofocus>
+                                            <input type="text" class="pz-autocomplete-input" id="clientSearchInput" placeholder="Caută" autocomplete="off" autofocus>
                                             <button type="button" class="pz-autocomplete-clear" id="clientClearBtn" title="Șterge">&times;</button>
                                             <div class="pz-autocomplete-selected" id="clientSelectedBox">
                                                 <div>
@@ -917,7 +918,7 @@ foreach ($services as $service) {
                                             </div>
                                             <div class="pz-autocomplete-results" id="clientResults" role="listbox"></div>
                                         </div>
-                                        <div class="client-help" id="clientHelp">Tastează minimum 2 caractere pentru căutare.</div>
+                                        <div class="client-help" id="clientHelp">Minimum 2 caractere.</div>
                                     </div>
                                 </div>
                             </div>
