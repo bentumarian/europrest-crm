@@ -15,6 +15,19 @@ foreach ($rows as $r) { $totalQty += (float)($r['current_qty'] ?? 0); }
 $movementsCount = stock_table_exists($pdo, 'stock_movements') ? (int)$pdo->query("SELECT COUNT(*) FROM stock_movements")->fetchColumn() : 0;
 $expiringSoonCount = stock_count_expiring_soon($pdo, 30);
 $expiredCount = stock_count_already_expired($pdo);
+$openInventoryCount = 0;
+$openInventoryId = 0;
+if (stock_table_exists($pdo, 'stock_inventories')) {
+    try {
+        $stmtInv = $pdo->prepare("SELECT id FROM stock_inventories WHERE status = 'draft' ORDER BY id DESC LIMIT 1");
+        $stmtInv->execute();
+        $openRow = $stmtInv->fetch(PDO::FETCH_ASSOC);
+        if ($openRow) {
+            $openInventoryId = (int)$openRow['id'];
+            $openInventoryCount = 1;
+        }
+    } catch (Throwable $e) { /* tolerăm lipsa tabelului */ }
+}
 $totalAlerts = $lowStock + $expiringSoonCount + $expiredCount;
 
 app_theme_css();
@@ -27,7 +40,7 @@ app_theme_css();
 .stock-kpi.warn .value { color: #b45309; }
 </style>
 </head><body><div class="layout"><?php render_sidebar('stock', true); ?><main class="main"><div class="topbar"><div style="padding:0 20px;font-weight:900;">Gestiune</div></div><div class="content">
-<div class="stock-hero"><div><h1>Gestiune stocuri DDD</h1><p>Nomenclator produse, intrări, ieșiri, alerte de expirare și stoc minim.</p></div><div class="stock-actions"><a class="btn accent" href="stock_products.php">Produs nou</a><a class="btn" href="stock_receipts.php">Intrare stoc</a><a class="btn" href="stock_movements.php">Mișcare manuală</a><a class="btn" href="stock_export.php?type=stock_current">Export Excel</a></div></div>
+<div class="stock-hero"><div><h1>Gestiune stocuri DDD</h1><p>Nomenclator produse, intrări, ieșiri, inventar fizic, alerte de expirare și stoc minim.</p></div><div class="stock-actions"><a class="btn accent" href="stock_products.php">Produs nou</a><a class="btn" href="stock_receipts.php">Intrare stoc</a><a class="btn" href="stock_movements.php">Mișcare manuală</a><a class="btn" href="stock_inventory.php">Inventar fizic</a><a class="btn" href="stock_export.php?type=stock_current">Export Excel</a></div></div>
 <?php render_stock_module_nav('dashboard'); ?>
 
 <div class="stock-kpis">
@@ -56,6 +69,13 @@ app_theme_css();
         <div class="value"><?= stock_h(stock_fmt_qty($totalQty)) ?></div>
     </div>
 </div>
+
+<?php if ($openInventoryId > 0): ?>
+    <div class="notice notice-warning" style="background:#fffbeb;border-color:#fde68a;color:#92400e;">
+        <strong>Inventar în desfășurare:</strong> există un inventar (#<?= (int)$openInventoryId ?>) neînchis.
+        <a href="stock_inventory.php?id=<?= (int)$openInventoryId ?>" style="font-weight:900;text-decoration:underline;">Continuă numărătoarea</a>
+    </div>
+<?php endif; ?>
 
 <?php if ($totalAlerts > 0): ?>
     <div class="notice notice-danger">

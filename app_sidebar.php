@@ -48,7 +48,7 @@ if (!function_exists('render_sidebar')) {
         $active = 'settings';
     }
 
-    $stockActiveKeys = ['stock', 'stock_products', 'stock_receipts', 'stock_movements', 'stock_card'];
+    $stockActiveKeys = ['stock', 'stock_products', 'stock_receipts', 'stock_movements', 'stock_card', 'stock_inventory', 'stock_notifications', 'stock_work_registry'];
     if (in_array($active, $stockActiveKeys, true)) {
         $active = 'stock';
     }

@@ -246,6 +246,49 @@ if (!function_exists('stock_ensure_schema')) {
                 ");
             }
 
+            if (!stock_table_exists($pdo, 'stock_inventories')) {
+                $pdo->exec("
+                    CREATE TABLE IF NOT EXISTS stock_inventories (
+                        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                        inventory_date DATE NOT NULL,
+                        product_group VARCHAR(40) NULL,
+                        notes TEXT NULL,
+                        total_lines INT UNSIGNED NOT NULL DEFAULT 0,
+                        lines_with_diff INT UNSIGNED NOT NULL DEFAULT 0,
+                        positive_adjustments INT UNSIGNED NOT NULL DEFAULT 0,
+                        negative_adjustments INT UNSIGNED NOT NULL DEFAULT 0,
+                        status VARCHAR(20) NOT NULL DEFAULT 'draft',
+                        created_by INT UNSIGNED NULL,
+                        created_at DATETIME NOT NULL,
+                        finalized_by INT UNSIGNED NULL,
+                        finalized_at DATETIME NULL,
+                        PRIMARY KEY (id),
+                        KEY idx_stock_inventories_status (status),
+                        KEY idx_stock_inventories_date (inventory_date)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+            }
+
+            if (!stock_table_exists($pdo, 'stock_inventory_lines')) {
+                $pdo->exec("
+                    CREATE TABLE IF NOT EXISTS stock_inventory_lines (
+                        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                        inventory_id INT UNSIGNED NOT NULL,
+                        product_id INT UNSIGNED NOT NULL,
+                        receipt_id INT UNSIGNED NULL,
+                        expected_qty DECIMAL(14,3) NOT NULL DEFAULT 0,
+                        counted_qty DECIMAL(14,3) NULL,
+                        difference DECIMAL(14,3) NULL,
+                        movement_id INT UNSIGNED NULL,
+                        notes VARCHAR(255) NULL,
+                        PRIMARY KEY (id),
+                        KEY idx_stock_inventory_lines_inv (inventory_id),
+                        KEY idx_stock_inventory_lines_product (product_id),
+                        KEY idx_stock_inventory_lines_receipt (receipt_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+            }
+
             // Coloane care s-ar putea să lipsească pe instalări vechi - se adaugă idempotent.
             stock_add_column_if_missing($pdo, 'stock_products', 'aviz_file', "VARCHAR(255) NULL AFTER aviz_valid_until");
             stock_add_column_if_missing($pdo, 'stock_products', 'active_substance', "VARCHAR(255) NULL");
@@ -884,6 +927,323 @@ if (!function_exists('stock_cancel_receipt')) {
         } catch (Throwable $e) {
             if ($startedTx && $pdo->inTransaction()) { $pdo->rollBack(); }
             throw $e;
+        }
+    }
+}
+
+/*
+ |----------------------------------------------------------------------
+ | INVENTAR FIZIC
+ |----------------------------------------------------------------------
+ | Flux:
+ | 1) stock_inventory_build_snapshot() - genereaza lista de itemi de
+ |    numarat (loturi pentru biocide, produse pentru materiale).
+ | 2) stock_inventory_create() - persista inventarul + liniile cu
+ |    expected_qty curent si counted_qty NULL.
+ | 3) Utilizatorul completeaza counted_qty si finalizeaza.
+ | 4) stock_inventory_finalize() - calculeaza diferentele si genereaza
+ |    automat ajustari plus/minus in stock_movements.
+ */
+
+if (!function_exists('stock_inventory_build_snapshot')) {
+    /**
+     * Returneaza lista de itemi de numarat pentru un inventar.
+     * Pentru biocide: o linie pe (produs, lot activ cu stoc > 0 sau stoc minim > 0).
+     * Pentru materiale: o linie pe produs.
+     *
+     * @param string $group  Daca e setat, filtreaza la o singura grupa.
+     */
+    function stock_inventory_build_snapshot(PDO $pdo, string $group = ''): array
+    {
+        $where = ['p.is_active = 1'];
+        $params = [];
+        if ($group !== '' && array_key_exists($group, stock_group_options())) {
+            $where[] = 'p.product_group = ?';
+            $params[] = $group;
+        }
+        $whereSql = implode(' AND ', $where);
+
+        // Produse non-biocide: o linie pe produs.
+        $sqlNonBio = "
+            SELECT
+                p.id AS product_id,
+                p.name AS product_name,
+                p.product_group,
+                p.unit_consumption,
+                NULL AS receipt_id,
+                NULL AS lot,
+                NULL AS expires_at,
+                (
+                    COALESCE((SELECT SUM(qty) FROM stock_receipts WHERE product_id = p.id AND cancelled_at IS NULL), 0)
+                    + COALESCE((SELECT SUM(qty) FROM stock_movements WHERE product_id = p.id AND movement_type IN ('adjust_plus','return')), 0)
+                    - COALESCE((SELECT SUM(qty) FROM stock_movements WHERE product_id = p.id AND movement_type IN ('consume','adjust_minus','loss','expired')), 0)
+                ) AS expected_qty
+            FROM stock_products p
+            WHERE $whereSql
+              AND p.product_group NOT IN ('dezinsectie','dezinfectie','deratizare')
+            ORDER BY p.name ASC
+        ";
+        $stmt = $pdo->prepare($sqlNonBio);
+        $stmt->execute($params);
+        $nonBio = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        // Biocide: o linie pe (produs, lot activ).
+        $sqlBio = "
+            SELECT
+                p.id AS product_id,
+                p.name AS product_name,
+                p.product_group,
+                p.unit_consumption,
+                r.id AS receipt_id,
+                r.lot,
+                r.expires_at,
+                (
+                    r.qty
+                    + COALESCE((SELECT SUM(qty) FROM stock_movements m WHERE m.receipt_id = r.id AND m.movement_type IN ('adjust_plus','return')), 0)
+                    - COALESCE((SELECT SUM(qty) FROM stock_movements m WHERE m.receipt_id = r.id AND m.movement_type IN ('consume','adjust_minus','loss','expired')), 0)
+                ) AS expected_qty
+            FROM stock_products p
+            INNER JOIN stock_receipts r ON r.product_id = p.id AND r.cancelled_at IS NULL
+            WHERE $whereSql
+              AND p.product_group IN ('dezinsectie','dezinfectie','deratizare')
+            ORDER BY p.name ASC, COALESCE(r.expires_at, '2999-12-31') ASC, r.id ASC
+        ";
+        $stmt = $pdo->prepare($sqlBio);
+        $stmt->execute($params);
+        $bio = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        // Filtru: nu includem loturi epuizate cu expected = 0 si fara mișcări
+        // recente (n-ar avea sens să le numerăm). Păstrăm însă cele cu expected > 0
+        // sau care apar in snapshot la cererea explicita.
+        $bio = array_values(array_filter($bio, function ($row) {
+            return (float)$row['expected_qty'] > -0.0001; // includem si 0 ca să poată detecta surplus
+        }));
+
+        return array_merge($nonBio, $bio);
+    }
+}
+
+if (!function_exists('stock_inventory_create')) {
+    /**
+     * Creează un nou inventar în status 'draft' cu lista de linii precompletată.
+     * Returnează inventory_id.
+     */
+    function stock_inventory_create(PDO $pdo, string $inventoryDate, string $group, string $notes): int
+    {
+        $inventoryDate = trim($inventoryDate) ?: date('Y-m-d');
+        $group = trim($group);
+        if ($group !== '' && !array_key_exists($group, stock_group_options())) {
+            $group = '';
+        }
+        $snapshot = stock_inventory_build_snapshot($pdo, $group);
+        if (!$snapshot) {
+            throw new RuntimeException('Nu există produse active de inventariat.');
+        }
+
+        $startedTx = false;
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $startedTx = true;
+        }
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO stock_inventories (inventory_date, product_group, notes, total_lines, created_by, created_at, status)
+                VALUES (?, ?, ?, ?, ?, NOW(), 'draft')
+            ");
+            $stmt->execute([
+                $inventoryDate,
+                $group !== '' ? $group : null,
+                trim($notes) ?: null,
+                count($snapshot),
+                function_exists('current_user_id') ? current_user_id() : null,
+            ]);
+            $inventoryId = (int)$pdo->lastInsertId();
+
+            $insertLine = $pdo->prepare("
+                INSERT INTO stock_inventory_lines
+                    (inventory_id, product_id, receipt_id, expected_qty)
+                VALUES (?, ?, ?, ?)
+            ");
+            foreach ($snapshot as $row) {
+                $insertLine->execute([
+                    $inventoryId,
+                    (int)$row['product_id'],
+                    !empty($row['receipt_id']) ? (int)$row['receipt_id'] : null,
+                    (float)$row['expected_qty'],
+                ]);
+            }
+
+            if ($startedTx) { $pdo->commit(); }
+            return $inventoryId;
+        } catch (Throwable $e) {
+            if ($startedTx && $pdo->inTransaction()) { $pdo->rollBack(); }
+            throw $e;
+        }
+    }
+}
+
+if (!function_exists('stock_inventory_get')) {
+    function stock_inventory_get(PDO $pdo, int $id): ?array
+    {
+        if ($id <= 0 || !stock_table_exists($pdo, 'stock_inventories')) {
+            return null;
+        }
+        $stmt = $pdo->prepare('SELECT * FROM stock_inventories WHERE id = ? LIMIT 1');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+}
+
+if (!function_exists('stock_inventory_lines')) {
+    function stock_inventory_lines(PDO $pdo, int $inventoryId): array
+    {
+        if ($inventoryId <= 0 || !stock_table_exists($pdo, 'stock_inventory_lines')) {
+            return [];
+        }
+        $stmt = $pdo->prepare("
+            SELECT l.*, p.name AS product_name, p.product_group, p.unit_consumption,
+                   r.lot, r.expires_at
+            FROM stock_inventory_lines l
+            INNER JOIN stock_products p ON p.id = l.product_id
+            LEFT JOIN stock_receipts r ON r.id = l.receipt_id
+            WHERE l.inventory_id = ?
+            ORDER BY p.product_group ASC, p.name ASC, COALESCE(r.expires_at, '2999-12-31') ASC, l.id ASC
+        ");
+        $stmt->execute([$inventoryId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+}
+
+if (!function_exists('stock_inventory_finalize')) {
+    /**
+     * Finalizează un inventar:
+     * - Pentru fiecare linie cu counted_qty != NULL, calculează diferența și
+     *   generează automat o mișcare adjust_plus sau adjust_minus.
+     * - Mișcările sunt legate de inventar prin reference_type='inventory'.
+     * - Actualizează contoarele pe inventar și îl marchează 'finalized'.
+     *
+     * @param array $countedMap  Map product_line_id => counted_qty
+     */
+    function stock_inventory_finalize(PDO $pdo, int $inventoryId, array $countedMap): void
+    {
+        $inventory = stock_inventory_get($pdo, $inventoryId);
+        if (!$inventory) {
+            throw new RuntimeException('Inventarul nu mai există.');
+        }
+        if ($inventory['status'] === 'finalized') {
+            throw new RuntimeException('Inventarul a fost deja finalizat.');
+        }
+        $lines = stock_inventory_lines($pdo, $inventoryId);
+        if (!$lines) {
+            throw new RuntimeException('Inventarul nu are linii de numărat.');
+        }
+
+        $startedTx = false;
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $startedTx = true;
+        }
+        try {
+            $linesWithDiff = 0;
+            $positiveAdj = 0;
+            $negativeAdj = 0;
+
+            foreach ($lines as $line) {
+                $lineId = (int)$line['id'];
+                if (!array_key_exists($lineId, $countedMap) || $countedMap[$lineId] === null || $countedMap[$lineId] === '') {
+                    // Linie nenumărată - sărim (nu generăm ajustare).
+                    continue;
+                }
+                $counted = stock_decimal($countedMap[$lineId]);
+                $expected = (float)$line['expected_qty'];
+                $diff = round($counted - $expected, 3);
+
+                $pdo->prepare("UPDATE stock_inventory_lines SET counted_qty = ?, difference = ? WHERE id = ?")
+                    ->execute([$counted, $diff, $lineId]);
+
+                if (abs($diff) < 0.0001) {
+                    continue;
+                }
+
+                $linesWithDiff++;
+                $movementType = $diff > 0 ? 'adjust_plus' : 'adjust_minus';
+                $qty = abs($diff);
+
+                // Pentru ajustare minus la non-biocide fără lot, verificăm că nu
+                // scoatem mai mult decât există. La biocide cu receipt_id e ok
+                // pentru că receipt_id specifică lotul.
+                if ($movementType === 'adjust_minus' && empty($line['receipt_id'])) {
+                    $current = stock_current_qty_for_product($pdo, (int)$line['product_id']);
+                    if ($qty > $current + 0.0001) {
+                        throw new RuntimeException(
+                            'Inventar: pentru produsul "' . (string)$line['product_name'] .
+                            '" nu pot scoate ' . stock_fmt_qty($qty) .
+                            ' - stoc curent doar ' . stock_fmt_qty($current) . '.'
+                        );
+                    }
+                }
+
+                stock_insert_movement_dynamic($pdo, [
+                    'product_id'     => (int)$line['product_id'],
+                    'receipt_id'     => !empty($line['receipt_id']) ? (int)$line['receipt_id'] : null,
+                    'movement_type'  => $movementType,
+                    'qty'            => $qty,
+                    'reference_type' => 'inventory',
+                    'reference_id'   => $inventoryId,
+                    'notes'          => 'Ajustare automata inventar #' . $inventoryId .
+                                        ' (asteptat ' . stock_fmt_qty($expected) .
+                                        ', numarat ' . stock_fmt_qty($counted) . ')',
+                ]);
+
+                $movementId = (int)$pdo->lastInsertId();
+                $pdo->prepare("UPDATE stock_inventory_lines SET movement_id = ? WHERE id = ?")
+                    ->execute([$movementId, $lineId]);
+
+                if ($diff > 0) { $positiveAdj++; } else { $negativeAdj++; }
+            }
+
+            $pdo->prepare("
+                UPDATE stock_inventories
+                SET status = 'finalized',
+                    finalized_at = NOW(),
+                    finalized_by = ?,
+                    lines_with_diff = ?,
+                    positive_adjustments = ?,
+                    negative_adjustments = ?
+                WHERE id = ?
+            ")->execute([
+                function_exists('current_user_id') ? current_user_id() : null,
+                $linesWithDiff,
+                $positiveAdj,
+                $negativeAdj,
+                $inventoryId,
+            ]);
+
+            if ($startedTx) { $pdo->commit(); }
+        } catch (Throwable $e) {
+            if ($startedTx && $pdo->inTransaction()) { $pdo->rollBack(); }
+            throw $e;
+        }
+    }
+}
+
+if (!function_exists('stock_inventory_list')) {
+    function stock_inventory_list(PDO $pdo, int $limit = 50): array
+    {
+        if (!stock_table_exists($pdo, 'stock_inventories')) {
+            return [];
+        }
+        $sql = "SELECT i.*, u.name AS created_by_name
+                FROM stock_inventories i
+                LEFT JOIN users u ON u.id = i.created_by
+                ORDER BY i.created_at DESC
+                LIMIT " . (int)$limit;
+        try {
+            return $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Throwable $e) {
+            // tabela users s-ar putea sa nu existe in unele instalari
+            return $pdo->query("SELECT i.*, NULL AS created_by_name FROM stock_inventories i ORDER BY i.created_at DESC LIMIT " . (int)$limit)->fetchAll(PDO::FETCH_ASSOC) ?: [];
         }
     }
 }
