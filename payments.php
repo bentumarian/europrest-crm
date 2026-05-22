@@ -241,7 +241,6 @@ $statusLabels = [
             <section class="hero">
                 <div>
                     <h1>Încasări <span class="count-badge"><?= (int)$stats['all'] ?></span></h1>
-                    <p>Raport încasări, chitanțe, carduri, transferuri și documente asociate.</p>
                 </div>
                 <div class="actions">
                     <a class="btn accent" href="payment.php">+ Încasare</a>

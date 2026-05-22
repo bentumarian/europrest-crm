@@ -295,7 +295,6 @@ textarea:focus, select:focus{ box-shadow: 0 0 0 3px #EFF6FF !important; border-c
                 <div class="badge"><span class="badge-dot"></span> Formular securizat</div>
             </div>
             <h1>Cum a fost experienta?</h1>
-            <p class="subtitle">Raspunsul dvs. ne ajuta sa verificam calitatea intervențiilor si sa imbunatatim serviciile oferite.</p>
         </div>
 
         <div class="body">

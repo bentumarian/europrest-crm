@@ -1059,7 +1059,6 @@ foreach ($services as $service) {
                     <div>
                         <div class="pz-page-eyebrow">Documente</div>
                         <div class="panel-title">Lista contracte</div>
-                        <div class="panel-subtitle">Caută după număr, client, CUI sau titlu.</div>
                     </div>
                 
                     <a class="pz-icon-btn primary lg" title="Contract nou" aria-label="Contract nou" href="contracts.php?new=1<?= !empty($filters['client_id']) ? '&client_id=' . (int)$filters['client_id'] : '' ?>"><?= app_icon_svg('plus') ?></a>

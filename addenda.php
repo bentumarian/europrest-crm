@@ -688,7 +688,6 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                 <div class="panel-head">
                     <div>
                         <div class="panel-title">Lista acte adiționale</div>
-                        <div class="panel-subtitle">Toate actele adiționale emise pentru contractele existente.</div>
                     </div>
                     <a class="btn primary" href="addenda.php?new=1">+ Act adițional nou</a>
                 </div>

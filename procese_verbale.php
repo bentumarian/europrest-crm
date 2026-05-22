@@ -1363,7 +1363,6 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                     <div>
                         <div class="pz-page-eyebrow">Documente</div>
                         <div class="panel-title">Lista procese verbale</div>
-                        <div class="panel-subtitle">Drafturi, PV emise și PV anulate.</div>
                     </div>
                 
                     <a class="pz-icon-btn primary lg" title="PV nou" aria-label="PV nou" href="service-reports?new=1<?= $filterClientId > 0 ? '&client_id=' . (int)$filterClientId : '' ?>"><?= app_icon_svg('plus') ?></a>

@@ -1807,7 +1807,6 @@ foreach ($tasks as $task) {
                 <div class="tasks-hero-copy">
                     <div class="pz-page-eyebrow" style="color:rgba(255,255,255,.7);">Operațional</div>
                     <h1>Priorități de lucru</h1>
-                    <p>Sarcinile importante sunt aici, la vedere, ca ziua să rămână sub control.</p>
                 </div>
 
                 <div class="stats" aria-label="Indicatori sarcini">

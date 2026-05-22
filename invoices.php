@@ -288,7 +288,6 @@ $statusLabels = [
                 <div>
                     <div class="pz-page-eyebrow">Financiar</div>
                     <h1>Facturi <span class="count-badge"><?= (int)$stats['all'] ?></span></h1>
-                    <p>Raport facturi, solduri, statusuri și acțiuni financiare.</p>
                 </div>
                 <div class="actions">
                     <a class="btn accent" href="invoice.php">+ Emite factură</a>

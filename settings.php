@@ -244,7 +244,6 @@ $superAdminCards = [
             <div class="settings-head">
                 <div class="settings-eyebrow">Administrare platformă</div>
                 <h1>Setări</h1>
-                <p>Zona centrală pentru utilizatori, documente, servicii, tehnicieni, comunicare și integrări.</p>
             </div>
 
             <div class="section-label">Administrare operațională</div>
