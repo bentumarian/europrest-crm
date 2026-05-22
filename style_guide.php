@@ -285,7 +285,7 @@ $pz_topbar_opts      = ['placeholder' => 'Caută în ghid...'];
                     <h2>Listă completă tokens</h2>
                     <p>Definiți în <code>app_theme_css.php</code>. Orice culoare nouă trebuie adăugată acolo, nu hardcodată.</p>
                 </div>
-                <span class="sg-badge bl">21 tokens</span>
+                <span class="sg-badge bl">29 tokens</span>
             </div>
             <div class="sg-card-body">
                 <div class="sg-grid-2">
