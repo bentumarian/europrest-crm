@@ -397,10 +397,10 @@ function pz_pv_service_from_appointment(array $appointment): string {
 
 function pz_pv_service_choices(): array {
     return [
-        'dezinsectie' => 'DEZINSECTIE',
-        'dezinfectie' => 'DEZINFECTIE',
-        'deratizare' => 'DERATIZARE',
-        'monitorizare' => 'MONITORIZARE',
+        'dezinsectie' => 'Dezinsecție',
+        'dezinfectie' => 'Dezinfecție',
+        'deratizare' => 'Deratizare',
+        'monitorizare' => 'Monitorizare',
     ];
 }
 

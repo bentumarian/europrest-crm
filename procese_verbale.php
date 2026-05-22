@@ -962,43 +962,6 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                 </div>
                             </div>
 
-                            <div class="panel" style="box-shadow:none; margin-top:14px;">
-                                <div class="panel-head">
-                                    <div>
-                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">3</span><span>Servicii prestate</span></div>
-                                        <div class="panel-subtitle">Selectează serviciile executate. In șablon folosește {{services_checks}} pentru afișarea cu bife.</div>
-                                    </div>
-                                </div>
-                                <div class="panel-body">
-                                    <div class="form-grid">
-                                        <div class="field full">
-                                            <label>Servicii executate</label>
-                                            <div class="pz-pills" id="servicesPills" tabindex="-1">
-                                                <?php foreach ($pvServiceChoices as $serviceKey => $serviceLabel):
-                                                    $isActive = in_array($serviceKey, $selectedPvServices, true);
-                                                ?>
-                                                    <div class="pz-pill <?= $isActive ? 'is-active' : '' ?>"
-                                                         data-key="<?= pz_pv_h($serviceKey) ?>"
-                                                         onclick="pzTogglePill(this)"
-                                                         role="checkbox"
-                                                         aria-checked="<?= $isActive ? 'true' : 'false' ?>"
-                                                         tabindex="0">
-                                                        <?= pz_pv_h($serviceLabel) ?>
-                                                    </div>
-                                                <?php endforeach; ?>
-                                            </div>
-                                            <!-- Hidden inputs - generate dinamic de JS la fiecare toggle -->
-                                            <div id="servicesHidden">
-                                                <?php foreach ($selectedPvServices as $serviceKey): ?>
-                                                    <input type="hidden" name="pv_services[]" value="<?= pz_pv_h($serviceKey) ?>">
-                                                <?php endforeach; ?>
-                                            </div>
-                                            <div class="client-help">Click pe servicii pentru a le selecta. Vor aparea ca rand cu bife in PDF.</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
                             <div class="panel <?= !empty($isQuickPvFromAppointment) ? 'pv-quick-hidden' : '' ?>" style="box-shadow:none; margin-top:14px;">
                                 <div class="panel-head">
                                     <div>
@@ -1054,11 +1017,48 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                 </div>
                             </div>
 
+                            <div class="panel" style="box-shadow:none; margin-top:14px;">
+                                <div class="panel-head">
+                                    <div>
+                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">3</span><span>Servicii prestate</span></div>
+                                        <div class="panel-subtitle">Selectează serviciile executate. În șablon folosește {{services_checks}} pentru afișarea cu bife.</div>
+                                    </div>
+                                </div>
+                                <div class="panel-body">
+                                    <div class="form-grid">
+                                        <div class="field full">
+                                            <label>Servicii executate</label>
+                                            <div class="pz-pills" id="servicesPills" tabindex="-1">
+                                                <?php foreach ($pvServiceChoices as $serviceKey => $serviceLabel):
+                                                    $isActive = in_array($serviceKey, $selectedPvServices, true);
+                                                ?>
+                                                    <div class="pz-pill <?= $isActive ? 'is-active' : '' ?>"
+                                                         data-key="<?= pz_pv_h($serviceKey) ?>"
+                                                         onclick="pzTogglePill(this)"
+                                                         role="checkbox"
+                                                         aria-checked="<?= $isActive ? 'true' : 'false' ?>"
+                                                         tabindex="0">
+                                                        <?= pz_pv_h($serviceLabel) ?>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                            <!-- Hidden inputs - generate dinamic de JS la fiecare toggle -->
+                                            <div id="servicesHidden">
+                                                <?php foreach ($selectedPvServices as $serviceKey): ?>
+                                                    <input type="hidden" name="pv_services[]" value="<?= pz_pv_h($serviceKey) ?>">
+                                                <?php endforeach; ?>
+                                            </div>
+                                            <div class="client-help">Click pe servicii pentru a le selecta. Vor apărea ca rând cu bife în PDF.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="panel pv-quick-materials" style="box-shadow:none; margin-top:14px;">
                                 <div class="panel-head">
                                     <div>
-                                        <div class="panel-title">Produse / materiale utilizate</div>
-                                        <div class="panel-subtitle">Aceste randuri se transforma automat in tabelul {{materials_table}} din șablon.</div>
+                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">4</span><span>Produse / materiale utilizate</span></div>
+                                        <div class="panel-subtitle">Aceste rânduri se transformă automat în tabelul {{materials_table}} din șablon.</div>
                                     </div>
                                     <?php if (!empty($isQuickPvFromAppointment)): ?>
                                         <input type="hidden" name="materials_enabled" id="materialsEnabled" value="1">
@@ -1293,7 +1293,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                             <div class="panel pv-quick-observatii" style="box-shadow:none; margin-top:14px;">
                                 <div class="panel-head">
                                     <div>
-                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">4</span><span>Observații executant</span></div>
+                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">5</span><span>Observații executant</span></div>
                                         <div class="panel-subtitle">Singurul camp care apare pe procesul verbal.</div>
                                     </div>
                                 </div>
