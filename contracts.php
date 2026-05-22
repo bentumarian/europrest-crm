@@ -1111,6 +1111,7 @@ foreach ($services as $service) {
                 </section>
             <?php endif; ?>
 
+            <?php if (empty($_GET['new']) && empty($editingDocument)): ?>
             <section class="panel">
                 <div class="panel-head">
                     <div>
@@ -1208,6 +1209,7 @@ foreach ($services as $service) {
                     <?php endif; ?>
                 </div>
             </section>
+            <?php endif; ?>
         </div>
     </main>
 </div>
@@ -1789,4 +1791,4 @@ try {
     };
     go();
 })();
-</script>
+</script>           
