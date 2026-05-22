@@ -17,20 +17,22 @@ try {
 
         if ($action === 'save_receipt') {
             $productId = (int)($_POST['product_id'] ?? 0);
-            $inputMode = (string)($_POST['input_mode'] ?? 'qty');
             $directQty = stock_decimal($_POST['qty'] ?? 0);
             $packageCount = stock_decimal($_POST['package_count'] ?? 0);
             $product = stock_get_product($pdo, $productId);
             if (!$product) { throw new RuntimeException('Produsul selectat nu există.'); }
             $isBio = stock_is_biocide_group((string)$product['product_group']);
-            $qty = $inputMode === 'packages' ? $packageCount * (float)$product['package_qty'] : $directQty;
+            // qty e sursa de adevar (sincronizata din JS cu package_count).
+            // Daca utilizatorul a completat doar ambalaje fara qty (caz extrem),
+            // reconstruim qty din package_count.
+            $qty = $directQty > 0 ? $directQty : $packageCount * (float)$product['package_qty'];
             $data = [
                 'product_id' => $productId,
                 'reception_date' => trim((string)($_POST['reception_date'] ?? '')),
                 'document_no' => trim((string)($_POST['document_no'] ?? '')),
                 'supplier' => trim((string)($_POST['supplier'] ?? '')),
                 'qty' => $qty,
-                'package_count' => $inputMode === 'packages' ? $packageCount : null,
+                'package_count' => $packageCount > 0 ? $packageCount : null,
                 'lot' => $isBio ? trim((string)($_POST['lot'] ?? '')) : null,
                 'expires_at' => $isBio ? (trim((string)($_POST['expires_at'] ?? '')) ?: null) : null,
                 'notes' => trim((string)($_POST['notes'] ?? '')),
@@ -151,6 +153,82 @@ app_theme_css();
 .stock-edit-banner { background: var(--surface-alt, #f3f6fb); border-left: 4px solid var(--accent, #2563eb); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; }
 .stock-edit-banner strong { display: block; margin-bottom: 2px; }
 .stock-edit-banner .small { color: var(--muted, #555); font-size: 12px; }
+
+/* Card cantitate intrare stoc - doua inputuri sincronizate bidirectional */
+.qty-card {
+    background: var(--surface-alt, #f8fafc);
+    border: 1px dashed var(--border, #d5dce5);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+.qty-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 14px;
+    align-items: end;
+}
+.qty-field label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--muted, #64748b);
+    margin-bottom: 6px;
+    letter-spacing: 0;
+}
+.qty-input-wrap {
+    position: relative;
+}
+.qty-input-wrap input {
+    padding-right: 70px !important;
+    text-align: left;
+    font-weight: 600;
+}
+.qty-unit-suffix {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted, #64748b);
+    font-weight: 700;
+    font-size: 13px;
+    pointer-events: none;
+    background: var(--surface, #fff);
+    padding: 0 4px;
+}
+.qty-separator {
+    align-self: center;
+    color: var(--muted, #64748b);
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    padding-bottom: 12px;
+}
+.qty-helper {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted, #64748b);
+    font-size: 11.5px;
+}
+.qty-summary {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: #ecfdf5;
+    border-left: 3px solid #15803d;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #14532d;
+}
+.qty-summary strong { font-weight: 800; }
+@media(max-width: 760px) {
+    .qty-grid {
+        grid-template-columns: 1fr;
+    }
+    .qty-separator {
+        padding-bottom: 0;
+        text-align: center;
+    }
+}
 </style>
 </head><body><div class="layout"><?php render_sidebar('stock_receipts', true); ?><main class="main"><div class="content">
 <div class="stock-hero"><div><h1>Intrări stoc</h1><p>Adaugă marfa în stoc. Pentru biocide, lotul și data expirării sunt obligatorii.</p></div><div class="stock-actions"><?php if ($isEditing): ?><a class="btn" href="stock_receipts.php">Anulează editarea</a><?php endif; ?></div></div>
@@ -201,12 +279,31 @@ app_theme_css();
     <div class="stock-field"><label>Lot produs biocid *</label><input name="lot" id="lot" placeholder="Ex: LOT123"></div>
     <div class="stock-field"><label>Data expirării lotului *</label><input type="date" name="expires_at" id="expires_at"></div>
 </div>
-<div class="stock-grid" style="margin-top:14px;">
-    <div class="stock-field"><label>Mod introducere cantitate</label><select name="input_mode" id="input_mode"><option value="qty">Cantitate directă în unitatea de consum</option><option value="packages">Număr ambalaje x cantitate per ambalaj</option></select></div>
-    <div class="stock-field"><label>Cantitate calculată</label><input id="qty_preview" readonly value="0"><small>Valoarea salvată în stoc.</small></div>
+<div class="qty-card" style="margin-top:14px;">
+    <input type="hidden" name="input_mode" value="qty">
+    <div class="qty-grid">
+        <div class="qty-field">
+            <label>Cantitate intrată *</label>
+            <div class="qty-input-wrap">
+                <input name="qty" id="qty" inputmode="decimal" value="0" autocomplete="off">
+                <span class="qty-unit-suffix" id="qtyUnitSuffix">—</span>
+            </div>
+            <small id="qtyHelp" class="qty-helper">Selectează întâi produsul.</small>
+        </div>
+        <div class="qty-separator">SAU</div>
+        <div class="qty-field">
+            <label>Număr ambalaje</label>
+            <div class="qty-input-wrap">
+                <input name="package_count" id="package_count" inputmode="decimal" value="0" autocomplete="off">
+                <span class="qty-unit-suffix">ambalaje</span>
+            </div>
+            <small id="packageHelp" class="qty-helper">—</small>
+        </div>
+    </div>
+    <div class="qty-summary" id="qtySummary" style="display:none;">
+        Total intrat în stoc: <strong id="qtySummaryValue">—</strong>
+    </div>
 </div>
-<div class="stock-grid" style="margin-top:14px;" id="directQtyBox"><div class="stock-field"><label>Cantitate intrată *</label><input name="qty" id="qty" inputmode="decimal" value="0"><small id="qtyHelp"></small></div></div>
-<div class="stock-grid" style="margin-top:14px;display:none;" id="packagesBox"><div class="stock-field"><label>Număr ambalaje</label><input name="package_count" id="package_count" inputmode="decimal" value="0"><small id="packageHelp"></small></div></div>
 <div class="stock-field" style="margin-top:14px;"><label>Observații</label><textarea name="notes" rows="2"></textarea></div>
 <div class="actions-row"><div></div><button type="submit" class="btn accent">Salvează intrarea</button></div>
 </form>
@@ -292,12 +389,102 @@ function stockConfirmCancel(form){
 }
 <?php if (!$isEditing): ?>
 var products = <?= json_encode($productJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-function n(v){v=(v||'').toString().replace(',', '.');var x=parseFloat(v);return isNaN(x)?0:x;}
-function f(x){return (Math.round(x*1000)/1000).toString();}
-function unitDisplay(q,u){if(u==='ml') return f(q)+' ml / '+f(q/1000)+' L'; if(u==='gr') return f(q)+' gr / '+f(q/1000)+' kg'; return f(q)+' buc';}
-function isBioGroup(g){return ['dezinsectie','dezinfectie','deratizare'].indexOf(g)>=0;}
-function refreshReceipt(){var id=document.getElementById('product_id').value;var p=products[id];var mode=document.getElementById('input_mode').value;document.getElementById('packagesBox').style.display=mode==='packages'?'grid':'none';document.getElementById('directQtyBox').style.display=mode==='qty'?'grid':'none';var qty=0;if(p){var bio=isBioGroup(p.product_group);document.querySelectorAll('.js-biocide-receipt').forEach(function(el){el.classList.toggle('is-hidden', !bio);});document.getElementById('productInfo').textContent='Unitate consum: '+p.unit_consumption+'. 1 ambalaj = '+unitDisplay(parseFloat(p.package_qty||1),p.unit_consumption);document.getElementById('qtyHelp').textContent='Introdu cantitatea în '+p.unit_consumption;document.getElementById('packageHelp').textContent='1 ambalaj = '+unitDisplay(parseFloat(p.package_qty||1),p.unit_consumption);qty=mode==='packages'?n(document.getElementById('package_count').value)*parseFloat(p.package_qty||1):n(document.getElementById('qty').value);document.getElementById('qty_preview').value=unitDisplay(qty,p.unit_consumption);}else{document.querySelectorAll('.js-biocide-receipt').forEach(function(el){el.classList.add('is-hidden');});document.getElementById('productInfo').textContent='';document.getElementById('qty_preview').value='0';}}
-['product_id','input_mode','qty','package_count'].forEach(function(id){document.getElementById(id).addEventListener('change',refreshReceipt);document.getElementById(id).addEventListener('input',refreshReceipt);});refreshReceipt();
+
+function rcptParseNum(v) {
+    v = (v || '').toString().replace(',', '.');
+    var x = parseFloat(v);
+    return isNaN(x) ? 0 : x;
+}
+function rcptFmt(x) {
+    return (Math.round(x * 1000) / 1000).toString();
+}
+function rcptUnitFull(q, u) {
+    if (u === 'ml') return rcptFmt(q) + ' ml / ' + rcptFmt(q / 1000) + ' L';
+    if (u === 'gr') return rcptFmt(q) + ' gr / ' + rcptFmt(q / 1000) + ' kg';
+    return rcptFmt(q) + ' buc';
+}
+function rcptIsBio(g) {
+    return ['dezinsectie', 'dezinfectie', 'deratizare'].indexOf(g) >= 0;
+}
+
+var rcptSyncLock = false; // previne bucla infinita la sync
+
+function rcptCurrentProduct() {
+    var id = document.getElementById('product_id').value;
+    return products[id] || null;
+}
+
+function rcptRefreshProductInfo() {
+    var p = rcptCurrentProduct();
+    var bioFields = document.querySelectorAll('.js-biocide-receipt');
+    var info = document.getElementById('productInfo');
+    var qtySuffix = document.getElementById('qtyUnitSuffix');
+    var qtyHelp = document.getElementById('qtyHelp');
+    var packageHelp = document.getElementById('packageHelp');
+
+    if (p) {
+        bioFields.forEach(function (el) { el.classList.toggle('is-hidden', !rcptIsBio(p.product_group)); });
+        info.textContent = 'Unitate consum: ' + p.unit_consumption + '. 1 ambalaj = ' + rcptUnitFull(parseFloat(p.package_qty || 1), p.unit_consumption);
+        qtySuffix.textContent = p.unit_consumption;
+        qtyHelp.textContent = 'Introdu cantitatea în ' + p.unit_consumption + ' sau completează numărul de ambalaje în dreapta.';
+        packageHelp.textContent = '1 ambalaj = ' + rcptUnitFull(parseFloat(p.package_qty || 1), p.unit_consumption);
+    } else {
+        bioFields.forEach(function (el) { el.classList.add('is-hidden'); });
+        info.textContent = '';
+        qtySuffix.textContent = '—';
+        qtyHelp.textContent = 'Selectează întâi produsul.';
+        packageHelp.textContent = '—';
+    }
+    rcptUpdateSummary();
+}
+
+function rcptUpdateSummary() {
+    var p = rcptCurrentProduct();
+    var summary = document.getElementById('qtySummary');
+    var summaryValue = document.getElementById('qtySummaryValue');
+    if (!p) { summary.style.display = 'none'; return; }
+    var qty = rcptParseNum(document.getElementById('qty').value);
+    if (qty <= 0) { summary.style.display = 'none'; return; }
+    summary.style.display = 'block';
+    summaryValue.textContent = rcptUnitFull(qty, p.unit_consumption);
+}
+
+function rcptOnQtyInput() {
+    if (rcptSyncLock) return;
+    var p = rcptCurrentProduct();
+    if (!p) { rcptUpdateSummary(); return; }
+    var qty = rcptParseNum(document.getElementById('qty').value);
+    var pkgQty = parseFloat(p.package_qty || 1);
+    if (pkgQty > 0) {
+        rcptSyncLock = true;
+        document.getElementById('package_count').value = rcptFmt(qty / pkgQty);
+        rcptSyncLock = false;
+    }
+    rcptUpdateSummary();
+}
+
+function rcptOnPackageInput() {
+    if (rcptSyncLock) return;
+    var p = rcptCurrentProduct();
+    if (!p) { rcptUpdateSummary(); return; }
+    var packages = rcptParseNum(document.getElementById('package_count').value);
+    var pkgQty = parseFloat(p.package_qty || 1);
+    rcptSyncLock = true;
+    document.getElementById('qty').value = rcptFmt(packages * pkgQty);
+    rcptSyncLock = false;
+    rcptUpdateSummary();
+}
+
+document.getElementById('product_id').addEventListener('change', function () {
+    rcptRefreshProductInfo();
+    // recalculez qty din package_count daca exista o valoare
+    if (rcptParseNum(document.getElementById('package_count').value) > 0) {
+        rcptOnPackageInput();
+    }
+});
+document.getElementById('qty').addEventListener('input', rcptOnQtyInput);
+document.getElementById('package_count').addEventListener('input', rcptOnPackageInput);
+rcptRefreshProductInfo();
 <?php endif; ?>
 </script>
 </body></html>
