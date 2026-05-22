@@ -767,11 +767,7 @@ foreach ($services as $service) {
 .contract-section:last-child { margin-bottom:0; }
 .contract-section-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
 .contract-section-titlewrap { display:flex; align-items:center; gap:10px; min-width:0; }
-.contract-step-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--pz-soft); border:1px solid var(--pz-line); color:var(--pz-fa); font-size:12px; font-weight:600; flex:0 0 22px; transition:background .15s, border-color .15s, color .15s; }
-.contract-step-num.is-complete { background:var(--pz-gr-acc, #22C55E); border-color:var(--pz-gr-acc, #22C55E); color:#fff; }
-.contract-step-num svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; display:none; }
-.contract-step-num.is-complete svg { display:block; }
-.contract-step-num.is-complete span { display:none; }
+.contract-step-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--pz-soft); border:1px solid var(--pz-line); color:var(--pz-fa); font-size:12px; font-weight:600; flex:0 0 22px; }
 .contract-section-title { font-size:14px; font-weight:600; color:var(--pz-title); margin:0; }
 .contract-section-hint { font-size:12px; color:var(--pz-mu); margin-left:6px; }
 .contract-section-body { padding-left:32px; }
@@ -899,7 +895,7 @@ foreach ($services as $service) {
                             <div class="contract-section" data-contract-step="1">
                                 <div class="contract-section-head">
                                     <div class="contract-section-titlewrap">
-                                        <span class="contract-step-num" data-step-num="1"><span>1</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-11"/></svg></span>
+                                        <span class="contract-step-num" data-step-num="1">1</span>
                                         <h3 class="contract-section-title">Client</h3>
                                     </div>
                                 </div>
@@ -926,7 +922,7 @@ foreach ($services as $service) {
                             <div class="contract-section" data-contract-step="2">
                                 <div class="contract-section-head">
                                     <div class="contract-section-titlewrap">
-                                        <span class="contract-step-num" data-step-num="2"><span>2</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-11"/></svg></span>
+                                        <span class="contract-step-num" data-step-num="2">2</span>
                                         <h3 class="contract-section-title">Perioadă și șablon</h3>
                                     </div>
                                 </div>
@@ -970,7 +966,7 @@ foreach ($services as $service) {
                             <div class="contract-section" data-contract-step="3" data-contract-mode="recurrent"<?= $contractTypeValue === 'execution' ? ' style="display:none"' : '' ?>>
                                 <div class="contract-section-head">
                                     <div class="contract-section-titlewrap">
-                                        <span class="contract-step-num" data-step-num="3"><span>3</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-11"/></svg></span>
+                                        <span class="contract-step-num" data-step-num="3">3</span>
                                         <h3 class="contract-section-title">Locații și servicii</h3>
                                         <span class="contract-section-hint">locație × serviciu × frecvență</span>
                                     </div>
@@ -1047,7 +1043,7 @@ foreach ($services as $service) {
                             <div class="contract-section" data-contract-step="3" data-contract-mode="execution"<?= $contractTypeValue === 'execution' ? '' : ' style="display:none"' ?>>
                                 <div class="contract-section-head">
                                     <div class="contract-section-titlewrap">
-                                        <span class="contract-step-num" data-step-num="3"><span>3</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-11"/></svg></span>
+                                        <span class="contract-step-num" data-step-num="3">3</span>
                                         <h3 class="contract-section-title">Obiectul contractului</h3>
                                         <span class="contract-section-hint">descriere liberă</span>
                                     </div>
@@ -1089,7 +1085,7 @@ foreach ($services as $service) {
                             <div class="contract-section" data-contract-step="4">
                                 <div class="contract-section-head">
                                     <div class="contract-section-titlewrap">
-                                        <span class="contract-step-num" data-step-num="4"><span>4</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-11"/></svg></span>
+                                        <span class="contract-step-num" data-step-num="4">4</span>
                                         <h3 class="contract-section-title">Emitere</h3>
                                         <span class="contract-section-hint">salvezi draft sau emiți cu număr</span>
                                     </div>
@@ -1681,78 +1677,13 @@ function initContractTypePicker() {
         }
     }
 
-    radios.forEach(r => r.addEventListener('change', () => { applyMode(r.value); updateContractStepProgress(); }));
+    radios.forEach(r => r.addEventListener('change', () => applyMode(r.value)));
 
     // Aplică modul inițial (în caz că HTML-ul are inconsistențe de stare)
     const checked = picker.querySelector('input[name="contract_type"]:checked');
     if (checked) applyMode(checked.value);
 }
 
-/* === Indicator bifă verde pentru secțiuni completate === */
-function updateContractStepProgress() {
-    const form = document.getElementById('contractForm');
-    if (!form) return;
-
-    const mode = (document.querySelector('input[name="contract_type"]:checked') || {}).value || 'recurrent';
-
-    // Pas 1: Client
-    const clientId = parseInt((document.getElementById('clientSelect') || {}).value || '0', 10);
-    setStepComplete(1, clientId > 0);
-
-    // Pas 2: Perioadă - data început și data sfârșit completate
-    const startDate = (document.querySelector('input[name="contract_start_date"]') || {}).value || '';
-    const endDate = (document.querySelector('input[name="contract_end_date"]') || {}).value || '';
-    setStepComplete(2, startDate !== '' && endDate !== '');
-
-    // Pas 3: Servicii (recurrent) sau Obiect (execution)
-    if (mode === 'recurrent') {
-        const itemsBody = document.getElementById('itemsBody');
-        let hasValidItem = false;
-        if (itemsBody) {
-            itemsBody.querySelectorAll('tr.item-row').forEach(row => {
-                const loc = row.querySelector('.row-location');
-                const svc = row.querySelector('.service-select');
-                const freq = row.querySelector('select[name*="frequency_text"]');
-                if (loc && svc && freq && loc.value && svc.value && freq.value) {
-                    hasValidItem = true;
-                }
-            });
-        }
-        setStepComplete(3, hasValidItem);
-    } else {
-        const obj = (document.getElementById('contractObjectTextarea') || {}).value || '';
-        const value = parseFloat((document.getElementById('contractValueManual') || {}).value || '0') || 0;
-        setStepComplete(3, obj.trim().length > 10 && value > 0);
-    }
-
-    // Pas 4: Emitere — completat când restul sunt completate
-    const allDone = document.querySelectorAll('[data-step-num="1"].is-complete').length > 0
-                 && document.querySelectorAll('[data-step-num="2"].is-complete').length > 0
-                 && document.querySelectorAll('[data-step-num="3"].is-complete:not([style*="display:none"])').length > 0;
-    setStepComplete(4, allDone);
-}
-
-function setStepComplete(num, complete) {
-    document.querySelectorAll('.contract-step-num[data-step-num="' + num + '"]').forEach(el => {
-        el.classList.toggle('is-complete', complete);
-    });
-}
-
-// Atașez listener-ul pe input change pentru a updata bifa live
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('contractForm');
-    if (!form) return;
-    form.addEventListener('input', updateContractStepProgress);
-    form.addEventListener('change', updateContractStepProgress);
-    // Și după ce se selectează clientul via autocomplete (event custom)
-    const clientHidden = document.getElementById('clientSelect');
-    if (clientHidden) {
-        const obs = new MutationObserver(updateContractStepProgress);
-        obs.observe(clientHidden, { attributes: true, attributeFilter: ['value'] });
-    }
-    // Inițial
-    setTimeout(updateContractStepProgress, 200);
-});
 </script>
 
 <?php
