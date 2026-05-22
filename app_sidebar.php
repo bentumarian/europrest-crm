@@ -86,18 +86,23 @@ if (!function_exists('render_sidebar')) {
         ];
 
         $documentItems = [
-            'documente' => ['label' => 'Toate documentele', 'href' => 'documents', 'icon' => 'documents'],
-            'oferte' => ['label' => 'Oferte', 'href' => 'offers', 'icon' => 'offers'],
-            'contracts' => ['label' => 'Contracte', 'href' => 'contracts.php', 'icon' => 'contracts'],
-            'addenda' => ['label' => 'Acte adiționale', 'href' => 'addenda.php', 'icon' => 'contracts'],
+            // Ordonate dupa frecventa de folosire: PV-urile se emit dupa fiecare lucrare,
+            // contractele recurent, ofertele inainte de contract, actele aditional ocazional,
+            // arhiva la final (utilizare episodica).
             'procese_verbale' => ['label' => 'Procese verbale', 'href' => 'service-reports', 'icon' => 'processes'],
+            'contracts' => ['label' => 'Contracte', 'href' => 'contracts.php', 'icon' => 'contracts'],
+            'oferte' => ['label' => 'Oferte', 'href' => 'offers', 'icon' => 'offers'],
+            'addenda' => ['label' => 'Acte adiționale', 'href' => 'addenda.php', 'icon' => 'contracts'],
+            'documente' => ['label' => 'Arhivă documente', 'href' => 'documents', 'icon' => 'documents'],
             // Șabloane/Serii/Design PDF s-au mutat în Setări (erau dublate)
         ];
 
         $billingItems = [
+            // Lista lucrărilor e punctul de plecare al facturării zilnice (vezi „De facturat"),
+            // apoi emiterea facturii, apoi înregistrarea încasării.
+            'interventii_facturare' => ['label' => 'Lista lucrări', 'href' => 'work_billing.php', 'icon' => 'processes'],
             'facturi' => ['label' => 'Facturi', 'href' => 'invoices.php', 'icon' => 'invoice'],
             'incasari' => ['label' => 'Încasări', 'href' => 'payments.php', 'icon' => 'invoice'],
-            'interventii_facturare' => ['label' => 'Lista lucrări', 'href' => 'work_billing.php', 'icon' => 'processes'],
         ];
 
         $mainAfterDocuments = [
@@ -614,7 +619,7 @@ if (!function_exists('render_sidebar')) {
             'settings'               => ['Setări',     []],
 
             // submeniu Documente
-            'documente'              => ['Documente',  ['Toate']],
+            'documente'              => ['Documente',  ['Arhivă']],
             'oferte'                 => ['Documente',  ['Oferte']],
             'contracts'              => ['Documente',  ['Contracte']],
             'addenda'                => ['Documente',  ['Acte adiționale']],

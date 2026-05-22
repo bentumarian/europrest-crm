@@ -42,6 +42,7 @@ function pz_docs_types(): array
     return [
         'oferta' => 'Oferta',
         'contract' => 'Contract',
+        'act_aditional' => 'Act adițional',
         'proces_verbal' => 'Proces verbal',
     ];
 }
@@ -143,7 +144,7 @@ function pz_docs_filter_status(string $status): string
 
 function pz_docs_build_where(array $filters, array &$params): string
 {
-    $where = ['document_type IN (\'oferta\', \'contract\', \'proces_verbal\')'];
+    $where = ['document_type IN (\'oferta\', \'contract\', \'act_aditional\', \'proces_verbal\')'];
 
     if (($filters['type'] ?? 'all') !== 'all') {
         $where[] = 'document_type = ?';
@@ -222,7 +223,7 @@ function pz_docs_stats(PDO $pdo): array
     $stmt = $pdo->query(" 
         SELECT document_type, status, COUNT(*) AS total_count, COALESCE(SUM(total_amount), 0) AS total_value
         FROM documents
-        WHERE document_type IN ('oferta', 'contract', 'proces_verbal')
+        WHERE document_type IN ('oferta', 'contract', 'act_aditional', 'proces_verbal')
         GROUP BY document_type, status
     ");
 
