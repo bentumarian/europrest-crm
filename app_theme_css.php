@@ -3392,6 +3392,115 @@ if (!function_exists('app_theme_css')) {
             width: 18px;
             height: 18px;
         }
+
+        /* Sub-tabs cu underline pentru navigare intra-modul
+           (ex: Facturi / Încasări / Lista lucrări).
+           Înlocuiește pattern-ul vechi de buton primary+secondary. */
+        .pz-subtabs {
+            display: flex;
+            gap: 0;
+            align-items: stretch;
+            flex-wrap: wrap;
+            border-bottom: 1px solid var(--pz-line);
+            margin: 0 0 18px;
+        }
+        .pz-subtab {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--pz-text);
+            text-decoration: none;
+            background: transparent;
+            border: 0;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            cursor: pointer;
+            transition: color .12s ease, border-color .12s ease;
+        }
+        .pz-subtab:hover {
+            color: var(--pz-title);
+        }
+        .pz-subtab.active {
+            color: var(--pz-bl);
+            border-bottom-color: var(--pz-bl);
+            font-weight: 600;
+        }
+        .pz-subtab:focus-visible {
+            outline: none;
+            color: var(--pz-bl);
+            box-shadow: inset 0 -2px 0 var(--pz-bl);
+        }
+
+        /* Status badge cu dot 6px solid stânga pentru semantic strong.
+           Modifier .pz-badge-dot pe orice .badge sau .status-pill existent.
+           Culoarea dot-ului se ia din variabilele --pz-*-acc setate per status. */
+        .pz-badge-dot {
+            position: relative;
+            padding-left: 18px !important;
+        }
+        .pz-badge-dot::before {
+            content: "";
+            position: absolute;
+            left: 7px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        /* Override-uri pentru când dot-ul vrea altă culoare decât text-ul */
+        .pz-badge-dot.dot-gr::before { background: var(--pz-gr-acc, #22C55E); }
+        .pz-badge-dot.dot-or::before { background: var(--pz-or-acc, #F97316); }
+        .pz-badge-dot.dot-re::before { background: var(--pz-re-acc, #EF4444); }
+        .pz-badge-dot.dot-bl::before { background: var(--pz-bl); }
+        .pz-badge-dot.dot-mu::before { background: var(--pz-mu); }
+
+        /* Auto-dot pe badge-urile existente cu clase semantice de status.
+           Aplicare automată pe markup-ul existent — nu necesită schimbări pe pagini. */
+        :is(.badge.draft, .badge.issued, .badge.cancelled,
+            .status-pill.status-paid, .status-pill.status-partial,
+            .status-pill.status-unpaid, .status-pill.status-draft,
+            .status-pill.status-overdue, .status-pill.status-error,
+            .status-pill.status-storno,
+            .status-pill.efactura-sent, .status-pill.efactura-notsent) {
+            position: relative;
+            padding-left: 18px !important;
+        }
+        :is(.badge.draft, .badge.issued, .badge.cancelled,
+            .status-pill.status-paid, .status-pill.status-partial,
+            .status-pill.status-unpaid, .status-pill.status-draft,
+            .status-pill.status-overdue, .status-pill.status-error,
+            .status-pill.status-storno,
+            .status-pill.efactura-sent, .status-pill.efactura-notsent)::before {
+            content: "";
+            position: absolute;
+            left: 7px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+        /* Maparea status → culoare dot. Solid, semantic. */
+        .badge.draft::before,
+        .status-pill.status-draft::before,
+        .status-pill.efactura-notsent::before,
+        .status-pill.status-partial::before { background: var(--pz-or-acc, #F97316); }
+
+        .badge.issued::before,
+        .status-pill.status-paid::before,
+        .status-pill.status-unpaid::before,
+        .status-pill.efactura-sent::before { background: var(--pz-gr-acc, #22C55E); }
+
+        .badge.cancelled::before,
+        .status-pill.status-overdue::before,
+        .status-pill.status-error::before { background: var(--pz-re-acc, #EF4444); }
+
+        .status-pill.status-storno::before { background: var(--pz-mu); }
         </style>
         <?php
     }

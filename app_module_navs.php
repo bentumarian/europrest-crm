@@ -21,16 +21,9 @@ if (!function_exists('render_billing_module_nav')) {
             'interventii_facturare' => ['label' => 'Lista lucrări', 'href' => 'work_billing.php'],
         ];
         ?>
-        <style>
-        .billing-module-nav{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 14px}
-        .billing-module-nav a{min-height:34px;padding:7px 11px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:12.5px;font-weight:700;box-shadow:none;text-decoration:none}
-        .billing-module-nav a:hover{color:var(--text);border-color:var(--accent-pale)}
-        .billing-module-nav a.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:none}
-        @media(max-width:720px){.billing-module-nav{display:grid;grid-template-columns:1fr 1fr}.billing-module-nav a{text-align:center}}
-        </style>
-        <nav class="billing-module-nav" aria-label="Navigare financiar">
+        <nav class="pz-subtabs billing-module-nav" aria-label="Navigare financiar">
             <?php foreach ($items as $key => $item): ?>
-                <a class="<?= $active === $key ? 'active' : '' ?>" href="<?= app_h($item['href']) ?>"><?= app_h($item['label']) ?></a>
+                <a class="pz-subtab <?= $active === $key ? 'active' : '' ?>" href="<?= app_h($item['href']) ?>"><?= app_h($item['label']) ?></a>
             <?php endforeach; ?>
         </nav>
         <?php
