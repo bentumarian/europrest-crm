@@ -749,6 +749,44 @@ foreach ($services as $service) {
 @media (max-width: 980px) {
     .ctype-picker { grid-template-columns:1fr; }
 }
+
+/* === Tabs Tip contract (înlocuiește .ctype-picker pe layout-ul nou) === */
+.ctype-tabs { display:inline-flex; background:var(--pz-surf); border:1px solid var(--pz-line); border-radius:6px; padding:3px; gap:2px; }
+.ctype-tabs .ctype-tab { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; background:transparent; border:0; border-radius:4px; font-size:13px; font-weight:500; color:var(--pz-text); cursor:pointer; transition:background .12s, color .12s; line-height:1; }
+.ctype-tabs .ctype-tab:hover { color:var(--pz-title); }
+.ctype-tabs .ctype-tab.is-active { background:var(--pz-bl); color:#fff; }
+.ctype-tab-icon { display:inline-flex; width:14px; height:14px; }
+.ctype-tab-icon svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.ctype-tabs-row { background:var(--pz-soft); border-bottom:1px solid var(--pz-lines); padding:14px 18px; margin:-14px -16px 16px; }
+.ctype-tabs-label { font-size:11px; font-weight:600; color:var(--pz-mu); letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px; }
+.ctype-tabs-help { font-size:12px; color:var(--pz-mu); margin-top:8px; line-height:1.4; }
+
+/* === Secțiuni numerotate cu bilă progres === */
+.contract-section { margin-bottom:22px; }
+.contract-section:last-child { margin-bottom:0; }
+.contract-section-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.contract-section-titlewrap { display:flex; align-items:center; gap:10px; min-width:0; }
+.contract-step-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--pz-soft); border:1px solid var(--pz-line); color:var(--pz-fa); font-size:12px; font-weight:600; flex:0 0 22px; transition:background .15s, border-color .15s, color .15s; }
+.contract-step-num.is-complete { background:var(--pz-gr-acc, #22C55E); border-color:var(--pz-gr-acc, #22C55E); color:#fff; }
+.contract-step-num svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; display:none; }
+.contract-step-num.is-complete svg { display:block; }
+.contract-step-num.is-complete span { display:none; }
+.contract-section-title { font-size:14px; font-weight:600; color:var(--pz-title); margin:0; }
+.contract-section-hint { font-size:12px; color:var(--pz-mu); margin-left:6px; }
+.contract-section-body { padding-left:32px; }
+@media (max-width: 720px) {
+    .contract-section-body { padding-left:0; }
+}
+
+/* === Grid câmpuri în secțiune Perioadă: 4 coloane === */
+.contract-period-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; }
+.contract-period-grid .field.full { grid-column:1 / -1; }
+@media (max-width: 980px) {
+    .contract-period-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 540px) {
+    .contract-period-grid { grid-template-columns:1fr; }
+}
 </style>
 <?php render_search_preview_assets(); ?>
 </head>
@@ -839,112 +877,107 @@ foreach ($services as $service) {
                             <input type="hidden" name="notes" value="<?= pz_contract_h($formDocument['notes'] ?? '') ?>">
                             <input type="hidden" name="internal_notes" value="<?= pz_contract_h($formDocument['internal_notes'] ?? '') ?>">
 
-                            <div class="quick-note">
-                                Alege tipul de contract, apoi completează datele care intră efectiv în contract. Restul textului este controlat din șablon.
+                            <div class="ctype-tabs-row">
+                                <div class="ctype-tabs-label">Tip contract</div>
+                                <div class="ctype-tabs" id="contractTypePicker" role="tablist">
+                                    <label class="ctype-tab<?= $contractTypeValue === 'recurrent' ? ' is-active' : '' ?>" data-value="recurrent" role="tab">
+                                        <input type="radio" name="contract_type" value="recurrent"<?= $contractTypeValue === 'recurrent' ? ' checked' : '' ?> style="position:absolute;opacity:0;pointer-events:none;">
+                                        <span class="ctype-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 12v-2a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 12v2a4 4 0 0 1-4 4H3"/></svg></span>
+                                        DDD recurent
+                                    </label>
+                                    <label class="ctype-tab<?= $contractTypeValue === 'execution' ? ' is-active' : '' ?>" data-value="execution" role="tab">
+                                        <input type="radio" name="contract_type" value="execution"<?= $contractTypeValue === 'execution' ? ' checked' : '' ?> style="position:absolute;opacity:0;pointer-events:none;">
+                                        <span class="ctype-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+                                        Execuție / Punctual
+                                    </label>
+                                </div>
+                                <div class="ctype-tabs-help" data-contract-mode="recurrent"<?= $contractTypeValue === 'execution' ? ' style="display:none"' : '' ?>>Tabel locații × servicii × frecvență. Generează automat sarcini periodice.</div>
+                                <div class="ctype-tabs-help" data-contract-mode="execution"<?= $contractTypeValue === 'execution' ? '' : ' style="display:none"' ?>>Treci manual obiectul contractului. Fără tabel servicii.</div>
                             </div>
 
-                            <div class="panel" style="margin-bottom:12px; box-shadow:none;">
-                                <div class="panel-head">
-                                    <div>
-                                        <div class="panel-title">Tip contract</div>
-                                        <div class="panel-subtitle">Alege ce fel de contract emiti. Formularul se mulează în funcție de tip.</div>
+                            <div class="contract-section" data-contract-step="1">
+                                <div class="contract-section-head">
+                                    <div class="contract-section-titlewrap">
+                                        <span class="contract-step-num" data-step-num="1"><span>1</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-11"/></svg></span>
+                                        <h3 class="contract-section-title">Client</h3>
                                     </div>
                                 </div>
-                                <div class="panel-body">
-                                    <div class="ctype-picker" id="contractTypePicker">
-                                        <label class="ctype-card<?= $contractTypeValue === 'recurrent' ? ' is-active' : '' ?>" data-value="recurrent">
-                                            <input type="radio" name="contract_type" value="recurrent"<?= $contractTypeValue === 'recurrent' ? ' checked' : '' ?>>
-                                            <span class="ctype-radio"></span>
-                                            <span class="ctype-text">
-                                                <strong>DDD recurent</strong>
-                                                <span>Tabel locații × servicii × frecvență. Generează automat sarcini periodice.</span>
-                                            </span>
-                                        </label>
-                                        <label class="ctype-card<?= $contractTypeValue === 'execution' ? ' is-active' : '' ?>" data-value="execution">
-                                            <input type="radio" name="contract_type" value="execution"<?= $contractTypeValue === 'execution' ? ' checked' : '' ?>>
-                                            <span class="ctype-radio"></span>
-                                            <span class="ctype-text">
-                                                <strong>Execuție / Punctual</strong>
-                                                <span>Treci manual obiectul contractului. Fără tabel servicii.</span>
-                                            </span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="contract-steps" data-contract-mode="recurrent"<?= $contractTypeValue === 'execution' ? ' style="display:none"' : '' ?>>
-                                <div class="contract-step"><b>1. Client</b><span>Datele beneficiarului se preiau automat din fișa clientului.</span></div>
-                                <div class="contract-step"><b>2. Perioada</b><span>Data contract, inceput, sfarsit si termen plata.</span></div>
-                                <div class="contract-step"><b>3. Tabel servicii</b><span>Locație din fișa clientului, serviciu, mp, frecventa si pret/intervenție.</span></div>
-                                <div class="contract-step"><b>4. Emitere</b><span>Salvezi draft sau emiti contractul cu numar.</span></div>
-                            </div>
-
-                            <div class="contract-steps" data-contract-mode="execution"<?= $contractTypeValue === 'execution' ? '' : ' style="display:none"' ?>>
-                                <div class="contract-step"><b>1. Client</b><span>Datele beneficiarului se preiau automat din fișa clientului.</span></div>
-                                <div class="contract-step"><b>2. Perioada</b><span>Data contract, inceput, sfarsit si termen plata.</span></div>
-                                <div class="contract-step"><b>3. Obiect contract</b><span>Scrii manual obiectul: servicii, lucrări, condiții punctuale.</span></div>
-                                <div class="contract-step"><b>4. Emitere</b><span>Salvezi draft sau emiti contractul cu numar.</span></div>
-                            </div>
-
-                            <div class="contract-form-grid">
-                                <div class="field span2">
-                                    <label>Client *</label>
-                                    <input type="hidden" name="client_id" id="clientSelect" value="<?= (int)($formDocument['client_id'] ?? 0) ?>" data-selected="<?= (int)($formDocument['client_id'] ?? 0) ?>">
-                                    <div class="pz-autocomplete" id="clientAutocomplete">
-                                        <input type="text" class="pz-autocomplete-input" id="clientSearchInput" placeholder="Caută după nume client, CUI, telefon, reprezentant..." autocomplete="off" autofocus>
-                                        <button type="button" class="pz-autocomplete-clear" id="clientClearBtn" title="Șterge">&times;</button>
-                                        <div class="pz-autocomplete-selected" id="clientSelectedBox">
-                                            <div>
-                                                <div class="ps-name"></div>
-                                                <div class="ps-meta"></div>
+                                <div class="contract-section-body">
+                                    <div class="field">
+                                        <input type="hidden" name="client_id" id="clientSelect" value="<?= (int)($formDocument['client_id'] ?? 0) ?>" data-selected="<?= (int)($formDocument['client_id'] ?? 0) ?>">
+                                        <div class="pz-autocomplete" id="clientAutocomplete">
+                                            <input type="text" class="pz-autocomplete-input" id="clientSearchInput" placeholder="Caută după nume client, CUI, telefon, reprezentant..." autocomplete="off" autofocus>
+                                            <button type="button" class="pz-autocomplete-clear" id="clientClearBtn" title="Șterge">&times;</button>
+                                            <div class="pz-autocomplete-selected" id="clientSelectedBox">
+                                                <div>
+                                                    <div class="ps-name"></div>
+                                                    <div class="ps-meta"></div>
+                                                </div>
+                                                <button type="button" class="ps-clear" onclick="pzClientClear()" title="Schimba clientul">&times;</button>
                                             </div>
-                                            <button type="button" class="ps-clear" onclick="pzClientClear()" title="Schimba clientul">&times;</button>
+                                            <div class="pz-autocomplete-results" id="clientResults" role="listbox"></div>
                                         </div>
-                                        <div class="pz-autocomplete-results" id="clientResults" role="listbox"></div>
+                                        <div class="client-help" id="clientHelp">Tastează minimum 2 caractere pentru căutare.</div>
                                     </div>
-                                    <div class="client-help" id="clientHelp">Tasteaza minimum 2 caractere pentru cautare.</div>
                                 </div>
-
-                                <div class="field">
-                                    <label>Data contract</label>
-                                    <input type="date" name="document_date" value="<?= pz_contract_h($formDocument['document_date'] ?? date('Y-m-d')) ?>">
-                                </div>
-
-                                <div class="field">
-                                    <label>Șablon</label>
-                                    <select name="template_id">
-                                        <?php foreach ($templates as $template): ?>
-                                            <option value="<?= (int)$template['id'] ?>" <?= (int)($formDocument['template_id'] ?? 0) === (int)$template['id'] ? 'selected' : '' ?>>
-                                                <?= pz_contract_h($template['name']) ?><?= !empty($template['is_default']) ? ' - implicit' : '' ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-
-                                <div class="field">
-                                    <label>Data inceput</label>
-                                    <input type="date" name="contract_start_date" id="contractStartDate" value="<?= pz_contract_h($formPayload['contract_start_date'] ?? date('Y-m-d')) ?>">
-                                </div>
-
-                                <div class="field">
-                                    <label>Data sfarsit</label>
-                                    <input type="date" name="contract_end_date" id="contractEndDate" value="<?= pz_contract_h($formPayload['contract_end_date'] ?? '') ?>">
-                                </div>
-
-                                <div class="field">
-                                    <label>Termen plata (zile)</label>
-                                    <input type="number" min="1" step="1" name="payment_due_days" id="paymentDueDays" value="<?= (int)pz_contract_payment_due_days($formPayload, 5) ?>">
-                                </div>
-
                             </div>
 
-                            <div class="panel" data-contract-mode="recurrent" style="margin-top:14px; box-shadow:none;<?= $contractTypeValue === 'execution' ? ' display:none;' : '' ?>">
-                                <div class="panel-head">
-                                    <div>
-                                        <div class="panel-title">Locații si servicii contractate</div>
-                                        <div class="panel-subtitle">Acest tabel alimenteaza variabila {{contract_services_table}} din contract. Folosim doar locații/puncte de lucru salvate in fișa clientului.</div>
+                            <div class="contract-section" data-contract-step="2">
+                                <div class="contract-section-head">
+                                    <div class="contract-section-titlewrap">
+                                        <span class="contract-step-num" data-step-num="2"><span>2</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-11"/></svg></span>
+                                        <h3 class="contract-section-title">Perioadă și șablon</h3>
                                     </div>
-                                    <button type="button" class="btn small" onclick="addItemRow()">+ Adaugă rand</button>
+                                </div>
+                                <div class="contract-section-body">
+                                    <div class="contract-period-grid">
+                                        <div class="field">
+                                            <label>Data contract</label>
+                                            <input type="date" name="document_date" value="<?= pz_contract_h($formDocument['document_date'] ?? date('Y-m-d')) ?>">
+                                        </div>
+
+                                        <div class="field">
+                                            <label>Data început</label>
+                                            <input type="date" name="contract_start_date" id="contractStartDate" value="<?= pz_contract_h($formPayload['contract_start_date'] ?? date('Y-m-d')) ?>">
+                                        </div>
+
+                                        <div class="field">
+                                            <label>Data sfârșit</label>
+                                            <input type="date" name="contract_end_date" id="contractEndDate" value="<?= pz_contract_h($formPayload['contract_end_date'] ?? '') ?>">
+                                        </div>
+
+                                        <div class="field">
+                                            <label>Termen plată (zile)</label>
+                                            <input type="number" min="1" step="1" name="payment_due_days" id="paymentDueDays" value="<?= (int)pz_contract_payment_due_days($formPayload, 5) ?>">
+                                        </div>
+
+                                        <div class="field full">
+                                            <label>Șablon</label>
+                                            <select name="template_id">
+                                                <?php foreach ($templates as $template): ?>
+                                                    <option value="<?= (int)$template['id'] ?>" <?= (int)($formDocument['template_id'] ?? 0) === (int)$template['id'] ? 'selected' : '' ?>>
+                                                        <?= pz_contract_h($template['name']) ?><?= !empty($template['is_default']) ? ' - implicit' : '' ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="contract-section" data-contract-step="3" data-contract-mode="recurrent"<?= $contractTypeValue === 'execution' ? ' style="display:none"' : '' ?>>
+                                <div class="contract-section-head">
+                                    <div class="contract-section-titlewrap">
+                                        <span class="contract-step-num" data-step-num="3"><span>3</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-11"/></svg></span>
+                                        <h3 class="contract-section-title">Locații și servicii</h3>
+                                        <span class="contract-section-hint">locație × serviciu × frecvență</span>
+                                    </div>
+                                    <button type="button" class="btn small primary" onclick="addItemRow()"><i style="display:inline-block;font-style:normal;margin-right:2px;">+</i> Adaugă rând</button>
+                                </div>
+                                <div class="contract-section-body">
+                            <div class="panel" style="margin-top:0; box-shadow:none;border:1px solid var(--pz-line);">
+                                <div class="panel-head" style="display:none;">
+                                    <div></div>
                                 </div>
                                 <div class="panel-body">
                                     <div class="items-wrap">
@@ -1003,11 +1036,22 @@ foreach ($services as $service) {
                                             </tbody>
                                         </table>
                                     </div>
-                                    <div class="client-help">Preturile sunt fără TVA. In contract, coloana de pret apare ca pret / intervenție.</div>
+                                    <div class="client-help">Prețurile sunt fără TVA. În contract, coloana de preț apare ca preț / intervenție.</div>
+                                </div>
+                            </div>
                                 </div>
                             </div>
 
-                            <div class="panel" data-contract-mode="execution" style="margin-top:14px; box-shadow:none;<?= $contractTypeValue === 'execution' ? '' : ' display:none;' ?>">
+                            <div class="contract-section" data-contract-step="3" data-contract-mode="execution"<?= $contractTypeValue === 'execution' ? '' : ' style="display:none"' ?>>
+                                <div class="contract-section-head">
+                                    <div class="contract-section-titlewrap">
+                                        <span class="contract-step-num" data-step-num="3"><span>3</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-11"/></svg></span>
+                                        <h3 class="contract-section-title">Obiectul contractului</h3>
+                                        <span class="contract-section-hint">descriere liberă</span>
+                                    </div>
+                                </div>
+                                <div class="contract-section-body">
+                            <div class="panel" style="margin-top:0; box-shadow:none;border:1px solid var(--pz-line);">
                                 <div class="panel-head">
                                     <div>
                                         <div class="panel-title">Obiectul contractului</div>
@@ -1035,8 +1079,20 @@ foreach ($services as $service) {
                                     <div class="client-help" style="margin-top:6px;">Textul intră ca atare în PDF, prin tokenul <code>{{contract_obiect}}</code> din șablon.</div>
                                 </div>
                             </div>
+                                </div>
+                            </div>
 
                             <input type="hidden" name="contract_object_default" id="contractObjectDefault" value="<?= pz_contract_h($contractObjectDDD) ?>">
+
+                            <div class="contract-section" data-contract-step="4">
+                                <div class="contract-section-head">
+                                    <div class="contract-section-titlewrap">
+                                        <span class="contract-step-num" data-step-num="4"><span>4</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-11"/></svg></span>
+                                        <h3 class="contract-section-title">Emitere</h3>
+                                        <span class="contract-section-hint">salvezi draft sau emiți cu număr</span>
+                                    </div>
+                                </div>
+                            </div>
 
                             <div class="form-actions">
                                 <div>
@@ -1571,9 +1627,9 @@ function initContractTypePicker() {
     }
 
     function applyMode(mode) {
-        // Marchează vizual cardul activ
-        picker.querySelectorAll('.ctype-card').forEach(card => {
-            card.classList.toggle('is-active', card.dataset.value === mode);
+        // Marchează vizual tab-ul activ
+        picker.querySelectorAll('.ctype-tab').forEach(tab => {
+            tab.classList.toggle('is-active', tab.dataset.value === mode);
         });
         // Arată / ascunde panel-urile + cele 2 sub-headere de pași
         document.querySelectorAll('[data-contract-mode]').forEach(el => {
@@ -1621,12 +1677,78 @@ function initContractTypePicker() {
         }
     }
 
-    radios.forEach(r => r.addEventListener('change', () => applyMode(r.value)));
+    radios.forEach(r => r.addEventListener('change', () => { applyMode(r.value); updateContractStepProgress(); }));
 
     // Aplică modul inițial (în caz că HTML-ul are inconsistențe de stare)
     const checked = picker.querySelector('input[name="contract_type"]:checked');
     if (checked) applyMode(checked.value);
 }
+
+/* === Indicator bifă verde pentru secțiuni completate === */
+function updateContractStepProgress() {
+    const form = document.getElementById('contractForm');
+    if (!form) return;
+
+    const mode = (document.querySelector('input[name="contract_type"]:checked') || {}).value || 'recurrent';
+
+    // Pas 1: Client
+    const clientId = parseInt((document.getElementById('clientSelect') || {}).value || '0', 10);
+    setStepComplete(1, clientId > 0);
+
+    // Pas 2: Perioadă - data început și data sfârșit completate
+    const startDate = (document.querySelector('input[name="contract_start_date"]') || {}).value || '';
+    const endDate = (document.querySelector('input[name="contract_end_date"]') || {}).value || '';
+    setStepComplete(2, startDate !== '' && endDate !== '');
+
+    // Pas 3: Servicii (recurrent) sau Obiect (execution)
+    if (mode === 'recurrent') {
+        const itemsBody = document.getElementById('itemsBody');
+        let hasValidItem = false;
+        if (itemsBody) {
+            itemsBody.querySelectorAll('tr.item-row').forEach(row => {
+                const loc = row.querySelector('.row-location');
+                const svc = row.querySelector('.service-select');
+                const freq = row.querySelector('select[name*="frequency_text"]');
+                if (loc && svc && freq && loc.value && svc.value && freq.value) {
+                    hasValidItem = true;
+                }
+            });
+        }
+        setStepComplete(3, hasValidItem);
+    } else {
+        const obj = (document.getElementById('contractObjectTextarea') || {}).value || '';
+        const value = parseFloat((document.getElementById('contractValueManual') || {}).value || '0') || 0;
+        setStepComplete(3, obj.trim().length > 10 && value > 0);
+    }
+
+    // Pas 4: Emitere — completat când restul sunt completate
+    const allDone = document.querySelectorAll('[data-step-num="1"].is-complete').length > 0
+                 && document.querySelectorAll('[data-step-num="2"].is-complete').length > 0
+                 && document.querySelectorAll('[data-step-num="3"].is-complete:not([style*="display:none"])').length > 0;
+    setStepComplete(4, allDone);
+}
+
+function setStepComplete(num, complete) {
+    document.querySelectorAll('.contract-step-num[data-step-num="' + num + '"]').forEach(el => {
+        el.classList.toggle('is-complete', complete);
+    });
+}
+
+// Atașez listener-ul pe input change pentru a updata bifa live
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('contractForm');
+    if (!form) return;
+    form.addEventListener('input', updateContractStepProgress);
+    form.addEventListener('change', updateContractStepProgress);
+    // Și după ce se selectează clientul via autocomplete (event custom)
+    const clientHidden = document.getElementById('clientSelect');
+    if (clientHidden) {
+        const obs = new MutationObserver(updateContractStepProgress);
+        obs.observe(clientHidden, { attributes: true, attributeFilter: ['value'] });
+    }
+    // Inițial
+    setTimeout(updateContractStepProgress, 200);
+});
 </script>
 
 <?php
