@@ -3459,6 +3459,82 @@ if (!function_exists('app_theme_css')) {
         .pz-badge-dot.dot-bl::before { background: var(--pz-bl); }
         .pz-badge-dot.dot-mu::before { background: var(--pz-mu); }
 
+        /* ═══════════════════════════════════════════════════════════════
+           UNIFORMIZARE FILTRE — toate input/select/btn la 32px
+           Aplicat peste stilurile locale (variau între 32 și 38px). */
+        .filter-form input,
+        .filter-form select,
+        .filter-form textarea,
+        .filter-form .btn,
+        .filter-form button,
+        .filters input,
+        .filters select,
+        .filters .btn,
+        .filters button,
+        .ib-filters input,
+        .ib-filters select,
+        .ib-filters .btn,
+        .ib-filters button,
+        .reports-filters input,
+        .reports-filters select,
+        .reports-filters .btn,
+        .reports-filters button,
+        .tasks-filter-line input,
+        .tasks-filter-line select,
+        .tasks-filter-line .btn,
+        .tasks-filter-line button,
+        .clients-toolbar input,
+        .clients-toolbar select,
+        .clients-toolbar .btn,
+        .clients-toolbar button {
+            min-height: 32px !important;
+            height: 32px !important;
+            box-sizing: border-box !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+            font-size: 12.5px !important;
+            font-weight: 500 !important;
+            border-radius: 4px !important;
+            line-height: 30px !important;
+        }
+        /* textarea — singura excepție, păstrăm înălțime auto cu min */
+        .filter-form textarea {
+            height: auto !important;
+            line-height: 1.4 !important;
+            padding-top: 6px !important;
+            padding-bottom: 6px !important;
+        }
+        /* Iconuri în butoane rămân centrate (icon-btn-uri excluse — sunt 28×28) */
+        .filter-form .pz-icon-btn,
+        .filters .pz-icon-btn,
+        .ib-filters .pz-icon-btn,
+        .reports-filters .pz-icon-btn,
+        .tasks-filter-line .pz-icon-btn,
+        .clients-toolbar .pz-icon-btn {
+            width: 32px !important;
+            min-width: 32px !important;
+            padding: 0 !important;
+        }
+        /* Field label rămâne natural, nu intră în uniformizare */
+        .filter-form label,
+        .filters label,
+        .ib-filters label,
+        .reports-filters label {
+            height: auto !important;
+            min-height: 0 !important;
+            line-height: 1.4 !important;
+        }
+        /* Flatpickr-ul moștenește înălțimea corectă din altInput, plus class */
+        .filter-form input.flatpickr-input,
+        .filters input.flatpickr-input,
+        .ib-filters input.flatpickr-input,
+        .reports-filters input.flatpickr-input {
+            height: 32px !important;
+            min-height: 32px !important;
+        }
+
         /* Auto-dot pe badge-urile existente cu clase semantice de status.
            Aplicare automată pe markup-ul existent — nu necesită schimbări pe pagini. */
         :is(.badge.draft, .badge.issued, .badge.cancelled,
