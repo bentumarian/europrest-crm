@@ -439,7 +439,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                         <option value="to_invoice"   <?= $selectedStatus === 'to_invoice' ? 'selected' : '' ?>>De facturat</option>
                         <option value="invoiced"     <?= $selectedStatus === 'invoiced' ? 'selected' : '' ?>>Facturate</option>
                         <option value="not_billable" <?= $selectedStatus === 'not_billable' ? 'selected' : '' ?>>Nefacturabile</option>
-                        <option value="all"          <?= $selectedStatus === 'all' ? 'selected' : '' ?>>Toate (fără anulate)</option>
+                        <option value="all"          <?= $selectedStatus === 'all' ? 'selected' : '' ?>>Toate</option>
                     </select>
                     <select name="service" aria-label="Serviciu">
                         <option value="all" <?= $selectedService === 'all' ? 'selected' : '' ?>>Toate serviciile</option>

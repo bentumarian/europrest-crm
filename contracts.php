@@ -1071,7 +1071,7 @@ foreach ($services as $service) {
                         <div class="field">
                             <label>Căutare</label>
                             <div class="pz-search-wrap">
-                                <input type="text" id="contractsSearchInput" name="q" value="<?= pz_contract_h($filters['q']) ?>" placeholder="client, CUI, numar contract..." autocomplete="off">
+                                <input type="text" id="contractsSearchInput" name="q" value="<?= pz_contract_h($filters['q']) ?>" placeholder="Caută" autocomplete="off">
                                 <div class="pz-search-preview"></div>
                             </div>
                         </div>

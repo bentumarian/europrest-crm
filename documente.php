@@ -379,7 +379,7 @@ foreach ($stats as $stat) {
                         <div class="field">
                             <label>Căutare</label>
                             <div class="pz-search-wrap">
-                                <input type="search" id="documenteSearchInput" name="q" value="<?= pz_docs_h($q) ?>" placeholder="Client, CUI, numar, locație" autocomplete="off">
+                                <input type="search" id="documenteSearchInput" name="q" value="<?= pz_docs_h($q) ?>" placeholder="Caută" autocomplete="off">
                                 <div class="pz-search-preview"></div>
                             </div>
                         </div>

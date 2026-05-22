@@ -929,7 +929,7 @@ foreach ($services as $service) {
                         <div class="field">
                             <label>Căutare</label>
                             <div class="pz-search-wrap">
-                                <input type="text" id="oferteSearchInput" name="q" value="<?= pz_offer_h($filters['q']) ?>" placeholder="Client, CUI, numar oferta" autocomplete="off">
+                                <input type="text" id="oferteSearchInput" name="q" value="<?= pz_offer_h($filters['q']) ?>" placeholder="Caută" autocomplete="off">
                                 <div class="pz-search-preview"></div>
                             </div>
                         </div>

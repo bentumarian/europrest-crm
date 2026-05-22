@@ -725,7 +725,7 @@ a.btn.small {
                 <form class="filter-form" method="get">
                     <div class="field">
                         <label>Căutare</label>
-                        <input type="search" name="q" value="<?= dtpl_h($q) ?>" placeholder="Caută după nume, descriere sau slug">
+                        <input type="search" name="q" value="<?= dtpl_h($q) ?>" placeholder="Caută">
                     </div>
 
                     <div class="field">
@@ -841,4 +841,4 @@ a.btn.small {
     </main>
 </div>
 </body>
-</html>
+</html>

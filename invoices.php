@@ -301,7 +301,7 @@ $statusLabels = [
                     <form method="get" class="filters">
                         <div><label>Căutare</label>
                             <div class="pz-search-wrap">
-                                <input type="search" id="invoicesSearchInput" name="q" value="<?= bill_h($q) ?>" placeholder="Client, CUI, serie, numar factura" autocomplete="off">
+                                <input type="search" id="invoicesSearchInput" name="q" value="<?= bill_h($q) ?>" placeholder="Caută" autocomplete="off">
                                 <div class="pz-search-preview"></div>
                             </div>
                         </div>

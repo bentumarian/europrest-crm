@@ -1375,7 +1375,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                         <div class="field">
                             <label>Căutare</label>
                             <div class="pz-search-wrap">
-                                <input type="text" id="pvSearchInput" name="q" value="<?= pz_pv_h($q) ?>" placeholder="Client, CUI, numar PV, titlu" autocomplete="off">
+                                <input type="text" id="pvSearchInput" name="q" value="<?= pz_pv_h($q) ?>" placeholder="Caută" autocomplete="off">
                                 <div class="pz-search-preview"></div>
                             </div>
                         </div>

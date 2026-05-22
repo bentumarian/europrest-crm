@@ -696,7 +696,7 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                         <div class="field">
                             <label>Căutare</label>
                             <div class="pz-search-wrap">
-                                <input type="text" id="addendaSearchInput" name="q" value="<?= pz_addendum_h($filters['q']) ?>" placeholder="client, CUI, numar..." autocomplete="off">
+                                <input type="text" id="addendaSearchInput" name="q" value="<?= pz_addendum_h($filters['q']) ?>" placeholder="Caută" autocomplete="off">
                                 <div class="pz-search-preview"></div>
                             </div>
                         </div>

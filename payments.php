@@ -254,7 +254,7 @@ $statusLabels = [
                 <form method="get" class="toolbar">
                     <div><label>Căutare</label>
                         <div class="pz-search-wrap">
-                            <input type="search" id="paymentsSearchInput" name="q" value="<?= pay_h($q) ?>" placeholder="Client, CUI, factură, chitanță" autocomplete="off">
+                            <input type="search" id="paymentsSearchInput" name="q" value="<?= pay_h($q) ?>" placeholder="Caută" autocomplete="off">
                             <div class="pz-search-preview"></div>
                         </div>
                     </div>

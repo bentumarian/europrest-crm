@@ -332,7 +332,7 @@ try {
                     <form method="get" class="filter-grid" style="margin-bottom:12px">
                         <div><label>Căutare</label>
                             <div class="pz-search-wrap">
-                                <input type="search" id="efacturaReceivedSearchInput" name="received_q" value="<?= ef_h($receivedQ) ?>" placeholder="Furnizor, CUI, serie, număr" autocomplete="off">
+                                <input type="search" id="efacturaReceivedSearchInput" name="received_q" value="<?= ef_h($receivedQ) ?>" placeholder="Caută" autocomplete="off">
                                 <div class="pz-search-preview"></div>
                             </div>
                         </div>
@@ -399,7 +399,7 @@ try {
                     <form method="get" class="filter-grid" style="margin-bottom:12px">
                         <div><label>Căutare</label>
                             <div class="pz-search-wrap">
-                                <input type="search" id="efacturaSentSearchInput" name="sent_q" value="<?= ef_h($sentQ) ?>" placeholder="Client, CUI, serie, număr" autocomplete="off">
+                                <input type="search" id="efacturaSentSearchInput" name="sent_q" value="<?= ef_h($sentQ) ?>" placeholder="Caută" autocomplete="off">
                                 <div class="pz-search-preview"></div>
                             </div>
                         </div>
