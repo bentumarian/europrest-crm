@@ -177,7 +177,37 @@ app_theme_css();
     <div class="stock-field"><label>Substanță activă</label><input name="active_substance" value="<?= stock_h($edit['active_substance'] ?? '') ?>"></div>
     <div class="stock-field"><label>Concentrație produs</label><input name="product_concentration" value="<?= stock_h($edit['product_concentration'] ?? '') ?>"></div>
     <div class="stock-field"><label>Timp contact / acțiune</label><input name="contact_time" value="<?= stock_h($edit['contact_time'] ?? '') ?>"></div>
-    <div class="stock-field"><label>Metodă aplicare implicită</label><input name="default_application_method" value="<?= stock_h($edit['default_application_method'] ?? '') ?>"></div>
+    <div class="stock-field"><label>Metodă aplicare implicită</label>
+        <?php
+            $applicationMethods = [
+                ''                  => 'Alege',
+                'pulverizare'       => 'Pulverizare',
+                'aplicare directa'  => 'Aplicare directă',
+                'nebulizare'        => 'Nebulizare',
+                'amplasare'         => 'Amplasare',
+            ];
+            $rawMethod = (string)($edit['default_application_method'] ?? '');
+            // Normalizez valorile vechi (text liber) catre cele 4 standard din PV
+            $lc = mb_strtolower($rawMethod, 'UTF-8');
+            if (strpos($lc, 'pulver') !== false) {
+                $currentMethod = 'pulverizare';
+            } elseif (strpos($lc, 'nebul') !== false) {
+                $currentMethod = 'nebulizare';
+            } elseif (strpos($lc, 'amplas') !== false) {
+                $currentMethod = 'amplasare';
+            } elseif (strpos($lc, 'direct') !== false) {
+                $currentMethod = 'aplicare directa';
+            } else {
+                $currentMethod = '';
+            }
+        ?>
+        <select name="default_application_method">
+            <?php foreach ($applicationMethods as $value => $label): ?>
+                <option value="<?= stock_h($value) ?>" <?= $currentMethod === $value ? 'selected' : '' ?>><?= stock_h($label) ?></option>
+            <?php endforeach; ?>
+        </select>
+        <small>Apare ca metodă implicită în PV când selectezi acest produs.</small>
+    </div>
 </div>
 <div class="stock-field" style="margin-top:14px;"><label>Observații interne</label><textarea name="notes" rows="2"><?= stock_h($edit['notes'] ?? '') ?></textarea></div>
 <div class="actions-row"><label style="display:flex;gap:8px;align-items:center;margin:0;text-transform:none;letter-spacing:0;font-size:14px;"><input type="checkbox" name="is_active" value="1" style="width:auto;min-height:auto;" <?= ((int)($edit['is_active'] ?? 1) === 1 ? 'checked' : '') ?>> Produs activ</label><div class="stock-actions"><a class="btn" href="stock_products.php">Curăță</a><button class="btn accent" type="submit">Salvează produs</button></div></div>
