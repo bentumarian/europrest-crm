@@ -606,18 +606,17 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 
 /* === TOGGLE PILLS pentru servicii === */
 .pz-pills { display:flex; flex-wrap:wrap; gap:8px; }
+.pz-pill { position:relative; min-height:36px; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 16px; border-radius:6px; border:1.5px solid #FED7AA; background:#FFF7ED; color:#9A3412; font-size:13px; font-weight:500; cursor:pointer; transition:background .14s ease, border-color .14s ease, color .14s ease, font-weight .14s ease; user-select:none; box-sizing:border-box; }
+.pz-pill:hover { border-color:#FB923C; background:#FFEDD5; }
+.pz-pill.is-active { background:var(--pz-bl, #2563EB); border-color:var(--pz-bld, #1D4ED8); color:#FFFFFF; font-weight:600; }
+.pz-pill.is-active:hover { background:var(--pz-bld, #1D4ED8); border-color:var(--pz-bld, #1D4ED8); color:#FFFFFF; }
+.pz-pill.is-active::before { content:''; display:inline-block; width:14px; height:14px; flex:0 0 14px; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='5 12 10 17 19 7'/></svg>"); background-repeat:no-repeat; background-position:center; background-size:14px 14px; }
+.pz-pills.is-invalid .pz-pill:not(.is-active) { border-color:#EF4444; background:#FEF2F2; color:#991B1B; }
 @media (max-width: 700px) {
-    #servicesPills { flex-wrap: nowrap !important; gap: 4px !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    #servicesPills .pz-pill { flex: 1 1 0; min-width: 0; min-height: 36px; padding: 6px 6px 6px 24px !important; font-size: 11px !important; text-align: center; justify-content: center; white-space: nowrap; }
-    #servicesPills .pz-pill::before { left: 6px !important; }
+    #servicesPills { flex-wrap: nowrap !important; gap: 5px !important; }
+    #servicesPills .pz-pill { flex: 1 1 0; min-width: 0; padding: 6px 4px !important; font-size: 11px !important; white-space: nowrap; gap: 4px; }
+    #servicesPills .pz-pill.is-active::before { width: 12px; height: 12px; background-size: 12px 12px; flex: 0 0 12px; }
 }
-.pz-pill { position:relative; min-height:34px; display:inline-flex; align-items:center; padding:7px 13px 7px 36px; border-radius:6px; border:1px solid var(--border); background:#fff; color:var(--text); font-size:12.5px; font-weight:850; cursor:pointer; transition:border-color .14s ease, background .14s ease, color .14s ease; user-select:none; }
-.pz-pill::before { content:''; position:absolute; left:12px; top:50%; transform:translateY(-50%); width:15px; height:15px; border-radius:4px; border:1.5px solid #cbd5e1; background:#fff; transition:all .14s ease; box-sizing:border-box; }
-.pz-pill:hover { border-color:var(--accent); background:var(--accent-soft); }
-.pz-pill.is-active { background:var(--accent-soft); color:var(--accent-deep); border-color:var(--accent); }
-.pz-pill.is-active::before { background:var(--accent); border-color:var(--accent); }
-.pz-pill.is-active::after { content:''; position:absolute; left:16px; top:50%; transform:translateY(-58%) rotate(45deg); width:4px; height:8px; border-right:2px solid #fff; border-bottom:2px solid #fff; }
-.pz-pills.is-invalid .pz-pill { border-color:rgba(220, 38, 38, .36); }
 #materialsPanel.is-invalid { outline:2px solid rgba(220,38,38,.55); outline-offset:6px; border-radius:12px; }
 
 /* === LOCATIE smart - cazul cu o singura locație === */
