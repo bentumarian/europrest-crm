@@ -906,26 +906,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                 </div>
                                 <div class="panel-body">
                                     <div class="pv-form-grid pv-document-grid">
-                                        <?php if (!empty($appointments)): ?>
-                                        <div class="field full pv-appointment-field">
-                                            <label>Preia date din programare</label>
-                                            <select name="appointment_id" id="appointmentSelect" data-selected="<?= (int)($formDocument['appointment_id'] ?? $selectedAppointmentId ?? 0) ?>">
-                                                <option value="">Fara programare</option>
-                                                <?php foreach ($appointments as $appointment): ?>
-                                                    <?php
-                                                        $labelParts = [];
-                                                        $labelParts[] = pz_pv_date_ro($appointment['appointment_date'] ?? '') . ' ' . pz_pv_time_ro($appointment['start_time'] ?? '');
-                                                        $labelParts[] = $appointment['client_name'] ?? 'Client';
-                                                        $serviceLabel = pz_pv_service_from_appointment($appointment);
-                                                        if ($serviceLabel !== '') { $labelParts[] = $serviceLabel; }
-                                                        if (!empty($appointment['location_name'])) { $labelParts[] = $appointment['location_name']; }
-                                                    ?>
-                                                    <option value="<?= (int)$appointment['id'] ?>" <?= (int)($formDocument['appointment_id'] ?? $selectedAppointmentId ?? 0) === (int)$appointment['id'] ? 'selected' : '' ?>><?= pz_pv_h(implode(' / ', $labelParts)) ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                            <div class="client-help">Optional. Dacă alegi o programare, clientul, locatia, data si ora se completeaza automat.</div>
-                                        </div>
-                                        <?php endif; ?>
+                                        <input type="hidden" name="appointment_id" id="appointmentSelect" value="<?= (int)($formDocument['appointment_id'] ?? $selectedAppointmentId ?? 0) ?>">
                                         <div class="field pv-date-field">
                                             <label>Data PV</label>
                                             <input type="date" name="document_date" value="<?= pz_pv_h($formDocument['document_date'] ?? date('Y-m-d')) ?>">
@@ -943,15 +924,6 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                         <?= pz_pv_h($template['name']) ?>
                                                     </option>
                                                 <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                        <div class="field pv-type-field">
-                                            <label>Tip PV</label>
-                                            <select name="pv_type">
-                                                <?php $pvType = $editingPayload['pv_type'] ?? 'executie'; ?>
-                                                <option value="executie" <?= $pvType === 'executie' ? 'selected' : '' ?>>Executie</option>
-                                                <option value="monitorizare" <?= $pvType === 'monitorizare' ? 'selected' : '' ?>>Monitorizare</option>
-                                                <option value="inspectie" <?= $pvType === 'inspectie' ? 'selected' : '' ?>>Inspectie</option>
                                             </select>
                                         </div>
                                         <div class="field full pv-basis-field">
@@ -1033,8 +1005,8 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                             <input type="text" name="surface_text" id="surfaceText" value="<?= pz_pv_h($editingPayload['surface_text'] ?? '') ?>" placeholder="ex: 250 mp interior + exterior" required>
                                         </div>
                                         <div class="field full">
-                                            <label>Operatori / executanti</label>
-                                            <input type="text" name="workers_names" id="workersNames" value="<?= pz_pv_h($editingPayload['workers_names'] ?? '') ?>" placeholder="Se completeaza automat din tehnicianul/operatorul programării, dacă există">
+                                            <label>Tehnician</label>
+                                            <input type="text" name="workers_names" id="workersNames" value="<?= pz_pv_h($editingPayload['workers_names'] ?? '') ?>" placeholder="Tehnicianul care a executat lucrarea">
                                         </div>
                                     </div>
                                 </div>
