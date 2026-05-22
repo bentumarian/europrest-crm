@@ -496,6 +496,15 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
 .field.full { grid-column:1 / -1; }
 .field.span2 { grid-column:span 2; }
 .parent-info { background:var(--surface-soft); border:1px solid var(--border2); border-radius:12px; padding:10px 12px; font-size:12.5px; color:var(--text); line-height:1.45; }
+
+/* === Secțiuni numerotate (aliniat cu Contracte/Oferte) === */
+.contract-section { margin-bottom:22px; }
+.contract-section:last-child { margin-bottom:0; }
+.contract-section-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.contract-section-titlewrap { display:flex; align-items:center; gap:10px; min-width:0; }
+.contract-step-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--pz-soft); border:1px solid var(--pz-line); color:var(--pz-fa); font-size:12px; font-weight:600; flex:0 0 22px; }
+.contract-section-title { font-size:14px; font-weight:600; color:var(--pz-title); margin:0; }
+.contract-section-hint { font-size:12px; color:var(--pz-mu); margin-left:6px; }
 .parent-info b { color:var(--accent-deep); }
 .checkline { display:flex; align-items:center; gap:8px; min-height:42px; padding:9px 11px; border:1px solid var(--border); border-radius:12px; background:#fff; }
 .checkline input { width:auto; }
@@ -593,9 +602,9 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                     <div class="panel-head">
                         <div>
                             <div class="panel-title"><?= $editingDocument ? 'Editează act adițional draft' : 'Act adițional nou' ?></div>
-                            <div class="panel-subtitle">Prelungire / actualizare contract <?= pz_addendum_h($parentDocument['document_number'] ?: ('DOC-' . $parentDocument['id'])) ?>.</div>
+                            <div class="panel-subtitle">Prelungire pentru <?= pz_addendum_h($parentDocument['document_number'] ?: ('DOC-' . $parentDocument['id'])) ?></div>
                         </div>
-                        <a class="btn small" href="addenda.php">Inchide formularul</a>
+                        <a class="btn small" href="addenda.php"><i style="font-style:normal;margin-right:4px;">×</i>Închide formularul</a>
                     </div>
                     <div class="panel-body">
                         <div class="parent-info" style="margin-bottom:14px;">
@@ -619,6 +628,12 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                             <input type="hidden" name="parent_document_id" value="<?= (int)$parentDocument['id'] ?>">
                             <input type="hidden" name="title" value="<?= pz_addendum_h($formDocument['title'] ?? ('Act adițional contract ' . ($parentDocument['document_number'] ?? $parentDocument['id']))) ?>">
 
+                            <div class="contract-section-head">
+                                <div class="contract-section-titlewrap">
+                                    <span class="contract-step-num">1</span>
+                                    <h3 class="contract-section-title">Detalii act</h3>
+                                </div>
+                            </div>
                             <div class="addendum-form-grid">
                                 <div class="field">
                                     <label>Data act adițional</label>
@@ -641,7 +656,7 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                             <div class="panel" style="margin-top:14px; box-shadow:none;">
                                 <div class="panel-head">
                                     <div>
-                                        <div class="panel-title">Obiectul actului adițional</div>
+                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">2</span><span>Obiectul actului adițional</span></div>
                                         <div class="panel-subtitle">Descrie liber ce se modifică: prelungirea perioadei de valabilitate, modificarea prețului, schimbarea termenelor, completarea lucrărilor sau orice altă modificare. Textul intră în PDF prin <code>{{notes}}</code>.</div>
                                     </div>
                                 </div>

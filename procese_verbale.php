@@ -703,6 +703,15 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 .pv-defer-consumption small { color:#b91c1c; font-weight:700; opacity:.78; }
 @media (max-width:700px) { .pv-quick-summary-grid { grid-template-columns:1fr; } .pv-quick-summary { padding:13px; border-radius:18px; } }
 
+/* === Secțiuni numerotate (aliniat cu Contracte/Oferte) === */
+.contract-section { margin-bottom:22px; }
+.contract-section:last-child { margin-bottom:0; }
+.contract-section-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.contract-section-titlewrap { display:flex; align-items:center; gap:10px; min-width:0; }
+.contract-step-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--pz-soft); border:1px solid var(--pz-line); color:var(--pz-fa); font-size:12px; font-weight:600; flex:0 0 22px; }
+.contract-section-title { font-size:14px; font-weight:600; color:var(--pz-title); margin:0; }
+.contract-section-hint { font-size:12px; color:var(--pz-mu); margin-left:6px; }
+
 /* === Mobile optimizare zona 1. Document === */
 @media (max-width:980px) {
     .pv-document-grid {
@@ -891,7 +900,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                             <div class="panel <?= !empty($isQuickPvFromAppointment) ? 'pv-quick-hidden' : '' ?>" style="box-shadow:none;">
                                 <div class="panel-head">
                                     <div>
-                                        <div class="panel-title">1. Document</div>
+                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">1</span><span>Document</span></div>
                                         <div class="panel-subtitle">Numarul PV se genereaza la emitere. Aici completezi data si ora.</div>
                                     </div>
                                 </div>
@@ -973,7 +982,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                             <div class="panel" style="box-shadow:none; margin-top:14px;">
                                 <div class="panel-head">
                                     <div>
-                                        <div class="panel-title">2. Client si locație</div>
+                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">2</span><span>Client și locație</span></div>
                                         <div class="panel-subtitle">Căutare după nume client, CUI, reprezentant, email sau telefon.</div>
                                     </div>
                                 </div>
@@ -1034,7 +1043,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                             <div class="panel" style="box-shadow:none; margin-top:14px;">
                                 <div class="panel-head">
                                     <div>
-                                        <div class="panel-title">3. Servicii prestate</div>
+                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">3</span><span>Servicii prestate</span></div>
                                         <div class="panel-subtitle">Selectează serviciile executate. In șablon folosește {{services_checks}} pentru afișarea cu bife.</div>
                                     </div>
                                 </div>
@@ -1307,7 +1316,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                             <div class="panel pv-quick-observatii" style="box-shadow:none; margin-top:14px;">
                                 <div class="panel-head">
                                     <div>
-                                        <div class="panel-title">Observații executant</div>
+                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">4</span><span>Observații executant</span></div>
                                         <div class="panel-subtitle">Singurul camp care apare pe procesul verbal.</div>
                                     </div>
                                 </div>
