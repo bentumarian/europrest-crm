@@ -319,6 +319,9 @@ if ($billingItemIdsFromGet && $invoiceIdFromRequest <= 0 && $_SERVER['REQUEST_ME
             .bill-totals { display: flex; gap: 18px; justify-content: flex-end; margin-bottom: 18px; font-weight: 800; }
             .bill-totals span { color: var(--muted); margin-right: 6px; }
             .bill-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+            .bill-auto-receipt { margin-bottom: 12px; padding: 10px 14px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 6px; }
+            .bill-auto-receipt label { display: inline-flex; gap: 8px; align-items: center; font-weight: 700; font-size: 13px; color: var(--text); cursor: pointer; margin: 0; text-transform: none; letter-spacing: 0; }
+            .bill-auto-receipt input { width: auto; margin: 0; }
             .bill-error { background: var(--tone-warning-bg); border: 1px solid rgba(180,83,9,.24); color: var(--tone-warning); padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-weight: 800; }
             .bill-info { background: var(--surface-soft); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-weight: 700; font-size: 12.5px; }
         </style>
@@ -343,8 +346,8 @@ if ($billingItemIdsFromGet && $invoiceIdFromRequest <= 0 && $_SERVER['REQUEST_ME
 
                     <?php if (!$previewError && $previewItems): ?>
                         <div class="bill-meta">
-                            <strong>Client:</strong> <?= inv_h($previewClient['name'] ?? '') ?>
-                            <?php if (!empty($previewClient['fiscal_code'])): ?> · CUI: <?= inv_h($previewClient['fiscal_code']) ?><?php endif; ?>
+                            <strong>Client:</strong> <?= inv_h($previewClient['client_name'] ?? '') ?>
+                            <?php if (!empty($previewClient['client_fiscal_code'])): ?> · CUI: <?= inv_h($previewClient['client_fiscal_code']) ?><?php endif; ?>
                         </div>
                     <?php endif; ?>
 
@@ -405,6 +408,12 @@ if ($billingItemIdsFromGet && $invoiceIdFromRequest <= 0 && $_SERVER['REQUEST_ME
                                 <input type="text" name="observations" value="" placeholder="Observații vizibile pe factură">
                             </div>
                         </div>
+
+                        <?php if ($smartbillEnabled): ?>
+                            <div class="bill-auto-receipt">
+                                <label><input type="checkbox" name="auto_receipt" value="1"> Încasează acum (emite chitanță în SmartBill)</label>
+                            </div>
+                        <?php endif; ?>
 
                         <div class="bill-actions">
                             <?php if ($smartbillEnabled): ?>
@@ -626,6 +635,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!empty($result['ok']) && (int)($result['invoice_id'] ?? 0) > 0) {
             $invoiceId = (int)$result['invoice_id'];
             $flag = !empty($result['draft']) ? 'draft' : 'issued';
+
+            // Daca factura a fost emisa in SmartBill si utilizatorul a bifat „Incaseaza acum",
+            // emite si chitanta pentru valoarea totala - acelasi flow ca la action='issue'.
+            $autoReceipt = !empty($_POST['auto_receipt']) && (string)$_POST['auto_receipt'] === '1';
+            if ($flag === 'issued' && $autoReceipt) {
+                $issuedInvoice = pz_smartbill_fetch_invoice($pdo, $invoiceId);
+                $gross = $issuedInvoice ? pz_smartbill_money($issuedInvoice['gross_amount'] ?? 0) : 0.0;
+                if ($gross > 0) {
+                    $receiptSettings = pz_smartbill_settings($pdo);
+                    $receiptData = [
+                        'payment_type'    => 'chitanta',
+                        'amount'          => $gross,
+                        'payment_date'    => date('Y-m-d'),
+                        'currency'        => trim((string)($issuedInvoice['currency'] ?? 'RON')) ?: 'RON',
+                        'document_series' => trim((string)($receiptSettings['smartbill.receipt_series'] ?? '')),
+                    ];
+                    $receiptResult = pz_smartbill_issue_payment($pdo, $invoiceId, $receiptData);
+                    if (!empty($receiptResult['ok'])) {
+                        header('Location: invoice.php?issued=1&payment_issued=1&id=' . $invoiceId);
+                        exit;
+                    }
+                    $receiptError = (string)($receiptResult['error'] ?? 'Chitanța nu a putut fi emisă.');
+                    header('Location: invoice.php?issued=1&receipt_error=' . urlencode($receiptError) . '&id=' . $invoiceId);
+                    exit;
+                }
+                header('Location: invoice.php?issued=1&receipt_error=' . urlencode('Chitanța nu a putut fi emisă: valoarea facturii este 0.') . '&id=' . $invoiceId);
+                exit;
+            }
+
             header('Location: invoice.php?' . ($flag === 'draft' ? 'saved_draft=1' : 'issued=1') . '&id=' . $invoiceId);
             exit;
         }
