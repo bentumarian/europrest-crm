@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string)($_POST['action'] ?? '');
     $itemId = (int)($_POST['item_id'] ?? 0);
 
-    if ($itemId <= 0 && $action !== 'bulk_invoice') {
+    if ($itemId <= 0) {
         ib_redirect(['error' => 'invalid']);
     }
 
@@ -113,21 +113,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($reason === '') ib_redirect(['error' => 'note']);
         $result = pz_billing_mark_not_billable($pdo, $itemId, $reason);
         ib_redirect($result['ok'] ? ['saved' => '1'] : ['error' => 'note']);
-    }
-
-    if ($action === 'bulk_invoice') {
-        $ids = array_map('intval', (array)($_POST['billing_item_ids'] ?? []));
-        $ids = array_values(array_unique(array_filter($ids, static fn($v) => $v > 0)));
-        if (!$ids) ib_redirect(['error' => 'select']);
-
-        // Validare rapidă: același client. Redirect către invoice.php cu lista.
-        $validation = pz_billing_validate_invoice_selection($pdo, $ids);
-        if (!$validation['ok']) {
-            ib_redirect(['error' => 'multi_client']);
-        }
-        $qs = http_build_query(['billing_item_ids' => $ids]);
-        header('Location: invoice.php?' . $qs);
-        exit;
     }
 
     ib_redirect(['error' => 'action']);
@@ -411,9 +396,6 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
 /* Cand form-ul motiv e deschis, inputul ia locul textului '-' (ascund [data-note-display]). */
 .is-editing-note [data-note-display] { display:none; }
 .empty-state { padding:34px; text-align:center; color:var(--muted); font-weight:800; }
-.bulk-bar { display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--surface-soft); border:1px solid var(--border); border-radius:6px; margin-bottom:10px; flex-wrap:wrap; }
-.bulk-bar .bulk-count { font-weight:900; }
-.bulk-bar .bulk-spacer { flex:1; }
 @media(max-width:1280px){ .ib-filters { grid-template-columns:repeat(4,minmax(0,1fr)); } .kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:980px){ .work-main,.work-grid { grid-template-columns:1fr; } }
 @media(max-width:860px){ .ib-topbar { width:100%; max-width:100vw; padding:8px 10px 14px; display:block; position:relative; top:auto; } .ib-toolbar { display:block; } .ib-filters { grid-template-columns:1fr; } .ib-filters input,.ib-filters select,.ib-filters .btn,.ib-filters button { width:100%; max-width:100%; } .content { width:100%; max-width:100vw; overflow-x:hidden; } .quick-range { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } .quick-range .btn { width:100%; } .ib-hero { padding:4px 0; } .kpi-grid { grid-template-columns:1fr; } .table-scroll { display:none; } .work-list { display:grid; padding:10px; } }
@@ -470,8 +452,6 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                     'amount'       => 'Valoarea nu a putut fi salvată.',
                     'value'        => 'Poziția nu are valoare. Completează valoarea înainte de „De facturat".',
                     'state'        => 'Poziția nu mai poate fi modificată.',
-                    'select'       => 'Selectează cel puțin o poziție pentru facturare.',
-                    'multi_client' => 'Nu poți emite o singură factură pentru clienți diferiți.',
                     'action'       => 'Acțiune necunoscută.',
                 ];
                 $errCode = (string)($_GET['error'] ?? '');
@@ -521,26 +501,13 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                 </div>
             </section>
 
-            <form method="post" id="bulkForm" action="<?= ib_h(ib_current_url()) ?>">
-                <?= csrf_field() ?>
-                <input type="hidden" name="action" value="bulk_invoice">
-
-                <div class="bulk-bar">
-                    <label style="display:inline-flex;align-items:center;gap:6px;font-weight:800;">
-                        <input type="checkbox" id="bulkAll"> Selectează tot
-                    </label>
-                    <span class="bulk-count"><span id="bulkCount">0</span> selectate</span>
-                    <span class="bulk-spacer"></span>
-                    <button class="btn accent" type="submit">Facturează selecția</button>
-                </div>
-
-                <section class="table-card">
-                    <div class="table-head">
-                        <div>
-                            <div class="table-title">Poziții de facturat</div>
-                            <div class="table-subtitle"><?= count($rows) ?> rezultate. Selectează poziții ale aceluiași client pentru o factură combinată.</div>
-                        </div>
+            <section class="table-card">
+                <div class="table-head">
+                    <div>
+                        <div class="table-title">Poziții de facturat</div>
+                        <div class="table-subtitle"><?= count($rows) ?> rezultate.</div>
                     </div>
+                </div>
 
                     <?php if (!$rows): ?>
                         <div class="empty-state">Nicio poziție pentru filtrele selectate.</div>
@@ -560,15 +527,10 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                         ?>
                             <article class="work-card">
                                 <div class="work-main">
-                                    <div style="display:flex;gap:10px;align-items:flex-start;">
-                                        <?php if ($canSelect): ?>
-                                            <input type="checkbox" name="billing_item_ids[]" value="<?= (int)$row['id'] ?>" class="js-bulk-check" data-client="<?= (int)$row['client_id'] ?>" style="margin-top:4px;width:18px;height:18px;">
-                                        <?php endif; ?>
-                                        <div>
-                                            <div class="work-title"><?= ib_h($row['client_name'] ?: 'Client') ?></div>
-                                            <div class="work-meta"><?= ib_h($row['work_date'] ?? '-') ?> · <?= ib_h(ib_service_label($row)) ?></div>
-                                            <div class="work-meta"><?= ib_h(ib_effective_location($row)) ?></div>
-                                        </div>
+                                    <div>
+                                        <div class="work-title"><?= ib_h($row['client_name'] ?: 'Client') ?></div>
+                                        <div class="work-meta"><?= ib_h($row['work_date'] ?? '-') ?> · <?= ib_h(ib_service_label($row)) ?></div>
+                                        <div class="work-meta"><?= ib_h(ib_effective_location($row)) ?></div>
                                     </div>
                                     <div class="work-amount">
                                         <div class="work-amount-label">Valoare</div>
@@ -650,7 +612,6 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                             <table class="ib-table js-resizable">
                                 <thead>
                                     <tr>
-                                        <th style="width:34px;"></th>
                                         <th data-col="data">Data</th>
                                         <th data-col="client">Client</th>
                                         <th data-col="locatie">Locație</th>
@@ -676,11 +637,6 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                                     $canSelect = !$isDone;
                                 ?>
                                     <tr>
-                                        <td>
-                                            <?php if ($canSelect): ?>
-                                                <input type="checkbox" name="billing_item_ids[]" value="<?= (int)$row['id'] ?>" class="js-bulk-check" data-client="<?= (int)$row['client_id'] ?>">
-                                            <?php endif; ?>
-                                        </td>
                                         <td>
                                             <div class="cell-title"><?= ib_h($row['work_date'] ?? '-') ?></div>
                                             <?php if (!empty($row['start_time'])): ?><div class="cell-muted"><?= ib_h(substr((string)$row['start_time'], 0, 5)) ?></div><?php endif; ?>
@@ -753,7 +709,6 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                         </div>
                     <?php endif; ?>
                 </section>
-            </form>
         </div>
     </main>
 </div>
@@ -910,52 +865,6 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
         });
     });
 
-    // Selecție în masă: validare client unic + actualizare contor
-    var bulkAll = document.getElementById('bulkAll');
-    var checks = document.querySelectorAll('.js-bulk-check');
-    var counter = document.getElementById('bulkCount');
-    var bulkForm = document.getElementById('bulkForm');
-
-    function updateCount() {
-        var selected = document.querySelectorAll('.js-bulk-check:checked');
-        if (counter) counter.textContent = String(selected.length);
-        var clients = new Set();
-        selected.forEach(function (c) { clients.add(c.getAttribute('data-client')); });
-        // Marchează vizual conflictele dacă există mai mulți clienți
-        document.querySelectorAll('.js-bulk-check').forEach(function (c) {
-            c.style.outline = '';
-        });
-        if (clients.size > 1) {
-            selected.forEach(function (c) { c.style.outline = '2px solid #e11d48'; });
-        }
-    }
-
-    if (bulkAll) {
-        bulkAll.addEventListener('change', function () {
-            checks.forEach(function (c) { c.checked = bulkAll.checked; });
-            updateCount();
-        });
-    }
-    checks.forEach(function (c) {
-        c.addEventListener('change', updateCount);
-    });
-
-    if (bulkForm) {
-        bulkForm.addEventListener('submit', function (e) {
-            var selected = document.querySelectorAll('.js-bulk-check:checked');
-            if (selected.length === 0) {
-                e.preventDefault();
-                alert('Selectează cel puțin o poziție.');
-                return;
-            }
-            var clients = new Set();
-            selected.forEach(function (c) { clients.add(c.getAttribute('data-client')); });
-            if (clients.size > 1) {
-                e.preventDefault();
-                alert('Nu poți emite o singură factură pentru clienți diferiți.');
-            }
-        });
-    }
 })();
 </script>
 
