@@ -611,7 +611,7 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 .mc-ring-card.op .head .label, .mc-ring-card.op .head .sub { color: #1E40AF; }
 .mc-ring-card.fin .head .label, .mc-ring-card.fin .head .sub { color: var(--mc-or-deep); }
 .mc-ring-card.team .head .label, .mc-ring-card.team .head .sub { color: var(--mc-gr-deep); }
-.mc-ring-card .head .ico { font-size: 20px; opacity: 0.9; }
+.mc-ring-card .head .ico { font-size: 20px; opacity: 0.9; margin-right: 36px; }
 .mc-ring-card.op .head .ico { color: #1E40AF; }
 .mc-ring-card.fin .head .ico { color: var(--mc-or-deep); }
 .mc-ring-card.team .head .ico { color: var(--mc-gr-deep); }
@@ -709,18 +709,21 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 }
 .mc-leader-empty i { font-size: 24px; }
 
-/* Setări (cog) - dropdown per card */
+/* Setări (cog) - buton vizibil în colțul cardului */
 .mc-cog {
     position: absolute; top: 12px; right: 12px;
-    width: 28px; height: 28px; border-radius: 6px;
-    border: 0.5px solid transparent;
-    background: rgba(255,255,255,0.5);
+    width: 30px; height: 30px; border-radius: 8px;
+    border: 0.5px solid rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.95);
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-size: 14px; color: inherit; opacity: 0.6;
-    transition: opacity 0.15s, background 0.15s;
+    cursor: pointer; font-size: 15px; color: var(--mc-text);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    z-index: 5;
 }
-.mc-cog:hover { opacity: 1; background: rgba(255,255,255,0.9); }
-.mc-cog.active { opacity: 1; background: #FFF; border-color: var(--mc-line); }
+.mc-cog:hover { background: #FFF; border-color: rgba(15, 23, 42, 0.18); transform: rotate(45deg); }
+.mc-cog.active { background: var(--mc-navy); border-color: var(--mc-navy); color: #FFF; transform: rotate(45deg); }
+.mc-cog i { display: block; }
 .mc-cog-menu {
     position: absolute; top: 44px; right: 12px;
     background: var(--mc-surf); border: 0.5px solid var(--mc-line);
