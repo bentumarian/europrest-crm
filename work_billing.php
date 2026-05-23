@@ -567,18 +567,12 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                         <div class="work-amount-label">Valoare</div>
                                         <div class="work-amount-value"><?= ib_h(ib_money_label($row['total_net'] ?? 0)) ?></div>
                                         <?php if (!$isDone): ?>
-                                            <form method="post" class="amount-form" action="<?= ib_h(ib_current_url()) ?>" style="margin-top:9px">
+                                            <form method="post" class="amount-form js-amount-autosave" action="<?= ib_h(ib_current_url()) ?>" style="margin-top:9px">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="action" value="save_amount">
                                                 <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
-                                                <input type="number" name="billing_amount" step="0.01" min="0" value="<?= ib_h(ib_money_input($row['total_net'] ?? 0)) ?>" aria-label="Valoare fără TVA">
-                                                <select name="billing_vat_code" aria-label="Cotă TVA">
-                                                    <?php foreach ($smartbillVatOptions as $code => $label):
-                                                        if (!in_array($code, $smartbillAllowedVatCodes, true)) continue; ?>
-                                                        <option value="<?= ib_h($code) ?>" <?= ((string)$row['vat_code'] === (string)$code) ? 'selected' : '' ?>><?= ib_h($label) ?></option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                                <button class="ib-small-btn muted amount-save" type="submit" title="Salvează valoarea">OK</button>
+                                                <input type="hidden" name="billing_vat_code" value="<?= ib_h((string)$row['vat_code'] ?: $smartbillDefaultVatCode) ?>">
+                                                <input type="number" name="billing_amount" step="0.01" min="0" value="<?= ib_h(ib_money_input($row['total_net'] ?? 0)) ?>" aria-label="Valoare fără TVA" placeholder="0,00">
                                             </form>
                                         <?php endif; ?>
                                     </div>
@@ -693,18 +687,12 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                             <?php if ($isDone): ?>
                                                 <strong><?= ib_h(ib_money_label($row['total_net'] ?? 0)) ?></strong>
                                             <?php else: ?>
-                                                <form method="post" class="amount-form" action="<?= ib_h(ib_current_url()) ?>">
+                                                <form method="post" class="amount-form js-amount-autosave" action="<?= ib_h(ib_current_url()) ?>">
                                                     <?= csrf_field() ?>
                                                     <input type="hidden" name="action" value="save_amount">
                                                     <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
-                                                    <input type="number" name="billing_amount" step="0.01" min="0" value="<?= ib_h(ib_money_input($row['total_net'] ?? 0)) ?>" aria-label="Valoare fără TVA">
-                                                    <select name="billing_vat_code">
-                                                        <?php foreach ($smartbillVatOptions as $code => $label):
-                                                            if (!in_array($code, $smartbillAllowedVatCodes, true)) continue; ?>
-                                                            <option value="<?= ib_h($code) ?>" <?= ((string)$row['vat_code'] === (string)$code) ? 'selected' : '' ?>><?= ib_h($label) ?></option>
-                                                        <?php endforeach; ?>
-                                                    </select>
-                                                    <button class="ib-small-btn muted amount-save" type="submit">OK</button>
+                                                    <input type="hidden" name="billing_vat_code" value="<?= ib_h((string)$row['vat_code'] ?: $smartbillDefaultVatCode) ?>">
+                                                    <input type="number" name="billing_amount" step="0.01" min="0" value="<?= ib_h(ib_money_input($row['total_net'] ?? 0)) ?>" aria-label="Valoare fără TVA" placeholder="0,00">
                                                 </form>
                                             <?php endif; ?>
                                         </td>
@@ -755,6 +743,27 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         trigger.style.display = 'none';
         var input = form.querySelector('input[name="billing_note"]');
         if (input) input.focus();
+    });
+
+    // Auto-save pe blur sau Enter pentru valoarea de facturat (am scos butonul OK).
+    // Memoreaza valoarea initiala; daca s-a schimbat la blur/Enter, submit form-ul.
+    document.querySelectorAll('.js-amount-autosave input[name="billing_amount"]').forEach(function (input) {
+        var initial = input.value;
+        input.addEventListener('focus', function () { initial = input.value; });
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                input.blur();
+            }
+        });
+        input.addEventListener('blur', function () {
+            if (input.value === initial) return;
+            if (input.value === '' || isNaN(parseFloat(input.value))) {
+                input.value = initial;
+                return;
+            }
+            input.closest('form').submit();
+        });
     });
 
     // Selecție în masă: validare client unic + actualizare contor
