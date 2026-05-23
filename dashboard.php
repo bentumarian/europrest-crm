@@ -97,12 +97,17 @@ $today = date('Y-m-d');
 $hasAppointments      = dash_table_exists($pdo, 'appointments');
 $hasTasks             = dash_table_exists($pdo, 'tasks');
 $hasClients           = dash_table_exists($pdo, 'clients');
+$hasServices          = dash_table_exists($pdo, 'services');
 $hasTeamMembers       = dash_table_exists($pdo, 'team_members');
 $hasAppointmentTeams  = dash_table_exists($pdo, 'appointment_teams');
 $hasDocuments         = dash_table_exists($pdo, 'documents');
 $hasSmartbillInvoices = dash_table_exists($pdo, 'smartbill_invoices');
 $hasSmartbillPayments = dash_table_exists($pdo, 'smartbill_invoice_payments');
+$hasBillingItems      = dash_table_exists($pdo, 'billing_items');
 $hasBillingColumns    = $hasAppointments && dash_column_exists($pdo, 'appointments', 'billing_amount') && dash_column_exists($pdo, 'appointments', 'billing_status');
+$hasStockProducts     = dash_table_exists($pdo, 'stock_products');
+$hasStockReceipts     = dash_table_exists($pdo, 'stock_receipts');
+$hasStockMovements    = dash_table_exists($pdo, 'stock_movements');
 $hasTaskStopped       = $hasTasks && dash_column_exists($pdo, 'tasks', 'recurrence_stopped');
 $taskActiveWhere      = $hasTaskStopped ? "AND recurrence_stopped = 0" : "";
 
@@ -127,7 +132,12 @@ $tasksToSchedule = $hasTasks ? (int)dash_value($pdo, "SELECT COUNT(*) FROM tasks
 $finDueCount = $finDueAmount = 0;
 $finIssued = $finPaid = 0;
 $finIssuedCount = 0;
-if ($hasBillingColumns) {
+// Preferăm billing_items (sursa folosită de Lista lucrări). Fallback la appointments.billing_status pentru instalări vechi.
+if ($hasBillingItems) {
+    $r = dash_rows($pdo, "SELECT COUNT(*) AS c, COALESCE(SUM(total_net),0) AS s FROM billing_items WHERE status='to_invoice' AND work_date BETWEEN ? AND ?", [$finStart, $finEnd]);
+    $finDueCount  = (int)($r[0]['c'] ?? 0);
+    $finDueAmount = (float)($r[0]['s'] ?? 0);
+} elseif ($hasBillingColumns) {
     $r = dash_rows($pdo, "SELECT COUNT(*) AS c, COALESCE(SUM(billing_amount),0) AS s FROM appointments WHERE status='finalizata' AND billing_status='de_facturat' AND appointment_date BETWEEN ? AND ?", [$finStart, $finEnd]);
     $finDueCount  = (int)($r[0]['c'] ?? 0);
     $finDueAmount = (float)($r[0]['s'] ?? 0);
@@ -219,6 +229,109 @@ if ($hasTasks && $tasksOverdue > 0) {
         $urgentTask['days_late'] = max(0, (int)floor((strtotime($today) - strtotime((string)$urgentTask['due_date'])) / 86400));
     }
 }
+
+/* ────────────────────────────────────────────────────────────────────────
+   MINI CARDURI (linie cu 4 statistici compacte)
+   ──────────────────────────────────────────────────────────────────────── */
+
+// Stocuri: produse sub stoc minim + loturi expirate cu stoc
+$stockLowCount = 0;
+$stockExpiredCount = 0;
+if ($hasStockProducts && $hasStockReceipts && $hasStockMovements
+    && dash_column_exists($pdo, 'stock_products', 'min_qty')
+    && dash_column_exists($pdo, 'stock_products', 'is_active')) {
+    $stockLowCount = (int)dash_value($pdo, "
+        SELECT COUNT(*) FROM (
+            SELECT p.id, p.min_qty,
+                (COALESCE(r.in_qty,0) + COALESCE(m.plus_qty,0) - COALESCE(m.minus_qty,0)) AS current_qty
+            FROM stock_products p
+            LEFT JOIN (SELECT product_id, SUM(qty) AS in_qty FROM stock_receipts GROUP BY product_id) r ON r.product_id = p.id
+            LEFT JOIN (
+                SELECT product_id,
+                    SUM(CASE WHEN movement_type IN ('adjust_plus','return') THEN qty ELSE 0 END) AS plus_qty,
+                    SUM(CASE WHEN movement_type IN ('consume','adjust_minus','loss','expired') THEN qty ELSE 0 END) AS minus_qty
+                FROM stock_movements GROUP BY product_id
+            ) m ON m.product_id = p.id
+            WHERE p.is_active = 1
+        ) x WHERE x.min_qty > 0 AND x.current_qty <= x.min_qty
+    ");
+}
+if ($hasStockReceipts && dash_column_exists($pdo, 'stock_receipts', 'expires_at') && dash_column_exists($pdo, 'stock_receipts', 'cancelled_at')) {
+    $stockExpiredCount = (int)dash_value($pdo, "
+        SELECT COUNT(*) FROM stock_receipts r
+        WHERE r.cancelled_at IS NULL AND r.expires_at IS NOT NULL AND r.expires_at < ?
+    ", [$today]);
+}
+$stockAlertsTotal = $stockLowCount + $stockExpiredCount;
+
+// Documente emise în perioada Operațional (oferte / contracte / PV / act adițional)
+$docsIssuedCount = 0;
+$docsByType = ['oferta' => 0, 'contract' => 0, 'proces_verbal' => 0, 'act_aditional' => 0];
+if ($hasDocuments && dash_column_exists($pdo, 'documents', 'document_type') && dash_column_exists($pdo, 'documents', 'document_date')) {
+    $rows = dash_rows($pdo, "SELECT document_type, COUNT(*) AS c FROM documents WHERE status='issued' AND document_date BETWEEN ? AND ? GROUP BY document_type", [$opStart, $opEnd]);
+    foreach ($rows as $r) {
+        $type = (string)$r['document_type'];
+        $cnt = (int)$r['c'];
+        $docsIssuedCount += $cnt;
+        if (isset($docsByType[$type])) $docsByType[$type] = $cnt;
+    }
+}
+
+// PV emise în alb (consum amânat)
+$deferredPvCount = 0;
+if ($hasDocuments && dash_column_exists($pdo, 'documents', 'payload_json')) {
+    $deferredPvCount = (int)dash_value($pdo, "
+        SELECT COUNT(*) FROM documents
+        WHERE document_type = 'proces_verbal'
+          AND status = 'issued'
+          AND payload_json LIKE '%\"stock_consumption_deferred\":\"1\"%'
+    ");
+}
+
+// Clienți activi (cu programări în perioada Operațional)
+$activeClients = 0;
+if ($hasAppointments && $hasClients) {
+    $activeClients = (int)dash_value($pdo, "
+        SELECT COUNT(DISTINCT client_id) FROM appointments
+        WHERE appointment_date BETWEEN ? AND ? AND status != 'anulata' AND client_id IS NOT NULL
+    ", [$opStart, $opEnd]);
+}
+$totalClients = $hasClients ? (int)dash_value($pdo, "SELECT COUNT(*) FROM clients") : 0;
+
+/* ────────────────────────────────────────────────────────────────────────
+   DISTRIBUȚIE STATUS PROGRAMĂRI (donut chart, în perioada Operațional)
+   ──────────────────────────────────────────────────────────────────────── */
+
+$statusBreakdown = [
+    'finalizata'   => ['label' => 'Finalizate',   'count' => 0, 'color' => '#22C55E'],
+    'in_lucru'     => ['label' => 'În lucru',     'count' => 0, 'color' => '#F97316'],
+    'confirmata'   => ['label' => 'Confirmate',   'count' => 0, 'color' => '#185FA5'],
+    'neconfirmata' => ['label' => 'Neconfirmate', 'count' => 0, 'color' => '#94A3B8'],
+    'anulata'      => ['label' => 'Anulate',      'count' => 0, 'color' => '#DC2626'],
+];
+if ($hasAppointments) {
+    $rows = dash_rows($pdo, "SELECT status, COUNT(*) AS c FROM appointments WHERE appointment_date BETWEEN ? AND ? GROUP BY status", [$opStart, $opEnd]);
+    foreach ($rows as $r) {
+        $st = (string)$r['status'];
+        if (isset($statusBreakdown[$st])) $statusBreakdown[$st]['count'] = (int)$r['c'];
+    }
+}
+$statusTotal = array_sum(array_map(fn($s) => $s['count'], $statusBreakdown));
+
+/* ────────────────────────────────────────────────────────────────────────
+   TOP SERVICII (bar chart, în perioada Operațional)
+   ──────────────────────────────────────────────────────────────────────── */
+
+$topServices = [];
+if ($hasAppointments) {
+    $topServices = dash_rows($pdo, "
+        SELECT COALESCE(NULLIF(service_type,''),'Fără serviciu') AS service_name, COUNT(*) AS total
+        FROM appointments
+        WHERE appointment_date BETWEEN ? AND ? AND status != 'anulata'
+        GROUP BY service_name ORDER BY total DESC LIMIT 5
+    ", [$opStart, $opEnd]);
+}
+$topServiceMax = max(1, ...array_map(fn($r) => (int)($r['total'] ?? 0), $topServices ?: [['total' => 1]]));
 
 /* ────────────────────────────────────────────────────────────────────────
    TREND 6 LUNI (pentru banner navy)
@@ -385,6 +498,51 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 .mc-agenda-row .tech { font-size: 11px; color: var(--mc-muted); }
 .mc-agenda-empty { font-size: 12px; color: var(--mc-faint); text-align: center; padding: 16px 0; }
 
+/* Mini stat cards (linie 4 carduri compacte sub ringuri) */
+.mc-mini-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.mc-mini {
+    background: var(--mc-surf); border: 0.5px solid var(--mc-line); border-radius: 10px;
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;
+    text-decoration: none; color: var(--mc-text);
+    transition: border-color 0.15s, background 0.15s;
+}
+.mc-mini:hover { border-color: var(--mc-line); background: #FAFAFB; }
+.mc-mini.alert { background: var(--mc-re-soft); border-color: var(--mc-re-border); }
+.mc-mini.warn  { background: var(--mc-or-soft); border-color: var(--mc-or-border); }
+.mc-mini.info  { background: var(--mc-bl-soft); border-color: var(--mc-bl-border); }
+.mc-mini .top { display: flex; justify-content: space-between; align-items: center; }
+.mc-mini .top .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mc-muted); font-weight: 500; }
+.mc-mini.alert .top .label { color: var(--mc-re-deep); }
+.mc-mini.warn  .top .label { color: var(--mc-or-deep); }
+.mc-mini.info  .top .label { color: #1E40AF; }
+.mc-mini .top .ico { font-size: 16px; color: var(--mc-faint); }
+.mc-mini.alert .top .ico { color: var(--mc-re); }
+.mc-mini.warn  .top .ico { color: var(--mc-or); }
+.mc-mini.info  .top .ico { color: var(--mc-bl); }
+.mc-mini .value { font-size: 22px; font-weight: 500; color: var(--mc-text); line-height: 1.15; }
+.mc-mini.alert .value { color: var(--mc-re-deep); }
+.mc-mini.warn  .value { color: var(--mc-or-deep); }
+.mc-mini.info  .value { color: #1E40AF; }
+.mc-mini .sub { font-size: 11.5px; color: var(--mc-muted); }
+.mc-mini.alert .sub { color: var(--mc-re-deep); opacity: 0.85; }
+.mc-mini.warn  .sub { color: var(--mc-or-deep); opacity: 0.85; }
+.mc-mini.info  .sub { color: #1E40AF; opacity: 0.85; }
+
+/* Charts row (donut status programări + bar top servicii) */
+.mc-charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mc-legend { display: flex; flex-direction: column; gap: 6px; font-size: 12px; flex: 1; }
+.mc-legend .row { display: flex; align-items: center; gap: 8px; }
+.mc-legend .sw { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.mc-legend .name { flex: 1; color: var(--mc-text); }
+.mc-legend .val { color: var(--mc-muted); font-variant-numeric: tabular-nums; font-weight: 500; }
+
+.mc-bars { display: flex; flex-direction: column; gap: 10px; }
+.mc-bar-row .top { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; margin-bottom: 4px; }
+.mc-bar-row .top .nm { color: var(--mc-text); font-weight: 500; }
+.mc-bar-row .top .val { color: var(--mc-muted); font-variant-numeric: tabular-nums; }
+.mc-bar-row .track { height: 6px; background: var(--mc-line-soft); border-radius: 999px; overflow: hidden; }
+.mc-bar-row .fill { height: 100%; background: var(--mc-bl); border-radius: 999px; }
+
 .mc-banner {
     background: var(--mc-navy); color: #FFF; border-radius: 12px;
     padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px;
@@ -398,6 +556,11 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 @media (max-width: 980px) {
     .mc-rings { grid-template-columns: 1fr; }
     .mc-secondary { grid-template-columns: 1fr; }
+    .mc-mini-row { grid-template-columns: repeat(2, 1fr); }
+    .mc-charts-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+    .mc-mini-row { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -519,6 +682,63 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                 </div>
             </div>
 
+            <!-- Mini stat cards: stocuri / documente / PV alb / clienți activi -->
+            <div class="mc-mini-row">
+                <a class="mc-mini <?= $stockAlertsTotal > 0 ? 'alert' : '' ?>" href="stock_notifications.php">
+                    <div class="top">
+                        <span class="label">Alerte gestiune</span>
+                        <i class="ti ti-package-export ico" aria-hidden="true"></i>
+                    </div>
+                    <div class="value"><?= (int)$stockAlertsTotal ?></div>
+                    <div class="sub">
+                        <?php if ($stockAlertsTotal === 0): ?>
+                            stoc în parametri
+                        <?php else: ?>
+                            <?= $stockLowCount ?> sub minim · <?= $stockExpiredCount ?> expirate
+                        <?php endif; ?>
+                    </div>
+                </a>
+
+                <a class="mc-mini info" href="documente.php">
+                    <div class="top">
+                        <span class="label">Documente <?= dash_h(strtolower($opLabel)) ?></span>
+                        <i class="ti ti-file-text ico" aria-hidden="true"></i>
+                    </div>
+                    <div class="value"><?= (int)$docsIssuedCount ?></div>
+                    <div class="sub">
+                        <?php if ($docsIssuedCount === 0): ?>
+                            niciun document emis
+                        <?php else: ?>
+                            <?= $docsByType['proces_verbal'] ?> PV · <?= $docsByType['contract'] ?> contracte · <?= $docsByType['oferta'] ?> oferte
+                        <?php endif; ?>
+                    </div>
+                </a>
+
+                <a class="mc-mini <?= $deferredPvCount > 0 ? 'warn' : '' ?>" href="stock_deferred_pvs.php">
+                    <div class="top">
+                        <span class="label">PV fără consum</span>
+                        <i class="ti ti-clipboard-list ico" aria-hidden="true"></i>
+                    </div>
+                    <div class="value"><?= (int)$deferredPvCount ?></div>
+                    <div class="sub">
+                        <?php if ($deferredPvCount === 0): ?>
+                            toate consumurile sunt închise
+                        <?php else: ?>
+                            de finalizat manual
+                        <?php endif; ?>
+                    </div>
+                </a>
+
+                <a class="mc-mini" href="clients.php">
+                    <div class="top">
+                        <span class="label">Clienți activi</span>
+                        <i class="ti ti-building-store ico" aria-hidden="true"></i>
+                    </div>
+                    <div class="value"><?= (int)$activeClients ?><span style="font-size:14px;color:var(--mc-faint);font-weight:500;">/<?= (int)$totalClients ?></span></div>
+                    <div class="sub"><?= dash_h(strtolower($opLabel)) ?> · cu programări</div>
+                </a>
+            </div>
+
             <!-- Secundar: alertă + agenda -->
             <div class="mc-secondary">
 
@@ -570,6 +790,84 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                                 <?php endif; ?>
                             </div>
                         <?php endforeach; endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts: distribuție status + top servicii -->
+            <div class="mc-charts-row">
+                <!-- Donut: Distribuție status programări -->
+                <div class="mc-card">
+                    <div class="head">
+                        <div class="title"><i class="ti ti-chart-pie" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Distribuție status programări</div>
+                        <div class="meta"><?= dash_h(strtolower($opLabel)) ?></div>
+                    </div>
+                    <div class="body" style="display:flex;align-items:center;gap:16px;">
+                        <?php if ($statusTotal === 0): ?>
+                            <div class="mc-agenda-empty" style="width:100%">Nicio programare în perioadă.</div>
+                        <?php else: ?>
+                            <svg viewBox="0 0 130 130" width="130" height="130" role="img" aria-label="Distribuție status programări">
+                                <circle cx="65" cy="65" r="52" fill="none" stroke="#E5E7EB" stroke-width="16"/>
+                                <?php
+                                    $offset = 0;
+                                    $circumference = 326.7;
+                                    foreach ($statusBreakdown as $st => $info):
+                                        if ($info['count'] === 0) continue;
+                                        $pct = $info['count'] / $statusTotal;
+                                        $dash = round($circumference * $pct, 1);
+                                        $rem = round($circumference - $dash, 1);
+                                ?>
+                                    <circle cx="65" cy="65" r="52" fill="none"
+                                            stroke="<?= dash_h($info['color']) ?>" stroke-width="16"
+                                            stroke-dasharray="<?= $dash ?> <?= $rem ?>"
+                                            stroke-dashoffset="<?= -round($offset, 1) ?>"
+                                            transform="rotate(-90 65 65)"/>
+                                <?php
+                                        $offset += $dash;
+                                    endforeach;
+                                ?>
+                                <text x="65" y="62" text-anchor="middle" font-size="22" font-weight="500" fill="var(--mc-navy)"><?= (int)$statusTotal ?></text>
+                                <text x="65" y="80" text-anchor="middle" font-size="10" fill="var(--mc-muted)">total</text>
+                            </svg>
+                            <div class="mc-legend">
+                                <?php foreach ($statusBreakdown as $st => $info): ?>
+                                    <?php if ($info['count'] === 0) continue; ?>
+                                    <div class="row">
+                                        <span class="sw" style="background:<?= dash_h($info['color']) ?>"></span>
+                                        <span class="name"><?= dash_h($info['label']) ?></span>
+                                        <span class="val"><?= (int)$info['count'] ?> · <?= round($info['count'] / $statusTotal * 100) ?>%</span>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Bar: Top servicii -->
+                <div class="mc-card">
+                    <div class="head">
+                        <div class="title"><i class="ti ti-chart-bar" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Top servicii</div>
+                        <div class="meta"><?= dash_h(strtolower($opLabel)) ?></div>
+                    </div>
+                    <div class="body">
+                        <?php if (!$topServices): ?>
+                            <div class="mc-agenda-empty">Niciun serviciu prestat.</div>
+                        <?php else: ?>
+                            <div class="mc-bars">
+                                <?php foreach ($topServices as $srv):
+                                    $cnt = (int)$srv['total'];
+                                    $pct = $topServiceMax > 0 ? min(100, round($cnt / $topServiceMax * 100)) : 0;
+                                ?>
+                                    <div class="mc-bar-row">
+                                        <div class="top">
+                                            <span class="nm"><?= dash_h($srv['service_name']) ?></span>
+                                            <span class="val"><?= $cnt ?> lucr<?= $cnt === 1 ? 'are' : 'ări' ?></span>
+                                        </div>
+                                        <div class="track"><div class="fill" style="width:<?= $pct ?>%"></div></div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
