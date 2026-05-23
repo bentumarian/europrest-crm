@@ -705,9 +705,13 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 .pv-defer-consumption input { width:16px; height:16px; margin:0; accent-color:#dc2626; }
 .pv-defer-consumption small { color:#b91c1c; font-weight:700; opacity:.78; }
 
-/* Selector șablon PV - radio cards */
-.pv-template-picker { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px; margin-top:4px; }
+/* Selector șablon PV - radio cards mereu pe o singură linie */
+.pv-template-picker {
+    display:flex; gap:8px; margin-top:4px;
+    flex-wrap:nowrap; /* nu trece pe rând nou nici pe mobil */
+}
 .pv-template-card {
+    flex:1 1 0; min-width:0; /* shrink proporțional */
     display:flex; align-items:center; gap:8px;
     padding:10px 12px; border:1px solid var(--border, #E2E8F0); border-radius:8px;
     background:#FFF; cursor:pointer;
@@ -720,11 +724,21 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 .pv-template-card:has(input:checked) {
     border-color:#2563eb; background:#EFF6FF; box-shadow:0 0 0 2px rgba(37,99,235,.15);
 }
-.pv-template-name { flex:1; }
+.pv-template-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .pv-template-badge {
     font-size:10px; padding:2px 7px; border-radius:999px;
     background:#DBEAFE; color:#1E40AF; font-weight:500;
     text-transform:uppercase; letter-spacing:.04em;
+    flex-shrink:0;
+}
+/* Mobil: cardurile devin mai compacte ca să încapă toate pe un rând */
+@media (max-width: 560px) {
+    .pv-template-card { padding:8px 9px; font-size:12px; gap:6px; }
+    .pv-template-card input { width:14px; height:14px; }
+    .pv-template-badge { font-size:9px; padding:1px 5px; }
+}
+@media (max-width: 380px) {
+    .pv-template-badge { display:none; } /* badge implicit ascuns pe ecrane foarte mici */
 }
 @media (max-width:700px) { .pv-quick-summary-grid { grid-template-columns:1fr; } .pv-quick-summary { padding:13px; border-radius:18px; } }
 
