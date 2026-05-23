@@ -379,32 +379,39 @@ if (!function_exists('app_topbar')) {
                         </button>
                         <div class="tb-dropdown" role="menu">
                             <div class="tb-dropdown-header">Adaugă rapid</div>
-                            <a class="tb-dropdown-item tone-info" role="menuitem" href="calendar.php?date=<?= date('Y-m-d') ?>&view=day&open_create=1">
-                                <span class="tdi-icon"><?= app_icon_svg('calendar') ?></span>
-                                <span>
-                                    <span class="tdi-label">Programare nouă</span>
-                                    <span class="tdi-sub">Lucrare in calendar</span>
-                                </span>
-                            </a>
                             <a class="tb-dropdown-item" role="menuitem" href="clients.php?open_create=1">
                                 <span class="tdi-icon"><?= app_icon_svg('clients') ?></span>
                                 <span>
-                                    <span class="tdi-label">Client nou</span>
+                                    <span class="tdi-label">Client</span>
                                     <span class="tdi-sub">Adaugă firmă sau persoană</span>
+                                </span>
+                            </a>
+                            <a class="tb-dropdown-item tone-info" role="menuitem" href="contracts.php?new=1">
+                                <span class="tdi-icon"><?= app_icon_svg('contracts') ?></span>
+                                <span>
+                                    <span class="tdi-label">Contract</span>
+                                    <span class="tdi-sub">Emite contract nou</span>
+                                </span>
+                            </a>
+                            <a class="tb-dropdown-item tone-success" role="menuitem" href="invoice.php">
+                                <span class="tdi-icon"><?= app_icon_svg('invoice') ?></span>
+                                <span>
+                                    <span class="tdi-label">Factură</span>
+                                    <span class="tdi-sub">Emite factură nouă</span>
+                                </span>
+                            </a>
+                            <a class="tb-dropdown-item tone-success" role="menuitem" href="incasari.php">
+                                <span class="tdi-icon"><?= app_icon_svg('invoice') ?></span>
+                                <span>
+                                    <span class="tdi-label">Încasare</span>
+                                    <span class="tdi-sub">Înregistrează plată</span>
                                 </span>
                             </a>
                             <a class="tb-dropdown-item tone-warning" role="menuitem" href="tasks.php?open_create=1">
                                 <span class="tdi-icon"><?= app_icon_svg('tasks') ?></span>
                                 <span>
-                                    <span class="tdi-label">Sarcină nouă</span>
-                                    <span class="tdi-sub">In backlog</span>
-                                </span>
-                            </a>
-                            <a class="tb-dropdown-item tone-success" role="menuitem" href="service-reports?new=1">
-                                <span class="tdi-icon"><?= app_icon_svg('processes') ?></span>
-                                <span>
-                                    <span class="tdi-label">Emite PV</span>
-                                    <span class="tdi-sub">Proces verbal nou</span>
+                                    <span class="tdi-label">Sarcină</span>
+                                    <span class="tdi-sub">Adaugă în backlog</span>
                                 </span>
                             </a>
                         </div>
