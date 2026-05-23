@@ -1256,6 +1256,27 @@ if (!$invoiceItems) {
 
         /* Payment form */
         .payment-card { border:1px solid var(--pz-line); border-radius:var(--pz-r); background:#fff; padding:11px; margin-top:8px; }
+        /* Toggle pentru formul de incasare manuala - ascuns implicit, expand la click. */
+        .payment-toggle { margin-top:8px; }
+        .payment-toggle > summary {
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+            cursor:pointer;
+            list-style:none;
+            border:1px solid var(--pz-line);
+            background:var(--surface, #fff);
+            color:var(--text);
+            border-radius:var(--pz-rs);
+            padding:7px 13px;
+            font-size:12.5px;
+            font-weight:700;
+            user-select:none;
+        }
+        .payment-toggle > summary::-webkit-details-marker { display:none; }
+        .payment-toggle > summary::before { content:"+"; font-weight:900; font-size:14px; color:var(--pz-mu); }
+        .payment-toggle[open] > summary::before { content:"−"; }
+        .payment-toggle > summary:hover { background:var(--pz-soft); }
         .payment-compact { display:grid; grid-template-columns:1fr 110px 110px; gap:8px; align-items:end; }
         .payment-methods { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:7px; }
         .payment-methods label { display:flex; align-items:center; gap:7px; border:1px solid var(--pz-line); border-radius:var(--pz-rs); padding:8px; margin:0; text-transform:none; letter-spacing:0; color:var(--text); font-size:12.5px; font-weight:600; cursor:pointer; }
@@ -1707,29 +1728,32 @@ if (!$invoiceItems) {
                 </form>
 
                 <?php if ($loadedRemaining > 0): ?>
-                <form method="post" class="payment-card">
-                    <?= function_exists('csrf_field') ? csrf_field() : '' ?>
-                    <input type="hidden" name="action" value="add_payment">
-                    <input type="hidden" name="invoice_id" value="<?= (int)$loadedInvoice['id'] ?>">
-                    <div class="payment-methods">
-                        <?php foreach ($primaryPaymentTypes as $type => $label): ?>
-                            <label><input type="radio" name="payment_type" value="<?= inv_h($type) ?>" <?= $type === 'chitanta' ? 'checked' : '' ?>> <?= inv_h($label) ?></label>
-                        <?php endforeach; ?>
-                    </div>
-                    <div class="payment-compact">
-                        <div><label>Suma incasata</label><input type="number" step="0.01" min="0.01" max="<?= inv_h(number_format($loadedRemaining, 2, '.', '')) ?>" name="amount" value="<?= inv_h(number_format($loadedRemaining, 2, '.', '')) ?>"></div>
-                        <div><label>Data</label><input type="date" name="payment_date" value="<?= date('Y-m-d') ?>"></div>
-                        <div><label>Moneda</label><input name="currency" value="<?= inv_h($loadedInvoice['currency'] ?? 'RON') ?>"></div>
-                    </div>
-                    <div class="payment-extra">
-                        <div><label>Serie document</label><input name="document_series" value="<?= inv_h($settings['smartbill.receipt_series'] ?? '') ?>" placeholder="chitanta"></div>
-                        <div><label>Numar / referinta</label><input name="document_number" placeholder="OP / tranzactie card"></div>
-                        <div><label>Banca</label><input name="bank_name" placeholder="optional"></div>
-                        <div><label>Cont bancar</label><input name="bank_account" placeholder="optional"></div>
-                    </div>
-                    <div><label>Observatii incasare</label><textarea name="notes"></textarea></div>
-                    <div class="payment-submit"><button class="btn accent" type="submit">Emite incasarea in SmartBill</button></div>
-                </form>
+                <details class="payment-toggle">
+                    <summary>Înregistrează încasare manuală</summary>
+                    <form method="post" class="payment-card" style="margin-top:12px;">
+                        <?= function_exists('csrf_field') ? csrf_field() : '' ?>
+                        <input type="hidden" name="action" value="add_payment">
+                        <input type="hidden" name="invoice_id" value="<?= (int)$loadedInvoice['id'] ?>">
+                        <div class="payment-methods">
+                            <?php foreach ($primaryPaymentTypes as $type => $label): ?>
+                                <label><input type="radio" name="payment_type" value="<?= inv_h($type) ?>" <?= $type === 'chitanta' ? 'checked' : '' ?>> <?= inv_h($label) ?></label>
+                            <?php endforeach; ?>
+                        </div>
+                        <div class="payment-compact">
+                            <div><label>Suma incasata</label><input type="number" step="0.01" min="0.01" max="<?= inv_h(number_format($loadedRemaining, 2, '.', '')) ?>" name="amount" value="<?= inv_h(number_format($loadedRemaining, 2, '.', '')) ?>"></div>
+                            <div><label>Data</label><input type="date" name="payment_date" value="<?= date('Y-m-d') ?>"></div>
+                            <div><label>Moneda</label><input name="currency" value="<?= inv_h($loadedInvoice['currency'] ?? 'RON') ?>"></div>
+                        </div>
+                        <div class="payment-extra">
+                            <div><label>Serie document</label><input name="document_series" value="<?= inv_h($settings['smartbill.receipt_series'] ?? '') ?>" placeholder="chitanta"></div>
+                            <div><label>Numar / referinta</label><input name="document_number" placeholder="OP / tranzactie card"></div>
+                            <div><label>Banca</label><input name="bank_name" placeholder="optional"></div>
+                            <div><label>Cont bancar</label><input name="bank_account" placeholder="optional"></div>
+                        </div>
+                        <div><label>Observatii incasare</label><textarea name="notes"></textarea></div>
+                        <div class="payment-submit"><button class="btn accent" type="submit">Emite incasarea in SmartBill</button></div>
+                    </form>
+                </details>
                 <?php endif; ?>
 
                 <table class="payment-table">
