@@ -404,9 +404,10 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
 .ib-small-btn.primary:hover { background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; }
 .ib-small-btn.muted { background:var(--surface-soft); color:var(--muted); }
 .ib-small-btn.is-disabled, .ib-small-btn[disabled], .ib-small-btn:disabled { opacity:0.45; cursor:not-allowed; pointer-events:none; }
-.skip-inline { display:none; gap:6px; align-items:center; }
-.skip-inline.is-open { display:inline-flex; }
-.skip-inline input { width:160px; height:28px; border:1px solid var(--pz-orb); border-radius:4px; padding:0 8px; font-size:11px; }
+.skip-inline { display:none; gap:6px; align-items:center; margin-top:6px; }
+.skip-inline.is-open { display:flex; }
+.skip-inline input { flex:1; min-width:140px; max-width:240px; height:28px; border:1px solid var(--pz-orb); border-radius:4px; padding:0 8px; font-size:12px; background:#fff; }
+.skip-inline input:focus { outline:2px solid rgba(180,83,9,.25); }
 .empty-state { padding:34px; text-align:center; color:var(--muted); font-weight:800; }
 .bulk-bar { display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--surface-soft); border:1px solid var(--border); border-radius:6px; margin-bottom:10px; flex-wrap:wrap; }
 .bulk-bar .bulk-count { font-weight:900; }
@@ -620,7 +621,15 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                                     </div>
                                     <div class="work-box">
                                         <span>Motiv / Observații</span>
-                                        <strong><?= $note !== '' ? ib_h($note) : '-' ?></strong>
+                                        <strong data-note-display><?= $note !== '' ? ib_h($note) : '-' ?></strong>
+                                        <?php if (!$isInvoiced): ?>
+                                            <form method="post" class="skip-inline" data-skip-form="<?= (int)$row['id'] ?>" action="<?= ib_h(ib_current_url()) ?>">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="action" value="mark_not_billable">
+                                                <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
+                                                <input type="text" name="billing_note" placeholder="Motiv obligatoriu" required>
+                                            </form>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                                 <div class="work-actions">
@@ -716,7 +725,17 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                                                 </select>
                                             <?php endif; ?>
                                         </td>
-                                        <td><div class="note-cell <?= $note === '' ? 'empty' : '' ?>"><?= $note !== '' ? nl2br(ib_h($note)) : '-' ?></div></td>
+                                        <td>
+                                            <div class="note-cell <?= $note === '' ? 'empty' : '' ?>" data-note-display><?= $note !== '' ? nl2br(ib_h($note)) : '-' ?></div>
+                                            <?php if (!$isInvoiced): ?>
+                                                <form method="post" class="skip-inline" data-skip-form="<?= (int)$row['id'] ?>" action="<?= ib_h(ib_current_url()) ?>">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="action" value="mark_not_billable">
+                                                    <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
+                                                    <input type="text" name="billing_note" placeholder="Motiv obligatoriu" required>
+                                                </form>
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <?php if ($isInvoiced && !empty($row['smartbill_invoice_id'])): ?>
                                                 <a class="ib-small-btn muted" href="invoice.php?id=<?= (int)$row['smartbill_invoice_id'] ?>"><?= ib_h($invoiceLabel) ?></a>
@@ -780,6 +799,12 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
     }
 
     // Schimbare status din selector inline (inlocuieste cele doua butoane vechi).
+    // Pentru 'Nu se factureaza': in loc de prompt, deschide input-ul din coloana
+    // Motiv si focus la el. Submit la Enter / blur cu valoare; revert la Esc / gol.
+    function findSkipForms(itemId) {
+        return document.querySelectorAll('form[data-skip-form="' + itemId + '"]');
+    }
+
     document.querySelectorAll('.js-status-select').forEach(function (select) {
         select.addEventListener('change', function () {
             var newStatus = select.value;
@@ -788,15 +813,18 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
             if (newStatus === original) return;
 
             if (newStatus === 'not_billable') {
-                var reason = prompt('Motivul pentru care nu se facturează această poziție?');
-                if (reason === null) { select.value = original; return; }
-                reason = reason.trim();
-                if (reason === '') {
-                    alert('Motivul este obligatoriu.');
-                    select.value = original;
-                    return;
-                }
-                submitStatusChange(itemId, 'mark_not_billable', { name: 'billing_note', value: reason });
+                // Deschide form-ul din coloana Motiv (atat tabel cat si card).
+                var forms = findSkipForms(itemId);
+                if (forms.length === 0) { select.value = original; return; }
+                forms.forEach(function (form) { form.classList.add('is-open'); });
+                // Focus la primul input vizibil
+                var firstVisibleInput = null;
+                forms.forEach(function (form) {
+                    if (form.offsetParent !== null && !firstVisibleInput) {
+                        firstVisibleInput = form.querySelector('input[name="billing_note"]');
+                    }
+                });
+                if (firstVisibleInput) firstVisibleInput.focus();
                 return;
             }
             if (newStatus === 'to_invoice') {
@@ -808,6 +836,48 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                 return;
             }
             select.value = original;
+        });
+    });
+
+    // Handle Enter / Esc / blur in input-urile de motiv din skip-inline.
+    document.querySelectorAll('form[data-skip-form] input[name="billing_note"]').forEach(function (input) {
+        var form = input.closest('form');
+        var itemId = form.getAttribute('data-skip-form');
+
+        function revertSelect() {
+            document.querySelectorAll('.js-status-select').forEach(function (sel) {
+                if (sel.dataset.itemId === itemId) {
+                    sel.value = sel.dataset.original;
+                }
+            });
+            form.classList.remove('is-open');
+        }
+
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (input.value.trim() === '') {
+                    input.focus();
+                    return;
+                }
+                form.submit();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                input.value = '';
+                revertSelect();
+            }
+        });
+        input.addEventListener('blur', function () {
+            // Lasam 200ms ca sa nu se inchida cand dai click pe Submit-ul invizibil sau alt control.
+            setTimeout(function () {
+                if (document.activeElement === input) return;
+                var val = input.value.trim();
+                if (val === '') {
+                    revertSelect();
+                } else {
+                    form.submit();
+                }
+            }, 150);
         });
     });
 
