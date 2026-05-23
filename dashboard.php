@@ -252,6 +252,59 @@ if ($hasSmartbillPayments) {
 }
 $finPaidPct = $finIssued > 0 ? min(100, round(($finPaid / $finIssued) * 100)) : 0;
 
+// Comparație cu perioada anterioară pentru FACTURATE (cifra de business)
+[$finPrevStart, $finPrevEnd] = dash_period_range_prev($periodFin);
+$finPrevIssued = 0.0;
+if ($hasSmartbillInvoices) {
+    $finPrevIssued = (float)dash_value($pdo, "SELECT COALESCE(SUM(gross_amount),0) FROM smartbill_invoices WHERE invoice_date BETWEEN ? AND ? AND TRIM(COALESCE(smartbill_number,'')) <> ''", [$finPrevStart, $finPrevEnd]);
+}
+$finDelta = null;
+if ($finPrevIssued > 0.01) {
+    $finDelta = round((($finIssued - $finPrevIssued) / $finPrevIssued) * 100);
+} elseif ($finIssued > 0.01) {
+    $finDelta = 100;
+}
+
+// Mini-trend financiar: facturate (gross) pe bucket-uri adaptate la durată
+$finTrendBars = []; // [['label', 'amount'], ...]
+if ($hasSmartbillInvoices) {
+    $finRangeDays = max(1, ((int)(strtotime($finEnd) - strtotime($finStart)) / 86400) + 1);
+    if ($finRangeDays <= 1) {
+        // Azi: nu prea avem ce arăta pe ore (puține facturi/zi); afișăm un singur bar mare
+        $r = dash_rows($pdo, "SELECT COALESCE(SUM(gross_amount),0) AS s FROM smartbill_invoices WHERE invoice_date = ? AND TRIM(COALESCE(smartbill_number,'')) <> ''", [$finStart]);
+        $finTrendBars[] = ['label' => 'azi', 'amount' => (float)($r[0]['s'] ?? 0)];
+    } elseif ($finRangeDays <= 31) {
+        $rows = dash_rows($pdo, "SELECT invoice_date AS d, COALESCE(SUM(gross_amount),0) AS s FROM smartbill_invoices WHERE invoice_date BETWEEN ? AND ? AND TRIM(COALESCE(smartbill_number,'')) <> '' GROUP BY d", [$finStart, $finEnd]);
+        $byDay = [];
+        foreach ($rows as $r) { $byDay[(string)$r['d']] = (float)$r['s']; }
+        $cursor = strtotime($finStart);
+        $endTs = strtotime($finEnd);
+        while ($cursor <= $endTs) {
+            $key = date('Y-m-d', $cursor);
+            $finTrendBars[] = ['label' => date('d', $cursor), 'amount' => (float)($byDay[$key] ?? 0)];
+            $cursor += 86400;
+        }
+    } elseif ($finRangeDays <= 100) {
+        $rows = dash_rows($pdo, "SELECT YEARWEEK(invoice_date, 3) AS w, MIN(invoice_date) AS first_d, COALESCE(SUM(gross_amount),0) AS s FROM smartbill_invoices WHERE invoice_date BETWEEN ? AND ? AND TRIM(COALESCE(smartbill_number,'')) <> '' GROUP BY w ORDER BY w ASC", [$finStart, $finEnd]);
+        foreach ($rows as $r) {
+            $finTrendBars[] = ['label' => date('d.m', strtotime($r['first_d'])), 'amount' => (float)$r['s']];
+        }
+    } else {
+        $rows = dash_rows($pdo, "SELECT DATE_FORMAT(invoice_date,'%Y-%m') AS m, COALESCE(SUM(gross_amount),0) AS s FROM smartbill_invoices WHERE invoice_date BETWEEN ? AND ? AND TRIM(COALESCE(smartbill_number,'')) <> '' GROUP BY m ORDER BY m ASC", [$finStart, $finEnd]);
+        $byMonth = [];
+        foreach ($rows as $r) { $byMonth[(string)$r['m']] = (float)$r['s']; }
+        $monthCursor = strtotime(date('Y-m-01', strtotime($finStart)));
+        $endMonthTs  = strtotime(date('Y-m-01', strtotime($finEnd)));
+        $monthLabels = ['01'=>'Ian','02'=>'Feb','03'=>'Mar','04'=>'Apr','05'=>'Mai','06'=>'Iun','07'=>'Iul','08'=>'Aug','09'=>'Sep','10'=>'Oct','11'=>'Noi','12'=>'Dec'];
+        while ($monthCursor <= $endMonthTs) {
+            $mk = date('Y-m', $monthCursor);
+            $finTrendBars[] = ['label' => $monthLabels[date('m', $monthCursor)] ?? date('m', $monthCursor), 'amount' => (float)($byMonth[$mk] ?? 0)];
+            $monthCursor = strtotime('+1 month', $monthCursor);
+        }
+    }
+}
+$finTrendMax = max(1.0, max(array_column($finTrendBars ?: [['amount' => 1.0]], 'amount')));
+
 // Restanțe (globale, indep. de perioadă)
 $restanteCount = 0; $restanteAmount = 0.0; $restanteList = [];
 if ($hasSmartbillInvoices && dash_column_exists($pdo, 'smartbill_invoices', 'due_date') && dash_column_exists($pdo, 'smartbill_invoices', 'client_name')) {
@@ -587,6 +640,14 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 }
 .mc-trend-bars .trend-col:last-child .bar { background: var(--mc-navy); }
 .mc-trend-bars .trend-col:hover .bar { background: var(--mc-navy); }
+/* Variantă orange pentru Financiar */
+.mc-trend-bars.fin .bar { background: var(--mc-or); }
+.mc-trend-bars.fin .trend-col:last-child .bar { background: var(--mc-or-deep); }
+.mc-trend-bars.fin .trend-col:hover .bar { background: var(--mc-or-deep); }
+/* Variantă green pentru Echipă */
+.mc-trend-bars.team .bar { background: var(--mc-gr); }
+.mc-trend-bars.team .trend-col:last-child .bar { background: var(--mc-gr-deep); }
+.mc-trend-bars.team .trend-col:hover .bar { background: var(--mc-gr-deep); }
 
 /* Setări (cog) - dropdown per card */
 .mc-cog {
@@ -819,6 +880,34 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                             <text x="65" y="86" text-anchor="middle" font-size="11" font-weight="500" fill="var(--mc-or)"><?= $finDueCount ?> interven<?= $finDueCount === 1 ? 'ție' : 'ții' ?></text>
                         </svg>
                     </div>
+
+                    <!-- Delta facturate vs perioada anterioară -->
+                    <?php if ($finDelta !== null): ?>
+                    <?php
+                        $finDeltaClass = $finDelta > 0 ? 'pos' : ($finDelta < 0 ? 'neg' : 'flat');
+                        $finDeltaIcon  = $finDelta > 0 ? 'ti-trending-up' : ($finDelta < 0 ? 'ti-trending-down' : 'ti-minus');
+                        $finDeltaSign  = $finDelta > 0 ? '+' : '';
+                    ?>
+                    <div class="mc-delta <?= $finDeltaClass ?>">
+                        <i class="ti <?= $finDeltaIcon ?>" aria-hidden="true"></i>
+                        <strong><?= $finDeltaSign ?><?= $finDelta ?>%</strong>
+                        <span>facturate vs <?= dash_money($finPrevIssued) ?> lei</span>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- Mini trend bars (facturate per bucket) -->
+                    <?php if ($finTrendBars): ?>
+                    <div class="mc-trend-bars fin" aria-label="Trend facturate <?= dash_h($finLabel) ?>">
+                        <?php foreach ($finTrendBars as $b):
+                            $h = $finTrendMax > 0 ? max(3, round(($b['amount'] / $finTrendMax) * 36)) : 3;
+                        ?>
+                            <div class="trend-col" title="<?= dash_h($b['label']) ?>: <?= dash_money($b['amount']) ?> lei">
+                                <div class="bar" style="height: <?= $h ?>px;"></div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+
                     <div class="mc-ring-foot">
                         <div><span class="key">facturate</span> <strong class="ok"><?= $finIssuedCount ?></strong></div>
                         <div><span class="key">restanțe</span> <strong class="<?= $restanteCount > 0 ? '' : 'ok' ?>" style="<?= $restanteCount > 0 ? 'color:var(--mc-re-deep)' : '' ?>"><?= $restanteCount ?></strong></div>
