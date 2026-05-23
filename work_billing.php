@@ -242,14 +242,15 @@ try {
  * Sumar pe statusuri pentru perioada selectată
  * ============================================================ */
 $summary = [
-    'to_review'    => ['count' => 0, 'amount' => 0.0],
-    'to_invoice'   => ['count' => 0, 'amount' => 0.0],
-    'invoiced'     => ['count' => 0, 'amount' => 0.0],
-    'not_billable' => ['count' => 0, 'amount' => 0.0],
+    'to_review'    => ['count' => 0, 'amount' => 0.0, 'gross' => 0.0],
+    'to_invoice'   => ['count' => 0, 'amount' => 0.0, 'gross' => 0.0],
+    'invoiced'     => ['count' => 0, 'amount' => 0.0, 'gross' => 0.0],
+    'not_billable' => ['count' => 0, 'amount' => 0.0, 'gross' => 0.0],
 ];
 try {
+    // Citim si vat_code per linie ca sa putem calcula totalul cu TVA inclus.
     $sumSql = "
-        SELECT bi.status, COUNT(*) AS total, COALESCE(SUM(bi.total_net), 0) AS amount_total
+        SELECT bi.status, bi.total_net, bi.vat_code
         FROM billing_items bi
         LEFT JOIN clients c ON c.id = bi.client_id
         LEFT JOIN client_locations l ON l.id = bi.client_location_id
@@ -257,16 +258,23 @@ try {
         {$pvJoin}
         WHERE {$where}
           AND bi.status <> 'cancelled'
-        GROUP BY bi.status
     ";
     $stmt = $pdo->prepare($sumSql);
     $stmt->execute($params);
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $srow) {
         $key = (string)$srow['status'];
-        if (isset($summary[$key])) {
-            $summary[$key]['count'] = (int)$srow['total'];
-            $summary[$key]['amount'] = (float)$srow['amount_total'];
+        if (!isset($summary[$key])) continue;
+        $net = (float)($srow['total_net'] ?? 0);
+        $vatCode = trim((string)($srow['vat_code'] ?? '21'));
+        $vatPercent = 0.0;
+        if (function_exists('pz_smartbill_tax_meta')) {
+            $meta = pz_smartbill_tax_meta($vatCode);
+            $vatPercent = (float)($meta['taxPercentage'] ?? 0);
         }
+        $gross = round($net * (1 + $vatPercent / 100), 2);
+        $summary[$key]['count']++;
+        $summary[$key]['amount'] += $net;
+        $summary[$key]['gross']  += $gross;
     }
 } catch (Throwable $e) {
     error_log('work_billing summary error: ' . $e->getMessage());
@@ -274,6 +282,7 @@ try {
 
 $totalCount = array_sum(array_column($summary, 'count'));
 $totalAmount = array_sum(array_column($summary, 'amount'));
+$totalGross = array_sum(array_column($summary, 'gross'));
 
 /* ============================================================
  * Export CSV
@@ -482,22 +491,22 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                 <div class="pz-kpi-card mu">
                     <div class="pz-kpi-label">Total poziții</div>
                     <div class="pz-kpi-value"><?= (int)$totalCount ?></div>
-                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($totalAmount)) ?> fără TVA</div>
+                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($totalGross)) ?> <span style="font-weight:600;opacity:.75">cu TVA</span></div>
                 </div>
                 <div class="pz-kpi-card or">
                     <div class="pz-kpi-label">De verificat</div>
                     <div class="pz-kpi-value"><?= (int)$summary['to_review']['count'] ?></div>
-                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['to_review']['amount'])) ?> fără TVA</div>
+                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['to_review']['gross'])) ?> <span style="font-weight:600;opacity:.75">cu TVA</span></div>
                 </div>
                 <div class="pz-kpi-card bl">
                     <div class="pz-kpi-label">De facturat</div>
                     <div class="pz-kpi-value"><?= (int)$summary['to_invoice']['count'] ?></div>
-                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['to_invoice']['amount'])) ?> fără TVA</div>
+                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['to_invoice']['gross'])) ?> <span style="font-weight:600;opacity:.75">cu TVA</span></div>
                 </div>
                 <div class="pz-kpi-card gr">
                     <div class="pz-kpi-label">Facturate</div>
                     <div class="pz-kpi-value"><?= (int)$summary['invoiced']['count'] ?></div>
-                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['invoiced']['amount'])) ?> fără TVA</div>
+                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['invoiced']['gross'])) ?> <span style="font-weight:600;opacity:.75">cu TVA</span></div>
                 </div>
             </section>
 
@@ -533,15 +542,29 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                                         <div class="work-meta"><?= ib_h(ib_effective_location($row)) ?></div>
                                     </div>
                                     <div class="work-amount">
+                                        <?php
+                                            $cardNet = (float)($row['total_net'] ?? 0);
+                                            $cardVatCode = trim((string)($row['vat_code'] ?? ($smartbillDefaultVatCode ?? '21')));
+                                            $cardVatPct = 0.0;
+                                            if (function_exists('pz_smartbill_tax_meta')) {
+                                                $cardMeta = pz_smartbill_tax_meta($cardVatCode);
+                                                $cardVatPct = (float)($cardMeta['taxPercentage'] ?? 0);
+                                            }
+                                            $cardGross = round($cardNet * (1 + $cardVatPct / 100), 2);
+                                        ?>
                                         <div class="work-amount-label">Valoare</div>
-                                        <div class="work-amount-value"><?= ib_h(ib_money_label($row['total_net'] ?? 0)) ?></div>
+                                        <div class="work-amount-value"><?= ib_h(ib_money_label($cardGross)) ?></div>
+                                        <?php if ($cardVatPct > 0 && $cardNet > 0): ?>
+                                            <div style="color:var(--muted);font-size:11.5px;margin-top:2px;">net <?= ib_h(ib_money_label($cardNet)) ?> + <?= number_format($cardVatPct, 0) ?>% TVA</div>
+                                        <?php endif; ?>
                                         <?php if (!$isDone): ?>
                                             <form method="post" class="amount-form js-amount-autosave" action="<?= ib_h(ib_current_url()) ?>" style="margin-top:9px">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="action" value="save_amount">
                                                 <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
                                                 <input type="hidden" name="billing_vat_code" value="<?= ib_h((string)$row['vat_code'] ?: $smartbillDefaultVatCode) ?>">
-                                                <input type="number" name="billing_amount" step="0.01" min="0" value="<?= ib_h(ib_money_input($row['total_net'] ?? 0)) ?>" aria-label="Valoare fără TVA" placeholder="0,00">
+                                                <input type="number" name="billing_amount" step="0.01" min="0" value="<?= ib_h(ib_money_input($cardNet)) ?>" aria-label="Valoare netă fără TVA" placeholder="0,00">
+                                                <span style="color:var(--muted);font-size:11px;margin-left:6px;">lei net</span>
                                             </form>
                                         <?php endif; ?>
                                     </div>
@@ -617,7 +640,7 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                                         <th data-col="locatie">Locație</th>
                                         <th data-col="servicii">Servicii</th>
                                         <th data-col="pv">PV</th>
-                                        <th data-col="valoare">Valoare</th>
+                                        <th data-col="valoare">Valoare (cu TVA)</th>
                                         <th data-col="status">Status</th>
                                         <th data-col="observatii">Motiv / Observații</th>
                                         <th data-col="actiuni">Acțiuni</th>
@@ -657,16 +680,32 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                                             <?php endif; ?>
                                         </td>
                                         <td>
+                                            <?php
+                                                $rowNet = (float)($row['total_net'] ?? 0);
+                                                $rowVatCode = trim((string)($row['vat_code'] ?? ($smartbillDefaultVatCode ?? '21')));
+                                                $rowVatPct = 0.0;
+                                                if (function_exists('pz_smartbill_tax_meta')) {
+                                                    $rowMeta = pz_smartbill_tax_meta($rowVatCode);
+                                                    $rowVatPct = (float)($rowMeta['taxPercentage'] ?? 0);
+                                                }
+                                                $rowGross = round($rowNet * (1 + $rowVatPct / 100), 2);
+                                            ?>
                                             <?php if ($isDone): ?>
-                                                <strong><?= ib_h(ib_money_label($row['total_net'] ?? 0)) ?></strong>
+                                                <strong><?= ib_h(ib_money_label($rowGross)) ?></strong>
+                                                <?php if ($rowVatPct > 0): ?>
+                                                    <div style="color:var(--muted);font-size:11.5px;margin-top:2px;">net <?= ib_h(ib_money_label($rowNet)) ?> + <?= number_format($rowVatPct, 0) ?>% TVA</div>
+                                                <?php endif; ?>
                                             <?php else: ?>
                                                 <form method="post" class="amount-form js-amount-autosave" action="<?= ib_h(ib_current_url()) ?>">
                                                     <?= csrf_field() ?>
                                                     <input type="hidden" name="action" value="save_amount">
                                                     <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
                                                     <input type="hidden" name="billing_vat_code" value="<?= ib_h((string)$row['vat_code'] ?: $smartbillDefaultVatCode) ?>">
-                                                    <input type="number" name="billing_amount" step="0.01" min="0" value="<?= ib_h(ib_money_input($row['total_net'] ?? 0)) ?>" aria-label="Valoare fără TVA" placeholder="0,00">
+                                                    <input type="number" name="billing_amount" step="0.01" min="0" value="<?= ib_h(ib_money_input($rowNet)) ?>" aria-label="Valoare fără TVA" placeholder="0,00">
                                                 </form>
+                                                <?php if ($rowVatPct > 0 && $rowNet > 0): ?>
+                                                    <div style="color:var(--muted);font-size:11.5px;margin-top:4px;">+ <?= number_format($rowVatPct, 0) ?>% TVA = <strong><?= ib_h(ib_money_label($rowGross)) ?></strong></div>
+                                                <?php endif; ?>
                                             <?php endif; ?>
                                         </td>
                                         <td>
