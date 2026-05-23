@@ -491,17 +491,17 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                 <div class="pz-kpi-card mu">
                     <div class="pz-kpi-label">Total poziții</div>
                     <div class="pz-kpi-value"><?= (int)$totalCount ?></div>
-                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($totalGross)) ?> <span style="font-weight:600;opacity:.75">cu TVA</span></div>
+                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($totalAmount)) ?> <span style="font-weight:600;opacity:.75">net</span></div>
                 </div>
                 <div class="pz-kpi-card or">
                     <div class="pz-kpi-label">De verificat</div>
                     <div class="pz-kpi-value"><?= (int)$summary['to_review']['count'] ?></div>
-                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['to_review']['gross'])) ?> <span style="font-weight:600;opacity:.75">cu TVA</span></div>
+                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['to_review']['amount'])) ?> <span style="font-weight:600;opacity:.75">net</span></div>
                 </div>
                 <div class="pz-kpi-card bl">
                     <div class="pz-kpi-label">De facturat</div>
                     <div class="pz-kpi-value"><?= (int)$summary['to_invoice']['count'] ?></div>
-                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['to_invoice']['gross'])) ?> <span style="font-weight:600;opacity:.75">cu TVA</span></div>
+                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['to_invoice']['amount'])) ?> <span style="font-weight:600;opacity:.75">net</span></div>
                 </div>
                 <div class="pz-kpi-card gr">
                     <div class="pz-kpi-label">Facturate</div>
