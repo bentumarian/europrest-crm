@@ -380,6 +380,10 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 .status-pill.is-billed { background:var(--pz-grs); color:var(--pz-gr); border-color:var(--pz-grb); }
 .status-pill.is-no-bill { background:var(--pz-soft); color:var(--pz-mu); border-color:var(--pz-line); }
 .status-pill.is-cancelled { background:var(--pz-soft); color:var(--pz-mu); border-color:var(--pz-line); }
+/* Select stilizat ca pill - inlocuieste cele doua butoane (Facturează / Nu se facturează) */
+select.status-select { appearance:none; -webkit-appearance:none; -moz-appearance:none; padding:3px 22px 3px 9px; height:auto; min-height:0; min-width:115px; cursor:pointer; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path fill='currentColor' d='M5 7L1.5 3.5h7z'/></svg>"); background-repeat:no-repeat; background-position:right 6px center; background-size:8px; }
+select.status-select:hover { filter:brightness(0.97); }
+select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offset:1px; }
 .pv-link { font-weight:900; color:var(--accent); text-decoration:none; }
 .pv-empty { color:var(--muted); font-weight:800; }
 .note-cell { max-width:260px; font-size:13px; line-height:1.4; }
@@ -580,7 +584,19 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                 <div class="work-grid">
                                     <div class="work-box">
                                         <span>Status</span>
-                                        <strong><span class="status-pill <?= ib_h(pz_billing_status_class($status)) ?>"><?= ib_h(pz_billing_status_label($status)) ?></span></strong>
+                                        <strong>
+                                            <?php if ($isInvoiced): ?>
+                                                <span class="status-pill <?= ib_h(pz_billing_status_class($status)) ?>"><?= ib_h(pz_billing_status_label($status)) ?></span>
+                                            <?php else: ?>
+                                                <select class="status-select status-pill <?= ib_h(pz_billing_status_class($status)) ?> js-status-select"
+                                                        data-item-id="<?= (int)$row['id'] ?>"
+                                                        data-original="<?= ib_h($status) ?>">
+                                                    <option value="to_review"    <?= $status === 'to_review' ? 'selected' : '' ?>>De verificat</option>
+                                                    <option value="to_invoice"   <?= $status === 'to_invoice' ? 'selected' : '' ?>>De facturat</option>
+                                                    <option value="not_billable" <?= $status === 'not_billable' ? 'selected' : '' ?>>Nu se facturează</option>
+                                                </select>
+                                            <?php endif; ?>
+                                        </strong>
                                     </div>
                                     <div class="work-box">
                                         <span>PV</span>
@@ -608,21 +624,12 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                     </div>
                                 </div>
                                 <div class="work-actions">
-                                    <?php if ($isDone): ?>
-                                        <span class="ib-small-btn primary is-disabled" aria-disabled="true">Facturează</span>
-                                    <?php else: ?>
-                                        <a class="ib-small-btn primary" href="invoice.php?<?= http_build_query(['billing_item_ids' => [(int)$row['id']]]) ?>">Facturează</a>
-                                        <button type="button" class="ib-small-btn danger js-skip-toggle" data-target="skip-card-<?= (int)$row['id'] ?>">Nu se facturează</button>
-                                        <form method="post" class="skip-inline" id="skip-card-<?= (int)$row['id'] ?>" action="<?= ib_h(ib_current_url()) ?>">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="action" value="mark_not_billable">
-                                            <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
-                                            <input type="text" name="billing_note" placeholder="Motiv obligatoriu" required>
-                                            <button class="ib-small-btn danger" type="submit">Confirmă</button>
-                                        </form>
-                                    <?php endif; ?>
                                     <?php if ($isInvoiced && !empty($row['smartbill_invoice_id'])): ?>
                                         <a class="ib-small-btn muted" href="invoice.php?id=<?= (int)$row['smartbill_invoice_id'] ?>" title="Deschide factura"><?= ib_h($invoiceLabel) ?></a>
+                                    <?php elseif ($isNotBillable): ?>
+                                        <span class="ib-small-btn muted is-disabled" aria-disabled="true">Marcată ca nefacturabilă</span>
+                                    <?php else: ?>
+                                        <a class="ib-small-btn primary" href="invoice.php?<?= http_build_query(['billing_item_ids' => [(int)$row['id']]]) ?>">Facturează</a>
                                     <?php endif; ?>
                                 </div>
                             </article>
@@ -696,27 +703,28 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                                 </form>
                                             <?php endif; ?>
                                         </td>
-                                        <td><span class="status-pill <?= ib_h(pz_billing_status_class($status)) ?>"><?= ib_h(pz_billing_status_label($status)) ?></span></td>
+                                        <td>
+                                            <?php if ($isInvoiced): ?>
+                                                <span class="status-pill <?= ib_h(pz_billing_status_class($status)) ?>"><?= ib_h(pz_billing_status_label($status)) ?></span>
+                                            <?php else: ?>
+                                                <select class="status-select status-pill <?= ib_h(pz_billing_status_class($status)) ?> js-status-select"
+                                                        data-item-id="<?= (int)$row['id'] ?>"
+                                                        data-original="<?= ib_h($status) ?>">
+                                                    <option value="to_review"    <?= $status === 'to_review' ? 'selected' : '' ?>>De verificat</option>
+                                                    <option value="to_invoice"   <?= $status === 'to_invoice' ? 'selected' : '' ?>>De facturat</option>
+                                                    <option value="not_billable" <?= $status === 'not_billable' ? 'selected' : '' ?>>Nu se facturează</option>
+                                                </select>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><div class="note-cell <?= $note === '' ? 'empty' : '' ?>"><?= $note !== '' ? nl2br(ib_h($note)) : '-' ?></div></td>
                                         <td>
-                                            <div class="actions-stack">
-                                                <?php if ($isDone): ?>
-                                                    <span class="ib-small-btn primary is-disabled" aria-disabled="true">Facturează</span>
-                                                <?php else: ?>
-                                                    <a class="ib-small-btn primary" href="invoice.php?<?= http_build_query(['billing_item_ids' => [(int)$row['id']]]) ?>">Facturează</a>
-                                                    <button type="button" class="ib-small-btn danger js-skip-toggle" data-target="skip-row-<?= (int)$row['id'] ?>">Nu se facturează</button>
-                                                    <form method="post" class="skip-inline" id="skip-row-<?= (int)$row['id'] ?>" action="<?= ib_h(ib_current_url()) ?>">
-                                                        <?= csrf_field() ?>
-                                                        <input type="hidden" name="action" value="mark_not_billable">
-                                                        <input type="hidden" name="item_id" value="<?= (int)$row['id'] ?>">
-                                                        <input type="text" name="billing_note" placeholder="Motiv obligatoriu" required>
-                                                        <button class="ib-small-btn danger" type="submit">Confirmă</button>
-                                                    </form>
-                                                <?php endif; ?>
-                                                <?php if ($isInvoiced && !empty($row['smartbill_invoice_id'])): ?>
-                                                    <a class="ib-small-btn muted" href="invoice.php?id=<?= (int)$row['smartbill_invoice_id'] ?>"><?= ib_h($invoiceLabel) ?></a>
-                                                <?php endif; ?>
-                                            </div>
+                                            <?php if ($isInvoiced && !empty($row['smartbill_invoice_id'])): ?>
+                                                <a class="ib-small-btn muted" href="invoice.php?id=<?= (int)$row['smartbill_invoice_id'] ?>"><?= ib_h($invoiceLabel) ?></a>
+                                            <?php elseif ($isNotBillable): ?>
+                                                <span class="ib-small-btn muted is-disabled" aria-disabled="true">Nefacturabilă</span>
+                                            <?php else: ?>
+                                                <a class="ib-small-btn primary" href="invoice.php?<?= http_build_query(['billing_item_ids' => [(int)$row['id']]]) ?>">Facturează</a>
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -731,18 +739,76 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 </div>
 <script>
 (function () {
-    document.addEventListener('click', function (e) {
-        var trigger = e.target.closest('.js-skip-toggle');
-        if (!trigger) return;
-        e.preventDefault();
-        var targetId = trigger.getAttribute('data-target');
-        if (!targetId) return;
-        var form = document.getElementById(targetId);
-        if (!form) return;
-        form.classList.add('is-open');
-        trigger.style.display = 'none';
-        var input = form.querySelector('input[name="billing_note"]');
-        if (input) input.focus();
+    // Helper: construieste si trimite un form POST cu actiune + item_id (+ optional billing_note)
+    function submitStatusChange(itemId, action, extraField) {
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = window.location.pathname + window.location.search;
+        form.style.display = 'none';
+
+        var csrf = document.querySelector('input[name="csrf_token"]');
+        if (csrf) {
+            var csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = csrf.value;
+            form.appendChild(csrfInput);
+        }
+
+        var actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = action;
+        form.appendChild(actionInput);
+
+        var idInput = document.createElement('input');
+        idInput.type = 'hidden';
+        idInput.name = 'item_id';
+        idInput.value = itemId;
+        form.appendChild(idInput);
+
+        if (extraField) {
+            var extra = document.createElement('input');
+            extra.type = 'hidden';
+            extra.name = extraField.name;
+            extra.value = extraField.value;
+            form.appendChild(extra);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    // Schimbare status din selector inline (inlocuieste cele doua butoane vechi).
+    document.querySelectorAll('.js-status-select').forEach(function (select) {
+        select.addEventListener('change', function () {
+            var newStatus = select.value;
+            var original = select.dataset.original;
+            var itemId = select.dataset.itemId;
+            if (newStatus === original) return;
+
+            if (newStatus === 'not_billable') {
+                var reason = prompt('Motivul pentru care nu se facturează această poziție?');
+                if (reason === null) { select.value = original; return; }
+                reason = reason.trim();
+                if (reason === '') {
+                    alert('Motivul este obligatoriu.');
+                    select.value = original;
+                    return;
+                }
+                submitStatusChange(itemId, 'mark_not_billable', { name: 'billing_note', value: reason });
+                return;
+            }
+            if (newStatus === 'to_invoice') {
+                submitStatusChange(itemId, 'mark_to_invoice');
+                return;
+            }
+            if (newStatus === 'to_review') {
+                submitStatusChange(itemId, 'mark_to_review');
+                return;
+            }
+            select.value = original;
+        });
     });
 
     // Auto-save pe blur sau Enter pentru valoarea de facturat (am scos butonul OK).
