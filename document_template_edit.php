@@ -407,8 +407,8 @@ $isNew = (int)$form['id'] <= 0;
 .form-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
 .field.full { grid-column:1 / -1; }
 .field label { display:block; margin-bottom:5px; font-size:12px; font-weight:850; color:var(--pz-mu); }
-.field input, .field select, .field textarea { width:100%; border:1px solid var(--pz-line); border-radius:var(--pz-rs); background:#fff; color:var(--text); padding:7px 10px; font-size:12.5px; outline:none; transition:border-color .14s; }
-.field input:focus, .field select:focus, .field textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.field input:not([type="checkbox"]):not([type="radio"]), .field select, .field textarea { width:100%; border:1px solid var(--pz-line); border-radius:var(--pz-rs); background:#fff; color:var(--text); padding:7px 10px; font-size:12.5px; outline:none; transition:border-color .14s; }
+.field input:not([type="checkbox"]):not([type="radio"]):focus, .field select:focus, .field textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
 
 .word-editor-shell { border:1px solid var(--pz-line); border-radius:var(--pz-r); overflow:hidden; background:#fff; }
 .tox.tox-tinymce { border:0 !important; border-radius:var(--pz-r) !important; }
