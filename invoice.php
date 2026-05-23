@@ -363,14 +363,18 @@ if ($billingItemIdsFromGet && $invoiceIdFromRequest <= 0 && $_SERVER['REQUEST_ME
                             </tr>
                         </thead>
                         <tbody>
-                        <?php foreach ($previewItems as $item): ?>
+                        <?php foreach ($previewItems as $item):
+                            $itemQty = max(1.0, (float)($item['quantity'] ?? 1));
+                            $itemUnit = pz_billing_money($item['unit_price_net'] ?? ($item['total_net'] ?? 0) / $itemQty);
+                            $itemTotal = pz_billing_money($item['total_net'] ?? 0);
+                        ?>
                             <tr>
                                 <td><?= inv_h($item['description']) ?></td>
                                 <td><?= inv_h($item['work_date']) ?></td>
-                                <td style="text-align:right"><?= number_format((float)$item['quantity'], 3, ',', '.') ?></td>
-                                <td style="text-align:right"><?= number_format(pz_billing_money($item['total_net']), 2, ',', '.') ?></td>
+                                <td style="text-align:right"><?= number_format($itemQty, 3, ',', '.') ?></td>
+                                <td style="text-align:right"><?= number_format($itemUnit, 2, ',', '.') ?></td>
                                 <td><?= inv_h((string)$item['vat_code']) ?>%</td>
-                                <td style="text-align:right"><?= number_format(pz_billing_money($item['total_net']), 2, ',', '.') ?></td>
+                                <td style="text-align:right"><?= number_format($itemTotal, 2, ',', '.') ?></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>

@@ -671,7 +671,9 @@ if (!function_exists('pz_billing_calculate_totals')) {
             $vatPercent = 0.0;
             if (function_exists('pz_smartbill_tax_meta')) {
                 $meta = pz_smartbill_tax_meta($vatCode);
-                $vatPercent = (float)($meta['percentage'] ?? 0);
+                // pz_smartbill_tax_meta() returneaza 'taxPercentage', NU 'percentage'
+                // (vechi bug: cauzat TVA = 0 in totaluri si suma neta in chitanta SmartBill)
+                $vatPercent = (float)($meta['taxPercentage'] ?? $meta['percentage'] ?? 0);
             } else {
                 // Fallback simplu: '21' => 21, '11' => 11, alte coduri => 0.
                 if (preg_match('/^(\d+(?:\.\d+)?)/', $vatCode, $m)) {
