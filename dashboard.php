@@ -60,6 +60,8 @@ function dash_period_range(string $period): array {
         case 'today':       return [$today, $today, 'Azi'];
         case 'week':        return [date('Y-m-d', strtotime('-6 days')), $today, 'Ultimele 7 zile'];
         case 'last_month':  return [date('Y-m-01', strtotime('first day of previous month')), date('Y-m-t', strtotime('last day of previous month')), 'Luna trecută'];
+        case '3months':     return [date('Y-m-d', strtotime('-89 days')), $today, 'Ultimele 3 luni'];
+        case '6months':     return [date('Y-m-d', strtotime('-179 days')), $today, 'Ultimele 6 luni'];
         case 'year':        return [date('Y-01-01'), date('Y-12-31'), 'Anul curent'];
         case 'month':
         default:            return [date('Y-m-01'), date('Y-m-t'), 'Luna curentă'];
@@ -72,8 +74,41 @@ function dash_period_options(): array {
         'week'       => 'Ultimele 7 zile',
         'month'      => 'Luna curentă',
         'last_month' => 'Luna trecută',
+        '3months'    => 'Ultimele 3 luni',
+        '6months'    => 'Ultimele 6 luni',
         'year'       => 'Anul curent',
     ];
+}
+
+/**
+ * Întoarce [start, end] pentru perioada IMEDIAT ANTERIOARĂ cu aceeași durată.
+ * Folosit pentru comparație (delta) pe cardul Operațional.
+ */
+function dash_period_range_prev(string $period): array {
+    [$start, $end] = dash_period_range($period);
+    $startTs = strtotime($start);
+    $endTs   = strtotime($end);
+    if ($period === 'last_month') {
+        // Comparăm cu luna dinainte de luna trecută
+        $prevStart = date('Y-m-01', strtotime('first day of -2 months'));
+        $prevEnd   = date('Y-m-t', strtotime('last day of -2 months'));
+        return [$prevStart, $prevEnd];
+    }
+    if ($period === 'month') {
+        $prevStart = date('Y-m-01', strtotime('first day of previous month'));
+        $prevEnd   = date('Y-m-t', strtotime('last day of previous month'));
+        return [$prevStart, $prevEnd];
+    }
+    if ($period === 'year') {
+        $prevStart = date('Y-01-01', strtotime('-1 year'));
+        $prevEnd   = date('Y-12-31', strtotime('-1 year'));
+        return [$prevStart, $prevEnd];
+    }
+    // Default: aceeași durată, imediat înainte
+    $duration = ($endTs - $startTs) / 86400 + 1;
+    $prevEnd   = date('Y-m-d', strtotime($start . ' -1 day'));
+    $prevStart = date('Y-m-d', strtotime($prevEnd . ' -' . ($duration - 1) . ' days'));
+    return [$prevStart, $prevEnd];
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -122,6 +157,71 @@ if ($hasAppointments) {
     $opCompleted = (int)($r[0]['completed'] ?? 0);
 }
 $opCompletePct = $opTotal > 0 ? round(($opCompleted / $opTotal) * 100) : 0;
+
+// Comparație cu perioada anterioară (delta procentual)
+[$opPrevStart, $opPrevEnd] = dash_period_range_prev($periodOp);
+$opPrevTotal = 0;
+if ($hasAppointments) {
+    $opPrevTotal = (int)dash_value($pdo, "SELECT COUNT(*) FROM appointments WHERE appointment_date BETWEEN ? AND ? AND status!='anulata'", [$opPrevStart, $opPrevEnd]);
+}
+$opDelta = null; // procentual; null = N/A
+if ($opPrevTotal > 0) {
+    $opDelta = round((($opTotal - $opPrevTotal) / $opPrevTotal) * 100);
+} elseif ($opTotal > 0) {
+    $opDelta = 100; // nu exista date in trecut, dar acum exista lucrari → +100% sau 'nou'
+}
+
+// Mini-trend (bare în interiorul cardului). Adaptiv la durata perioadei.
+$opTrendBars = []; // [['label' => 'L', 'count' => N], ...]
+if ($hasAppointments) {
+    $rangeDays = max(1, ((int)(strtotime($opEnd) - strtotime($opStart)) / 86400) + 1);
+    // Grupare adaptivă
+    if ($rangeDays <= 1) {
+        // Azi → ore (8 sloturi a câte 3h)
+        $rows = dash_rows($pdo, "SELECT HOUR(start_time) AS h, COUNT(*) AS c FROM appointments WHERE appointment_date = ? AND status!='anulata' GROUP BY h", [$opStart]);
+        $buckets = array_fill(0, 8, 0);
+        foreach ($rows as $r) {
+            $hr = (int)$r['h'];
+            $idx = min(7, max(0, intdiv($hr, 3)));
+            $buckets[$idx] += (int)$r['c'];
+        }
+        foreach ($buckets as $i => $c) {
+            $opTrendBars[] = ['label' => sprintf('%02d', $i * 3), 'count' => (int)$c];
+        }
+    } elseif ($rangeDays <= 31) {
+        // Săpt / Lună / Luna trecută → pe zi
+        $rows = dash_rows($pdo, "SELECT appointment_date AS d, COUNT(*) AS c FROM appointments WHERE appointment_date BETWEEN ? AND ? AND status!='anulata' GROUP BY d", [$opStart, $opEnd]);
+        $byDay = [];
+        foreach ($rows as $r) { $byDay[(string)$r['d']] = (int)$r['c']; }
+        $cursor = strtotime($opStart);
+        $endTs = strtotime($opEnd);
+        while ($cursor <= $endTs) {
+            $key = date('Y-m-d', $cursor);
+            $opTrendBars[] = ['label' => date('d', $cursor), 'count' => (int)($byDay[$key] ?? 0)];
+            $cursor += 86400;
+        }
+    } elseif ($rangeDays <= 100) {
+        // 3 luni → pe săptămână
+        $rows = dash_rows($pdo, "SELECT YEARWEEK(appointment_date, 3) AS w, MIN(appointment_date) AS first_d, COUNT(*) AS c FROM appointments WHERE appointment_date BETWEEN ? AND ? AND status!='anulata' GROUP BY w ORDER BY w ASC", [$opStart, $opEnd]);
+        foreach ($rows as $r) {
+            $opTrendBars[] = ['label' => date('d.m', strtotime($r['first_d'])), 'count' => (int)$r['c']];
+        }
+    } else {
+        // 6 luni / An → pe lună
+        $rows = dash_rows($pdo, "SELECT DATE_FORMAT(appointment_date,'%Y-%m') AS m, COUNT(*) AS c FROM appointments WHERE appointment_date BETWEEN ? AND ? AND status!='anulata' GROUP BY m ORDER BY m ASC", [$opStart, $opEnd]);
+        $byMonth = [];
+        foreach ($rows as $r) { $byMonth[(string)$r['m']] = (int)$r['c']; }
+        $monthCursor = strtotime(date('Y-m-01', strtotime($opStart)));
+        $endMonthTs  = strtotime(date('Y-m-01', strtotime($opEnd)));
+        $monthLabels = ['01'=>'Ian','02'=>'Feb','03'=>'Mar','04'=>'Apr','05'=>'Mai','06'=>'Iun','07'=>'Iul','08'=>'Aug','09'=>'Sep','10'=>'Oct','11'=>'Noi','12'=>'Dec'];
+        while ($monthCursor <= $endMonthTs) {
+            $mk = date('Y-m', $monthCursor);
+            $opTrendBars[] = ['label' => $monthLabels[date('m', $monthCursor)] ?? date('m', $monthCursor), 'count' => (int)($byMonth[$mk] ?? 0)];
+            $monthCursor = strtotime('+1 month', $monthCursor);
+        }
+    }
+}
+$opTrendMax = max(1, max(array_column($opTrendBars ?: [['count' => 1]], 'count')));
 
 $tasksToSchedule = $hasTasks ? (int)dash_value($pdo, "SELECT COUNT(*) FROM tasks WHERE status='de_programat' {$taskActiveWhere}") : 0;
 
@@ -454,6 +554,40 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 .mc-ring-foot .ok { color: var(--mc-gr-deep); }
 .mc-ring-foot .navy { color: var(--mc-navy); }
 
+/* Delta vs perioada anterioară (pe Operațional) */
+.mc-delta {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 10px; margin: 8px 0 4px;
+    border-radius: 8px; font-size: 11.5px;
+    background: rgba(255, 255, 255, 0.5);
+}
+.mc-delta i { font-size: 14px; flex-shrink: 0; }
+.mc-delta strong { font-weight: 500; font-variant-numeric: tabular-nums; }
+.mc-delta span { color: var(--mc-muted); font-size: 11px; }
+.mc-delta.pos { color: var(--mc-gr-deep); }
+.mc-delta.pos i, .mc-delta.pos strong { color: var(--mc-gr); }
+.mc-delta.neg { color: var(--mc-re-deep); }
+.mc-delta.neg i, .mc-delta.neg strong { color: var(--mc-re); }
+.mc-delta.flat { color: var(--mc-muted); }
+
+/* Mini trend bars în card */
+.mc-trend-bars {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 2px; height: 40px;
+    padding: 6px 4px 2px;
+    margin-top: 4px;
+}
+.mc-trend-bars .trend-col {
+    flex: 1; display: flex; flex-direction: column; justify-content: flex-end;
+    min-width: 0;
+}
+.mc-trend-bars .bar {
+    width: 100%; background: var(--mc-bl); border-radius: 2px 2px 0 0;
+    min-height: 2px; transition: background 0.15s;
+}
+.mc-trend-bars .trend-col:last-child .bar { background: var(--mc-navy); }
+.mc-trend-bars .trend-col:hover .bar { background: var(--mc-navy); }
+
 /* Setări (cog) - dropdown per card */
 .mc-cog {
     position: absolute; top: 12px; right: 12px;
@@ -626,6 +760,34 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                             <text x="65" y="80" text-anchor="middle" font-size="11" fill="#1E40AF"><?= $opCompletePct ?>% finalizate</text>
                         </svg>
                     </div>
+
+                    <!-- Delta vs perioada anterioară -->
+                    <?php if ($opDelta !== null): ?>
+                    <?php
+                        $deltaClass = $opDelta > 0 ? 'pos' : ($opDelta < 0 ? 'neg' : 'flat');
+                        $deltaIcon  = $opDelta > 0 ? 'ti-trending-up' : ($opDelta < 0 ? 'ti-trending-down' : 'ti-minus');
+                        $deltaSign  = $opDelta > 0 ? '+' : '';
+                    ?>
+                    <div class="mc-delta <?= $deltaClass ?>">
+                        <i class="ti <?= $deltaIcon ?>" aria-hidden="true"></i>
+                        <strong><?= $deltaSign ?><?= $opDelta ?>%</strong>
+                        <span>vs perioada anterioară (<?= $opPrevTotal ?> lucr<?= $opPrevTotal === 1 ? 'are' : 'ări' ?>)</span>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- Mini trend bars -->
+                    <?php if ($opTrendBars): ?>
+                    <div class="mc-trend-bars" aria-label="Trend lucrări <?= dash_h($opLabel) ?>">
+                        <?php foreach ($opTrendBars as $b):
+                            $h = $opTrendMax > 0 ? max(3, round(($b['count'] / $opTrendMax) * 36)) : 3;
+                        ?>
+                            <div class="trend-col" title="<?= dash_h($b['label']) ?>: <?= (int)$b['count'] ?>">
+                                <div class="bar" style="height: <?= $h ?>px;"></div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+
                     <div class="mc-ring-foot">
                         <div><span class="key">finalizate</span> <strong class="ok"><?= $opCompleted ?></strong></div>
                         <div><span class="key">de programat</span> <strong class="navy"><?= $tasksToSchedule ?></strong></div>
