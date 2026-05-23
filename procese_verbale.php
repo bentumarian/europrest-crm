@@ -961,10 +961,54 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                 </div>
                             </div>
 
+                            <?php
+                                $autoTemplateId = (int)($formDocument['template_id'] ?? 0);
+                                if ($autoTemplateId <= 0) {
+                                    foreach ($templates as $template) {
+                                        if (!empty($template['is_default'])) { $autoTemplateId = (int)$template['id']; break; }
+                                    }
+                                    if ($autoTemplateId <= 0 && !empty($templates)) {
+                                        $autoTemplateId = (int)$templates[0]['id'];
+                                    }
+                                }
+                                $templateCount = count($templates);
+                            ?>
+                            <?php if ($templateCount <= 1): ?>
+                                <input type="hidden" name="template_id" value="<?= (int)$autoTemplateId ?>">
+                            <?php else: ?>
+                                <!-- Selector șablon PV - vizibil în ambele moduri (normal + quick) -->
+                                <div class="panel" style="box-shadow:none; margin-top:14px;">
+                                    <div class="panel-head">
+                                        <div>
+                                            <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">2</span><span>Tip proces verbal</span></div>
+                                            <div class="panel-subtitle">Conținutul tabelului și textele documentului se schimbă în funcție de șablon.</div>
+                                        </div>
+                                    </div>
+                                    <div class="panel-body">
+                                        <div class="pv-template-picker">
+                                            <?php foreach ($templates as $template):
+                                                $tId = (int)$template['id'];
+                                                $tName = (string)($template['name'] ?? 'Șablon');
+                                                $isDefault = !empty($template['is_default']);
+                                                $isSelected = $tId === (int)$autoTemplateId;
+                                            ?>
+                                                <label class="pv-template-card<?= $isSelected ? ' is-selected' : '' ?>">
+                                                    <input type="radio" name="template_id" value="<?= $tId ?>" <?= $isSelected ? 'checked' : '' ?>>
+                                                    <span class="pv-template-name"><?= pz_pv_h($tName) ?></span>
+                                                    <?php if ($isDefault): ?>
+                                                        <span class="pv-template-badge">implicit</span>
+                                                    <?php endif; ?>
+                                                </label>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
                             <div class="panel <?= !empty($isQuickPvFromAppointment) ? 'pv-quick-hidden' : '' ?>" style="box-shadow:none; margin-top:14px;">
                                 <div class="panel-head">
                                     <div>
-                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">2</span><span>Document</span></div>
+                                        <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num"><?= $templateCount > 1 ? '3' : '2' ?></span><span>Document</span></div>
                                         <div class="panel-subtitle">Numarul PV se genereaza la emitere. Aici completezi data si ora.</div>
                                     </div>
                                 </div>
@@ -979,42 +1023,6 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                             <label>Ora PV</label>
                                             <input type="time" name="document_time" value="<?= pz_pv_h(substr((string)($formDocument['document_time'] ?? date('H:i')), 0, 5)) ?>">
                                         </div>
-                                        <?php
-                                            $autoTemplateId = (int)($formDocument['template_id'] ?? 0);
-                                            if ($autoTemplateId <= 0) {
-                                                foreach ($templates as $template) {
-                                                    if (!empty($template['is_default'])) { $autoTemplateId = (int)$template['id']; break; }
-                                                }
-                                                if ($autoTemplateId <= 0 && !empty($templates)) {
-                                                    $autoTemplateId = (int)$templates[0]['id'];
-                                                }
-                                            }
-                                            $templateCount = count($templates);
-                                        ?>
-                                        <?php if ($templateCount <= 1): ?>
-                                            <input type="hidden" name="template_id" value="<?= (int)$autoTemplateId ?>">
-                                        <?php else: ?>
-                                            <div class="field full pv-template-field">
-                                                <label>Șablon PV</label>
-                                                <div class="pv-template-picker">
-                                                    <?php foreach ($templates as $template):
-                                                        $tId = (int)$template['id'];
-                                                        $tName = (string)($template['name'] ?? 'Șablon');
-                                                        $isDefault = !empty($template['is_default']);
-                                                        $isSelected = $tId === (int)$autoTemplateId;
-                                                    ?>
-                                                        <label class="pv-template-card<?= $isSelected ? ' is-selected' : '' ?>">
-                                                            <input type="radio" name="template_id" value="<?= $tId ?>" <?= $isSelected ? 'checked' : '' ?>>
-                                                            <span class="pv-template-name"><?= pz_pv_h($tName) ?></span>
-                                                            <?php if ($isDefault): ?>
-                                                                <span class="pv-template-badge">implicit</span>
-                                                            <?php endif; ?>
-                                                        </label>
-                                                    <?php endforeach; ?>
-                                                </div>
-                                                <small>Selectează tipul procesului verbal. Conținutul tabelului și textele se schimbă în funcție de șablon.</small>
-                                            </div>
-                                        <?php endif; ?>
                                         <div class="field full pv-basis-field">
                                             <label>In baza</label>
                                             <?php
