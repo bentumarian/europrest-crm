@@ -51,6 +51,20 @@ function dash_rows(PDO $pdo, string $sql, array $params = []): array {
 function dash_money($amount): string { return number_format((float)$amount, 0, ',', '.'); }
 function dash_time(?string $time): string { return $time ? substr((string)$time, 0, 5) : '--:--'; }
 
+function dash_initials(string $name): string {
+    $parts = preg_split('/\s+/', trim($name)) ?: [];
+    $letters = '';
+    foreach (array_slice($parts, 0, 2) as $p) {
+        $letters .= mb_substr($p, 0, 1, 'UTF-8');
+    }
+    return mb_strtoupper($letters ?: 'E', 'UTF-8');
+}
+
+function dash_safe_hex(?string $color, string $fallback = '#0F6E56'): string {
+    $color = trim((string)$color);
+    return preg_match('/^#[0-9A-Fa-f]{6}$/', $color) ? $color : $fallback;
+}
+
 /**
  * Întoarce [start, end, label] pentru o perioadă predefinită.
  */
@@ -344,15 +358,20 @@ $teamPct = $teamTotal > 0 ? round(($teamActive / $teamTotal) * 100) : 0;
 
 $teamList = [];
 if ($hasTeamMembers && $hasAppointments) {
+    $hasTeamColor = dash_column_exists($pdo, 'team_members', 'color');
+    $colorCol = $hasTeamColor ? "tm.color" : "NULL AS color";
     $teamList = dash_rows($pdo, "
-        SELECT tm.id, tm.name, COUNT(a.id) AS jobs_total, SUM(CASE WHEN a.status='finalizata' THEN 1 ELSE 0 END) AS jobs_done
+        SELECT tm.id, tm.name, {$colorCol},
+               COUNT(a.id) AS jobs_total,
+               SUM(CASE WHEN a.status='finalizata' THEN 1 ELSE 0 END) AS jobs_done
         FROM team_members tm
         LEFT JOIN appointments a ON a.team_member_id=tm.id AND a.appointment_date BETWEEN ? AND ? AND a.status!='anulata'
         WHERE tm.active=1
-        GROUP BY tm.id, tm.name HAVING jobs_total > 0
-        ORDER BY jobs_total DESC LIMIT 6
+        GROUP BY tm.id, tm.name, {$colorCol} HAVING jobs_total > 0
+        ORDER BY jobs_total DESC LIMIT 5
     ", [$teamStart, $teamEnd]);
 }
+$teamListMax = max(1, max(array_column($teamList ?: [['jobs_total'=>1]], 'jobs_total')));
 
 /* ────────────────────────────────────────────────────────────────────────
    AGENDA AZI
@@ -649,6 +668,47 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 .mc-trend-bars.team .trend-col:last-child .bar { background: var(--mc-gr-deep); }
 .mc-trend-bars.team .trend-col:hover .bar { background: var(--mc-gr-deep); }
 
+/* Leaderboard tehnicieni (cardul Echipă) */
+.mc-leader { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.mc-leader-row { display: flex; align-items: center; gap: 8px; }
+.mc-leader-row .rank {
+    width: 18px; flex-shrink: 0;
+    font-size: 11px; font-weight: 500; color: var(--mc-muted);
+    text-align: center;
+}
+.mc-leader-row .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10.5px; font-weight: 500; color: #FFF;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
+}
+.mc-leader-row .info { flex: 1; min-width: 0; }
+.mc-leader-row .info .top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 11.5px; margin-bottom: 3px;
+}
+.mc-leader-row .info .name {
+    font-weight: 500; color: var(--mc-gr-deep);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mc-leader-row .info .meta {
+    color: var(--mc-gr-deep); opacity: 0.7;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0; margin-left: 6px;
+}
+.mc-leader-row .info .track {
+    height: 4px; background: var(--mc-gr-track); border-radius: 999px; overflow: hidden;
+}
+.mc-leader-row .info .fill { height: 100%; border-radius: 999px; transition: width 0.25s ease; }
+
+.mc-leader-empty {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 6px; padding: 16px 0;
+    color: var(--mc-gr-deep); opacity: 0.6; font-size: 12px;
+}
+.mc-leader-empty i { font-size: 24px; }
+
 /* Setări (cog) - dropdown per card */
 .mc-cog {
     position: absolute; top: 12px; right: 12px;
@@ -914,14 +974,14 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                     </div>
                 </div>
 
-                <!-- Echipă -->
+                <!-- Echipă: top performeri -->
                 <div class="mc-ring-card team">
                     <div class="head">
                         <div>
                             <div class="label">Echipă</div>
-                            <div class="sub"><?= dash_h(strtolower($teamLabel)) ?> · activi</div>
+                            <div class="sub"><?= dash_h(strtolower($teamLabel)) ?> · top performeri</div>
                         </div>
-                        <i class="ti ti-users ico" aria-hidden="true"></i>
+                        <i class="ti ti-trophy ico" aria-hidden="true"></i>
                     </div>
                     <button type="button" class="mc-cog" aria-label="Setări echipă" data-cog="team"><i class="ti ti-settings"></i></button>
                     <div class="mc-cog-menu" id="cogmenu-team">
@@ -930,20 +990,41 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                             <a href="<?= dash_h(dash_period_url('period_team', $key)) ?>" class="<?= $periodTeam === $key ? 'current' : '' ?>"><?= dash_h($label) ?></a>
                         <?php endforeach; ?>
                     </div>
-                    <div class="mc-ring-wrap">
-                        <svg viewBox="0 0 130 130" width="130" height="130" role="img" aria-label="Echipă <?= dash_h($teamLabel) ?>">
-                            <circle cx="65" cy="65" r="52" fill="none" stroke="var(--mc-gr-track)" stroke-width="12"/>
-                            <circle cx="65" cy="65" r="52" fill="none" stroke="var(--mc-gr)" stroke-width="12" stroke-dasharray="326.7" stroke-dashoffset="<?= dash_ring_offset($teamPct) ?>" transform="rotate(-90 65 65)" stroke-linecap="round"/>
-                            <text x="65" y="62" text-anchor="middle" font-size="30" font-weight="500" fill="var(--mc-gr-deep)"><?= $teamActive ?><tspan font-size="20" fill="#86EFAC">/<?= $teamTotal ?></tspan></text>
-                            <text x="65" y="82" text-anchor="middle" font-size="11" fill="var(--mc-gr-deep)">capacitate <?= $teamPct ?>%</text>
-                        </svg>
+
+                    <div class="mc-leader">
+                        <?php if (!$teamList): ?>
+                            <div class="mc-leader-empty">
+                                <i class="ti ti-users-off" aria-hidden="true"></i>
+                                <div>Niciun tehnician cu lucrări în această perioadă.</div>
+                            </div>
+                        <?php else:
+                            $rank = 0;
+                            foreach ($teamList as $t):
+                                $rank++;
+                                $name      = (string)($t['name'] ?? '—');
+                                $color     = dash_safe_hex($t['color'] ?? null, '#0F6E56');
+                                $jobsTotal = (int)$t['jobs_total'];
+                                $jobsDone  = (int)$t['jobs_done'];
+                                $donePct   = $jobsTotal > 0 ? round(($jobsDone / $jobsTotal) * 100) : 0;
+                                $barPct    = $teamListMax > 0 ? round(($jobsTotal / $teamListMax) * 100) : 0;
+                        ?>
+                            <div class="mc-leader-row">
+                                <div class="rank"><?= $rank ?></div>
+                                <div class="avatar" style="background:<?= dash_h($color) ?>"><?= dash_h(dash_initials($name)) ?></div>
+                                <div class="info">
+                                    <div class="top">
+                                        <span class="name"><?= dash_h($name) ?></span>
+                                        <span class="meta"><?= $jobsTotal ?> · <?= $donePct ?>%</span>
+                                    </div>
+                                    <div class="track"><div class="fill" style="width:<?= $barPct ?>%; background:<?= dash_h($color) ?>"></div></div>
+                                </div>
+                            </div>
+                        <?php endforeach; endif; ?>
                     </div>
-                    <div class="mc-ring-foot" style="font-size:11.5px;">
-                        <?php if ($teamList): ?>
-                            <div><span class="key"><?= dash_h(strtolower($teamLabel)) ?></span> <strong><?= dash_h(implode(', ', array_slice(array_map(fn($t)=>$t['name'], $teamList), 0, 3))) ?><?= count($teamList) > 3 ? '…' : '' ?></strong></div>
-                        <?php else: ?>
-                            <div><span class="key">niciun tehnician activ</span></div>
-                        <?php endif; ?>
+
+                    <div class="mc-ring-foot">
+                        <div><span class="key">activi</span> <strong class="ok"><?= $teamActive ?></strong></div>
+                        <div><span class="key">total echipă</span> <strong class="navy"><?= $teamTotal ?></strong></div>
                     </div>
                 </div>
             </div>
