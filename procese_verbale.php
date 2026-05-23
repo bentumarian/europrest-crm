@@ -704,6 +704,28 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 .pv-defer-consumption { margin:12px 0 14px; display:inline-flex; align-items:center; gap:9px; padding:8px 10px; border:1px solid rgba(220,38,38,.22); background:#fff7f7; color:#b91c1c; border-radius:8px; font-weight:850; font-size:12.5px; }
 .pv-defer-consumption input { width:16px; height:16px; margin:0; accent-color:#dc2626; }
 .pv-defer-consumption small { color:#b91c1c; font-weight:700; opacity:.78; }
+
+/* Selector șablon PV - radio cards */
+.pv-template-picker { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px; margin-top:4px; }
+.pv-template-card {
+    display:flex; align-items:center; gap:8px;
+    padding:10px 12px; border:1px solid var(--border, #E2E8F0); border-radius:8px;
+    background:#FFF; cursor:pointer;
+    text-transform:none; letter-spacing:0; font-weight:500; font-size:13px; color:var(--text);
+    margin:0; transition:border-color .15s, background .15s, box-shadow .15s;
+}
+.pv-template-card:hover { border-color:#94A3B8; background:#F8FAFC; }
+.pv-template-card input { width:16px; height:16px; margin:0; accent-color:#2563eb; flex-shrink:0; }
+.pv-template-card.is-selected,
+.pv-template-card:has(input:checked) {
+    border-color:#2563eb; background:#EFF6FF; box-shadow:0 0 0 2px rgba(37,99,235,.15);
+}
+.pv-template-name { flex:1; }
+.pv-template-badge {
+    font-size:10px; padding:2px 7px; border-radius:999px;
+    background:#DBEAFE; color:#1E40AF; font-weight:500;
+    text-transform:uppercase; letter-spacing:.04em;
+}
 @media (max-width:700px) { .pv-quick-summary-grid { grid-template-columns:1fr; } .pv-quick-summary { padding:13px; border-radius:18px; } }
 
 /* === Secțiuni numerotate (aliniat cu Contracte/Oferte) === */
@@ -967,8 +989,32 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                     $autoTemplateId = (int)$templates[0]['id'];
                                                 }
                                             }
+                                            $templateCount = count($templates);
                                         ?>
-                                        <input type="hidden" name="template_id" value="<?= (int)$autoTemplateId ?>">
+                                        <?php if ($templateCount <= 1): ?>
+                                            <input type="hidden" name="template_id" value="<?= (int)$autoTemplateId ?>">
+                                        <?php else: ?>
+                                            <div class="field full pv-template-field">
+                                                <label>Șablon PV</label>
+                                                <div class="pv-template-picker">
+                                                    <?php foreach ($templates as $template):
+                                                        $tId = (int)$template['id'];
+                                                        $tName = (string)($template['name'] ?? 'Șablon');
+                                                        $isDefault = !empty($template['is_default']);
+                                                        $isSelected = $tId === (int)$autoTemplateId;
+                                                    ?>
+                                                        <label class="pv-template-card<?= $isSelected ? ' is-selected' : '' ?>">
+                                                            <input type="radio" name="template_id" value="<?= $tId ?>" <?= $isSelected ? 'checked' : '' ?>>
+                                                            <span class="pv-template-name"><?= pz_pv_h($tName) ?></span>
+                                                            <?php if ($isDefault): ?>
+                                                                <span class="pv-template-badge">implicit</span>
+                                                            <?php endif; ?>
+                                                        </label>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                                <small>Selectează tipul procesului verbal. Conținutul tabelului și textele se schimbă în funcție de șablon.</small>
+                                            </div>
+                                        <?php endif; ?>
                                         <div class="field full pv-basis-field">
                                             <label>In baza</label>
                                             <?php
@@ -2403,6 +2449,15 @@ document.addEventListener('DOMContentLoaded', function() {
     ['treatedAreas', 'surfaceText'].forEach(id => {
         const input = document.getElementById(id);
         if (input) input.addEventListener('input', pzValidateForm);
+    });
+
+    // Sincronizare clasa .is-selected pe pv-template-card (fallback pentru browser-e fara :has())
+    document.querySelectorAll('.pv-template-picker input[name="template_id"]').forEach(function(r) {
+        r.addEventListener('change', function() {
+            document.querySelectorAll('.pv-template-card').forEach(function(c) {
+                c.classList.toggle('is-selected', !!c.querySelector('input:checked'));
+            });
+        });
     });
 
     const appointmentSelect = document.getElementById('appointmentSelect');
