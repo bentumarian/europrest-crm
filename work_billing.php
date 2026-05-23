@@ -404,10 +404,12 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
 .ib-small-btn.primary:hover { background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; }
 .ib-small-btn.muted { background:var(--surface-soft); color:var(--muted); }
 .ib-small-btn.is-disabled, .ib-small-btn[disabled], .ib-small-btn:disabled { opacity:0.45; cursor:not-allowed; pointer-events:none; }
-.skip-inline { display:none; gap:6px; align-items:center; margin-top:6px; }
+.skip-inline { display:none; gap:6px; align-items:center; }
 .skip-inline.is-open { display:flex; }
 .skip-inline input { flex:1; min-width:140px; max-width:240px; height:28px; border:1px solid var(--pz-orb); border-radius:4px; padding:0 8px; font-size:12px; background:#fff; }
 .skip-inline input:focus { outline:2px solid rgba(180,83,9,.25); }
+/* Cand form-ul motiv e deschis, inputul ia locul textului '-' (ascund [data-note-display]). */
+.is-editing-note [data-note-display] { display:none; }
 .empty-state { padding:34px; text-align:center; color:var(--muted); font-weight:800; }
 .bulk-bar { display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--surface-soft); border:1px solid var(--border); border-radius:6px; margin-bottom:10px; flex-wrap:wrap; }
 .bulk-bar .bulk-count { font-weight:900; }
@@ -685,7 +687,6 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                                         </td>
                                         <td>
                                             <div class="cell-title"><?= ib_h($row['client_name'] ?: 'Client') ?></div>
-                                            <?php if (!empty($row['client_fiscal_code'])): ?><div class="cell-muted">CUI/CNP: <?= ib_h($row['client_fiscal_code']) ?></div><?php endif; ?>
                                         </td>
                                         <td>
                                             <div class="cell-title"><?= ib_h(ib_effective_location($row)) ?></div>
@@ -816,7 +817,12 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                 // Deschide form-ul din coloana Motiv (atat tabel cat si card).
                 var forms = findSkipForms(itemId);
                 if (forms.length === 0) { select.value = original; return; }
-                forms.forEach(function (form) { form.classList.add('is-open'); });
+                forms.forEach(function (form) {
+                    form.classList.add('is-open');
+                    // Marcheaza celula ca fiind in edit -> ascunde [data-note-display]
+                    var cell = form.parentElement;
+                    if (cell) cell.classList.add('is-editing-note');
+                });
                 // Focus la primul input vizibil
                 var firstVisibleInput = null;
                 forms.forEach(function (form) {
@@ -851,6 +857,8 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                 }
             });
             form.classList.remove('is-open');
+            var cell = form.parentElement;
+            if (cell) cell.classList.remove('is-editing-note');
         }
 
         input.addEventListener('keydown', function (e) {
