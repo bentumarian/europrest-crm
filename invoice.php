@@ -1325,8 +1325,24 @@ if (!$invoiceItems) {
         <div class="content invoice-page">
             <section class="hero">
                 <div>
-                    <h1><?= $appointmentId > 0 ? 'Factură din lucrare' : 'Factură nouă' ?></h1>
-                    <p><?= $appointmentId > 0 ? 'Datele sunt preluate din lucrare și pot fi verificate înainte de emitere.' : 'Emitere factură manuală, separată de registrul lucrărilor.' ?></p>
+                    <h1><?php
+                        if ($invoiceIsIssued) {
+                            echo 'Factură emisă';
+                        } elseif ($appointmentId > 0) {
+                            echo 'Factură din lucrare';
+                        } else {
+                            echo 'Factură nouă';
+                        }
+                    ?></h1>
+                    <p><?php
+                        if ($invoiceIsIssued) {
+                            echo 'Factura a fost emisă cu succes în SmartBill. Vezi detaliile mai jos sau emite alta nouă.';
+                        } elseif ($appointmentId > 0) {
+                            echo 'Datele sunt preluate din lucrare și pot fi verificate înainte de emitere.';
+                        } else {
+                            echo 'Emitere factură manuală, separată de registrul lucrărilor.';
+                        }
+                    ?></p>
                 </div>
                 <div class="action-buttons">
                     <a class="btn ghost" href="invoices.php">Facturi</a>
@@ -1467,7 +1483,7 @@ if (!$invoiceItems) {
             </section>
             <?php endif; ?>
 
-            <?php if (!$showInvoicePreview): ?>
+            <?php if (!$showInvoicePreview && !$invoiceIsIssued): ?>
             <section class="card invoice-editor">
                 <form method="post" id="invoiceForm">
                     <?= function_exists('csrf_field') ? csrf_field() : '' ?>
@@ -1575,7 +1591,7 @@ if (!$invoiceItems) {
                     </div>
                 </form>
             </section>
-            <?php endif; // !$showInvoicePreview ?>
+            <?php endif; // !$showInvoicePreview && !$invoiceIsIssued - form ascuns dupa emiterea facturii ?>
 
             <?php if ($loadedInvoice && !$showInvoicePreview): ?>
             <section class="card action-panel">
