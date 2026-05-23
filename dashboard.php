@@ -422,7 +422,14 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 .mc-head .pill.alert { background: var(--mc-re-soft); color: var(--mc-re-deep); }
 
 .mc-rings { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-.mc-ring-card { background: var(--mc-surf); border-radius: 12px; padding: 16px; border: 0.5px solid var(--mc-line); position: relative; display: flex; flex-direction: column; }
+.mc-ring-card {
+    background: var(--mc-surf); border-radius: 12px; padding: 16px;
+    border: 0.5px solid var(--mc-line); position: relative;
+    display: flex; flex-direction: column;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.05);
+    transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+.mc-ring-card:hover { box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 10px 24px rgba(15, 23, 42, 0.08); transform: translateY(-1px); }
 .mc-ring-card.op { background: var(--mc-bl-soft); border-color: var(--mc-bl-border); }
 .mc-ring-card.fin { background: var(--mc-or-soft); border-color: var(--mc-or-border); }
 .mc-ring-card.team { background: var(--mc-gr-soft); border-color: var(--mc-gr-border); }
@@ -478,7 +485,13 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 .mc-cog-menu a.current::after { content: '✓'; }
 
 .mc-secondary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.mc-card { background: var(--mc-surf); border: 0.5px solid var(--mc-line); border-radius: 12px; padding: 16px; position: relative; }
+.mc-card {
+    background: var(--mc-surf); border: 0.5px solid var(--mc-line);
+    border-radius: 12px; padding: 16px; position: relative;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.05);
+    transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+.mc-card:hover { box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 10px 24px rgba(15, 23, 42, 0.08); transform: translateY(-1px); }
 .mc-card.danger { background: var(--mc-re-soft); border-color: var(--mc-re-border); }
 .mc-card .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .mc-card .head .title { font-size: 13px; font-weight: 500; }
@@ -504,9 +517,10 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
     background: var(--mc-surf); border: 0.5px solid var(--mc-line); border-radius: 10px;
     padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;
     text-decoration: none; color: var(--mc-text);
-    transition: border-color 0.15s, background 0.15s;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 6px rgba(15, 23, 42, 0.04);
+    transition: box-shadow 0.18s ease, transform 0.18s ease;
 }
-.mc-mini:hover { border-color: var(--mc-line); background: #FAFAFB; }
+.mc-mini:hover { box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 6px 16px rgba(15, 23, 42, 0.08); transform: translateY(-1px); }
 .mc-mini.alert { background: var(--mc-re-soft); border-color: var(--mc-re-border); }
 .mc-mini.warn  { background: var(--mc-or-soft); border-color: var(--mc-or-border); }
 .mc-mini.info  { background: var(--mc-bl-soft); border-color: var(--mc-bl-border); }
@@ -546,6 +560,7 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 .mc-banner {
     background: var(--mc-navy); color: #FFF; border-radius: 12px;
     padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    box-shadow: 0 4px 12px rgba(18, 52, 90, 0.18), 0 12px 32px rgba(18, 52, 90, 0.12);
 }
 .mc-banner .label { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; }
 .mc-banner .value { font-size: 22px; font-weight: 500; margin-top: 4px; }
