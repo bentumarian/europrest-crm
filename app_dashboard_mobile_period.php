@@ -126,12 +126,88 @@ if (!function_exists('app_dashboard_mobile_period_assets')) {
         font-size: 15px;
         line-height: 1;
     }
+
+    /* KPI mobile: 4 carduri grupate pe 2 randuri */
+    .pz-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+    }
+
+    .pz-kpi {
+        min-width: 0;
+        padding: 10px 11px !important;
+    }
+
+    .pz-kpi .pz-kpi-head {
+        align-items: flex-start;
+        gap: 6px;
+        margin-bottom: 5px;
+    }
+
+    .pz-kpi .pz-kpi-label {
+        min-width: 0;
+        font-size: 10.5px !important;
+        line-height: 1.25;
+    }
+
+    .pz-kpi .pz-kpi-badge {
+        flex-shrink: 0;
+        font-size: 9.5px !important;
+        padding: 1px 5px !important;
+    }
+
+    .pz-kpi .pz-kpi-value {
+        font-size: 20px !important;
+        line-height: 1.18;
+    }
+
+    .pz-kpi .pz-kpi-value .unit {
+        font-size: 10.5px !important;
+        margin-left: 2px;
+    }
+
+    .pz-kpi .pz-kpi-foot {
+        font-size: 10px;
+        line-height: 1.25;
+    }
 }
 
 @media (max-width: 480px) {
     .pz-period-mobile summary {
         width: 40px;
         height: 40px;
+    }
+
+    .pz-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+    }
+
+    .pz-kpi .pz-kpi-value {
+        font-size: 19px !important;
+    }
+}
+
+@media (max-width: 360px) {
+    .pz-kpi-grid {
+        gap: 7px !important;
+    }
+
+    .pz-kpi {
+        padding: 9px 9px !important;
+    }
+
+    .pz-kpi .pz-kpi-label {
+        font-size: 10px !important;
+    }
+
+    .pz-kpi .pz-kpi-value {
+        font-size: 17px !important;
+    }
+
+    .pz-kpi .pz-kpi-value .unit,
+    .pz-kpi .pz-kpi-foot {
+        font-size: 9.5px !important;
     }
 }
 </style>
