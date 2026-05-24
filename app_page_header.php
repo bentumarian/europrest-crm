@@ -299,21 +299,30 @@ if (!function_exists('pz_page_header_css')) {
             font-size: 14px;
             color: var(--pz-fa);
         }
-        .pz-fb-date-range input[type="date"] {
-            border: none;
-            background: transparent;
-            padding: 0;
-            height: auto;
-            font-size: 12px;
-            color: var(--pz-title);
-            font-family: inherit;
-            width: 110px;
+        .pz-fb-date-range input,
+        .pz-fb-date-range input[type="date"],
+        .pz-fb-date-range input[type="text"],
+        .pz-fb-date-range input.flatpickr-input {
+            border: 0 !important;
+            background: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            font-size: 12px !important;
+            color: var(--pz-title) !important;
+            font-family: inherit !important;
+            width: 100px !important;
+            box-shadow: none !important;
+            outline: none !important;
+            font-weight: 500 !important;
         }
-        .pz-fb-date-range input[type="date"]:focus {
-            outline: none;
-            box-shadow: none;
+        .pz-fb-date-range input:focus {
+            outline: none !important;
+            box-shadow: none !important;
+            border: 0 !important;
         }
-        .pz-fb-date-range .sep { color: var(--pz-fa); font-size: 12px; }
+        .pz-fb-date-range .sep { color: var(--pz-fa); font-size: 12px; user-select: none; }
 
         .pz-fb-search {
             position: relative;
