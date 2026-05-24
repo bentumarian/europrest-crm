@@ -446,13 +446,25 @@ if ($editId > 0) {
     <main class="main">
         <div class="content rem-page">
 
-            <div class="rem-header">
-                <div>
-                    <h1>Reminders</h1>
-                    <div class="sub">Sarcini de office: revizii auto, ITP, asigurări, transmitere index și altele.</div>
-                </div>
-                <button class="btn accent" type="button" onclick="remOpenCreate()">+ Reminder nou</button>
-            </div>
+            <?php pz_page_header([
+                'kicker'   => 'Operațional',
+                'title'    => 'Reminders',
+                'subtitle' => 'Sarcini de office: revizii auto, ITP, asigurări, transmitere index și altele.',
+                'actions'  => [
+                    [
+                        'label'   => 'Reminder nou',
+                        'variant' => 'primary',
+                        'icon'    => 'ti-plus',
+                        'type'    => 'button',
+                        'onclick' => 'remOpenCreate()',
+                    ],
+                ],
+                'tabs' => [
+                    ['label' => 'Active · ' . (int)$countActive,             'href' => 'reminders.php?tab=active',   'active' => $tab === 'active'],
+                    ['label' => 'Programate ulterior · ' . (int)$countUpcoming, 'href' => 'reminders.php?tab=upcoming', 'active' => $tab === 'upcoming'],
+                    ['label' => 'Istoric · ' . (int)$countHistory,           'href' => 'reminders.php?tab=history',  'active' => $tab === 'history'],
+                ],
+            ]); ?>
 
             <?php if ($flashSuccess !== ''): ?>
                 <div class="notice notice-success"><?= rem_h($flashSuccess) ?></div>
@@ -460,18 +472,6 @@ if ($editId > 0) {
             <?php if ($flashError !== ''): ?>
                 <div class="notice notice-danger"><?= rem_h($flashError) ?></div>
             <?php endif; ?>
-
-            <div class="rem-tabs">
-                <a class="rem-tab <?= $tab === 'active' ? 'is-active' : '' ?>" href="reminders.php?tab=active">
-                    Active <span class="count"><?= $countActive ?></span>
-                </a>
-                <a class="rem-tab <?= $tab === 'upcoming' ? 'is-active' : '' ?>" href="reminders.php?tab=upcoming">
-                    Programate ulterior <span class="count"><?= $countUpcoming ?></span>
-                </a>
-                <a class="rem-tab <?= $tab === 'history' ? 'is-active' : '' ?>" href="reminders.php?tab=history">
-                    Istoric <span class="count"><?= $countHistory ?></span>
-                </a>
-            </div>
 
             <div class="rem-list">
                 <?php if (empty($displayList)): ?>

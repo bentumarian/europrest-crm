@@ -927,19 +927,52 @@ function reports_short_service_label(string $name): string {
 
         <div class="content">
 
-            <section class="reports-hero">
-                <div>
-                    <div class="pz-page-eyebrow">Analiză operațională</div>
-                    <h1>Rapoarte</h1>
-                </div>
-            </section>
-
-            <div class="quick-range">
-                <a class="btn" href="reports.php?date_from=<?= r_h($today) ?>&date_to=<?= r_h($today) ?>&team=all&service=all&status=all">Azi</a>
-                <a class="btn" href="reports.php?date_from=<?= r_h($currentMonthStart) ?>&date_to=<?= r_h($currentMonthEnd) ?>&team=all&service=all&status=all">Luna curentă</a>
-                <a class="btn" href="reports.php?date_from=<?= r_h($prevMonthStart) ?>&date_to=<?= r_h($prevMonthEnd) ?>&team=all&service=all&status=all">Luna trecută</a>
-                <a class="btn" href="reports.php?date_from=<?= r_h($currentYearStart) ?>&date_to=<?= r_h($currentYearEnd) ?>&team=all&service=all&status=all">An curent</a>
-            </div>
+            <?php
+                $rangeBase = 'reports.php?team=all&service=all&status=all';
+                $isCurrentMonth = ($dateFrom === $currentMonthStart && $dateTo === $currentMonthEnd);
+                $isPrevMonth    = ($dateFrom === $prevMonthStart    && $dateTo === $prevMonthEnd);
+                $isToday        = ($dateFrom === $today             && $dateTo === $today);
+                $isYear         = ($dateFrom === $currentYearStart  && $dateTo === $currentYearEnd);
+                $rangeCurrent = $isToday ? 'today' : ($isCurrentMonth ? 'month' : ($isPrevMonth ? 'prev_month' : ($isYear ? 'year' : '')));
+            ?>
+            <?php pz_page_header([
+                'kicker'   => 'Analiză',
+                'title'    => 'Rapoarte',
+                'subtitle' => r_h($dateFrom) . ' — ' . r_h($dateTo) . ' · ' . (int)$totalAppointments . ' programări analizate',
+                'period' => [
+                    'current' => $rangeCurrent,
+                    'param'   => '_range_quick',
+                    'options' => [
+                        'today'      => 'Azi',
+                        'month'      => 'Luna curentă',
+                        'prev_month' => 'Luna trecută',
+                        'year'       => 'An curent',
+                    ],
+                ],
+            ]); ?>
+            <script>
+            (function() {
+                document.querySelectorAll('.pz-ph-period a').forEach(function(a) {
+                    a.addEventListener('click', function(e) {
+                        var u = new URL(a.href, location.href);
+                        var rq = u.searchParams.get('_range_quick');
+                        if (!rq) return;
+                        e.preventDefault();
+                        var today = '<?= r_h($today) ?>';
+                        var cms   = '<?= r_h($currentMonthStart) ?>'; var cme = '<?= r_h($currentMonthEnd) ?>';
+                        var pms   = '<?= r_h($prevMonthStart) ?>';    var pme = '<?= r_h($prevMonthEnd) ?>';
+                        var cys   = '<?= r_h($currentYearStart) ?>';  var cye = '<?= r_h($currentYearEnd) ?>';
+                        var from, to;
+                        if      (rq === 'today')      { from = today; to = today; }
+                        else if (rq === 'month')      { from = cms;   to = cme; }
+                        else if (rq === 'prev_month') { from = pms;   to = pme; }
+                        else if (rq === 'year')       { from = cys;   to = cye; }
+                        else return;
+                        location.href = 'reports.php?date_from=' + from + '&date_to=' + to + '&team=all&service=all&status=all';
+                    });
+                });
+            })();
+            </script>
 
             <section class="pz-kpi-grid">
                 <div class="pz-kpi-card bl">

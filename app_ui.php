@@ -34,3 +34,4 @@ require_once __DIR__ . '/app_brand.php';
 require_once __DIR__ . '/app_search_preview.php';
 require_once __DIR__ . '/app_topbar.php';
 require_once __DIR__ . '/app_sidebar.php';
+require_once __DIR__ . '/app_page_header.php';

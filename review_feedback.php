@@ -86,34 +86,52 @@ $demoLowUrl = ($autoBase !== '') ? ($autoBase . '/feedback.php?demo=low') : 'fee
     <main class="main">
         <div class="topbar" style="padding:12px 20px;"></div>
         <div class="content page">
-            <section class="hero">
-                <div>
-                    <h1>Feedback clienți</h1>
-                    <p>Monitorizează solicitările de review, ratingurile si formularele de satisfacție.</p>
-                </div>
-                <div class="actions">
-                    <form method="post" style="margin:0;">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="action" value="run_scan">
-                        <button class="btn" type="submit">Rulează verificarea acum</button>
-                    </form>
-                    <a class="btn ghost" target="_blank" href="<?= pz_review_h($demoLowUrl) ?>">Vezi formular nemulțumit</a>
-                    <a class="btn ghost" href="review_settings.php">Setări review</a>
-                </div>
-            </section>
+            <?php
+                // Form de run_scan se trimite separat sub header (nu mai e inline în butoane)
+            ?>
+            <?php pz_page_header([
+                'kicker'   => 'Operațional',
+                'title'    => 'Feedback clienți',
+                'subtitle' => 'Monitorizează solicitările de review, ratingurile și formularele de satisfacție.',
+                'actions'  => [
+                    [
+                        'label'   => 'Rulează verificarea',
+                        'variant' => 'primary',
+                        'icon'    => 'ti-refresh',
+                        'type'    => 'button',
+                        'onclick' => "document.getElementById('reviewScanForm').submit();",
+                    ],
+                    [
+                        'label'   => 'Vezi formular',
+                        'variant' => 'ghost',
+                        'icon'    => 'ti-external-link',
+                        'href'    => pz_review_h($demoLowUrl),
+                        'target'  => '_blank',
+                    ],
+                    [
+                        'label'   => 'Setări review',
+                        'variant' => 'ghost',
+                        'icon'    => 'ti-settings',
+                        'href'    => 'review_settings.php',
+                    ],
+                ],
+                'kpis' => [
+                    ['label' => 'Total',    'value' => (int)$stats['total']],
+                    ['label' => 'Trimise',  'value' => (int)$stats['sent'],   'tone' => 'info'],
+                    ['label' => 'Deschise', 'value' => (int)$stats['opened']],
+                    ['label' => 'Evaluate', 'value' => (int)$stats['rated']],
+                    ['label' => '5 stele',  'value' => (int)$stats['five'],   'tone' => 'success'],
+                    ['label' => 'Sub 5',    'value' => (int)$stats['low'],    'tone' => 'danger'],
+                ],
+            ]); ?>
+            <form method="post" id="reviewScanForm" style="display:none;">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="run_scan">
+            </form>
 
             <?php if ($scanResult !== null): ?>
                 <div class="notice">Rezultat verificare: <?= pz_review_h(json_encode($scanResult, JSON_UNESCAPED_UNICODE)) ?></div>
             <?php endif; ?>
-
-            <section class="cards">
-                <div class="stat"><span>Total</span><strong><?= (int)$stats['total'] ?></strong></div>
-                <div class="stat"><span>Trimise</span><strong><?= (int)$stats['sent'] ?></strong></div>
-                <div class="stat"><span>Deschise</span><strong><?= (int)$stats['opened'] ?></strong></div>
-                <div class="stat"><span>Evaluate</span><strong><?= (int)$stats['rated'] ?></strong></div>
-                <div class="stat"><span>5 stele</span><strong><?= (int)$stats['five'] ?></strong></div>
-                <div class="stat"><span>Sub 5</span><strong><?= (int)$stats['low'] ?></strong></div>
-            </section>
 
             <section class="panel">
                 <form class="filters" method="get">
