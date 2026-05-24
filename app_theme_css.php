@@ -555,14 +555,14 @@ if (!function_exists('app_theme_css')) {
             }
 
             .brand-logo-link {
-                min-height: 92px;
+                min-height: 200px;
             }
 
             .brand-logo {
-                width: 88px;
-                height: 88px;
-                max-width: 88px;
-                max-height: 88px;
+                width: 240px;
+                height: 200px;
+                max-width: 240px;
+                max-height: 200px;
             }
 
             .brand-fallback {
@@ -1304,15 +1304,15 @@ if (!function_exists('app_theme_css')) {
             }
 
             .brand-logo-link {
-                min-height: 100px;
+                min-height: 130px;
                 width: 100%;
             }
 
             .brand-logo {
-                width: 96px;
-                height: 96px;
-                max-width: 96px;
-                max-height: 96px;
+                width: 200px;
+                height: 130px;
+                max-width: 200px;
+                max-height: 130px;
             }
 
             .sidebar-nav {
