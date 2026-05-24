@@ -698,42 +698,124 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
             <?php endif; ?>
 
             <?php if (!$showForm): ?>
-            <section class="panel">
-                <div class="panel-head">
-                    <div>
-                        <div class="panel-title">Lista acte adiționale</div>
+            <?php
+                /*
+                |------------------------------------------------------------
+                | Header unificat PestZone — înlocuiește panel-head + filter
+                | form vechi pentru lista acte adiționale.
+                | Tabs principale = 5 sub-pagini Documente.
+                | Toolbar = search + popover (Status + Rânduri/pagină).
+                | Actions = Act adițional nou (primary).
+                |------------------------------------------------------------
+                */
+                $addendaTabs = [
+                    ['label' => 'Procese verbale',  'href' => 'service-reports'],
+                    ['label' => 'Contracte',        'href' => 'contracts.php'],
+                    ['label' => 'Oferte',           'href' => 'oferte.php'],
+                    ['label' => 'Acte adiționale',  'href' => 'addenda.php', 'active' => true],
+                    ['label' => 'Arhivă documente', 'href' => 'documents'],
+                ];
+
+                $addendaActiveFilters = 0;
+                if (!empty($filters['status'])) $addendaActiveFilters++;
+                if ($perPage !== 20)            $addendaActiveFilters++;
+
+                $addendaSubtitle = (int)($totalDocs ?? count($documents)) . ' acte adiționale';
+                if (!empty($filters['q'])) {
+                    $addendaSubtitle .= ' · căutare: „' . pz_addendum_h($filters['q']) . '"';
+                }
+
+                ob_start();
+                ?>
+                <form method="get" id="addendaFilterForm" class="pz-fb">
+                    <div class="pz-fb-search">
+                        <i class="ti ti-search" aria-hidden="true"></i>
+                        <input type="text" id="addendaSearchInput" name="q" value="<?= pz_addendum_h($filters['q']) ?>" placeholder="Caută act adițional, client" autocomplete="off">
+                        <div class="pz-search-preview"></div>
                     </div>
-                    <a class="btn primary" href="addenda.php?new=1">+ Act adițional nou</a>
-                </div>
-                <div class="panel-body">
-                    <form method="get" class="filter-form">
-                        <div class="field">
-                            <label>Căutare</label>
-                            <div class="pz-search-wrap">
-                                <input type="text" id="addendaSearchInput" name="q" value="<?= pz_addendum_h($filters['q']) ?>" placeholder="Caută" autocomplete="off">
-                                <div class="pz-search-preview"></div>
+
+                    <div class="pz-fb-spacer"></div>
+
+                    <a class="pz-fb-nav-btn" href="addenda.php" title="Resetare filtre">↻</a>
+
+                    <div class="pz-fb-popover-wrap">
+                        <button type="button" class="pz-fb-filter-btn" id="addendaFiltersToggle" aria-haspopup="true" aria-expanded="false">
+                            <i class="ti ti-adjustments-horizontal" aria-hidden="true"></i>
+                            Filtre
+                            <?php if ($addendaActiveFilters > 0): ?>
+                                <span class="badge"><?= (int)$addendaActiveFilters ?></span>
+                            <?php endif; ?>
+                        </button>
+                        <div class="pz-fb-popover" id="addendaFiltersPopover" role="dialog" aria-label="Filtre suplimentare acte adiționale">
+                            <div class="pf-row">
+                                <label for="addendaStatusSelect">Status</label>
+                                <select id="addendaStatusSelect" name="status">
+                                    <option value="">Toate</option>
+                                    <?php foreach (['draft' => 'Draft', 'issued' => 'Emise', 'cancelled' => 'Anulate'] as $value => $label): ?>
+                                        <option value="<?= $value ?>" <?= $filters['status'] === $value ? 'selected' : '' ?>><?= $label ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-row">
+                                <label for="addendaPerPageSelect">Rânduri pe pagină</label>
+                                <select id="addendaPerPageSelect" name="per_page">
+                                    <?php foreach ([20, 50, 100] as $nr): ?>
+                                        <option value="<?= $nr ?>" <?= $perPage === $nr ? 'selected' : '' ?>><?= $nr ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-actions">
+                                <button type="button" class="pz-ph-btn ghost" onclick="document.getElementById('addendaFiltersPopover').classList.remove('is-open'); document.getElementById('addendaFiltersToggle').setAttribute('aria-expanded','false');">Anulează</button>
+                                <button type="submit" class="pz-ph-btn primary">Aplică</button>
                             </div>
                         </div>
-                        <div class="field">
-                            <label>Status</label>
-                            <select name="status">
-                                <option value="">Toate</option>
-                                <?php foreach (['draft' => 'Draft', 'issued' => 'Emise', 'cancelled' => 'Anulate'] as $value => $label): ?>
-                                    <option value="<?= $value ?>" <?= $filters['status'] === $value ? 'selected' : '' ?>><?= $label ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label>Rânduri</label>
-                            <select name="per_page">
-                                <?php foreach ([20, 50, 100] as $nr): ?>
-                                    <option value="<?= $nr ?>" <?= $perPage === $nr ? 'selected' : '' ?>><?= $nr ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <button class="btn primary" type="submit">Filtrează</button>
-                    </form>
+                    </div>
+                </form>
+                <?php
+                $addendaToolbarHtml = ob_get_clean();
 
+                pz_page_header([
+                    'kicker'   => 'Documente',
+                    'title'    => 'Acte adiționale',
+                    'subtitle' => $addendaSubtitle,
+                    'actions'  => [[
+                        'label'   => 'Act adițional nou',
+                        'href'    => 'addenda.php?new=1',
+                        'variant' => 'primary',
+                        'icon'    => 'ti-plus',
+                    ]],
+                    'tabs'     => $addendaTabs,
+                    'toolbar'  => $addendaToolbarHtml,
+                ]);
+                ?>
+                <script>
+                (function() {
+                    var btn = document.getElementById('addendaFiltersToggle');
+                    var pop = document.getElementById('addendaFiltersPopover');
+                    if (!btn || !pop) return;
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        var open = pop.classList.toggle('is-open');
+                        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    });
+                    document.addEventListener('click', function(e) {
+                        if (!pop.classList.contains('is-open')) return;
+                        if (pop.contains(e.target) || btn.contains(e.target)) return;
+                        pop.classList.remove('is-open');
+                        btn.setAttribute('aria-expanded', 'false');
+                    });
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape' && pop.classList.contains('is-open')) {
+                            pop.classList.remove('is-open');
+                            btn.setAttribute('aria-expanded', 'false');
+                            btn.focus();
+                        }
+                    });
+                })();
+                </script>
+
+            <section class="panel">
+                <div class="panel-body">
                     <div class="docs-list" style="margin-top:12px;">
                         <?php if (!$documents): ?>
                             <div class="empty-state">Nu există acte adiționale inca.</div>
