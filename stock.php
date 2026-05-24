@@ -41,39 +41,47 @@ app_theme_css();
 .stock-kpi.warn .value { color: #b45309; }
 </style>
 </head><body><div class="layout"><?php render_sidebar('stock', true); ?><main class="main"><div class="content">
-<div class="stock-hero"><div><h1>Gestiune stocuri DDD</h1><p>Nomenclator produse, intrări, ieșiri, inventar fizic, alerte de expirare și stoc minim.</p></div><div class="stock-actions"><a class="btn accent" href="stock_products.php">Produs nou</a><a class="btn" href="stock_receipts.php">Intrare stoc</a><a class="btn" href="stock_movements.php">Mișcare manuală</a><a class="btn" href="stock_inventory.php">Inventar fizic</a><a class="btn" href="stock_export.php?type=stock_current">Export Excel</a></div></div>
-<?php render_stock_module_nav('dashboard'); ?>
+<?php
+/*
+|----------------------------------------------------------------------
+| Header unificat PestZone — înlocuiește stock-hero + module_nav vechi.
+| Tabs = sub-modulele gestiunii (Dashboard activ).
+| KPI inline = 7 metrice cu tone-uri info/warning/danger.
+|----------------------------------------------------------------------
+*/
+$stockTabs = [
+    ['label' => 'Dashboard',        'href' => 'stock.php',                 'active' => true],
+    ['label' => 'Produse',          'href' => 'stock_products.php'],
+    ['label' => 'Intrări',          'href' => 'stock_receipts.php'],
+    ['label' => 'Mișcări',          'href' => 'stock_movements.php'],
+    ['label' => 'Inventar fizic',   'href' => 'stock_inventory.php'],
+    ['label' => 'PV fără consum',   'href' => 'stock_deferred_pvs.php'],
+    ['label' => 'Notificări',       'href' => 'stock_notifications.php'],
+    ['label' => 'Fișa magazie',     'href' => 'stock_card.php'],
+    ['label' => 'Registru lucrări', 'href' => 'stock_work_registry.php'],
+];
 
-<div class="stock-kpis">
-    <div class="stock-kpi">
-        <div class="label">Produse</div>
-        <div class="value"><?= (int)$totalProducts ?></div>
-    </div>
-    <a class="stock-kpi <?= $lowStock > 0 ? 'alert' : '' ?>" href="stock_notifications.php">
-        <div class="label">Sub stoc minim</div>
-        <div class="value"><?= (int)$lowStock ?></div>
-    </a>
-    <a class="stock-kpi <?= $expiringSoonCount > 0 ? 'warn' : '' ?>" href="stock_notifications.php">
-        <div class="label">Expiră în 30 zile</div>
-        <div class="value"><?= (int)$expiringSoonCount ?></div>
-    </a>
-    <a class="stock-kpi <?= $expiredCount > 0 ? 'alert' : '' ?>" href="stock_notifications.php">
-        <div class="label">Expirate cu stoc</div>
-        <div class="value"><?= (int)$expiredCount ?></div>
-    </a>
-    <a class="stock-kpi <?= $deferredPvsCount > 0 ? 'warn' : '' ?>" href="stock_deferred_pvs.php">
-        <div class="label">PV fără consum</div>
-        <div class="value"><?= (int)$deferredPvsCount ?></div>
-    </a>
-    <div class="stock-kpi">
-        <div class="label">Mișcări totale</div>
-        <div class="value"><?= (int)$movementsCount ?></div>
-    </div>
-    <div class="stock-kpi">
-        <div class="label">Unități totale</div>
-        <div class="value"><?= stock_h(stock_fmt_qty($totalQty)) ?></div>
-    </div>
-</div>
+pz_page_header([
+    'kicker'   => 'Operațional',
+    'title'    => 'Gestiune stocuri DDD',
+    'subtitle' => 'Nomenclator produse, intrări, ieșiri, inventar fizic, alerte expirare și stoc minim',
+    'actions'  => [
+        ['label' => 'Export Excel', 'href' => 'stock_export.php?type=stock_current', 'variant' => 'ghost',   'icon' => 'ti-download'],
+        ['label' => 'Intrare stoc', 'href' => 'stock_receipts.php',                  'variant' => 'ghost',   'icon' => 'ti-package-import'],
+        ['label' => 'Produs nou',   'href' => 'stock_products.php',                  'variant' => 'primary', 'icon' => 'ti-plus'],
+    ],
+    'tabs'     => $stockTabs,
+    'kpis'     => [
+        ['label' => 'Produse',           'value' => (int)$totalProducts],
+        ['label' => 'Sub stoc minim',    'value' => (int)$lowStock,          'tone' => $lowStock          > 0 ? 'danger'  : ''],
+        ['label' => 'Expiră în 30 zile', 'value' => (int)$expiringSoonCount, 'tone' => $expiringSoonCount > 0 ? 'warning' : ''],
+        ['label' => 'Expirate cu stoc',  'value' => (int)$expiredCount,      'tone' => $expiredCount      > 0 ? 'danger'  : ''],
+        ['label' => 'PV fără consum',    'value' => (int)$deferredPvsCount,  'tone' => $deferredPvsCount  > 0 ? 'warning' : ''],
+        ['label' => 'Mișcări totale',    'value' => (int)$movementsCount],
+        ['label' => 'Unități totale',    'value' => stock_h(stock_fmt_qty($totalQty))],
+    ],
+]);
+?>
 
 <?php if ($openInventoryId > 0): ?>
     <div class="notice notice-warning" style="background:#fffbeb;border-color:#fde68a;color:#92400e;">
@@ -103,9 +111,41 @@ app_theme_css();
     </div>
 <?php endif; ?>
 
-<div class="stock-card"><h2 style="margin:0 0 14px;font-size:18px;">Stoc curent pe produs</h2><div class="stock-table-wrap"><table class="stock-table"><thead><tr><th>Produs</th><th>Grupa</th><th>Unitate</th><th>Stoc curent</th><th>Stoc minim</th><th>Status</th><th>Acțiuni</th></tr></thead><tbody>
-<?php foreach ($rows as $r): $isLow = (float)$r['min_qty'] > 0 && (float)$r['current_qty'] <= (float)$r['min_qty']; ?>
-<tr class="<?= $isLow ? 'stock-alert-row' : '' ?>"><td><strong><?= stock_h($r['name']) ?></strong></td><td><?= stock_h(stock_group_label($r['product_group'])) ?></td><td><?= stock_h($r['unit_consumption']) ?></td><td><?= stock_h(stock_unit_display($r['current_qty'], $r['unit_consumption'])) ?></td><td><?= stock_h(stock_unit_display($r['min_qty'], $r['unit_consumption'])) ?></td><td><?= $isLow ? '<span class="stock-badge red">Sub minim</span>' : '<span class="stock-badge green">OK</span>' ?></td><td><a class="btn" href="stock_card.php?product_id=<?= (int)$r['id'] ?>">Fișa</a></td></tr>
-<?php endforeach; ?><?php if (!$rows): ?><tr><td colspan="7">Nu există produse. Adaugă primul produs în nomenclator.</td></tr><?php endif; ?>
-</tbody></table></div></div>
+<?php pz_table_cards_css(); ?>
+<div class="stock-card">
+    <h2 style="margin:0 0 14px;font-size:18px;">Stoc curent pe produs</h2>
+    <div class="stock-table-wrap pz-table-cards-wrap">
+        <table class="stock-table pz-table-cards">
+            <thead>
+                <tr>
+                    <th>Produs</th>
+                    <th>Grupa</th>
+                    <th>Unitate</th>
+                    <th>Stoc curent</th>
+                    <th>Stoc minim</th>
+                    <th>Status</th>
+                    <th>Acțiuni</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($rows as $r):
+                    $isLow = (float)$r['min_qty'] > 0 && (float)$r['current_qty'] <= (float)$r['min_qty'];
+                ?>
+                    <tr class="<?= $isLow ? 'stock-alert-row' : '' ?>">
+                        <td data-label="Produs"><strong><?= stock_h($r['name']) ?></strong></td>
+                        <td data-label="Grupa"><?= stock_h(stock_group_label($r['product_group'])) ?></td>
+                        <td data-label="Unitate"><?= stock_h($r['unit_consumption']) ?></td>
+                        <td data-label="Stoc curent"><?= stock_h(stock_unit_display($r['current_qty'], $r['unit_consumption'])) ?></td>
+                        <td data-label="Stoc minim"><?= stock_h(stock_unit_display($r['min_qty'], $r['unit_consumption'])) ?></td>
+                        <td data-label="Status"><?= $isLow ? '<span class="stock-badge red">Sub minim</span>' : '<span class="stock-badge green">OK</span>' ?></td>
+                        <td data-label="Acțiuni"><a class="btn" href="stock_card.php?product_id=<?= (int)$r['id'] ?>">Fișa</a></td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (!$rows): ?>
+                    <tr><td colspan="7">Nu există produse. Adaugă primul produs în nomenclator.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
 </div></main></div></body></html>
