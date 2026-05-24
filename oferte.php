@@ -943,50 +943,131 @@ foreach ($services as $service) {
             <?php endif; ?>
 
             <?php if (empty($_GET['new']) && empty($editingDocument)): ?>
-            <section class="panel">
-                <div class="panel-head">
-                    <div>
-                        <div class="pz-page-eyebrow">Documente</div>
-                        <div class="panel-title">Lista oferte</div>
+            <?php
+                /*
+                |------------------------------------------------------------
+                | Header unificat PestZone — înlocuiește panel-head + filter
+                | form vechi pentru lista oferte.
+                | Tabs principale = 5 sub-pagini Documente.
+                | Toolbar = search + popover (Status + Rânduri/pagină).
+                | Actions = Ofertă nouă (primary).
+                |------------------------------------------------------------
+                */
+                $offersTabs = [
+                    ['label' => 'Procese verbale',  'href' => 'service-reports'],
+                    ['label' => 'Contracte',        'href' => 'contracts.php'],
+                    ['label' => 'Oferte',           'href' => 'oferte.php', 'active' => true],
+                    ['label' => 'Acte adiționale',  'href' => 'addenda.php'],
+                    ['label' => 'Arhivă documente', 'href' => 'documents'],
+                ];
+
+                $offersActiveFilters = 0;
+                if (!empty($filters['status'])) $offersActiveFilters++;
+                if ($perPage !== 20)            $offersActiveFilters++;
+
+                $offersSubtitle = (int)($totalDocs ?? count($documents)) . ' oferte';
+                if (!empty($filters['client_id'])) {
+                    $offersSubtitle .= ' · filtrate pentru client #' . (int)$filters['client_id'];
+                }
+                if (!empty($filters['q'])) {
+                    $offersSubtitle .= ' · căutare: „' . pz_offer_h($filters['q']) . '"';
+                }
+
+                $offerNewHref = 'offers?new=1' . (!empty($filters['client_id']) ? '&client_id=' . (int)$filters['client_id'] : '');
+
+                ob_start();
+                ?>
+                <form method="get" id="offersFilterForm" class="pz-fb">
+                    <?php if (!empty($filters['client_id'])): ?>
+                        <input type="hidden" name="client_id" value="<?= (int)$filters['client_id'] ?>">
+                    <?php endif; ?>
+
+                    <div class="pz-fb-search">
+                        <i class="ti ti-search" aria-hidden="true"></i>
+                        <input type="text" id="oferteSearchInput" name="q" value="<?= pz_offer_h($filters['q']) ?>" placeholder="Caută ofertă, client, CUI" autocomplete="off">
+                        <div class="pz-search-preview"></div>
                     </div>
-                
-                    <a class="pz-icon-btn primary lg" title="Ofertă nouă" aria-label="Ofertă nouă" href="offers?new=1<?= !empty($filters['client_id']) ? '&client_id=' . (int)$filters['client_id'] : '' ?>"><?= app_icon_svg('plus') ?></a>
-                </div>
-                <div class="panel-body">
-                    <form class="filter-form" method="get">
-                        <?php if (!empty($filters['client_id'])): ?>
-                            <input type="hidden" name="client_id" value="<?= (int)$filters['client_id'] ?>">
-                        <?php endif; ?>
-                        <div class="field">
-                            <label>Căutare</label>
-                            <div class="pz-search-wrap">
-                                <input type="text" id="oferteSearchInput" name="q" value="<?= pz_offer_h($filters['q']) ?>" placeholder="Caută" autocomplete="off">
-                                <div class="pz-search-preview"></div>
+
+                    <div class="pz-fb-spacer"></div>
+
+                    <a class="pz-fb-nav-btn" href="oferte.php" title="Resetare filtre">↻</a>
+
+                    <div class="pz-fb-popover-wrap">
+                        <button type="button" class="pz-fb-filter-btn" id="offersFiltersToggle" aria-haspopup="true" aria-expanded="false">
+                            <i class="ti ti-adjustments-horizontal" aria-hidden="true"></i>
+                            Filtre
+                            <?php if ($offersActiveFilters > 0): ?>
+                                <span class="badge"><?= (int)$offersActiveFilters ?></span>
+                            <?php endif; ?>
+                        </button>
+                        <div class="pz-fb-popover" id="offersFiltersPopover" role="dialog" aria-label="Filtre suplimentare oferte">
+                            <div class="pf-row">
+                                <label for="offersStatusSelect">Status</label>
+                                <select id="offersStatusSelect" name="status">
+                                    <option value="">Toate</option>
+                                    <?php foreach (['draft' => 'Draft', 'issued' => 'Emise', 'cancelled' => 'Anulate'] as $value => $label): ?>
+                                        <option value="<?= pz_offer_h($value) ?>" <?= $filters['status'] === $value ? 'selected' : '' ?>><?= pz_offer_h($label) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-row">
+                                <label for="offersPerPageSelect">Rânduri pe pagină</label>
+                                <select id="offersPerPageSelect" name="per_page">
+                                    <?php foreach ([20, 50, 100] as $value): ?>
+                                        <option value="<?= (int)$value ?>" <?= $perPage === $value ? 'selected' : '' ?>><?= (int)$value ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-actions">
+                                <button type="button" class="pz-ph-btn ghost" onclick="document.getElementById('offersFiltersPopover').classList.remove('is-open'); document.getElementById('offersFiltersToggle').setAttribute('aria-expanded','false');">Anulează</button>
+                                <button type="submit" class="pz-ph-btn primary">Aplică</button>
                             </div>
                         </div>
-                        <div class="field">
-                            <label>Status</label>
-                            <select name="status">
-                                <option value="">Toate</option>
-                                <?php foreach (['draft' => 'Draft', 'issued' => 'Emise', 'cancelled' => 'Anulate'] as $value => $label): ?>
-                                    <option value="<?= pz_offer_h($value) ?>" <?= $filters['status'] === $value ? 'selected' : '' ?>><?= pz_offer_h($label) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label>Pe pagina</label>
-                            <select name="per_page">
-                                <?php foreach ([20, 50, 100] as $value): ?>
-                                    <option value="<?= (int)$value ?>" <?= $perPage === $value ? 'selected' : '' ?>><?= (int)$value ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="field">
-                            <button class="btn primary" type="submit">Filtrează</button>
-                        </div>
-                    </form>
-                </div>
-            </section>
+                    </div>
+                </form>
+                <?php
+                $offersToolbarHtml = ob_get_clean();
+
+                pz_page_header([
+                    'kicker'   => 'Documente',
+                    'title'    => 'Oferte',
+                    'subtitle' => $offersSubtitle,
+                    'actions'  => [[
+                        'label'   => 'Ofertă nouă',
+                        'href'    => $offerNewHref,
+                        'variant' => 'primary',
+                        'icon'    => 'ti-plus',
+                    ]],
+                    'tabs'     => $offersTabs,
+                    'toolbar'  => $offersToolbarHtml,
+                ]);
+                ?>
+                <script>
+                (function() {
+                    var btn = document.getElementById('offersFiltersToggle');
+                    var pop = document.getElementById('offersFiltersPopover');
+                    if (!btn || !pop) return;
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        var open = pop.classList.toggle('is-open');
+                        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    });
+                    document.addEventListener('click', function(e) {
+                        if (!pop.classList.contains('is-open')) return;
+                        if (pop.contains(e.target) || btn.contains(e.target)) return;
+                        pop.classList.remove('is-open');
+                        btn.setAttribute('aria-expanded', 'false');
+                    });
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape' && pop.classList.contains('is-open')) {
+                            pop.classList.remove('is-open');
+                            btn.setAttribute('aria-expanded', 'false');
+                            btn.focus();
+                        }
+                    });
+                })();
+                </script>
+            <?php /* — sfârșit header unificat — */ ?>
 
             <?php if (!$documents): ?>
                 <div class="empty-state">Nu există oferte pentru filtrele selectate.</div>
