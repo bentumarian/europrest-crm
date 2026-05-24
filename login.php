@@ -701,18 +701,60 @@ body {
 }
 
 @media (max-width: 520px) {
-    .pz-login-page { padding: 24px 18px 22px; }
-    .pz-brand { margin-bottom: 28px; }
+    /* Pe mobil — totul centrat orizontal și grupat vertical pe centrul ecranului. */
+    .pz-login-page {
+        padding: 32px 20px;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+    }
+    .pz-brand {
+        margin-bottom: 28px;
+        justify-content: center;
+    }
     .pz-brand-bar { width: 7px; height: 28px; }
     .pz-brand-name { font-size: 16px; }
+    .pz-hero {
+        text-align: center;
+        max-width: 100%;
+        margin-bottom: 28px;
+    }
     .pz-hero h1 { font-size: 28px; }
-    .pz-hero p { font-size: 13.5px; line-height: 1.5; }
+    .pz-hero p {
+        font-size: 13.5px;
+        line-height: 1.5;
+        max-width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+    }
     .pz-mini-cards { display: none; }
-    .pz-form-card { padding: 22px 20px; border-radius: 16px; }
+    .pz-error {
+        width: 100%;
+        max-width: 100%;
+        text-align: left;
+    }
+    .pz-form-card {
+        width: 100%;
+        max-width: 100%;
+        padding: 22px 20px;
+        border-radius: 16px;
+        text-align: left;
+    }
     .pz-form-card input[type="email"],
     .pz-form-card input[type="password"] { font-size: 16px; }
     .pz-submit { height: 46px; }
-    .pz-foot { font-size: 10.5px; flex-direction: column; gap: 6px; align-items: flex-start; }
+    .pz-foot {
+        width: 100%;
+        max-width: 100%;
+        font-size: 10.5px;
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        margin-top: 24px;
+        padding-top: 0;
+    }
     .pz-decor-1 { width: 280px; height: 280px; opacity: 0.85; }
     .pz-decor-2 { width: 220px; height: 220px; opacity: 0.85; }
     .pz-decor-3 { display: none; }
