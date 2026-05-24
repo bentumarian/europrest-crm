@@ -563,6 +563,356 @@ if (!function_exists('pz_page_header_css')) {
     }
 }
 
+if (!function_exists('pz_date_picker_assets')) {
+    /**
+     * Injectează asset-urile vanillajs-datepicker (CSS + JS + locale ro) o singură dată per pagină
+     * plus stilurile PestZone customizate cu tokens pz-*.
+     *
+     * Calendarul are vizualizare clară pe an: click pe titlul "mai 2026" deschide picker-ul
+     * de luni, click pe an "2026" deschide picker-ul de ani, click pe interval "2020-2029"
+     * deschide picker-ul de decenii. Săritura între ani devine 1 click în loc de 12.
+     *
+     * Folosire JS (după ce DOM-ul e gata):
+     *   new Datepicker(input, { language: 'ro', format: 'dd.mm.yyyy', weekStart: 1, ... });
+     *   new DateRangePicker(rangeEl, { language: 'ro', format: 'dd.mm.yyyy', weekStart: 1, ... });
+     *
+     * Sau mai simplu, prin helper-ul pz_date_range_init() (vezi mai jos) pentru cazul
+     * standard cu două inputs (from/to) și hidden fields ISO pentru submit.
+     */
+    function pz_date_picker_assets(): void
+    {
+        static $rendered = false;
+        if ($rendered) return;
+        $rendered = true;
+        ?>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vanillajs-datepicker@1.3.4/dist/css/datepicker.min.css">
+        <style>
+        /* PZ Date Picker — vanillajs-datepicker tematizat cu tokens PestZone */
+        .datepicker {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+            font-size: 13px;
+            z-index: 250;
+        }
+        .datepicker-picker {
+            background: var(--pz-surf) !important;
+            border: 1px solid var(--pz-line) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10), 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+            padding: 10px !important;
+            min-width: 260px;
+        }
+        .datepicker-dropdown { padding-top: 4px !important; }
+        .datepicker-header { background: transparent !important; }
+        .datepicker-controls {
+            padding: 4px 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 2px !important;
+        }
+        .datepicker-controls .button {
+            background: transparent !important;
+            border: 0 !important;
+            color: var(--pz-text) !important;
+            font-weight: 500 !important;
+            font-size: 13px !important;
+            height: 30px !important;
+            padding: 0 10px !important;
+            border-radius: 6px !important;
+            cursor: pointer !important;
+            box-shadow: none !important;
+            transition: background-color .12s, color .12s !important;
+            line-height: 1 !important;
+        }
+        .datepicker-controls .button:hover {
+            background: var(--pz-soft) !important;
+            color: var(--pz-bld) !important;
+        }
+        .datepicker-controls .view-switch {
+            font-weight: 600 !important;
+            color: var(--pz-title) !important;
+            flex: 1 !important;
+            text-align: center !important;
+            font-size: 13.5px !important;
+        }
+        .datepicker-controls .view-switch:hover {
+            background: var(--pz-bls) !important;
+            color: var(--pz-bld) !important;
+        }
+        .datepicker-controls .prev-button,
+        .datepicker-controls .next-button {
+            width: 30px !important;
+            padding: 0 !important;
+            color: var(--pz-mu) !important;
+            font-weight: 700 !important;
+        }
+        .datepicker-grid { gap: 0 !important; }
+        .datepicker-view .days-of-week {
+            margin-bottom: 4px !important;
+        }
+        .datepicker-view .dow {
+            color: var(--pz-mu) !important;
+            font-size: 10.5px !important;
+            font-weight: 600 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.04em !important;
+            height: 28px !important;
+            line-height: 28px !important;
+        }
+        .datepicker-cell {
+            height: 34px !important;
+            line-height: 34px !important;
+            border-radius: 6px !important;
+            color: var(--pz-text) !important;
+            cursor: pointer !important;
+            font-size: 13px !important;
+            transition: background-color .12s, color .12s !important;
+        }
+        .datepicker-cell:not(.disabled):hover {
+            background: var(--pz-soft) !important;
+            color: var(--pz-bld) !important;
+        }
+        .datepicker-cell.disabled {
+            color: var(--pz-fa) !important;
+            cursor: not-allowed !important;
+        }
+        .datepicker-cell.prev:not(.selected),
+        .datepicker-cell.next:not(.selected) {
+            color: var(--pz-fa) !important;
+        }
+        .datepicker-cell.today:not(.selected):not(.range-start):not(.range-end) {
+            color: var(--pz-bld) !important;
+            font-weight: 600 !important;
+            position: relative;
+        }
+        .datepicker-cell.today:not(.selected):not(.range-start):not(.range-end)::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 4px;
+            background: var(--pz-bl);
+            border-radius: 50%;
+        }
+        .datepicker-cell.selected,
+        .datepicker-cell.selected:hover,
+        .datepicker-cell.range-start,
+        .datepicker-cell.range-end {
+            background: var(--pz-bl) !important;
+            color: #fff !important;
+            font-weight: 500 !important;
+        }
+        .datepicker-cell.range {
+            background: var(--pz-bls) !important;
+            color: var(--pz-bld) !important;
+            border-radius: 0 !important;
+            font-weight: 500 !important;
+        }
+        .datepicker-cell.range:hover {
+            background: var(--pz-blb) !important;
+            color: var(--pz-bld) !important;
+        }
+        .datepicker-cell.range-start:not(.range-end) {
+            border-top-right-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+        }
+        .datepicker-cell.range-end:not(.range-start) {
+            border-top-left-radius: 0 !important;
+            border-bottom-left-radius: 0 !important;
+        }
+        .datepicker-cell.focused:not(.selected) {
+            background: var(--pz-soft) !important;
+            color: var(--pz-bld) !important;
+        }
+        /* Vizualizare luni / ani / decenii — celulele sunt mai mari pentru click ușor */
+        .datepicker .months .datepicker-cell,
+        .datepicker .years .datepicker-cell,
+        .datepicker .decades .datepicker-cell {
+            height: 50px !important;
+            line-height: 50px !important;
+            font-weight: 500 !important;
+            font-size: 13px !important;
+        }
+        .datepicker-footer { background: transparent !important; }
+        .datepicker-controls.datepicker-footer {
+            border-top: 1px solid var(--pz-lines) !important;
+            padding-top: 8px !important;
+            margin-top: 4px !important;
+        }
+        .datepicker-footer .button {
+            color: var(--pz-bld) !important;
+            font-weight: 500 !important;
+        }
+        @media (max-width: 480px) {
+            .datepicker-picker { min-width: 240px; }
+            .datepicker-cell { height: 32px !important; line-height: 32px !important; font-size: 12.5px !important; }
+        }
+        </style>
+        <script defer src="https://cdn.jsdelivr.net/npm/vanillajs-datepicker@1.3.4/dist/js/datepicker-full.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/vanillajs-datepicker@1.3.4/dist/js/locales/ro.js"></script>
+        <?php
+    }
+}
+
+if (!function_exists('pz_date_range_init')) {
+    /**
+     * Emite inline <script> care inițializează un date range picker standard PestZone:
+     *   - inputurile vizibile devin text readonly cu format dd.mm.yyyy
+     *   - hidden inputs cu name-urile originale primesc ISO yyyy-mm-dd pentru backend
+     *   - DateRangePicker leagă cele 2 inputs, valida from <= to automat
+     *
+     * $fromName / $toName = atributele name ale inputurilor existente în DOM (vor fi
+     * convertite la text + hidden ISO).
+     * $opts:
+     *   'today_text' => '<?= date('Y-m-d') ?>'  (pt indicator azi, opțional)
+     *   'min_date'   => 'YYYY-MM-DD' (opțional)
+     *   'max_date'   => 'YYYY-MM-DD' (opțional)
+     *   'form_id'    => 'idFormular'  (opțional, pentru auto-submit la schimbare)
+     */
+    function pz_date_range_init(string $fromName, string $toName, array $opts = []): void
+    {
+        pz_date_picker_assets();
+        $minDate = isset($opts['min_date']) ? "'" . pz_ph_h($opts['min_date']) . "'" : 'null';
+        $maxDate = isset($opts['max_date']) ? "'" . pz_ph_h($opts['max_date']) . "'" : 'null';
+        $formId  = isset($opts['form_id'])  ? "'" . pz_ph_h($opts['form_id'])  . "'" : 'null';
+        $fromJs  = pz_ph_h($fromName);
+        $toJs    = pz_ph_h($toName);
+        ?>
+        <script>
+        (function() {
+            function ready(fn) {
+                if (document.readyState !== 'loading') return fn();
+                document.addEventListener('DOMContentLoaded', fn);
+            }
+            function waitFor(checkFn, cb, tries) {
+                tries = tries || 0;
+                if (checkFn()) return cb();
+                if (tries > 60) return; // ~3s
+                setTimeout(function() { waitFor(checkFn, cb, tries + 1); }, 50);
+            }
+            ready(function() {
+                waitFor(function() {
+                    return typeof Datepicker !== 'undefined' && typeof DateRangePicker !== 'undefined';
+                }, function() {
+                    var fromInput = document.querySelector('input[name="<?= $fromJs ?>"]');
+                    var toInput   = document.querySelector('input[name="<?= $toJs ?>"]');
+                    if (!fromInput || !toInput) return;
+
+                    function parseISO(s) {
+                        if (!s || typeof s !== 'string') return null;
+                        var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                        if (!m) return null;
+                        return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+                    }
+                    function isoFromDate(d) {
+                        if (!d) return '';
+                        var y = d.getFullYear();
+                        var m = String(d.getMonth() + 1).padStart(2, '0');
+                        var day = String(d.getDate()).padStart(2, '0');
+                        return y + '-' + m + '-' + day;
+                    }
+                    function ddmmyyyy(d) {
+                        if (!d) return '';
+                        var day = String(d.getDate()).padStart(2, '0');
+                        var m   = String(d.getMonth() + 1).padStart(2, '0');
+                        return day + '.' + m + '.' + d.getFullYear();
+                    }
+
+                    // Convertesc input-urile la text + readonly și creez hidden ISO cu numele original.
+                    function prepareInput(input) {
+                        var name = input.name;
+                        var initialISO = input.value || '';
+                        var hidden = document.createElement('input');
+                        hidden.type = 'hidden';
+                        hidden.name = name;
+                        hidden.value = initialISO;
+                        input.parentNode.insertBefore(hidden, input.nextSibling);
+                        input.removeAttribute('name');
+                        input.type = 'text';
+                        input.readOnly = true;
+                        input.autocomplete = 'off';
+                        input.spellcheck = false;
+                        var d = parseISO(initialISO);
+                        input.value = d ? ddmmyyyy(d) : '';
+                        return hidden;
+                    }
+                    var fromHidden = prepareInput(fromInput);
+                    var toHidden   = prepareInput(toInput);
+
+                    // Container pentru DateRangePicker — creez un wrapper temporar fără afectare layout
+                    // (DateRangePicker cere ca cele 2 inputs să aibă ancestor comun cu el ca rangepicker).
+                    // Folosesc cel mai apropiat ancestor comun existent.
+                    function commonAncestor(a, b) {
+                        var anc = a;
+                        while (anc) {
+                            if (anc.contains(b)) return anc;
+                            anc = anc.parentNode;
+                        }
+                        return document.body;
+                    }
+                    var rangeRoot = commonAncestor(fromInput, toInput);
+
+                    var minDate = <?= $minDate ?>;
+                    var maxDate = <?= $maxDate ?>;
+                    var hasRo = typeof Datepicker !== 'undefined' && Datepicker.locales && Datepicker.locales.ro;
+                    var common = {
+                        language: hasRo ? 'ro' : 'en',
+                        format: 'dd.mm.yyyy',
+                        weekStart: 1,
+                        autohide: true,
+                        todayHighlight: true,
+                        maxView: 3,
+                        showOnFocus: true,
+                        showOnClick: true,
+                        clearBtn: false,
+                        todayBtn: true,
+                        todayBtnMode: 1, // selectează ziua de azi în loc să navigheze
+                        prevArrow: '‹',
+                        nextArrow: '›',
+                        beforeShowDay: null
+                    };
+                    if (minDate) common.minDate = minDate;
+                    if (maxDate) common.maxDate = maxDate;
+
+                    var rangePicker = new DateRangePicker(rangeRoot, {
+                        inputs: [fromInput, toInput],
+                        allowOneSidedRange: true,
+                        ...common
+                    });
+
+                    function syncHidden() {
+                        var dates = rangePicker.getDates();
+                        fromHidden.value = isoFromDate(dates[0]);
+                        toHidden.value   = isoFromDate(dates[1]);
+                    }
+                    fromInput.addEventListener('changeDate', syncHidden);
+                    toInput.addEventListener('changeDate', syncHidden);
+
+                    // Auto-submit opțional la schimbare
+                    var formId = <?= $formId ?>;
+                    if (formId) {
+                        var form = document.getElementById(formId);
+                        if (form) {
+                            var debounce;
+                            function maybeSubmit() {
+                                clearTimeout(debounce);
+                                debounce = setTimeout(function() {
+                                    if (fromHidden.value && toHidden.value) form.submit();
+                                }, 250);
+                            }
+                            fromInput.addEventListener('changeDate', maybeSubmit);
+                            toInput.addEventListener('changeDate', maybeSubmit);
+                        }
+                    }
+                });
+            });
+        })();
+        </script>
+        <?php
+    }
+}
+
 if (!function_exists('pz_page_header')) {
     /**
      * Render principal pentru header-ul de pagină.
