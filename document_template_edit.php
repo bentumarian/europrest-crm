@@ -416,7 +416,7 @@ $isNew = (int)$form['id'] <= 0;
 
 .option-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:4px; }
 .check-pill { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; height:32px; border:1px solid var(--pz-line); border-radius:4px; background:#fff; font-size:12.5px; font-weight:500; color:var(--pz-text); cursor:pointer; transition:background .12s, border-color .12s, color .12s; box-sizing:border-box; }
-.check-pill input { width:14px; height:14px; margin:0; accent-color:var(--pz-bl); cursor:pointer; }
+.check-pill input { width:14px; height:14px; min-width:0; min-height:0; margin:0; accent-color:var(--pz-bl); cursor:pointer; appearance:auto; -webkit-appearance:auto; }
 .check-pill:hover { border-color:var(--pz-mu); background:var(--pz-soft); }
 .check-pill:has(input:checked) { background:var(--pz-bls); border-color:var(--pz-blb); color:var(--pz-bld); font-weight:600; }
 
