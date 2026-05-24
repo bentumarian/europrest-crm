@@ -2,6 +2,7 @@
 require_once 'config.php';
 require_login();
 require_once 'app_ui.php';
+require_once 'revenue_lib.php';
 
 $isAdmin = is_admin();
 
@@ -80,6 +81,9 @@ ensure_column_services($pdo, 'services', 'active', "TINYINT(1) NOT NULL DEFAULT 
 ensure_column_services($pdo, 'services', 'sort_order', "INT NOT NULL DEFAULT 0");
 ensure_column_services($pdo, 'services', 'created_at', "TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
 
+// Categoria veniturilor (linie de business): ddd / ignifugari / chirii / altele.
+pz_revenue_ensure_column($pdo, 'services', 'ddd');
+
 /*
 |--------------------------------------------------------------------------
 | Servicii implicite
@@ -124,6 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $defaultDuration = max(15, (int)($_POST['default_duration'] ?? 60));
         $sortOrder = (int)($_POST['sort_order'] ?? 0);
         $active = !empty($_POST['active']) ? 1 : 0;
+        $revenueCategory = pz_revenue_category_normalize($_POST['revenue_category'] ?? 'ddd', 'ddd');
 
         if ($name === '') {
             header("Location: services.php?error=1");
@@ -133,8 +138,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'create') {
             $stmt = $pdo->prepare("
                 INSERT INTO services
-                (name, description, default_duration, active, sort_order)
-                VALUES (?, ?, ?, ?, ?)
+                (name, description, default_duration, active, sort_order, revenue_category)
+                VALUES (?, ?, ?, ?, ?, ?)
             ");
 
             $stmt->execute([
@@ -143,6 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $defaultDuration,
                 $active,
                 $sortOrder,
+                $revenueCategory,
             ]);
 
             header("Location: services.php?success=1");
@@ -156,7 +162,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     description = ?,
                     default_duration = ?,
                     active = ?,
-                    sort_order = ?
+                    sort_order = ?,
+                    revenue_category = ?
                 WHERE id = ?
             ");
 
@@ -166,6 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $defaultDuration,
                 $active,
                 $sortOrder,
+                $revenueCategory,
                 $serviceId,
             ]);
 
@@ -268,23 +276,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 | Query servicii
 |--------------------------------------------------------------------------
 */
-$stmt = $pdo->query("
-    SELECT *
-    FROM services
-    ORDER BY sort_order ASC, name ASC
-");
-$services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$filterCategory = strtolower(trim((string)($_GET['cat'] ?? '')));
+$allowedFilterCategories = pz_revenue_category_keys();
+$hasFilterCategory = in_array($filterCategory, $allowedFilterCategories, true);
 
-$totalServices = count($services);
+if ($hasFilterCategory) {
+    $stmt = $pdo->prepare("
+        SELECT *
+        FROM services
+        WHERE revenue_category = ?
+        ORDER BY sort_order ASC, name ASC
+    ");
+    $stmt->execute([$filterCategory]);
+    $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} else {
+    $stmt = $pdo->query("
+        SELECT *
+        FROM services
+        ORDER BY sort_order ASC, name ASC
+    ");
+    $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// Tot setul pentru count-uri (independent de filtru).
+$allServices = $pdo->query("SELECT id, active, revenue_category FROM services")->fetchAll(PDO::FETCH_ASSOC);
+$totalServices = count($allServices);
 $activeServices = 0;
 $inactiveServices = 0;
+$categoryCounts = array_fill_keys($allowedFilterCategories, 0);
 
-foreach ($services as $service) {
-    if ((int)$service['active'] === 1) {
+foreach ($allServices as $row) {
+    if ((int)$row['active'] === 1) {
         $activeServices++;
     } else {
         $inactiveServices++;
     }
+    $catKey = pz_revenue_category_normalize((string)($row['revenue_category'] ?? 'ddd'), 'ddd');
+    $categoryCounts[$catKey] = ($categoryCounts[$catKey] ?? 0) + 1;
 }
 
 $servicesForJs = [];
@@ -297,8 +325,11 @@ foreach ($services as $service) {
         'default_duration' => (int)($service['default_duration'] ?? 60),
         'active' => (int)($service['active'] ?? 1),
         'sort_order' => (int)($service['sort_order'] ?? 0),
+        'revenue_category' => pz_revenue_category_normalize($service['revenue_category'] ?? 'ddd', 'ddd'),
     ];
 }
+
+$revenueCategories = pz_revenue_categories();
 
 $durationOptions = [
     15  => '15 minute',
@@ -383,9 +414,28 @@ $durationOptions = [
                 </div>
             </section>
 
+            <div class="services-cat-filter" style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 14px;align-items:center;">
+                <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--pz-muted);font-weight:600;margin-right:2px;">Filtrează:</span>
+                <a href="services.php" class="cat-chip <?= !$hasFilterCategory ? 'active' : '' ?>"
+                   style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;text-decoration:none;font-size:12px;font-weight:500;border:0.5px solid var(--pz-line);background:<?= !$hasFilterCategory ? 'var(--pz-navy)' : 'var(--pz-surface)' ?>;color:<?= !$hasFilterCategory ? '#FFF' : 'var(--pz-text)' ?>;">
+                    Toate <span style="opacity:0.6"><?= (int)$totalServices ?></span>
+                </a>
+                <?php foreach ($revenueCategories as $code => $info): ?>
+                    <?php $isActive = $filterCategory === $code; ?>
+                    <a href="services.php?cat=<?= h($code) ?>" class="cat-chip <?= $isActive ? 'active' : '' ?>"
+                       style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;text-decoration:none;font-size:12px;font-weight:500;border:0.5px solid <?= h($info['border']) ?>;background:<?= $isActive ? h($info['color']) : h($info['bg']) ?>;color:<?= $isActive ? '#FFF' : h($info['color']) ?>;">
+                        <?= h($info['label']) ?> <span style="opacity:0.65"><?= (int)($categoryCounts[$code] ?? 0) ?></span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+
             <?php if (!$services): ?>
                 <div class="empty-state">
-                    Nu există servicii definite.
+                    <?php if ($hasFilterCategory): ?>
+                        Nu există servicii în categoria <strong><?= h(pz_revenue_category_label($filterCategory)) ?></strong>.
+                    <?php else: ?>
+                        Nu există servicii definite.
+                    <?php endif; ?>
                 </div>
             <?php else: ?>
                 <section class="services-grid">
@@ -417,6 +467,11 @@ $durationOptions = [
                                 <span class="service-pill">
                                     Ordine <?= (int)$service['sort_order'] ?>
                                 </span>
+
+                                <?= pz_revenue_render_badge(
+                                    (string)($service['revenue_category'] ?? 'ddd'),
+                                    ['size' => 'sm']
+                                ) ?>
                             </div>
 
                             <div class="service-actions">
@@ -488,6 +543,20 @@ $durationOptions = [
                 </div>
 
                 <div class="form-group full">
+                    <label>Categorie venit</label>
+                    <select name="revenue_category">
+                        <?php foreach ($revenueCategories as $code => $info): ?>
+                            <option value="<?= h($code) ?>" <?= $code === 'ddd' ? 'selected' : '' ?>>
+                                <?= h($info['label']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div style="font-size:11.5px;color:var(--pz-muted);margin-top:4px">
+                        Determină pe ce linie de business apare venitul în rapoarte.
+                    </div>
+                </div>
+
+                <div class="form-group full">
                     <label>Descriere</label>
                     <textarea name="description" placeholder="Descriere scurta pentru uz intern..."></textarea>
                 </div>
@@ -548,6 +617,18 @@ $durationOptions = [
                 </div>
 
                 <div class="form-group full">
+                    <label>Categorie venit</label>
+                    <select name="revenue_category" id="edit_revenue_category">
+                        <?php foreach ($revenueCategories as $code => $info): ?>
+                            <option value="<?= h($code) ?>"><?= h($info['label']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div style="font-size:11.5px;color:var(--pz-muted);margin-top:4px">
+                        Determină pe ce linie de business apare venitul în rapoarte.
+                    </div>
+                </div>
+
+                <div class="form-group full">
                     <label>Descriere</label>
                     <textarea name="description" id="edit_description"></textarea>
                 </div>
@@ -600,6 +681,7 @@ function openEditServiceModal(id) {
     document.getElementById('edit_default_duration').value = service.default_duration || 60;
     document.getElementById('edit_sort_order').value = service.sort_order || 0;
     document.getElementById('edit_active').checked = Number(service.active) === 1;
+    document.getElementById('edit_revenue_category').value = service.revenue_category || 'ddd';
 
     openModal('editServiceModal');
 }
