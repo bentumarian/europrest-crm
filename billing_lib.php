@@ -391,6 +391,24 @@ if (!function_exists('pz_billing_ensure_item_for_appointment')) {
                 'created' => true,
                 'error'   => null,
             ];
+        } catch (PDOException $e) {
+            // SQLSTATE 23000 = integrity constraint violation (UNIQUE pe appointment_id).
+            // Înseamnă că un alt request concurent a creat deja rândul între SELECT-ul
+            // de la începutul funcției și INSERT-ul de aici. Re-citim rândul existent
+            // și-l returnăm ca succes (idempotent, fără excepție vizibilă utilizatorului).
+            if ($e->getCode() === '23000') {
+                $existing = pz_billing_get_item_by_appointment($pdo, $appointmentId);
+                if ($existing) {
+                    return [
+                        'ok'      => true,
+                        'item_id' => (int)$existing['id'],
+                        'created' => false,
+                        'error'   => null,
+                    ];
+                }
+            }
+            error_log('pz_billing_ensure_item_for_appointment INSERT: ' . $e->getMessage());
+            return ['ok' => false, 'item_id' => 0, 'created' => false, 'error' => 'Eroare la creare poziție: ' . $e->getMessage()];
         } catch (Throwable $e) {
             error_log('pz_billing_ensure_item_for_appointment INSERT: ' . $e->getMessage());
             return ['ok' => false, 'item_id' => 0, 'created' => false, 'error' => 'Eroare la creare poziție: ' . $e->getMessage()];
