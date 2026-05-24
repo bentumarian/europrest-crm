@@ -377,10 +377,11 @@ if (!function_exists('app_theme_css')) {
             max-height: 160px;
             display: block;
             object-fit: contain;
-            /* Recolorează logo-ul (orice culoare originală) la albastrul vibrant PestZone --pz-bl (#2563EB).
-               Filter chain generat pentru target #2563EB pornind de la orice imagine.
+            /* Recolorează logo-ul la verdele PestZone --pz-gr (#166534) — identic cu
+               segmentul "Încasate" din donut-ul de pe dashboard. Filter chain calculat
+               pentru target #166534 pornind de la orice imagine.
                Nu afectează varianta white de pe mobile (alt selector — .app-mobile-logo). */
-            filter: brightness(0) saturate(100%) invert(28%) sepia(95%) saturate(2920%) hue-rotate(217deg) brightness(95%) contrast(95%);
+            filter: brightness(0) saturate(100%) invert(31%) sepia(38%) saturate(2230%) hue-rotate(102deg) brightness(91%) contrast(91%);
         }
 
         .brand-fallback {
