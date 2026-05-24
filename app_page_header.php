@@ -414,11 +414,29 @@ if (!function_exists('pz_page_header_css')) {
             background: var(--pz-bg);
             color: var(--pz-title);
             font-family: inherit;
+            -webkit-appearance: none;
+            appearance: none;
         }
         .pz-fb-search input:focus {
             outline: none;
             border-color: var(--pz-bl);
             box-shadow: 0 0 0 3px var(--pz-bls);
+        }
+        /* Ascund icon-urile native pe input[type="search"] (Webkit + Firefox)
+           ca să rămână doar iconul nostru Tabler ti-search din interior */
+        .pz-fb-search input[type="search"]::-webkit-search-decoration,
+        .pz-fb-search input[type="search"]::-webkit-search-cancel-button,
+        .pz-fb-search input[type="search"]::-webkit-search-results-button,
+        .pz-fb-search input[type="search"]::-webkit-search-results-decoration {
+            -webkit-appearance: none;
+            appearance: none;
+            display: none;
+        }
+        .pz-fb-search input::-ms-clear,
+        .pz-fb-search input::-ms-reveal {
+            display: none;
+            width: 0;
+            height: 0;
         }
 
         .pz-fb-spacer { flex: 1; }
