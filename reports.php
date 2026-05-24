@@ -838,28 +838,111 @@ function reports_short_service_label(string $name): string {
     .table-card {
         border-radius: 8px !important;
         box-shadow: none !important;
+        background: transparent !important;
+        border: 0 !important;
+        overflow: visible !important;
     }
+    .table-scroll {
+        overflow-x: visible !important;
+    }
+    /* ============================================================
+       Layout carduri pentru tabelul de programări pe mobile.
+       Fiecare rând (tr) devine un card vertical cu label-uri.
+       Sursa label-urilor: atributul data-label pe fiecare <td>.
+       ============================================================ */
     .report-table {
-        min-width: 760px !important;
+        display: block !important;
+        min-width: 0 !important;
+        width: 100% !important;
     }
-    .report-table th {
-        font-size: 9.5px !important;
-        letter-spacing: 0 !important;
-        padding: 8px !important;
+    .report-table thead {
+        display: none !important;
     }
-    .report-table td {
+    .report-table tbody {
+        display: block !important;
+        width: 100% !important;
+    }
+    .report-table tbody tr {
+        display: block !important;
+        background: var(--surface) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 10px !important;
+        padding: 12px 14px !important;
+        margin-bottom: 8px !important;
+        box-shadow: none !important;
+    }
+    .report-table tbody tr:last-child {
+        margin-bottom: 0 !important;
+    }
+    .report-table tbody td {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: flex-start !important;
+        justify-content: space-between !important;
+        gap: 10px !important;
+        padding: 5px 0 !important;
+        border: 0 !important;
+        border-bottom: 1px solid var(--border2) !important;
+        font-size: 12.5px !important;
+        text-align: right !important;
+        min-height: 0 !important;
+    }
+    .report-table tbody td:last-child {
+        border-bottom: 0 !important;
+    }
+    .report-table tbody td::before {
+        content: attr(data-label) !important;
+        flex: 0 0 auto !important;
+        font-weight: 600 !important;
         font-size: 10.5px !important;
-        padding: 8px !important;
+        color: var(--muted) !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.04em !important;
+        text-align: left !important;
+        padding-top: 1px !important;
+        white-space: nowrap !important;
     }
-    .cell-muted,
-    .note-cell {
-        font-size: 10px !important;
-        line-height: 1.25 !important;
+    .report-table tbody td > * {
+        text-align: right !important;
+        min-width: 0 !important;
     }
-    .status-pill {
-        border-radius: 4px !important;
-        padding: 4px 6px !important;
-        font-size: 10px !important;
+    .report-table tbody td strong {
+        font-weight: 600 !important;
+        word-break: break-word !important;
+    }
+    .report-table tbody td .cell-muted {
+        font-size: 10.5px !important;
+        margin-top: 2px !important;
+        line-height: 1.3 !important;
+        color: var(--muted) !important;
+    }
+    .report-table tbody td .note-cell {
+        font-size: 11.5px !important;
+        line-height: 1.35 !important;
+        max-width: 65% !important;
+        word-break: break-word !important;
+    }
+    .report-table tbody td .note-cell.empty {
+        color: var(--muted) !important;
+    }
+    .report-table tbody td .status-pill {
+        border-radius: 6px !important;
+        padding: 3px 8px !important;
+        font-size: 10.5px !important;
+    }
+    /* Data + Ora — pe primul rând, pe orizontală mare, ca header al cardului */
+    .report-table tbody tr td[data-label="Data"] {
+        font-weight: 600 !important;
+        font-size: 13.5px !important;
+        color: var(--text) !important;
+        padding-bottom: 8px !important;
+        margin-bottom: 4px !important;
+        border-bottom: 1px solid var(--border) !important;
+    }
+    .report-table tbody tr td[data-label="Data"]::before {
+        font-size: 10.5px !important;
+        font-weight: 600 !important;
+        color: var(--muted) !important;
     }
 }
 </style>
@@ -1144,15 +1227,15 @@ function reports_short_service_label(string $name): string {
                                         $completionNotes = trim((string)($appointment['completion_notes'] ?? ''));
                                     ?>
                                     <tr>
-                                        <td><?= r_h($appointment['appointment_date']) ?></td>
-                                        <td><?= r_h(substr((string)$appointment['start_time'], 0, 5)) ?></td>
-                                        <td>
+                                        <td data-label="Data"><?= r_h($appointment['appointment_date']) ?></td>
+                                        <td data-label="Ora"><?= r_h(substr((string)$appointment['start_time'], 0, 5)) ?></td>
+                                        <td data-label="Client">
                                             <strong><?= r_h($appointment['client_name'] ?: 'Client') ?></strong>
                                             <?php if (!empty($appointment['client_phone'])): ?>
                                                 <div class="cell-muted">Tel general: <?= r_h($appointment['client_phone']) ?></div>
                                             <?php endif; ?>
                                         </td>
-                                        <td>
+                                        <td data-label="Locație">
                                             <strong><?= r_h($locationName) ?></strong>
                                             <?php if (!empty($appointment['client_location_id'])): ?>
                                                 <div class="cell-muted">Punct de lucru</div>
@@ -1160,24 +1243,24 @@ function reports_short_service_label(string $name): string {
                                                 <div class="cell-muted">Sediu / domiciliu</div>
                                             <?php endif; ?>
                                         </td>
-                                        <td>
+                                        <td data-label="Contact">
                                             <strong><?= r_h($contactPerson ?: '-') ?></strong>
                                             <?php if ($contactPhone !== ''): ?>
                                                 <div class="cell-muted"><?= r_h($contactPhone) ?></div>
                                             <?php endif; ?>
                                         </td>
-                                        <td><?= r_h($appointment['service_type'] ?: '-') ?></td>
-                                        <td><?= r_h($appointment['team_name'] ?: '-') ?></td>
-                                        <td>
+                                        <td data-label="Serviciu"><?= r_h($appointment['service_type'] ?: '-') ?></td>
+                                        <td data-label="Tehnician"><?= r_h($appointment['team_name'] ?: '-') ?></td>
+                                        <td data-label="Status">
                                             <span class="status-pill"><?= r_h(reports_status_label($appointment['status'] ?? 'confirmata')) ?></span>
                                         </td>
-                                        <td><?= r_h($address ?: '-') ?></td>
-                                        <td>
+                                        <td data-label="Adresa"><?= r_h($address ?: '-') ?></td>
+                                        <td data-label="Mențiuni birou">
                                             <div class="note-cell <?= $officeNotes === '' ? 'empty' : '' ?>">
                                                 <?= $officeNotes !== '' ? nl2br(r_h($officeNotes)) : '-' ?>
                                             </div>
                                         </td>
-                                        <td>
+                                        <td data-label="Mențiuni finalizare">
                                             <div class="note-cell <?= $completionNotes === '' ? 'empty' : '' ?>">
                                                 <?= $completionNotes !== '' ? nl2br(r_h($completionNotes)) : '-' ?>
                                             </div>
