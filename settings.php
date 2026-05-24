@@ -246,10 +246,24 @@ $superAdminCards = [
 
     <main class="main">
         <div class="content settings-page">
-            <div class="settings-head">
-                <div class="settings-eyebrow">Administrare platformă</div>
-                <h1>Setări</h1>
-            </div>
+            <?php
+                /*
+                |------------------------------------------------------------
+                | Header unificat PestZone — înlocuiește settings-head vechi.
+                | Subtitle dinamic în funcție de numărul de opțiuni vizibile.
+                |------------------------------------------------------------
+                */
+                $settingsTotalOptions = count($cards) + ($isSuperAdmin ? count($superAdminCards) : 0);
+                $settingsSubtitle = $isSuperAdmin
+                    ? 'Administrare platformă · ' . (int)$settingsTotalOptions . ' opțiuni disponibile'
+                    : 'Administrare operațională · ' . (int)$settingsTotalOptions . ' opțiuni disponibile';
+
+                pz_page_header([
+                    'kicker'   => 'Administrare',
+                    'title'    => 'Setări',
+                    'subtitle' => $settingsSubtitle,
+                ]);
+            ?>
 
             <div class="section-label">Administrare operațională</div>
             <section class="settings-list">
