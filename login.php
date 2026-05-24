@@ -362,415 +362,476 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Autentificare</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Autentificare · PestZone CRM</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.40.0/tabler-icons.min.css" rel="stylesheet">
 
 <style>
 :root {
-    --primary: #2563EB;
-    --primary-hover: #1D4ED8;
-    --background: #F8FAFC;
-    --card: #FFFFFF;
-    --border: #E2E8F0;
-    --text: #0F172A;
-    --muted: #64748B;
-    --muted-light: #94A3B8;
-    --danger-bg: #FFF4F1;
-    --danger-border: #FED7AA;
-    --danger-text: #C2410C;
-    --radius: 8px;
-    --font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    /* Paleta oficială PestZone — preluată din app_theme_css */
+    --pz-bl:    #2563EB;
+    --pz-bld:   #1E3A8A;
+    --pz-blb:   #BFDBFE;
+    --pz-gr:    #166534;
+    --pz-grb:   #BBF7D0;
+    --pz-title: #0F172A;
+    --pz-text:  #334155;
+    --pz-mu:    #64748B;
+
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; }
 
 body {
-    margin: 0;
     min-height: 100vh;
     font-family: var(--font);
-    color: var(--text);
-    background: var(--background);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 32px;
+    background: var(--pz-title);
+    color: #fff;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
 }
 
-body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    background-image:
-        linear-gradient(rgba(15, 23, 42, .035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(15, 23, 42, .035) 1px, transparent 1px);
-    background-size: 40px 40px;
-    mask-image: linear-gradient(to bottom, rgba(0,0,0,.55), transparent 80%);
-}
-
-.login-shell {
+.pz-login-page {
     position: relative;
-    width: min(380px, calc(100vw - 40px));
-    max-width: 380px;
-    z-index: 1;
-}
-
-.login-card {
-    width: 100%;
-    position: relative;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: none;
-    padding: 28px;
+    min-height: 100vh;
     overflow: hidden;
+    padding: 44px 40px 40px;
+    display: flex;
+    flex-direction: column;
 }
 
-.login-card::before {
-    content: "";
+/* Blob-uri decorative cu paleta PestZone */
+.pz-decor {
     position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 3px;
-    background: var(--primary);
+    pointer-events: none;
+    border-radius: 50%;
+}
+.pz-decor-1 {
+    top: 0; right: 0;
+    width: 480px; height: 480px;
+    background: var(--pz-bl);
+    transform: translate(160px, -160px);
+}
+.pz-decor-2 {
+    bottom: 0; left: 0;
+    width: 360px; height: 360px;
+    background: var(--pz-bld);
+    transform: translate(-140px, 140px);
+}
+.pz-decor-3 {
+    top: 46%; left: 38%;
+    width: 160px; height: 160px;
+    background: var(--pz-gr);
+    transform: translate(-50%, -50%) rotate(45deg);
+    border-radius: 28px;
+    opacity: 0.28;
 }
 
-.brand {
-    display: flex;
+/* Brand */
+.pz-brand {
+    position: relative;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    margin: 0 0 22px;
+    gap: 10px;
+    margin-bottom: 52px;
+    z-index: 2;
+}
+.pz-brand-bar {
+    width: 9px; height: 34px;
+    background: var(--pz-bl);
+    border-radius: 3px;
+}
+.pz-brand-name {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: #fff;
+}
+.pz-brand-chip {
+    margin-left: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    padding: 3px 8px;
+    border-radius: 6px;
 }
 
-.brand-badge {
-    width: 56px;
-    height: 56px;
-    border-radius: 8px;
-    background: #17375E;
-    border: 1px solid #0E2A49;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: none;
+/* Hero text */
+.pz-hero {
+    position: relative;
+    z-index: 2;
+    margin-bottom: 36px;
+    max-width: 480px;
 }
-
-.brand-badge img {
-    display: block;
-    width: 40px;
-    height: 40px;
-    object-fit: contain;
-    filter: none;
+.pz-hero h1 {
+    font-size: 42px;
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    margin: 0 0 14px;
+    color: #fff;
 }
-
-.login-title {
+.pz-hero p {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.62);
+    line-height: 1.55;
     margin: 0;
-    text-align: center;
-    font-size: 24px;
-    line-height: 1.2;
-    letter-spacing: 0;
-    font-weight: 750;
-    color: var(--text);
+    max-width: 420px;
 }
 
-.login-subtitle {
-    margin: 8px 0 22px;
-    text-align: center;
-    font-size: 13px;
-    line-height: 1.45;
-    color: var(--muted);
+/* Mini cards demo */
+.pz-mini-cards {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    gap: 14px;
+    max-width: 480px;
+    margin-bottom: 32px;
+}
+.pz-mini-card {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+.pz-mini-card .pz-mini-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.pz-mini-card .pz-mini-head i {
+    font-size: 15px;
+}
+.pz-mini-card .pz-mini-head .lbl {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.pz-mini-card .pz-mini-val {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #fff;
+}
+
+/* Form card */
+.pz-form-card {
+    position: relative;
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 26px 28px;
+    max-width: 480px;
+    margin-bottom: 20px;
+}
+
+.pz-form-group {
+    margin-bottom: 18px;
+}
+.pz-form-group:last-of-type {
+    margin-bottom: 24px;
+}
+
+.pz-form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+}
+
+.pz-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 8px;
+}
+.pz-label-row label { margin-bottom: 0; }
+.pz-label-row a {
+    font-size: 11px;
+    color: var(--pz-blb);
+    text-decoration: none;
     font-weight: 500;
 }
+.pz-label-row a:hover { text-decoration: underline; }
 
-.form-group { margin-bottom: 14px; }
+.pz-input-wrap { position: relative; }
 
-label {
-    display: block;
-    margin-bottom: 6px;
-    color: var(--muted);
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-}
-
-.input-wrap {
-    position: relative;
-}
-
-.input-icon {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    width: 16px;
-    height: 16px;
-    transform: translateY(-50%);
-    color: var(--muted);
-    pointer-events: none;
-}
-
-.input-icon svg {
-    display: block;
-    width: 16px;
-    height: 16px;
-    stroke: currentColor;
-    stroke-width: 1.8;
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
-
-input {
+.pz-form-card input[type="email"],
+.pz-form-card input[type="password"],
+.pz-form-card input[type="text"] {
     width: 100%;
-    min-height: 36px;
-    padding: 0 12px 0 38px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    background: #FFFFFF;
-    color: var(--text);
-    font-family: var(--font);
-    font-size: 13px;
-    font-weight: 600;
-    outline: none;
-    box-shadow: none;
-    transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
-}
-
-input::placeholder { color: var(--muted-light); font-weight: 500; }
-
-input:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
-    background: #FFFFFF;
-}
-
-.forgot-row {
-    margin: 0 0 14px;
-    text-align: right;
-}
-
-.forgot-row a {
-    color: var(--primary);
-    font-weight: 700;
-    text-decoration: none;
-    font-size: 12px;
-}
-
-.forgot-row a:hover { text-decoration: underline; }
-
-.login-button {
-    width: 100%;
-    min-height: 36px;
-    border: 1px solid var(--primary);
-    border-radius: 4px;
-    background: var(--primary);
+    height: 42px;
+    padding: 0 32px 10px 0;
+    border: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0;
+    font-size: 15px;
     color: #fff;
-    font-family: var(--font);
-    font-size: 13px;
-    font-weight: 750;
+    background: transparent;
+    box-sizing: border-box;
+    font-family: inherit;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: border-color 0.16s ease;
+}
+.pz-form-card input::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+    font-weight: 400;
+}
+.pz-form-card input:focus {
+    border-bottom-color: var(--pz-blb);
+}
+.pz-form-card input:-webkit-autofill {
+    -webkit-text-fill-color: #fff;
+    -webkit-box-shadow: 0 0 0 1000px transparent inset;
+    transition: background-color 999999s ease-in-out 0s;
+    caret-color: #fff;
+}
+
+.pz-input-eye {
+    position: absolute;
+    right: 0;
+    top: 11px;
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.4);
     cursor: pointer;
-    display: inline-flex;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    line-height: 1;
+}
+.pz-input-eye:hover { color: rgba(255, 255, 255, 0.7); }
+
+/* Buton principal — pill albastru PestZone */
+.pz-submit {
+    width: 100%;
+    height: 48px;
+    background: var(--pz-bl);
+    color: #fff;
+    border: 0;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    box-shadow: none;
-    transition: background .16s ease, border-color .16s ease, transform .12s ease;
+    letter-spacing: 0.01em;
+    transition: background-color 0.15s ease, transform 0.1s ease;
 }
+.pz-submit:hover { background: var(--pz-bld); }
+.pz-submit:active { transform: translateY(1px); }
+.pz-submit i { font-size: 16px; }
 
-.login-button svg {
-    width: 16px;
-    height: 16px;
-    stroke: currentColor;
-    stroke-width: 2.2;
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
-
-.login-button:hover {
-    background: var(--primary-hover);
-    border-color: var(--primary-hover);
-}
-
-.login-button:active { transform: translateY(1px); }
-
-.error {
-    border: 1px solid var(--danger-border);
-    background: var(--danger-bg);
-    color: var(--danger-text);
-    border-radius: 6px;
+/* Eroare */
+.pz-error {
+    position: relative;
+    z-index: 2;
+    background: rgba(220, 38, 38, 0.12);
+    border: 1px solid rgba(220, 38, 38, 0.45);
+    color: #FCA5A5;
+    border-radius: 10px;
     padding: 12px 14px;
-    margin-bottom: 18px;
     font-size: 13px;
-    font-weight: 650;
+    font-weight: 500;
     line-height: 1.45;
-    box-shadow: none;
+    max-width: 480px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.pz-error i {
+    font-size: 18px;
+    color: #F87171;
+    flex-shrink: 0;
 }
 
-.security-line {
-    margin-top: 16px;
+/* Footer */
+.pz-foot {
+    position: relative;
+    z-index: 2;
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    max-width: 480px;
+    margin-top: auto;
+    padding-top: 20px;
+    letter-spacing: 0.04em;
+}
+.pz-foot-sec {
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 600;
+}
+.pz-foot-sec i {
+    font-size: 13px;
+    color: var(--pz-grb);
 }
 
-.security-line svg {
-    width: 14px;
-    height: 14px;
-    stroke: currentColor;
-    stroke-width: 1.9;
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+/* Responsive */
+@media (max-width: 720px) {
+    .pz-login-page { padding: 32px 24px 24px; }
+    .pz-brand { margin-bottom: 36px; }
+    .pz-hero { margin-bottom: 28px; }
+    .pz-hero h1 { font-size: 34px; }
+    .pz-hero p { font-size: 14px; }
+    .pz-decor-1 { width: 360px; height: 360px; transform: translate(140px, -180px); }
+    .pz-decor-2 { width: 280px; height: 280px; transform: translate(-100px, 140px); }
 }
 
 @media (max-width: 520px) {
-    body {
-        align-items: center;
-        padding: 20px 0;
-    }
-
-    body::before { background-size: 34px 34px; }
-
-    .login-shell {
-        width: calc(100vw - 32px);
-        max-width: 360px;
-        margin: 0 auto;
-    }
-
-    .login-card {
-        padding: 24px 18px 22px;
-    }
-
-    .brand {
-        margin-bottom: 18px;
-    }
-
-    .brand-badge {
-        width: 52px;
-        height: 52px;
-    }
-
-    .brand-badge img {
-        width: 37px;
-        height: 37px;
-    }
-
-    .login-title { font-size: 22px; }
-
-    .login-subtitle {
-        margin-bottom: 18px;
-        font-size: 13px;
-    }
-}
-
-@media (max-width: 380px) {
-    body { padding: 18px 0; }
-
-    .login-shell {
-        width: calc(100vw - 28px);
-        max-width: 340px;
-    }
-
-    .login-card {
-        padding: 22px 16px 20px;
-    }
-
-    .brand-badge {
-        width: 50px;
-        height: 50px;
-    }
-
-    .brand-badge img {
-        width: 35px;
-        height: 35px;
-    }
-
-    .login-title { font-size: 21px; }
-    .forgot-row a { font-size: 12px; }
+    .pz-login-page { padding: 24px 18px 22px; }
+    .pz-brand { margin-bottom: 28px; }
+    .pz-brand-bar { width: 7px; height: 28px; }
+    .pz-brand-name { font-size: 16px; }
+    .pz-hero h1 { font-size: 28px; }
+    .pz-hero p { font-size: 13.5px; line-height: 1.5; }
+    .pz-mini-cards { display: none; }
+    .pz-form-card { padding: 22px 20px; border-radius: 16px; }
+    .pz-form-card input[type="email"],
+    .pz-form-card input[type="password"] { font-size: 16px; }
+    .pz-submit { height: 46px; }
+    .pz-foot { font-size: 10.5px; flex-direction: column; gap: 6px; align-items: flex-start; }
+    .pz-decor-1 { width: 280px; height: 280px; opacity: 0.85; }
+    .pz-decor-2 { width: 220px; height: 220px; opacity: 0.85; }
+    .pz-decor-3 { display: none; }
 }
 </style>
 </head>
 
 <body>
 
-<main class="login-shell">
-    <form class="login-card" method="post" autocomplete="on">
+<div class="pz-login-page">
+
+    <div class="pz-decor pz-decor-1" aria-hidden="true"></div>
+    <div class="pz-decor pz-decor-2" aria-hidden="true"></div>
+    <div class="pz-decor pz-decor-3" aria-hidden="true"></div>
+
+    <div class="pz-brand">
+        <div class="pz-brand-bar" aria-hidden="true"></div>
+        <span class="pz-brand-name">PestZone</span>
+        <span class="pz-brand-chip">CRM</span>
+    </div>
+
+    <div class="pz-hero">
+        <h1>Salut,<br>bine ai revenit.</h1>
+        <p>Continuă unde ai rămas. Programările, intervențiile și facturile te așteaptă.</p>
+    </div>
+
+    <div class="pz-mini-cards">
+        <div class="pz-mini-card">
+            <div class="pz-mini-head">
+                <i class="ti ti-calendar-event" style="color: var(--pz-blb);" aria-hidden="true"></i>
+                <span class="lbl">Azi</span>
+            </div>
+            <div class="pz-mini-val">23 lucrări</div>
+        </div>
+        <div class="pz-mini-card">
+            <div class="pz-mini-head">
+                <i class="ti ti-clock" style="color: var(--pz-grb);" aria-hidden="true"></i>
+                <span class="lbl">În curs</span>
+            </div>
+            <div class="pz-mini-val">4 echipe</div>
+        </div>
+    </div>
+
+    <?php if ($error): ?>
+        <div class="pz-error">
+            <i class="ti ti-alert-circle" aria-hidden="true"></i>
+            <span><?= login_h($error) ?></span>
+        </div>
+    <?php endif; ?>
+
+    <form class="pz-form-card" method="post" autocomplete="on" novalidate>
         <?= csrf_field() ?>
 
-        <div class="brand">
-            <div class="brand-badge" aria-hidden="true">
-                <img src="assets/brand-icon.png" alt="">
-            </div>
-        </div>
-
-        <h1 class="login-title">Autentificare</h1>
-        <p class="login-subtitle">Acces CRM</p>
-
-        <?php if ($error): ?>
-            <div class="error"><?= login_h($error) ?></div>
-        <?php endif; ?>
-
-        <div class="form-group">
+        <div class="pz-form-group">
             <label for="email">Email</label>
-            <div class="input-wrap">
-                <span class="input-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"></path><path d="m4 7 8 6 8-6"></path></svg>
-                </span>
+            <div class="pz-input-wrap">
                 <input
                     id="email"
                     type="email"
                     name="email"
-                    required
-                    placeholder="email@domeniu.ro"
+                    placeholder="nume@firma.ro"
                     autocomplete="username"
+                    required
                     value="<?= login_h($_POST['email'] ?? '') ?>"
                 >
             </div>
         </div>
 
-        <div class="form-group">
-            <label for="password">Parola</label>
-            <div class="input-wrap">
-                <span class="input-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
-                </span>
+        <div class="pz-form-group">
+            <div class="pz-label-row">
+                <label for="password">Parolă</label>
+                <a href="forgot_password.php">Ai uitat?</a>
+            </div>
+            <div class="pz-input-wrap">
                 <input
                     id="password"
                     type="password"
                     name="password"
-                    placeholder="Introdu parola"
-                    required
+                    placeholder="••••••••••"
                     autocomplete="current-password"
+                    required
                 >
+                <button type="button" class="pz-input-eye" id="pzPwdToggle" aria-label="Arată/ascunde parola">
+                    <i class="ti ti-eye" id="pzPwdEyeIcon" aria-hidden="true"></i>
+                </button>
             </div>
         </div>
 
-        <div class="forgot-row">
-            <a href="forgot_password.php">Am uitat parola</a>
-        </div>
-
-        <button class="login-button" type="submit">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12"></path><path d="m13 6 6 6-6 6"></path></svg>
-            <span>Intră în aplicație</span>
+        <button class="pz-submit" type="submit">
+            Conectare
+            <i class="ti ti-arrow-right" aria-hidden="true"></i>
         </button>
-
-        <div class="security-line" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 5 3.2 8.5 7 10 3.8-1.5 7-5 7-10V6l-7-3Z"></path><path d="m9.5 12 1.8 1.8 3.6-4"></path></svg>
-            <span>Acces securizat</span>
-        </div>
     </form>
-</main>
+
+    <div class="pz-foot">
+        <span class="pz-foot-sec">
+            <i class="ti ti-shield-check" aria-hidden="true"></i>
+            CONEXIUNE SECURIZATĂ
+        </span>
+        <span>© <?= (int)date('Y') ?> · MADE IN ROMÂNIA</span>
+    </div>
+
+</div>
+
+<script>
+(function() {
+    // Toggle vizibilitate parolă
+    var btn = document.getElementById('pzPwdToggle');
+    var input = document.getElementById('password');
+    var icon = document.getElementById('pzPwdEyeIcon');
+    if (!btn || !input || !icon) return;
+    btn.addEventListener('click', function() {
+        var isPwd = input.type === 'password';
+        input.type = isPwd ? 'text' : 'password';
+        icon.className = isPwd ? 'ti ti-eye-off' : 'ti ti-eye';
+        input.focus();
+    });
+})();
+</script>
 
 </body>
 </html>
