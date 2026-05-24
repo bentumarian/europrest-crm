@@ -366,15 +366,15 @@ if (!function_exists('app_theme_css')) {
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 130px;
+            min-height: 94px;
             text-decoration: none;
         }
 
         .brand-logo {
             width: 144px;
-            height: 120px;
+            height: 84px;
             max-width: 144px;
-            max-height: 120px;
+            max-height: 84px;
             display: block;
             object-fit: contain;
         }
@@ -555,14 +555,14 @@ if (!function_exists('app_theme_css')) {
             }
 
             .brand-logo-link {
-                min-height: 130px;
+                min-height: 94px;
             }
 
             .brand-logo {
                 width: 144px;
-                height: 120px;
+                height: 84px;
                 max-width: 144px;
-                max-height: 120px;
+                max-height: 84px;
             }
 
             .brand-fallback {
@@ -1304,15 +1304,15 @@ if (!function_exists('app_theme_css')) {
             }
 
             .brand-logo-link {
-                min-height: 90px;
+                min-height: 66px;
                 width: 100%;
             }
 
             .brand-logo {
                 width: 120px;
-                height: 80px;
+                height: 56px;
                 max-width: 120px;
-                max-height: 80px;
+                max-height: 56px;
             }
 
             .sidebar-nav {
