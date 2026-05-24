@@ -735,8 +735,8 @@ body {
     </div>
 
     <div class="pz-hero">
-        <h1>Salut,<br>bine ai revenit.</h1>
-        <p>Continuă unde ai rămas. Programările, intervențiile și facturile te așteaptă.</p>
+        <h1>Echipa face<br>diferența.</h1>
+        <p>Fiecare intervenție bine făcută, fiecare PV completat, fiecare client liniștit — totul pornește de la tine. Mulțumim că ești aici.</p>
     </div>
 
     <div class="pz-mini-cards">
