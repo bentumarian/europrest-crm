@@ -270,16 +270,20 @@ function cs_textarea($name, $label, $settings) {
 <div class="layout">
     <?php render_sidebar('settings', true); ?>
     <main class="main">
-        <div class="topbar top">
-            <a class="btn ghost" href="settings.php">Înapoi la Setări</a>
-            <button class="btn accent" type="submit" form="companyForm">Salvează</button>
-        </div>
-
         <div class="content wrap">
-            <div class="head">
-                <h1>Date companie</h1>
-                <p>Date oficiale folosite automat in contracte, documente si identificarea prestatorului.</p>
-            </div>
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări · Companie',
+                'title'    => 'Date companie',
+                'subtitle' => 'Date oficiale folosite automat în contracte, documente și identificarea prestatorului.',
+                'actions'  => [[
+                    'label'   => 'Salvează',
+                    'icon'    => 'ti-device-floppy',
+                    'variant' => 'primary',
+                    'type'    => 'submit',
+                    'form'    => 'companyForm',
+                ]],
+            ]); ?>
 
             <?php if ($success): ?>
                 <div class="notice ok">Datele companiei au fost salvate.</div>

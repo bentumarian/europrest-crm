@@ -363,14 +363,7 @@ $durationOptions = [
 
     <main class="main">
 
-        <div class="topbar services-topbar">
-            <div class="services-toolbar">
-                <a class="btn ghost" href="settings.php">Înapoi la Setări</a>
-                <button class="btn accent" type="button" onclick="openCreateServiceModal()">
-                    + Serviciu nou
-                </button>
-            </div>
-        </div>
+<?php /* Topbar vechi eliminat — înlocuit cu pz_page_header mai jos. */ ?>
 
         <?php if (isset($_GET['success'])): ?>
             <div class="notice notice-success">Serviciul a fost adaugat.</div>
@@ -398,21 +391,24 @@ $durationOptions = [
 
         <div class="content">
 
-            <section class="services-hero">
-                <div>
-                    <h1>Servicii</h1>
-                    <p>
-                        Gestioneaza serviciile disponibile in programări si sarcini.
-                        Serviciile active apar automat in formulare.
-                    </p>
-                </div>
-
-                <div class="stats">
-                    <span class="stat-pill"><?= (int)$totalServices ?> total</span>
-                    <span class="stat-pill"><?= (int)$activeServices ?> active</span>
-                    <span class="stat-pill"><?= (int)$inactiveServices ?> inactive</span>
-                </div>
-            </section>
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări · Operațional',
+                'title'    => 'Servicii',
+                'subtitle' => 'Gestionează serviciile disponibile în programări și sarcini. Serviciile active apar automat în formulare.',
+                'actions'  => [[
+                    'label'   => 'Serviciu nou',
+                    'icon'    => 'ti-plus',
+                    'variant' => 'primary',
+                    'type'    => 'button',
+                    'onclick' => 'openCreateServiceModal()',
+                ]],
+                'kpis'     => [
+                    ['label' => 'Total',    'value' => (int)$totalServices],
+                    ['label' => 'Active',   'value' => (int)$activeServices,   'tone' => 'success'],
+                    ['label' => 'Inactive', 'value' => (int)$inactiveServices, 'tone' => 'warning'],
+                ],
+            ]); ?>
 
             <div class="services-cat-filter" style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 14px;align-items:center;">
                 <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--pz-muted);font-weight:600;margin-right:2px;">Filtrează:</span>

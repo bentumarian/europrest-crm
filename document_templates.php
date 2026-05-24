@@ -655,17 +655,17 @@ a.btn.small {
     <?php render_sidebar('document_templates', $isAdmin); ?>
 
     <main class="main">
-        <div class="topbar document-topbar">
-            <div class="document-toolbar">
-                <a class="btn ghost" href="settings.php">Înapoi la Setări</a>
-                <a class="btn" href="document_template_edit.php">+ Șablon nou</a>
-                <form method="post">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="action" value="seed_defaults">
-                    <button class="btn" type="submit">Verifica șabloane implicite</button>
-                </form>
-            </div>
-        </div>
+<?php /* Topbar vechi eliminat — înlocuit cu pz_page_header mai jos. */ ?>
+        <?php
+            // Form-ul pentru "Verifică șabloane implicite" — îl rendere ascuns,
+            // butonul din header îl submitează via form attribute.
+            ob_start();
+        ?>
+        <form method="post" id="seedDefaultsForm" style="display:none;">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="seed_defaults">
+        </form>
+        <?php $seedFormHtml = ob_get_clean(); echo $seedFormHtml; ?>
 
         <?php if ($flash): ?>
             <div class="notice notice-success"><?= dtpl_h($flash) ?></div>
@@ -682,21 +682,21 @@ a.btn.small {
         <?php endif; ?>
 
         <div class="content">
-            <section class="document-hero">
-                <div>
-                    <h1>Șabloane documente</h1>
-                    <p>
-                        Administreaza șabloanele folosite de motorul unic pentru oferte, contracte, acte adiționale si procese verbale.
-                        Emiterea documentelor va lua automat șablonul implicit al fiecarui tip.
-                    </p>
-                </div>
-
-                <div class="stats">
-                    <span class="stat-pill"><?= (int)$totalTemplates ?> șabloane</span>
-                    <span class="stat-pill"><?= (int)$totalActive ?> active</span>
-                    <span class="stat-pill"><?= (int)$totalDefault ?> implicite</span>
-                </div>
-            </section>
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări · Documente',
+                'title'    => 'Șabloane documente',
+                'subtitle' => 'Administrează șabloanele folosite de motorul unic pentru oferte, contracte, acte adiționale și procese verbale. Emiterea documentelor preia automat șablonul implicit per tip.',
+                'actions'  => [
+                    ['label' => 'Verifică implicite', 'icon' => 'ti-refresh', 'variant' => 'ghost',   'type' => 'submit', 'form' => 'seedDefaultsForm'],
+                    ['label' => 'Șablon nou',         'icon' => 'ti-plus',    'variant' => 'primary', 'href' => 'document_template_edit.php'],
+                ],
+                'kpis' => [
+                    ['label' => 'Șabloane', 'value' => (int)$totalTemplates],
+                    ['label' => 'Active',   'value' => (int)$totalActive,   'tone' => 'success'],
+                    ['label' => 'Implicite','value' => (int)$totalDefault,  'tone' => 'info'],
+                ],
+            ]); ?>
 
             <section class="create-card">
                 <form class="create-grid" method="post">

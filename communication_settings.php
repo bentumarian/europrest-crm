@@ -114,14 +114,13 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
     render_sidebar('communication_settings', true);
     ?>
     <main class="main">
-        <div class="topbar" style="padding:12px 20px;"><a href="settings.php" class="btn ghost">Înapoi la Setări</a></div>
         <div class="content settings-module-page">
-    <div class="module-head">
-        <div>
-            <h1>Comunicare / Integrări</h1>
-            <p>SendGrid pentru email si SMSLink.ro pentru SMS-uri tranzactionale.</p>
-        </div>
-    </div>
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări · Integrări',
+                'title'    => 'Comunicare',
+                'subtitle' => 'SendGrid pentru email și SMSLink.ro pentru SMS-uri tranzacționale.',
+            ]); ?>
 
     <?php foreach ($success as $msg): ?><div class="alert ok"><?= pz_h($msg) ?></div><?php endforeach; ?>
     <?php foreach ($errors as $msg): ?><div class="alert err"><?= pz_h($msg) ?></div><?php endforeach; ?>

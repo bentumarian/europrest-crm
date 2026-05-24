@@ -150,14 +150,13 @@ h1,h2 { font-weight:700 !important; }
     render_sidebar('sms_templates', true);
     ?>
     <main class="main">
-        <div class="topbar" style="padding:12px 20px;"><a href="settings.php" class="btn ghost">Înapoi la Setări</a></div>
         <div class="content sms-page">
-    <div class="module-head">
-        <div>
-            <h1>Șabloane SMS</h1>
-            <p>Personalizeaza mesajele trimise prin SMSLink. SMS-urile nu creeaza programări fara apel.</p>
-        </div>
-    </div>
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări · Comunicare',
+                'title'    => 'Șabloane SMS',
+                'subtitle' => 'Personalizează mesajele trimise prin SMSLink. SMS-urile nu creează programări fără apel.',
+            ]); ?>
 
     <?php foreach ($success as $msg): ?><div class="alert ok"><?= sms_h($msg) ?></div><?php endforeach; ?>
     <?php foreach ($errors as $msg): ?><div class="alert err"><?= sms_h($msg) ?></div><?php endforeach; ?>

@@ -409,14 +409,7 @@ foreach ($teams as $team) {
 
     <main class="main">
 
-        <div class="topbar team-topbar">
-            <div class="team-toolbar">
-                <a class="btn ghost" href="settings.php">Înapoi la Setări</a>
-                <button class="btn accent" type="button" onclick="openCreateTeamModal()">
-                    + Tehnician nou
-                </button>
-            </div>
-        </div>
+<?php /* Topbar vechi eliminat — înlocuit cu pz_page_header mai jos. */ ?>
 
         <?php if (isset($_GET['success'])): ?>
             <div class="notice notice-success">Tehnicianul a fost adaugat.</div>
@@ -444,20 +437,24 @@ foreach ($teams as $team) {
 
         <div class="content">
 
-            <section class="team-hero">
-                <div>
-                    <h1>Tehnicieni</h1>
-                    <p>
-                        Gestioneaza tehnicienii, culorile din calendar si accesul operatorilor.
-                    </p>
-                </div>
-
-                <div class="stats">
-                    <span class="stat-pill"><?= (int)$totalTeams ?> total</span>
-                    <span class="stat-pill"><?= (int)$activeTeams ?> active</span>
-                    <span class="stat-pill"><?= (int)$inactiveTeams ?> inactive</span>
-                </div>
-            </section>
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări · Operațional',
+                'title'    => 'Tehnicieni',
+                'subtitle' => 'Gestionează tehnicienii, culorile din calendar și accesul operatorilor.',
+                'actions'  => [[
+                    'label'   => 'Tehnician nou',
+                    'icon'    => 'ti-plus',
+                    'variant' => 'primary',
+                    'type'    => 'button',
+                    'onclick' => 'openCreateTeamModal()',
+                ]],
+                'kpis'     => [
+                    ['label' => 'Total',    'value' => (int)$totalTeams],
+                    ['label' => 'Active',   'value' => (int)$activeTeams,   'tone' => 'success'],
+                    ['label' => 'Inactive', 'value' => (int)$inactiveTeams, 'tone' => 'warning'],
+                ],
+            ]); ?>
 
             <?php if (!$teams): ?>
                 <div class="empty-state">

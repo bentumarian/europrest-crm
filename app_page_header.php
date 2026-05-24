@@ -84,6 +84,29 @@ if (!function_exists('pz_page_header_css')) {
             flex-wrap: wrap;
         }
         .pz-ph-main { min-width: 0; flex: 1; }
+        /* Back link — buton „înapoi" pentru sub-pagini (ex. zona Setări) */
+        .pz-ph-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--pz-mu);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            margin: 0 0 10px;
+            padding: 4px 8px 4px 4px;
+            border-radius: 6px;
+            transition: color .15s ease, background-color .15s ease;
+            line-height: 1;
+            width: fit-content;
+        }
+        .pz-ph-back:hover {
+            color: var(--pz-bld);
+            background: var(--pz-soft);
+        }
+        .pz-ph-back i {
+            font-size: 16px;
+        }
         .pz-ph-kicker {
             font-size: 11px;
             color: var(--pz-mu);
@@ -1267,6 +1290,9 @@ if (!function_exists('pz_page_header')) {
         $kpis      = is_array($opts['kpis']     ?? null) ? $opts['kpis']     : [];
         $toolbar   = (string)($opts['toolbar']   ?? '');  // HTML custom pentru filtre
         $meta      = is_array($opts['meta']     ?? null) ? $opts['meta']     : [];
+        // Link „Înapoi" — pentru sub-pagini (zona Setări, drill-downs etc.)
+        // Format: ['href' => 'settings.php', 'label' => 'Înapoi la setări']
+        $back      = is_array($opts['back']     ?? null) ? $opts['back']     : null;
 
         // Există conținut explicit pentru subheader?
         $hasSubheader = !empty($kpis) || !empty($tabs) || ($toolbar !== '');
@@ -1275,6 +1301,14 @@ if (!function_exists('pz_page_header')) {
 
         ?>
         <div class="pz-ph">
+            <?php if ($back && !empty($back['href'])):
+                $backLabel = (string)($back['label'] ?? 'Înapoi');
+            ?>
+                <a class="pz-ph-back" href="<?= pz_ph_h((string)$back['href']) ?>">
+                    <i class="ti ti-arrow-left" aria-hidden="true"></i>
+                    <?= pz_ph_h($backLabel) ?>
+                </a>
+            <?php endif; ?>
             <div class="pz-ph-top">
                 <div class="pz-ph-main">
                     <?php if ($kicker !== ''): ?>
@@ -1309,9 +1343,21 @@ if (!function_exists('pz_page_header')) {
                         $onclick = (string)($action['onclick'] ?? '');
                         $target  = (string)($action['target'] ?? '');
                         $title_attr = (string)($action['title']  ?? '');
-                        $isButton = isset($action['type']) && $action['type'] === 'button';
+                        $actType = (string)($action['type'] ?? '');
+                        $formAttr = (string)($action['form'] ?? '');
+                        $isButton = $actType === 'button';
+                        $isSubmit = $actType === 'submit';
                     ?>
-                        <?php if ($isButton): ?>
+                        <?php if ($isSubmit): ?>
+                            <button type="submit"
+                                    class="pz-ph-btn <?= pz_ph_h($variant) ?>"
+                                    <?php if ($formAttr !== ''): ?>form="<?= pz_ph_h($formAttr) ?>"<?php endif; ?>
+                                    <?php if ($onclick !== ''): ?>onclick="<?= pz_ph_h($onclick) ?>"<?php endif; ?>
+                                    <?php if ($title_attr !== ''): ?>title="<?= pz_ph_h($title_attr) ?>"<?php endif; ?>>
+                                <?php if ($icon !== ''): ?><i class="ti <?= pz_ph_h($icon) ?>" aria-hidden="true"></i><?php endif; ?>
+                                <?= pz_ph_h($label) ?>
+                            </button>
+                        <?php elseif ($isButton): ?>
                             <button type="button"
                                     class="pz-ph-btn <?= pz_ph_h($variant) ?>"
                                     <?php if ($onclick !== ''): ?>onclick="<?= pz_ph_h($onclick) ?>"<?php endif; ?>

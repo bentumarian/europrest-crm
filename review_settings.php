@@ -55,12 +55,13 @@ $demoLowUrl = ($autoBase !== '') ? ($autoBase . '/feedback.php?demo=low') : 'fee
 <div class="layout">
     <?php render_sidebar('settings', true); ?>
     <main class="main">
-        <div class="topbar" style="padding:12px 20px;"><a class="btn ghost" href="settings.php">Înapoi la Setări</a></div>
         <div class="content page">
-            <section class="hero">
-                <h1>Review si satisfactie clienți</h1>
-                <p>Prima intervenție finalizata trimite SMS. Interventiile urmatoare trimit doar email pentru formularul intern de satisfactie. Google Review se afiseaza doar la prima intervenție, dacă nota este 5 stele.</p>
-            </section>
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări',
+                'title'    => 'Review și satisfacție clienți',
+                'subtitle' => 'Prima intervenție finalizată trimite SMS. Intervențiile următoare trimit doar email. Google Review apare doar la prima intervenție, dacă nota este 5 stele.',
+            ]); ?>
 
             <?php if (isset($_GET['saved'])): ?><div class="notice ok">Setările au fost salvate.</div><?php endif; ?>
 

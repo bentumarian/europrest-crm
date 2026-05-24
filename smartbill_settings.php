@@ -109,14 +109,13 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
     render_sidebar('smartbill_settings', true);
     ?>
     <main class="main">
-        <div class="topbar" style="padding:12px 20px;"><a href="settings.php" class="btn ghost">Înapoi la Setări</a></div>
         <div class="content settings-module-page">
-            <div class="module-head">
-                <div>
-                    <h1>SmartBill</h1>
-                    <p>Configurare pentru facturare, cote TVA si verificare status e-Factura / SPV.</p>
-                </div>
-            </div>
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări · Integrări',
+                'title'    => 'SmartBill',
+                'subtitle' => 'Configurare pentru facturare, cote TVA și verificare status e-Factura / SPV.',
+            ]); ?>
 
             <?php if ($success !== ''): ?><div class="alert ok"><?= pzsb_h($success) ?></div><?php endif; ?>
             <?php if ($error !== ''): ?><div class="alert err"><?= pzsb_h($error) ?></div><?php endif; ?>

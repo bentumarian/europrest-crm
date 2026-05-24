@@ -199,14 +199,13 @@ h1,h2 { font-weight:700 !important; }
 <div class="layout">
     <?php render_sidebar('settings', true); ?>
     <main class="main">
-        <div class="topbar" style="padding:12px 20px;"><a class="btn ghost" href="settings.php">Înapoi la Setări</a></div>
         <div class="content email-template-page">
-            <div class="page-head">
-                <div>
-                    <h1>Șabloane email</h1>
-                    <p class="muted" style="margin:6px 0 0">Texte editabile pentru emailurile trimise prin SendGrid.</p>
-                </div>
-            </div>
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări · Comunicare',
+                'title'    => 'Șabloane email',
+                'subtitle' => 'Texte editabile pentru emailurile trimise prin SendGrid.',
+            ]); ?>
 
             <?php foreach ($success as $msg): ?><div class="notice ok"><?= et_h($msg) ?></div><?php endforeach; ?>
             <?php foreach ($errors as $msg): ?><div class="notice err"><?= et_h($msg) ?></div><?php endforeach; ?>

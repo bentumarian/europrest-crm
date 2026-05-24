@@ -1406,20 +1406,19 @@ th { background:var(--surface-soft); color:var(--muted); font-size:11px; text-tr
     <?php render_sidebar('data_import', true); ?>
 
     <main class="main">
-        <div class="topbar">
-            <a class="btn ghost" href="settings.php">Înapoi la Setări</a>
-        </div>
-
         <div class="content import-page">
-            <section class="hero">
-                <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
-                    <div>
-                        <h1>Import date</h1>
-                        <p>Import sigur pentru clienți si puncte de lucru din Excel. Datele sunt previzualizate înainte de import.</p>
-                    </div>
-                    <a class="btn" href="data_import.php?download_template=1">Descarcă șablon Excel</a>
-                </div>
-            </section>
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări · Date',
+                'title'    => 'Import date',
+                'subtitle' => 'Import sigur pentru clienți și puncte de lucru din Excel. Datele sunt previzualizate înainte de import.',
+                'actions'  => [[
+                    'label'   => 'Descarcă șablon Excel',
+                    'href'    => 'data_import.php?download_template=1',
+                    'variant' => 'ghost',
+                    'icon'    => 'ti-download',
+                ]],
+            ]); ?>
 
             <?php if ($error): ?>
                 <div class="notice notice-danger"><?= di_h($error) ?></div>

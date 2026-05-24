@@ -137,13 +137,13 @@ try {
 <div class="layout">
     <?php render_sidebar('sms_activity', $isAdmin); ?>
     <main class="main">
-        <div class="topbar" style="padding:12px 20px;"><a class="btn ghost" href="settings.php">Înapoi la Setări</a></div>
         <div class="content">
-
-            <div style="margin-bottom: 18px;">
-                <h1 style="margin:0; font-size:22px; font-weight:800; letter-spacing:-.025em;">Activitate SMS</h1>
-                <p style="margin:4px 0 0; color:var(--muted); font-size:13px;">Ultimele SMS-uri trimise, sărite (skipped) sau eșuate. Util pentru debugging.</p>
-            </div>
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări · Comunicare',
+                'title'    => 'Activitate SMS',
+                'subtitle' => 'Ultimele SMS-uri trimise, sărite (skipped) sau eșuate. Util pentru debugging.',
+            ]); ?>
 
             <!-- Stats 24h -->
             <div class="sa-stats">

@@ -231,20 +231,26 @@ $companyName  = trim((string)($company['company.display_name'] ?? $company['comp
 <div class="layout">
     <?php render_sidebar('settings', true); ?>
     <main class="main">
-        <div class="topbar dd-top">
-            <a class="btn ghost" href="settings.php">Înapoi la Setări</a>
-            <button class="btn accent" type="submit" form="designForm">Salvează designul</button>
-        </div>
         <div class="content">
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări · Documente',
+                'title'    => 'Design documente',
+                'subtitle' => 'O singură dimensiune pentru toate documentele (procese verbale, oferte, contracte). Fără footer.',
+                'actions'  => [[
+                    'label'   => 'Salvează designul',
+                    'icon'    => 'ti-device-floppy',
+                    'variant' => 'primary',
+                    'type'    => 'submit',
+                    'form'    => 'designForm',
+                ]],
+            ]); ?>
             <?php if ($success): ?><div class="notice ok">Designul documentelor a fost salvat.</div><?php endif; ?>
             <?php if ($error): ?><div class="notice err"><?= pzdd_h($error) ?></div><?php endif; ?>
             <div class="dd-wrap">
                 <form id="designForm" method="post" enctype="multipart/form-data" class="dd-card">
                     <?= csrf_field() ?>
-                    <div class="dd-head">
-                        <h1>Design documente</h1>
-                        <p>O singura dimensiune pentru TOATE documentele (procese verbale, oferte, contracte). Fara footer.</p>
-                    </div>
+<?php /* dd-head eliminat — info-ul e deja în pz_page_header de mai sus. */ ?>
 
                     <div class="dd-section"><h3>Pagina A4 (narrow)</h3><div class="dd-grid">
                         <div class="dd-field"><label>Margine sus, mm</label><input name="page_top" type="number" step="0.5" min="5" max="35" value="<?= pzdd_h($pageTop) ?>"></div>

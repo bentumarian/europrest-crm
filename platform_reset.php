@@ -516,14 +516,13 @@ foreach ($contactResetTables as $table) {
 <div class="layout">
     <?php render_sidebar('settings', true); ?>
     <main class="main">
-        <div class="topbar" style="padding:12px 20px;"><a class="btn ghost" href="settings.php">Înapoi la Setări</a></div>
         <div class="content reset-page">
-            <div class="reset-head">
-                <div>
-                    <h1>Reset platforma</h1>
-                    <p>Șterge datele operaționale introduse și readuce platforma la o stare curată, păstrând configurarea de bază.</p>
-                </div>
-            </div>
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări · Avansat',
+                'title'    => 'Reset platformă',
+                'subtitle' => 'Șterge datele operaționale introduse și readuce platforma la o stare curată, păstrând configurarea de bază.',
+            ]); ?>
 
             <?php foreach ($errors as $err): ?>
                 <div class="alert alert-error"><?= reset_h($err) ?></div>

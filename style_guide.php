@@ -201,20 +201,17 @@ $pz_topbar_opts      = ['placeholder' => 'Caută în ghid...'];
     <?php render_sidebar('style_guide', true); ?>
     <main class="main">
         <div class="content">
+        <?php pz_page_header([
+            'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+            'kicker'   => 'PestZone CRM · Identitate vizuală',
+            'title'    => 'Ghid de stil',
+            'subtitle' => 'Tokens de culoare, tipografie, sidebar & topbar, header-uri de pagină, tabele, formulare, stări. Doar ce e adevărat și esențial pentru o pagină nouă — fără demo-uri inutile.',
+            'meta'     => [
+                ['label' => 'Versiune', 'value' => 'v3.0'],
+                ['label' => 'Actualizat', 'value' => 'Mai 2026'],
+            ],
+        ]); ?>
         <div class="sg">
-
-        <!-- ─── Header ─── -->
-        <header class="sg-header">
-            <div>
-                <div class="sg-kicker">PestZone CRM · Identitate vizuală</div>
-                <h1>Ghid de stil</h1>
-                <p style="margin-top:6px;max-width:680px">Identitatea vizuală a platformei: tokens de culoare, tipografie, sidebar &amp; topbar, header-uri de pagină, tabele, formulare, stări. Conține doar ce e adevărat și esențial pentru o pagină nouă — fără demo-uri inutile.</p>
-            </div>
-            <div class="sg-meta">
-                <span class="sg-version">v3.0</span>
-                <span class="sg-date">Mai 2026</span>
-            </div>
-        </header>
 
         <!-- ─── Cuprins ─── -->
         <nav class="sg-toc" aria-label="Cuprins">

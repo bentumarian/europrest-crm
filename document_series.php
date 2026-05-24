@@ -675,16 +675,13 @@ $preview = ds_format_number($formSeries, (int)($formSeries['next_number'] ?? 1),
     <?php render_sidebar('document_series', true); ?>
 
     <main class="main">
-        <div class="topbar" style="padding:12px 20px;">
-            <a class="btn ghost" href="settings.php">Înapoi la Setări</a>
-        </div>
         <div class="content series-page">
-            <section class="series-hero">
-                <div>
-                    <h1>Serii documente</h1>
-                    <p>Seteaza numerotarea documentelor. Pentru contracte, formatul recomandat este simplu: <strong>{N}/{DD}.{MM}.{YYYY}</strong>, adica <?= ds_h(date('j/d.m.Y')) ?>.</p>
-                </div>
-            </section>
+            <?php pz_page_header([
+                'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
+                'kicker'   => 'Setări · Documente',
+                'title'    => 'Serii documente',
+                'subtitle' => 'Setează numerotarea documentelor. Pentru contracte, format recomandat: {N}/{DD}.{MM}.{YYYY} — ex. ' . ds_h(date('j/d.m.Y')),
+            ]); ?>
 
             <?php if (isset($_GET['created']) || isset($_GET['updated']) || isset($_GET['default']) || isset($_GET['toggled'])): ?>
                 <div class="notice notice-success">Modificarile au fost salvate.</div>
