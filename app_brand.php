@@ -13,10 +13,23 @@
 require_once __DIR__ . '/app_helpers.php';
 
 if (!function_exists('app_brand_logo')) {
-    function app_brand_logo(string $class = 'brand-logo'): string
+    /**
+     * Returnează tag-ul <img> cu logo-ul aplicației.
+     *
+     * @param string $class    Clasa CSS aplicată pe <img>
+     * @param string $variant  'default' (albastru, pe sidebar dark) sau 'white' (alb, pentru fundaluri albastre — ex. mobile header)
+     */
+    function app_brand_logo(string $class = 'brand-logo', string $variant = 'default'): string
     {
+        $isWhite = ($variant === 'white' || $variant === 'light');
+
         // 1) Mai întâi cautăm numele canonice — comod pentru control explicit
-        $logoCandidates = [
+        $logoCandidates = $isWhite ? [
+            'assets/brand-icon-white.png',
+            'assets/brand-icon-white.svg',
+            'assets/brand-monogram-white.png',
+            'assets/logo-white.png',
+        ] : [
             'assets/brand-icon.png',
             'assets/brand-icon.svg',
             'assets/brand-monogram.png',
@@ -38,11 +51,15 @@ if (!function_exists('app_brand_logo')) {
 
         // 2) Fallback inteligent — orice .png / .svg / .jpg din /assets/ care conține
         //    în nume unul din cuvintele cheie (case-insensitive). Util când clientul
-        //    încarcă fișierul cu nume neașteptat, ex. "MONOGRAMA PEST ZONE_BLUE.png".
+        //    încarcă fișierul cu nume neașteptat, ex. "MONOGRAMA PEST ZONE_BLUE.png"
+        //    sau "MONOGRAMA PEST ZONE_WHITE.png" pentru varianta albă.
         $assetsDir = __DIR__ . '/assets';
         if (is_dir($assetsDir)) {
             $keywords = ['monogram', 'brand', 'logo', 'pest', 'icon', 'mark'];
             $extensions = ['png', 'svg', 'jpg', 'jpeg', 'webp'];
+            // Pentru variant white: preferăm fișiere care conțin "white", "alb", "light"
+            // Pentru variant default: preferăm fișiere care conțin "blue", "dark", "color" — sau orice fără hint de culoare
+            $variantTokens = $isWhite ? ['white', 'alb', 'light'] : ['blue', 'dark', 'color'];
             $matches = [];
 
             foreach (scandir($assetsDir) ?: [] as $entry) {
@@ -52,20 +69,42 @@ if (!function_exists('app_brand_logo')) {
                 $ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
                 if (!in_array($ext, $extensions, true)) continue;
                 $name = strtolower($entry);
+
+                $hasKeyword = false;
                 foreach ($keywords as $kw) {
-                    if (strpos($name, $kw) !== false) {
-                        // Preferăm .svg și .png peste alte formate
-                        $priority = ($ext === 'png') ? 1 : (($ext === 'svg') ? 2 : 3);
-                        $matches[] = ['path' => 'assets/' . $entry, 'priority' => $priority, 'mtime' => @filemtime($full) ?: 0];
-                        break;
+                    if (strpos($name, $kw) !== false) { $hasKeyword = true; break; }
+                }
+                if (!$hasKeyword) continue;
+
+                // Scor: 0 = perfect match (conține token-ul de variantă), 1 = neutru, 2 = wrong variant
+                $variantScore = 1;
+                foreach ($variantTokens as $tok) {
+                    if (strpos($name, $tok) !== false) { $variantScore = 0; break; }
+                }
+                if ($variantScore === 1) {
+                    // Penalizează dacă conține token-ul variantei opuse
+                    $oppositeTokens = $isWhite ? ['blue', 'dark', 'color'] : ['white', 'alb', 'light'];
+                    foreach ($oppositeTokens as $tok) {
+                        if (strpos($name, $tok) !== false) { $variantScore = 2; break; }
                     }
                 }
+
+                // Preferăm .png și .svg peste alte formate
+                $extScore = ($ext === 'png') ? 1 : (($ext === 'svg') ? 2 : 3);
+
+                $matches[] = [
+                    'path' => 'assets/' . $entry,
+                    'variant_score' => $variantScore,
+                    'ext_score' => $extScore,
+                    'mtime' => @filemtime($full) ?: 0,
+                ];
             }
 
             if (!empty($matches)) {
-                // Sortează după priority crescător, apoi mtime descrescător (cel mai nou primul)
+                // Sortează: variant_score crescător, apoi ext_score crescător, apoi mtime descrescător
                 usort($matches, function ($a, $b) {
-                    if ($a['priority'] !== $b['priority']) return $a['priority'] - $b['priority'];
+                    if ($a['variant_score'] !== $b['variant_score']) return $a['variant_score'] - $b['variant_score'];
+                    if ($a['ext_score'] !== $b['ext_score']) return $a['ext_score'] - $b['ext_score'];
                     return $b['mtime'] - $a['mtime'];
                 });
                 $pick = $matches[0];
@@ -83,7 +122,7 @@ if (!function_exists('render_mobile_app_header')) {
     {
         ?>
         <div class="app-mobile-header">
-            <?= app_brand_logo('app-mobile-logo') ?>
+            <?= app_brand_logo('app-mobile-logo', 'white') ?>
         </div>
         <?php
     }
