@@ -4,7 +4,7 @@ require_login();
 require_once __DIR__ . '/smartbill_lib.php';
 
 $isAdmin = function_exists('is_admin') ? is_admin() : true;
-if (!$isAdmin && !is_office()) {
+if (!$isAdmin) {
     http_response_code(403);
     exit('Acces interzis.');
 }

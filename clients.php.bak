@@ -19,7 +19,7 @@ try {
 
 $isAdmin = is_admin();
 
-if (!$isAdmin && !is_office()) {
+if (!$isAdmin) {
     header("Location: calendar.php");
     exit;
 }

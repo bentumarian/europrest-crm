@@ -6,7 +6,7 @@ require_once __DIR__ . '/smartbill_lib.php';
 require_once __DIR__ . '/lib/billing/billing_lib.php';
 
 $isAdmin = is_admin();
-if (!$isAdmin && !is_office()) {
+if (!$isAdmin) {
     header('Location: calendar.php');
     exit;
 }

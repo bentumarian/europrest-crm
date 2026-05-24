@@ -5,7 +5,7 @@ require_once 'app_ui.php';
 
 $isAdmin = is_admin();
 
-if (!$isAdmin && !is_office()) {
+if (!$isAdmin) {
     header("Location: calendar.php");
     exit;
 }
