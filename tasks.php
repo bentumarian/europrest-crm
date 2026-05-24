@@ -1721,49 +1721,7 @@ foreach ($tasks as $task) {
 
     <main class="main">
 
-        <div class="topbar tasks-topbar">
-            <div class="tasks-toolbar">
-
-                <div class="tasks-view-switcher">
-                    <?php foreach ($monthButtons as $monthKey => $monthButton): ?>
-                        <?php $buttonMonth = $monthButton['date']->format('Y-m'); ?>
-                        <a 
-                            class="btn task-view-btn <?= $selectedMonthKey === $monthKey ? 'active' : '' ?>" 
-                            href="<?= h(task_page_url(array_merge($taskBaseQuery, ['month' => $buttonMonth]))) ?>"
-                        >
-                            <?= h($monthButton['label']) ?>
-                        </a>
-                    <?php endforeach; ?>
-                </div>
-
-                <form method="get" class="tasks-filter-line">
-                    <input type="hidden" name="month" value="<?= h($selectedMonthObj->format('Y-m')) ?>">
-                    <select name="filter" onchange="this.form.submit()">
-                        <option value="all" <?= $taskFilter === 'all' ? 'selected' : '' ?>>Toate</option>
-                        <option value="overdue" <?= $taskFilter === 'overdue' ? 'selected' : '' ?>>Întârziate</option>
-                        <option value="today" <?= $taskFilter === 'today' ? 'selected' : '' ?>>Azi</option>
-                        <option value="future" <?= $taskFilter === 'future' ? 'selected' : '' ?>>Viitoare</option>
-                        <option value="skipped" <?= $taskFilter === 'skipped' ? 'selected' : '' ?>>Omise</option>
-                    </select>
-                    <select name="service" onchange="this.form.submit()">
-                        <option value="">Toate serviciile</option>
-                        <?php foreach ($activeServices as $service): ?>
-                            <?php $serviceName = (string)$service['name']; ?>
-                            <option value="<?= h($serviceName) ?>" <?= $taskService === $serviceName ? 'selected' : '' ?>><?= h($serviceName) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <button class="btn" type="submit">Filtrează</button>
-                    <?php if ($taskFilter !== 'all' || $taskSearch !== '' || $taskService !== ''): ?>
-                        <a class="btn" href="<?= h(task_page_url(['month' => $selectedMonthObj->format('Y-m')])) ?>">Reset</a>
-                    <?php endif; ?>
-                </form>
-
-                <div class="tasks-action-line">
-                    <button class="pz-icon-btn primary lg" type="button" title="Sarcină nouă" aria-label="Sarcină nouă" onclick="openCreateTaskModal('<?= h($currentDate) ?>')"><?= app_icon_svg('plus') ?></button>
-                </div>
-
-            </div>
-        </div>
+<?php /* Topbar vechi eliminat — înlocuit cu pz_page_header + pz-fb mai jos. */ ?>
 
         <?php if (isset($_GET['success'])): ?>
             <div class="notice notice-success">Sarcină a fost adăugată.</div>
@@ -1803,27 +1761,128 @@ foreach ($tasks as $task) {
 
         <div class="content">
 
-            <section class="tasks-hero">
-                <div class="tasks-hero-copy">
-                    <div class="pz-page-eyebrow" style="color:rgba(255,255,255,.7);">Operațional</div>
-                    <h1>Priorități de lucru</h1>
-                </div>
+            <?php
+                /*
+                |------------------------------------------------------------
+                | Header unificat PestZone + filter bar pz-fb.
+                | Înlocuiește vechea zonă topbar + tasks-hero.
+                | Tabs = Lună trecută / curentă / următoare (păstrează filtrele).
+                | KPI inline = active / întârziate / azi.
+                | Toolbar = select filter (status sarcină) + select service + reset.
+                | Actions = Sarcină nouă (primary).
+                |------------------------------------------------------------
+                */
+                $tasksTabs = [];
+                foreach ($monthButtons as $monthKey => $monthButton) {
+                    $buttonMonth = $monthButton['date']->format('Y-m');
+                    $tasksTabs[] = [
+                        'label'  => $monthButton['label'],
+                        'href'   => task_page_url(array_merge($taskBaseQuery, ['month' => $buttonMonth])),
+                        'active' => ($selectedMonthKey === $monthKey),
+                    ];
+                }
 
-                <div class="stats" aria-label="Indicatori sarcini">
-                    <span class="stat-pill stat-active">
-                        <span class="task-kpi-icon"><?= app_icon_svg('check') ?></span>
-                        <?= (int)$activeTasks ?> active
-                    </span>
-                    <span class="stat-pill stat-overdue">
-                        <span class="task-kpi-icon"><?= app_icon_svg('alert') ?></span>
-                        <?= (int)$overdueTasks ?> întârziate
-                    </span>
-                    <span class="stat-pill stat-today">
-                        <span class="task-kpi-icon"><?= app_icon_svg('calendar') ?></span>
-                        <?= (int)$todayTasks ?> astăzi
-                    </span>
-                </div>
-            </section>
+                $tasksActiveFilters = 0;
+                if ($taskFilter !== 'all') $tasksActiveFilters++;
+                if ($taskService !== '')    $tasksActiveFilters++;
+
+                ob_start();
+                ?>
+                <form method="get" id="tasksFilterForm" class="pz-fb">
+                    <input type="hidden" name="month" value="<?= h($selectedMonthObj->format('Y-m')) ?>">
+
+                    <div class="pz-fb-spacer"></div>
+
+                    <?php if ($taskFilter !== 'all' || $taskSearch !== '' || $taskService !== ''): ?>
+                        <a class="pz-fb-nav-btn" href="<?= h(task_page_url(['month' => $selectedMonthObj->format('Y-m')])) ?>" title="Resetare filtre">↻</a>
+                    <?php endif; ?>
+
+                    <div class="pz-fb-popover-wrap">
+                        <button type="button" class="pz-fb-filter-btn" id="tasksFiltersToggle" aria-haspopup="true" aria-expanded="false">
+                            <i class="ti ti-adjustments-horizontal" aria-hidden="true"></i>
+                            Filtre
+                            <?php if ($tasksActiveFilters > 0): ?>
+                                <span class="badge"><?= (int)$tasksActiveFilters ?></span>
+                            <?php endif; ?>
+                        </button>
+                        <div class="pz-fb-popover" id="tasksFiltersPopover" role="dialog" aria-label="Filtre suplimentare sarcini">
+                            <div class="pf-row">
+                                <label for="tasksFilterSelect">Status sarcini</label>
+                                <select id="tasksFilterSelect" name="filter">
+                                    <option value="all"     <?= $taskFilter === 'all'     ? 'selected' : '' ?>>Toate</option>
+                                    <option value="overdue" <?= $taskFilter === 'overdue' ? 'selected' : '' ?>>Întârziate</option>
+                                    <option value="today"   <?= $taskFilter === 'today'   ? 'selected' : '' ?>>Azi</option>
+                                    <option value="future"  <?= $taskFilter === 'future'  ? 'selected' : '' ?>>Viitoare</option>
+                                    <option value="skipped" <?= $taskFilter === 'skipped' ? 'selected' : '' ?>>Omise</option>
+                                </select>
+                            </div>
+                            <div class="pf-row">
+                                <label for="tasksServiceSelect">Serviciu</label>
+                                <select id="tasksServiceSelect" name="service">
+                                    <option value="">Toate serviciile</option>
+                                    <?php foreach ($activeServices as $service):
+                                        $serviceName = (string)$service['name'];
+                                    ?>
+                                        <option value="<?= h($serviceName) ?>" <?= $taskService === $serviceName ? 'selected' : '' ?>><?= h($serviceName) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-actions">
+                                <button type="button" class="pz-ph-btn ghost" onclick="document.getElementById('tasksFiltersPopover').classList.remove('is-open'); document.getElementById('tasksFiltersToggle').setAttribute('aria-expanded','false');">Anulează</button>
+                                <button type="submit" class="pz-ph-btn primary">Aplică</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+                <?php
+                $tasksToolbarHtml = ob_get_clean();
+
+                pz_page_header([
+                    'kicker'   => 'Operațional',
+                    'title'    => 'Sarcini',
+                    'subtitle' => 'Priorități de lucru pentru ' . h(mb_strtolower($monthButtons[$selectedMonthKey]['label'])),
+                    'actions'  => [[
+                        'label'   => 'Sarcină nouă',
+                        'icon'    => 'ti-plus',
+                        'variant' => 'primary',
+                        'type'    => 'button',
+                        'onclick' => "openCreateTaskModal('" . h($currentDate) . "')",
+                    ]],
+                    'tabs'     => $tasksTabs,
+                    'kpis'     => [
+                        ['label' => 'Active',     'value' => (int)$activeTasks,  'tone' => 'info'],
+                        ['label' => 'Întârziate', 'value' => (int)$overdueTasks, 'tone' => 'danger'],
+                        ['label' => 'Azi',        'value' => (int)$todayTasks,   'tone' => 'success'],
+                    ],
+                    'toolbar'  => $tasksToolbarHtml,
+                ]);
+            ?>
+            <script>
+            (function() {
+                // Popover filtre sarcini — toggle + close click-outside + ESC
+                var btn = document.getElementById('tasksFiltersToggle');
+                var pop = document.getElementById('tasksFiltersPopover');
+                if (!btn || !pop) return;
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var open = pop.classList.toggle('is-open');
+                    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                });
+                document.addEventListener('click', function(e) {
+                    if (!pop.classList.contains('is-open')) return;
+                    if (pop.contains(e.target) || btn.contains(e.target)) return;
+                    pop.classList.remove('is-open');
+                    btn.setAttribute('aria-expanded', 'false');
+                });
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && pop.classList.contains('is-open')) {
+                        pop.classList.remove('is-open');
+                        btn.setAttribute('aria-expanded', 'false');
+                        btn.focus();
+                    }
+                });
+            })();
+            </script>
 
             <section class="tasks-calendar-card">
                 <div class="tasks-status-legend" aria-label="Legenda sarcini">
