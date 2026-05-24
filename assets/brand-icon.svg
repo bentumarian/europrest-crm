@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" fill="none">
+  <!-- Shield outline — albastru PestZone (#1976B6 din imaginea logo-ului) -->
+  <path d="M60 4 L8 22 V70 C8 100 30 124 60 136 C90 124 112 100 112 70 V22 Z"
+        fill="#1976B6"/>
+
+  <!-- Litera P (în negativ alb) — stilizată cu forme angulare -->
+  <path d="M28 36 H56 C62 36 67 42 67 50 V58 C67 66 62 72 56 72 H40 V94 H28 Z
+           M40 48 V60 H52 C54 60 56 58 56 56 V52 C56 50 54 48 52 48 Z"
+        fill="#FFFFFF"/>
+
+  <!-- Litera Z (în negativ alb) — stilizată cu unghiuri ascuțite -->
+  <path d="M70 36 H96 V44 L82 88 H96 V100 H68 V92 L82 48 H70 Z"
+        fill="#FFFFFF"/>
+</svg>
