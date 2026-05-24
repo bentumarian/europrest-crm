@@ -651,15 +651,41 @@ if (!function_exists('pz_page_header_css')) {
 
         /* Responsive */
         @media (max-width: 768px) {
-            .pz-ph { padding: 14px 16px; }
+            .pz-ph {
+                padding: 14px 16px;
+                max-width: 100%;
+                box-sizing: border-box;
+                overflow: hidden;
+            }
             .pz-ph-title { font-size: 18px; }
             .pz-ph-actions { width: 100%; justify-content: flex-start; }
             .pz-ph-period { width: 100%; }
             .pz-ph-period a { flex: 1; text-align: center; }
+            /* KPIs pe mobile — maxim 2 coloane, lățime în limitele cardului */
+            .pz-ph-kpis {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 6px !important;
+            }
+            .pz-ph-kpi {
+                padding: 8px 10px;
+                min-width: 0;
+            }
+            .pz-ph-kpi .value { font-size: 16px; word-break: break-word; }
+            .pz-ph-kpi .label { font-size: 10px; word-break: break-word; }
+            .pz-ph-kpi .value .meta { font-size: 10px; }
+            /* Tabs scroll horizontal pe mobile (deja overflow-x: auto, dar margin reset) */
+            .pz-ph-tabs { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; }
+            /* Toolbar — wrap permis ca să nu iasă din card */
+            .pz-ph-toolbar { gap: 6px; }
+            .pz-ph-toolbar > * { min-width: 0; }
         }
         @media (max-width: 480px) {
             .pz-ph-btn { padding: 0 9px; font-size: 11px; height: 30px; }
             .pz-ph-btn i { font-size: 12px; }
+            /* La ecrane foarte mici — un singur card per rând pentru KPI dacă conținutul e prea lung */
+            .pz-ph-kpis {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            }
         }
         </style>
         <?php

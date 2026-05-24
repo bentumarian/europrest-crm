@@ -372,7 +372,7 @@ foreach ($stats as $stat) {
 
                     <div class="pz-fb-search">
                         <i class="ti ti-search" aria-hidden="true"></i>
-                        <input type="search" id="documenteSearchInput" name="q" value="<?= pz_docs_h($q) ?>" placeholder="Caută" autocomplete="off">
+                        <input type="text" id="documenteSearchInput" name="q" value="<?= pz_docs_h($q) ?>" placeholder="Caută" autocomplete="off">
                         <div class="pz-search-preview"></div>
                     </div>
 

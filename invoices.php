@@ -335,7 +335,7 @@ $statusLabels = [
 
                     <div class="pz-fb-search">
                         <i class="ti ti-search" aria-hidden="true"></i>
-                        <input type="search" id="invoicesSearchInput" name="q" value="<?= bill_h($q) ?>" placeholder="Caută factură / client" autocomplete="off">
+                        <input type="text" id="invoicesSearchInput" name="q" value="<?= bill_h($q) ?>" placeholder="Caută" autocomplete="off">
                         <div class="pz-search-preview"></div>
                     </div>
 

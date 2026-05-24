@@ -1471,7 +1471,7 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
                 <form method="get" id="clientsFilterForm" class="pz-fb">
                     <div class="pz-fb-search">
                         <i class="ti ti-search" aria-hidden="true"></i>
-                        <input type="text" id="clientsSearchInput" name="q" value="<?= c_h($search) ?>" placeholder="Caută client" autocomplete="off">
+                        <input type="text" id="clientsSearchInput" name="q" value="<?= c_h($search) ?>" placeholder="Caută" autocomplete="off">
                         <div class="pz-search-preview"></div>
                     </div>
 

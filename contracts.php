@@ -1153,7 +1153,7 @@ foreach ($services as $service) {
 
                     <div class="pz-fb-search">
                         <i class="ti ti-search" aria-hidden="true"></i>
-                        <input type="text" id="contractsSearchInput" name="q" value="<?= pz_contract_h($filters['q']) ?>" placeholder="Caută client, contract, CUI" autocomplete="off">
+                        <input type="text" id="contractsSearchInput" name="q" value="<?= pz_contract_h($filters['q']) ?>" placeholder="Caută" autocomplete="off">
                         <div class="pz-search-preview"></div>
                     </div>
 

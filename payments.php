@@ -278,7 +278,7 @@ $statusLabels = [
 
                     <div class="pz-fb-search">
                         <i class="ti ti-search" aria-hidden="true"></i>
-                        <input type="search" id="paymentsSearchInput" name="q" value="<?= pay_h($q) ?>" placeholder="Caută document / client" autocomplete="off">
+                        <input type="text" id="paymentsSearchInput" name="q" value="<?= pay_h($q) ?>" placeholder="Caută" autocomplete="off">
                         <div class="pz-search-preview"></div>
                     </div>
 

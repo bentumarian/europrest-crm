@@ -488,7 +488,7 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
 
                     <div class="pz-fb-search">
                         <i class="ti ti-search" aria-hidden="true"></i>
-                        <input type="search" id="workBillingSearchInput" name="q" value="<?= ib_h($q) ?>" placeholder="Caută" aria-label="Căutare" autocomplete="off">
+                        <input type="text" id="workBillingSearchInput" name="q" value="<?= ib_h($q) ?>" placeholder="Caută" aria-label="Căutare" autocomplete="off">
                         <div class="pz-search-preview"></div>
                     </div>
 

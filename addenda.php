@@ -730,7 +730,7 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                 <form method="get" id="addendaFilterForm" class="pz-fb">
                     <div class="pz-fb-search">
                         <i class="ti ti-search" aria-hidden="true"></i>
-                        <input type="text" id="addendaSearchInput" name="q" value="<?= pz_addendum_h($filters['q']) ?>" placeholder="Caută act adițional, client" autocomplete="off">
+                        <input type="text" id="addendaSearchInput" name="q" value="<?= pz_addendum_h($filters['q']) ?>" placeholder="Caută" autocomplete="off">
                         <div class="pz-search-preview"></div>
                     </div>
 
