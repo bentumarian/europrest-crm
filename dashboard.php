@@ -2,6 +2,7 @@
 require_once 'config.php';
 require_login();
 require_once 'app_ui.php';
+require_once 'revenue_lib.php';
 
 $isAdmin = is_admin();
 if (!$isAdmin) {
@@ -339,6 +340,51 @@ if ($hasSmartbillInvoices && dash_column_exists($pdo, 'smartbill_invoices', 'due
     $restanteCount  = count($allRestante);
     $restanteAmount = array_sum(array_column($allRestante, 'remaining_amount'));
     $restanteList   = array_slice($allRestante, 0, 3);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   VENITURI PE LINIE DE BUSINESS (per perioadă financiar)
+   ──────────────────────────────────────────────────────────────────────── */
+
+$revenueByCategory = [];
+$revenueTotal = 0.0;
+$revenueHasData = false;
+$revenueHasColumn = $hasSmartbillInvoices && dash_column_exists($pdo, 'smartbill_invoices', 'revenue_category');
+
+if ($revenueHasColumn) {
+    $rowsRev = dash_rows($pdo, "
+        SELECT COALESCE(NULLIF(TRIM(revenue_category), ''), 'ddd') AS cat,
+               COALESCE(SUM(gross_amount), 0) AS total,
+               COUNT(*) AS cnt
+        FROM smartbill_invoices
+        WHERE invoice_date BETWEEN ? AND ?
+          AND source_type <> 'receipt'
+          AND TRIM(COALESCE(smartbill_number, '')) <> ''
+        GROUP BY cat
+    ", [$finStart, $finEnd]);
+    $revenueMap = [];
+    foreach ($rowsRev as $r) {
+        $code = pz_revenue_category_normalize((string)$r['cat'], 'altele');
+        $revenueMap[$code] = [
+            'amount' => (float)$r['total'],
+            'count'  => (int)$r['cnt'],
+        ];
+    }
+    foreach (pz_revenue_categories() as $code => $info) {
+        $amt = (float)($revenueMap[$code]['amount'] ?? 0);
+        $cnt = (int)($revenueMap[$code]['count'] ?? 0);
+        $revenueByCategory[$code] = [
+            'code'   => $code,
+            'label'  => $info['label'],
+            'color'  => $info['color'],
+            'bg'     => $info['bg'],
+            'border' => $info['border'],
+            'amount' => $amt,
+            'count'  => $cnt,
+        ];
+        $revenueTotal += $amt;
+        if ($amt > 0 || $cnt > 0) $revenueHasData = true;
+    }
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -821,6 +867,37 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 .mc-mini.warn  .sub { color: var(--mc-or-deep); opacity: 0.85; }
 .mc-mini.info  .sub { color: #1E40AF; opacity: 0.85; }
 
+/* Venituri pe linie de business (row dedicat) */
+.mc-revenue-row { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.mc-revenue .mc-revenue-total {
+    font-size: 12.5px; color: var(--mc-muted); margin-bottom: 12px;
+    padding-bottom: 10px; border-bottom: 0.5px solid var(--mc-line);
+}
+.mc-revenue .mc-revenue-total strong {
+    color: var(--mc-navy); font-size: 18px; font-weight: 500;
+    margin: 0 4px; font-variant-numeric: tabular-nums;
+}
+.mc-revenue-bars { display: flex; flex-direction: column; gap: 12px; }
+.mc-revenue-bar-row .top {
+    display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin-bottom: 5px;
+    flex-wrap: wrap;
+}
+.mc-revenue-bar-row .top .sw { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.mc-revenue-bar-row .top .name { color: var(--mc-text); font-weight: 500; min-width: 80px; }
+.mc-revenue-bar-row .top .val { color: var(--mc-text); font-variant-numeric: tabular-nums; margin-left: auto; }
+.mc-revenue-bar-row .top .val strong { font-weight: 500; color: var(--mc-navy); }
+.mc-revenue-bar-row .top .val .muted-val { color: var(--mc-muted); font-weight: 400; }
+.mc-revenue-bar-row .track {
+    height: 8px; background: var(--mc-line-soft); border-radius: 999px; overflow: hidden;
+}
+.mc-revenue-bar-row .fill { height: 100%; border-radius: 999px; transition: width 0.3s ease; }
+.mc-revenue-detail {
+    display: inline-block; margin-top: 12px; padding-top: 10px;
+    font-size: 12px; color: var(--mc-bl); text-decoration: none; font-weight: 500;
+    border-top: 0.5px solid var(--mc-line); width: 100%;
+}
+.mc-revenue-detail:hover { color: var(--mc-navy); }
+
 /* Charts row (donut status programări + bar top servicii) */
 .mc-charts-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; }
 .mc-legend { display: flex; flex-direction: column; gap: 6px; font-size: 12px; flex: 1; }
@@ -1175,6 +1252,59 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                 </div>
             </div>
 
+            <!-- Venituri pe linie de business (split DDD / Ignifugări / Chirii / Altele) -->
+            <div class="mc-revenue-row" id="row-revenue">
+                <div class="mc-card mc-revenue" data-card-id="revenue-split">
+                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
+                    <div class="head">
+                        <div class="title"><i class="ti ti-cash" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Venituri pe linie de business</div>
+                        <div class="meta"><?= dash_h(strtolower($finLabel)) ?> · cu TVA</div>
+                    </div>
+                    <button type="button" class="mc-cog" aria-label="Setări venituri" data-cog="rev"><i class="ti ti-settings"></i></button>
+                    <div class="mc-cog-menu" id="cogmenu-rev">
+                        <div class="group-label">Perioadă (sincronizată cu Financiar)</div>
+                        <?php foreach (dash_period_options() as $key => $label): ?>
+                            <a href="<?= dash_h(dash_period_url('period_fin', $key)) ?>" class="<?= $periodFin === $key ? 'current' : '' ?>"><?= dash_h($label) ?></a>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="body">
+                        <?php if (!$revenueHasColumn): ?>
+                            <div class="mc-agenda-empty" style="text-align:left">
+                                Coloana de categorie va apărea automat la prima încărcare a paginii Servicii sau Facturi.
+                            </div>
+                        <?php elseif (!$revenueHasData || $revenueTotal <= 0): ?>
+                            <div class="mc-agenda-empty" style="text-align:left">
+                                Nu există facturi emise în <?= dash_h(strtolower($finLabel)) ?>.
+                            </div>
+                        <?php else: ?>
+                            <div class="mc-revenue-total">
+                                Total facturat <strong><?= dash_h(dash_money($revenueTotal)) ?></strong> lei
+                            </div>
+                            <div class="mc-revenue-bars">
+                                <?php foreach ($revenueByCategory as $row):
+                                    if ($row['amount'] <= 0 && $row['count'] === 0) continue;
+                                    $pct = $revenueTotal > 0 ? ($row['amount'] / $revenueTotal) * 100 : 0;
+                                ?>
+                                    <div class="mc-revenue-bar-row">
+                                        <div class="top">
+                                            <span class="sw" style="background:<?= dash_h($row['color']) ?>"></span>
+                                            <span class="name"><?= dash_h($row['label']) ?></span>
+                                            <span class="val">
+                                                <strong><?= dash_h(dash_money($row['amount'])) ?></strong> lei
+                                                <span class="muted-val">· <?= number_format($pct, 1, ',', '.') ?>%</span>
+                                                <span class="muted-val">· <?= (int)$row['count'] ?> fact.</span>
+                                            </span>
+                                        </div>
+                                        <div class="track"><div class="fill" style="width:<?= number_format($pct, 1, '.', '') ?>%;background:<?= dash_h($row['color']) ?>"></div></div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <a class="mc-revenue-detail" href="rapoarte_venituri.php">Vezi raportul detaliat →</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
             <!-- Charts: distribuție status + top servicii -->
             <div class="mc-charts-row" id="row-charts">
                 <!-- Donut: Distribuție status programări -->
@@ -1352,7 +1482,7 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
         });
     }
 
-    ['row-rings', 'row-mini', 'row-secondary', 'row-charts'].forEach(function (id) {
+    ['row-rings', 'row-mini', 'row-secondary', 'row-revenue', 'row-charts'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el) return;
         applyOrder(el);
