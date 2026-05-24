@@ -366,15 +366,15 @@ if (!function_exists('app_theme_css')) {
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 88px;
+            min-height: 124px;
             text-decoration: none;
         }
 
         .brand-logo {
-            width: 76px;
-            height: 76px;
-            max-width: 76px;
-            max-height: 76px;
+            width: 112px;
+            height: 112px;
+            max-width: 112px;
+            max-height: 112px;
             display: block;
             object-fit: contain;
             filter: none;
@@ -549,14 +549,14 @@ if (!function_exists('app_theme_css')) {
             }
 
             .brand-logo-link {
-                min-height: 58px;
+                min-height: 92px;
             }
 
             .brand-logo {
-                width: 58px;
-                height: 58px;
-                max-width: 58px;
-                max-height: 58px;
+                width: 88px;
+                height: 88px;
+                max-width: 88px;
+                max-height: 88px;
             }
 
             .brand-fallback {
@@ -1298,15 +1298,15 @@ if (!function_exists('app_theme_css')) {
             }
 
             .brand-logo-link {
-                min-height: 60px;
+                min-height: 100px;
                 width: 100%;
             }
 
             .brand-logo {
-                width: 68px;
-                height: 68px;
-                max-width: 68px;
-                max-height: 68px;
+                width: 96px;
+                height: 96px;
+                max-width: 96px;
+                max-height: 96px;
             }
 
             .sidebar-nav {
