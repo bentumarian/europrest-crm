@@ -847,8 +847,11 @@ function reports_short_service_label(string $name): string {
     }
     /* ============================================================
        Layout carduri pentru tabelul de programări pe mobile.
-       Fiecare rând (tr) devine un card vertical cu label-uri.
-       Sursa label-urilor: atributul data-label pe fiecare <td>.
+       Folosesc CSS Grid:
+       - tr e un grid cu 2 coloane (1fr 1fr) — Data stânga, Ora dreapta
+       - restul td-urilor se întind pe full-width (grid-column: 1 / -1)
+       - fiecare td e tot un grid cu label (col 1) + content (col 2)
+       Copii (<strong>, <div class="cell-muted">) stau vertical pe dreapta.
        ============================================================ */
     .report-table {
         display: block !important;
@@ -863,7 +866,9 @@ function reports_short_service_label(string $name): string {
         width: 100% !important;
     }
     .report-table tbody tr {
-        display: block !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 0 8px !important;
         background: var(--surface) !important;
         border: 1px solid var(--border) !important;
         border-radius: 10px !important;
@@ -875,74 +880,106 @@ function reports_short_service_label(string $name): string {
         margin-bottom: 0 !important;
     }
     .report-table tbody td {
-        display: flex !important;
-        flex-direction: row !important;
-        align-items: flex-start !important;
-        justify-content: space-between !important;
-        gap: 10px !important;
-        padding: 5px 0 !important;
+        display: grid !important;
+        grid-template-columns: max-content 1fr !important;
+        column-gap: 12px !important;
+        row-gap: 2px !important;
+        align-items: start !important;
+        padding: 6px 0 !important;
         border: 0 !important;
         border-bottom: 1px solid var(--border2) !important;
         font-size: 12.5px !important;
-        text-align: right !important;
         min-height: 0 !important;
+        grid-column: 1 / -1 !important;   /* default: full row */
     }
     .report-table tbody td:last-child {
         border-bottom: 0 !important;
     }
     .report-table tbody td::before {
         content: attr(data-label) !important;
-        flex: 0 0 auto !important;
+        grid-column: 1 !important;
+        grid-row: 1 !important;
         font-weight: 600 !important;
         font-size: 10.5px !important;
         color: var(--muted) !important;
         text-transform: uppercase !important;
         letter-spacing: 0.04em !important;
         text-align: left !important;
-        padding-top: 1px !important;
+        padding-top: 2px !important;
         white-space: nowrap !important;
+        align-self: start !important;
     }
     .report-table tbody td > * {
+        grid-column: 2 !important;
         text-align: right !important;
         min-width: 0 !important;
+        word-break: break-word !important;
     }
     .report-table tbody td strong {
         font-weight: 600 !important;
-        word-break: break-word !important;
     }
     .report-table tbody td .cell-muted {
         font-size: 10.5px !important;
-        margin-top: 2px !important;
         line-height: 1.3 !important;
         color: var(--muted) !important;
+        margin-top: 1px !important;
     }
     .report-table tbody td .note-cell {
         font-size: 11.5px !important;
         line-height: 1.35 !important;
-        max-width: 65% !important;
         word-break: break-word !important;
     }
     .report-table tbody td .note-cell.empty {
         color: var(--muted) !important;
     }
     .report-table tbody td .status-pill {
+        justify-self: end !important;
         border-radius: 6px !important;
         padding: 3px 8px !important;
         font-size: 10.5px !important;
+        width: fit-content !important;
     }
-    /* Data + Ora — pe primul rând, pe orizontală mare, ca header al cardului */
+    /* Header card — DATA stânga, ORA dreapta, ambele pe rândul 1 al grid-ului */
     .report-table tbody tr td[data-label="Data"] {
-        font-weight: 600 !important;
-        font-size: 13.5px !important;
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0 !important;
+        font-weight: 700 !important;
+        font-size: 15px !important;
         color: var(--text) !important;
-        padding-bottom: 8px !important;
-        margin-bottom: 4px !important;
-        border-bottom: 1px solid var(--border) !important;
+        padding: 0 0 10px 0 !important;
+        border-bottom: 0 !important;
+        font-variant-numeric: tabular-nums !important;
     }
-    .report-table tbody tr td[data-label="Data"]::before {
-        font-size: 10.5px !important;
+    .report-table tbody tr td[data-label="Ora"] {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-end !important;
+        gap: 0 !important;
+        font-weight: 700 !important;
+        font-size: 15px !important;
+        color: var(--text) !important;
+        padding: 0 0 10px 0 !important;
+        border-bottom: 0 !important;
+        font-variant-numeric: tabular-nums !important;
+    }
+    .report-table tbody tr td[data-label="Data"]::before,
+    .report-table tbody tr td[data-label="Ora"]::before {
+        font-size: 9.5px !important;
         font-weight: 600 !important;
         color: var(--muted) !important;
+        margin-bottom: 2px !important;
+        padding-top: 0 !important;
+    }
+    /* Separator sub header (DATA + ORA) — adăug border pe primul td "normal" */
+    .report-table tbody tr td[data-label="Client"] {
+        padding-top: 10px !important;
+        border-top: 1px solid var(--border) !important;
     }
 }
 </style>
