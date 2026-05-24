@@ -1519,9 +1519,6 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
                         </div>
                     </div>
 
-                    <button type="submit" class="pz-ph-btn primary">
-                        <i class="ti ti-search" aria-hidden="true"></i>Caută
-                    </button>
                 </form>
                 <?php
                 $clientsToolbarHtml = ob_get_clean();
@@ -1585,12 +1582,7 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
 
             <section class="clients-layout">
                 <div class="clients-list-card">
-                    <div class="card-head">
-                        <div>
-                            <div class="card-title">Listă clienți</div>
-                            <div class="card-subtitle">Afișare <?= (int)$fromResult ?>-<?= (int)$toResult ?> din <?= (int)$totalClients ?></div>
-                        </div>
-                    </div>
+                    <?php /* card-head eliminat — info Listă/Afișare e deja în subtitle pz_page_header */ ?>
 
                     <?php if (!$clients): ?>
                         <div class="empty-state">Nu există clienți pentru filtrul selectat.</div>
