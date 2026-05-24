@@ -900,9 +900,9 @@ function reports_short_service_label(string $name): string {
                 <input type="hidden" name="date_to" value="<?= r_h($dateTo) ?>">
                 <div class="pz-fb-date-range" id="reportsDateRange">
                     <i class="ti ti-calendar" aria-hidden="true"></i>
-                    <input type="text" id="reportsDateFrom" value="<?= r_h($dateFromDisplay) ?>" placeholder="zi.lună.an" readonly autocomplete="off" aria-label="Data început">
+                    <input type="text" id="reportsDateFrom" value="<?= r_h($dateFromDisplay) ?>" placeholder="zz.ll.aaaa" readonly autocomplete="off" aria-label="Data început">
                     <span class="sep">—</span>
-                    <input type="text" id="reportsDateTo" value="<?= r_h($dateToDisplay) ?>" placeholder="zi.lună.an" readonly autocomplete="off" aria-label="Data final">
+                    <input type="text" id="reportsDateTo" value="<?= r_h($dateToDisplay) ?>" placeholder="zz.ll.aaaa" readonly autocomplete="off" aria-label="Data final">
                 </div>
 
                 <div class="pz-fb-spacer"></div>

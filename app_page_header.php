@@ -284,12 +284,17 @@ if (!function_exists('pz_page_header_css')) {
         .pz-fb-date-range {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             background: var(--pz-bg);
             border: 1px solid var(--pz-line);
             border-radius: 6px;
             padding: 0 8px;
             height: 32px;
+            width: fit-content;
+            cursor: pointer;
+        }
+        .pz-fb-date-range:hover {
+            border-color: var(--pz-blb);
         }
         .pz-fb-date-range:focus-within {
             border-color: var(--pz-bl);
@@ -312,17 +317,25 @@ if (!function_exists('pz_page_header_css')) {
             font-size: 12px !important;
             color: var(--pz-title) !important;
             font-family: inherit !important;
-            width: 100px !important;
+            width: 74px !important;
+            min-width: 0 !important;
             box-shadow: none !important;
             outline: none !important;
             font-weight: 500 !important;
+            text-align: center;
+            cursor: pointer;
+            font-variant-numeric: tabular-nums;
+        }
+        .pz-fb-date-range input::placeholder {
+            color: var(--pz-fa);
+            font-weight: 400;
         }
         .pz-fb-date-range input:focus {
             outline: none !important;
             box-shadow: none !important;
             border: 0 !important;
         }
-        .pz-fb-date-range .sep { color: var(--pz-fa); font-size: 12px; user-select: none; }
+        .pz-fb-date-range .sep { color: var(--pz-fa); font-size: 11px; user-select: none; }
 
         .pz-fb-search {
             position: relative;
