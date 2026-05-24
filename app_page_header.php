@@ -199,6 +199,8 @@ if (!function_exists('pz_page_header_css')) {
             padding: 0 20px;
             overflow-x: auto;
             scrollbar-width: none;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
         }
         .pz-ph-tabs::-webkit-scrollbar { display: none; }
         .pz-ph-tabs a {
@@ -210,12 +212,21 @@ if (!function_exists('pz_page_header_css')) {
             margin-bottom: -1px;
             transition: all 0.15s;
             white-space: nowrap;
+            flex-shrink: 0;
         }
         .pz-ph-tabs a:hover { color: var(--pz-title); }
         .pz-ph-tabs a.active {
             color: var(--pz-bld);
             border-bottom-color: var(--pz-bl);
             font-weight: 500;
+        }
+        /* Wrapper pentru a putea afișa gradient fade — folosit la nivel de containere mobile */
+        .pz-ph-tabs-wrap {
+            position: relative;
+            margin: 14px -20px -16px;
+        }
+        .pz-ph-tabs-wrap .pz-ph-tabs {
+            margin: 0;
         }
 
         /* Toolbar - filtre inline (replace pentru bare de filtre vechi) */
@@ -397,17 +408,14 @@ if (!function_exists('pz_page_header_css')) {
             max-width: 280px;
         }
         .pz-fb-search i {
-            position: absolute;
-            left: 9px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 14px;
-            color: var(--pz-fa);
+            /* Iconul de lupă din interiorul input-ului ascuns —
+               păstrăm marker-ul HTML pentru compatibilitate, dar nu îl arătăm. */
+            display: none !important;
         }
         .pz-fb-search input {
             width: 100%;
             height: 32px;
-            padding: 0 10px 0 30px;
+            padding: 0 10px;
             border: 1px solid var(--pz-line);
             border-radius: 6px;
             font-size: 12px;
@@ -673,8 +681,17 @@ if (!function_exists('pz_page_header_css')) {
             .pz-ph-kpi .value { font-size: 16px; word-break: break-word; }
             .pz-ph-kpi .label { font-size: 10px; word-break: break-word; }
             .pz-ph-kpi .value .meta { font-size: 10px; }
-            /* Tabs scroll horizontal pe mobile (deja overflow-x: auto, dar margin reset) */
-            .pz-ph-tabs { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; }
+            /* Tabs scroll horizontal pe mobile + gradient fade la marginea dreaptă
+               ca utilizatorul să vadă că poate scrolla (când tab-urile depășesc). */
+            .pz-ph-tabs {
+                margin-left: -16px;
+                margin-right: -16px;
+                padding-left: 16px;
+                padding-right: 24px;
+                -webkit-mask-image: linear-gradient(to right, black 0, black calc(100% - 24px), transparent 100%);
+                mask-image: linear-gradient(to right, black 0, black calc(100% - 24px), transparent 100%);
+            }
+            .pz-ph-tabs a { font-size: 12px; padding: 10px 11px; }
             /* Toolbar — wrap permis ca să nu iasă din card */
             .pz-ph-toolbar { gap: 6px; }
             .pz-ph-toolbar > * { min-width: 0; }
@@ -1353,5 +1370,37 @@ if (!function_exists('pz_page_header')) {
             <?php endif; ?>
         </div>
         <?php
+        // Auto-scroll tab-ul activ în viewport — util pe mobile când tab-urile
+        // depășesc lățimea containerului și activul ar fi tăiat la marginea
+        // dreaptă (ex. "Arhivă doc..."). Idempotent: ruleaza o singura data per pagină.
+        static $tabsScrollRendered = false;
+        if (!empty($tabs) && !$tabsScrollRendered) {
+            $tabsScrollRendered = true;
+            ?>
+            <script>
+            (function() {
+                function scrollActiveTabsIntoView() {
+                    document.querySelectorAll('.pz-ph-tabs').forEach(function(navEl) {
+                        var active = navEl.querySelector('a.active');
+                        if (!active) return;
+                        // Săltăm dacă tab-ul activ e deja vizibil integral
+                        var navRect = navEl.getBoundingClientRect();
+                        var aRect   = active.getBoundingClientRect();
+                        var fullyVisible = (aRect.left >= navRect.left) && (aRect.right <= navRect.right);
+                        if (fullyVisible) return;
+                        // Centrăm tab-ul activ în viewport-ul scroll-abil
+                        var target = active.offsetLeft - (navEl.clientWidth - active.offsetWidth) / 2;
+                        navEl.scrollLeft = Math.max(0, target);
+                    });
+                }
+                if (document.readyState !== 'loading') {
+                    scrollActiveTabsIntoView();
+                } else {
+                    document.addEventListener('DOMContentLoaded', scrollActiveTabsIntoView);
+                }
+            })();
+            </script>
+            <?php
+        }
     }
 }
