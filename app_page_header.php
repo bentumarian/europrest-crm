@@ -681,17 +681,32 @@ if (!function_exists('pz_page_header_css')) {
             .pz-ph-kpi .value { font-size: 16px; word-break: break-word; }
             .pz-ph-kpi .label { font-size: 10px; word-break: break-word; }
             .pz-ph-kpi .value .meta { font-size: 10px; }
-            /* Tabs scroll horizontal pe mobile + gradient fade la marginea dreaptă
-               ca utilizatorul să vadă că poate scrolla (când tab-urile depășesc). */
+            /* Tabs pe mobile — ascund tab-ul activ (pagina curentă e clară din
+               kicker + title), iar restul se distribuie egal pe lățime ca să
+               încapă toate fără scroll. */
             .pz-ph-tabs {
                 margin-left: -16px;
                 margin-right: -16px;
-                padding-left: 16px;
-                padding-right: 24px;
-                -webkit-mask-image: linear-gradient(to right, black 0, black calc(100% - 24px), transparent 100%);
-                mask-image: linear-gradient(to right, black 0, black calc(100% - 24px), transparent 100%);
+                padding-left: 8px;
+                padding-right: 8px;
+                overflow-x: hidden;
+                justify-content: space-between;
+                -webkit-mask-image: none;
+                mask-image: none;
             }
-            .pz-ph-tabs a { font-size: 12px; padding: 10px 11px; }
+            .pz-ph-tabs a {
+                font-size: 11.5px;
+                padding: 10px 4px;
+                flex: 1 1 auto;
+                min-width: 0;
+                text-align: center;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .pz-ph-tabs a.active {
+                display: none;
+            }
             /* Toolbar — wrap permis ca să nu iasă din card */
             .pz-ph-toolbar { gap: 6px; }
             .pz-ph-toolbar > * { min-width: 0; }
