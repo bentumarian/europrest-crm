@@ -1109,47 +1109,136 @@ foreach ($services as $service) {
             <?php endif; ?>
 
             <?php if (empty($_GET['new']) && empty($editingDocument)): ?>
-            <section class="panel">
-                <div class="panel-head">
-                    <div>
-                        <div class="pz-page-eyebrow">Documente</div>
-                        <div class="panel-title">Lista contracte</div>
+            <?php
+                /*
+                |------------------------------------------------------------
+                | Header unificat PestZone — înlocuiește panel-head + filter
+                | form vechi pentru lista contracte.
+                | Tabs principale = 5 sub-pagini Documente.
+                | Toolbar = search + popover (Status + Rânduri/pagină).
+                | Actions = Contract nou (primary).
+                |------------------------------------------------------------
+                */
+                $contractsTabs = [
+                    ['label' => 'Procese verbale',  'href' => 'service-reports'],
+                    ['label' => 'Contracte',        'href' => 'contracts.php', 'active' => true],
+                    ['label' => 'Oferte',           'href' => 'oferte.php'],
+                    ['label' => 'Acte adiționale',  'href' => 'addenda.php'],
+                    ['label' => 'Arhivă documente', 'href' => 'documents'],
+                ];
+
+                $contractsActiveFilters = 0;
+                if (!empty($filters['status'])) $contractsActiveFilters++;
+                if ($perPage !== 20)            $contractsActiveFilters++;
+
+                $contractsSubtitle = (int)($totalDocs ?? count($documents)) . ' contracte';
+                if (!empty($filters['client_id'])) {
+                    $contractsSubtitle .= ' · filtrate pentru client #' . (int)$filters['client_id'];
+                }
+                if (!empty($filters['q'])) {
+                    $contractsSubtitle .= ' · căutare: „' . pz_contract_h($filters['q']) . '"';
+                }
+                if (!empty($expiringContracts)) {
+                    $contractsSubtitle .= ' · ' . count($expiringContracts) . ' expiră în 30 zile';
+                }
+
+                $contractNewHref = 'contracts.php?new=1' . (!empty($filters['client_id']) ? '&client_id=' . (int)$filters['client_id'] : '');
+
+                ob_start();
+                ?>
+                <form method="get" id="contractsFilterForm" class="pz-fb">
+                    <?php if (!empty($filters['client_id'])): ?>
+                        <input type="hidden" name="client_id" value="<?= (int)$filters['client_id'] ?>">
+                    <?php endif; ?>
+
+                    <div class="pz-fb-search">
+                        <i class="ti ti-search" aria-hidden="true"></i>
+                        <input type="text" id="contractsSearchInput" name="q" value="<?= pz_contract_h($filters['q']) ?>" placeholder="Caută client, contract, CUI" autocomplete="off">
+                        <div class="pz-search-preview"></div>
                     </div>
-                
-                    <a class="pz-icon-btn primary lg" title="Contract nou" aria-label="Contract nou" href="contracts.php?new=1<?= !empty($filters['client_id']) ? '&client_id=' . (int)$filters['client_id'] : '' ?>"><?= app_icon_svg('plus') ?></a>
-                </div>
-                <div class="panel-body">
-                    <form method="get" class="filter-form">
-                        <?php if (!empty($filters['client_id'])): ?>
-                            <input type="hidden" name="client_id" value="<?= (int)$filters['client_id'] ?>">
-                        <?php endif; ?>
-                        <div class="field">
-                            <label>Căutare</label>
-                            <div class="pz-search-wrap">
-                                <input type="text" id="contractsSearchInput" name="q" value="<?= pz_contract_h($filters['q']) ?>" placeholder="Caută" autocomplete="off">
-                                <div class="pz-search-preview"></div>
+
+                    <div class="pz-fb-spacer"></div>
+
+                    <a class="pz-fb-nav-btn" href="contracts.php" title="Resetare filtre">↻</a>
+
+                    <div class="pz-fb-popover-wrap">
+                        <button type="button" class="pz-fb-filter-btn" id="contractsFiltersToggle" aria-haspopup="true" aria-expanded="false">
+                            <i class="ti ti-adjustments-horizontal" aria-hidden="true"></i>
+                            Filtre
+                            <?php if ($contractsActiveFilters > 0): ?>
+                                <span class="badge"><?= (int)$contractsActiveFilters ?></span>
+                            <?php endif; ?>
+                        </button>
+                        <div class="pz-fb-popover" id="contractsFiltersPopover" role="dialog" aria-label="Filtre suplimentare contracte">
+                            <div class="pf-row">
+                                <label for="contractsStatusSelect">Status</label>
+                                <select id="contractsStatusSelect" name="status">
+                                    <option value="">Toate</option>
+                                    <?php foreach (['draft' => 'Draft', 'issued' => 'Emise', 'cancelled' => 'Anulate'] as $value => $label): ?>
+                                        <option value="<?= $value ?>" <?= $filters['status'] === $value ? 'selected' : '' ?>><?= $label ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-row">
+                                <label for="contractsPerPageSelect">Rânduri pe pagină</label>
+                                <select id="contractsPerPageSelect" name="per_page">
+                                    <?php foreach ([20, 50, 100] as $nr): ?>
+                                        <option value="<?= $nr ?>" <?= $perPage === $nr ? 'selected' : '' ?>><?= $nr ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-actions">
+                                <button type="button" class="pz-ph-btn ghost" onclick="document.getElementById('contractsFiltersPopover').classList.remove('is-open'); document.getElementById('contractsFiltersToggle').setAttribute('aria-expanded','false');">Anulează</button>
+                                <button type="submit" class="pz-ph-btn primary">Aplică</button>
                             </div>
                         </div>
-                        <div class="field">
-                            <label>Status</label>
-                            <select name="status">
-                                <option value="">Toate</option>
-                                <?php foreach (['draft' => 'Draft', 'issued' => 'Emise', 'cancelled' => 'Anulate'] as $value => $label): ?>
-                                    <option value="<?= $value ?>" <?= $filters['status'] === $value ? 'selected' : '' ?>><?= $label ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label>Rânduri</label>
-                            <select name="per_page">
-                                <?php foreach ([20, 50, 100] as $nr): ?>
-                                    <option value="<?= $nr ?>" <?= $perPage === $nr ? 'selected' : '' ?>><?= $nr ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <button class="btn primary" type="submit">Filtrează</button>
-                    </form>
+                    </div>
+                </form>
+                <?php
+                $contractsToolbarHtml = ob_get_clean();
 
+                pz_page_header([
+                    'kicker'   => 'Documente',
+                    'title'    => 'Contracte',
+                    'subtitle' => $contractsSubtitle,
+                    'actions'  => [[
+                        'label'   => 'Contract nou',
+                        'href'    => $contractNewHref,
+                        'variant' => 'primary',
+                        'icon'    => 'ti-plus',
+                    ]],
+                    'tabs'     => $contractsTabs,
+                    'toolbar'  => $contractsToolbarHtml,
+                ]);
+                ?>
+                <script>
+                (function() {
+                    var btn = document.getElementById('contractsFiltersToggle');
+                    var pop = document.getElementById('contractsFiltersPopover');
+                    if (!btn || !pop) return;
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        var open = pop.classList.toggle('is-open');
+                        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    });
+                    document.addEventListener('click', function(e) {
+                        if (!pop.classList.contains('is-open')) return;
+                        if (pop.contains(e.target) || btn.contains(e.target)) return;
+                        pop.classList.remove('is-open');
+                        btn.setAttribute('aria-expanded', 'false');
+                    });
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape' && pop.classList.contains('is-open')) {
+                            pop.classList.remove('is-open');
+                            btn.setAttribute('aria-expanded', 'false');
+                            btn.focus();
+                        }
+                    });
+                })();
+                </script>
+
+            <section class="panel">
+                <div class="panel-body">
                     <div class="docs-list" style="margin-top:12px;">
                         <?php if (!$documents): ?>
                             <div class="empty-state">Nu există contracte inca.</div>
