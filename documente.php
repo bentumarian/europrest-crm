@@ -319,40 +319,158 @@ foreach ($stats as $stat) {
     <?php render_sidebar('documente', $isAdmin); ?>
 
     <main class="main">
-        <header class="topbar docs-topbar">
-            <div class="docs-toolbar">
-                <a class="btn primary" href="offers?new=1">Ofertă nouă</a>
-                <a class="btn primary" href="contracts.php?new=1">Contract nou</a>
-            </div>
-        </header>
+        <?php /* Topbar vechi eliminat — înlocuit cu pz_page_header mai jos. */ ?>
 
         <div class="content docs-page">
             <?php if ($errorMessage): ?>
                 <div class="alert error"><?= pz_docs_h($errorMessage) ?></div>
             <?php endif; ?>
 
-            <section class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Total documente</div>
-                    <div class="stat-value"><?= (int)$totalAll ?></div>
-                    <div class="stat-sub"><?= (int)$totalIssued ?> emise / <?= (int)$totalDraft ?> drafturi</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Oferte</div>
-                    <div class="stat-value"><?= (int)($stats['oferta']['total'] ?? 0) ?></div>
-                    <div class="stat-sub">Valoare emisa: <?= pz_docs_money($stats['oferta']['value'] ?? 0) ?></div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Contracte</div>
-                    <div class="stat-value"><?= (int)($stats['contract']['total'] ?? 0) ?></div>
-                    <div class="stat-sub">Valoare emisa: <?= pz_docs_money($stats['contract']['value'] ?? 0) ?></div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Procese verbale</div>
-                    <div class="stat-value"><?= (int)($stats['proces_verbal']['total'] ?? 0) ?></div>
-                    <div class="stat-sub"><?= (int)($stats['proces_verbal']['issued'] ?? 0) ?> emise / <?= (int)($stats['proces_verbal']['draft'] ?? 0) ?> drafturi</div>
-                </div>
-            </section>
+            <?php
+                /*
+                |------------------------------------------------------------
+                | Header unificat PestZone — înlocuiește topbar + stats-grid
+                | + panel filtrare vechi. Quick-grid (carduri "Document nou"
+                | pentru fiecare tip) rămâne separat sub header.
+                | Tabs principale = 5 sub-pagini Documente.
+                | KPIs inline = Total / Oferte / Contracte / PV.
+                | Toolbar = date range + search + popover (Tip + Status + per_page).
+                | Actions = Contract nou primary + Ofertă nouă ghost.
+                |------------------------------------------------------------
+                */
+                $arhTabs = [
+                    ['label' => 'Procese verbale',  'href' => 'service-reports'],
+                    ['label' => 'Contracte',        'href' => 'contracts.php'],
+                    ['label' => 'Oferte',           'href' => 'oferte.php'],
+                    ['label' => 'Acte adiționale',  'href' => 'addenda.php'],
+                    ['label' => 'Arhivă documente', 'href' => 'documents', 'active' => true],
+                ];
+
+                $arhActiveFilters = 0;
+                if ($type !== 'all')   $arhActiveFilters++;
+                if ($status !== 'all') $arhActiveFilters++;
+                if (!in_array($perPage, [20], true) && $perPage !== ($perPageOptions[0] ?? 20)) $arhActiveFilters++;
+
+                $dateFromDisplay = $dateFrom ? date('d.m.Y', strtotime($dateFrom)) : '';
+                $dateToDisplay   = $dateTo   ? date('d.m.Y', strtotime($dateTo))   : '';
+
+                $arhSubtitle = (int)$totalAll . ' documente · ' . (int)$totalIssued . ' emise · ' . (int)$totalDraft . ' drafturi';
+
+                ob_start();
+                ?>
+                <form method="get" id="arhFilterForm" class="pz-fb">
+                    <input type="hidden" name="date_from" value="<?= pz_docs_h($dateFrom) ?>">
+                    <input type="hidden" name="date_to"   value="<?= pz_docs_h($dateTo) ?>">
+
+                    <div class="pz-fb-date-range" id="arhDateRange">
+                        <i class="ti ti-calendar" aria-hidden="true"></i>
+                        <input type="text" id="arhDateFrom" value="<?= pz_docs_h($dateFromDisplay) ?>" placeholder="zz.ll.aaaa" readonly autocomplete="off" aria-label="Data început">
+                        <span class="sep">—</span>
+                        <input type="text" id="arhDateTo" value="<?= pz_docs_h($dateToDisplay) ?>" placeholder="zz.ll.aaaa" readonly autocomplete="off" aria-label="Data final">
+                    </div>
+
+                    <div class="pz-fb-search">
+                        <i class="ti ti-search" aria-hidden="true"></i>
+                        <input type="search" id="documenteSearchInput" name="q" value="<?= pz_docs_h($q) ?>" placeholder="Caută client, CUI, număr, titlu" autocomplete="off">
+                        <div class="pz-search-preview"></div>
+                    </div>
+
+                    <div class="pz-fb-spacer"></div>
+
+                    <a class="pz-fb-nav-btn" href="documents" title="Resetare filtre">↻</a>
+
+                    <div class="pz-fb-popover-wrap">
+                        <button type="button" class="pz-fb-filter-btn" id="arhFiltersToggle" aria-haspopup="true" aria-expanded="false">
+                            <i class="ti ti-adjustments-horizontal" aria-hidden="true"></i>
+                            Filtre
+                            <?php if ($arhActiveFilters > 0): ?>
+                                <span class="badge"><?= (int)$arhActiveFilters ?></span>
+                            <?php endif; ?>
+                        </button>
+                        <div class="pz-fb-popover" id="arhFiltersPopover" role="dialog" aria-label="Filtre suplimentare arhivă">
+                            <div class="pf-row">
+                                <label for="arhTypeSelect">Tip document</label>
+                                <select id="arhTypeSelect" name="type">
+                                    <option value="all" <?= $type === 'all' ? 'selected' : '' ?>>Toate</option>
+                                    <?php foreach (pz_docs_types() as $typeKey => $typeLabel): ?>
+                                        <option value="<?= pz_docs_h($typeKey) ?>" <?= $type === $typeKey ? 'selected' : '' ?>><?= pz_docs_h($typeLabel) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-row">
+                                <label for="arhStatusSelect">Status</label>
+                                <select id="arhStatusSelect" name="status">
+                                    <option value="all"       <?= $status === 'all'       ? 'selected' : '' ?>>Toate</option>
+                                    <option value="draft"     <?= $status === 'draft'     ? 'selected' : '' ?>>Draft</option>
+                                    <option value="issued"    <?= $status === 'issued'    ? 'selected' : '' ?>>Emis</option>
+                                    <option value="cancelled" <?= $status === 'cancelled' ? 'selected' : '' ?>>Anulat</option>
+                                </select>
+                            </div>
+                            <div class="pf-row">
+                                <label for="arhPerPageSelect">Rânduri pe pagină</label>
+                                <select id="arhPerPageSelect" name="per_page">
+                                    <?php foreach ($perPageOptions as $option): ?>
+                                        <option value="<?= (int)$option ?>" <?= $perPage === $option ? 'selected' : '' ?>><?= (int)$option ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-actions">
+                                <button type="button" class="pz-ph-btn ghost" onclick="document.getElementById('arhFiltersPopover').classList.remove('is-open'); document.getElementById('arhFiltersToggle').setAttribute('aria-expanded','false');">Anulează</button>
+                                <button type="submit" class="pz-ph-btn primary">Aplică</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+                <?php
+                $arhToolbarHtml = ob_get_clean();
+
+                pz_page_header([
+                    'kicker'   => 'Documente',
+                    'title'    => 'Arhivă documente',
+                    'subtitle' => $arhSubtitle,
+                    'actions'  => [
+                        ['label' => 'Ofertă nouă',   'href' => 'offers?new=1',      'variant' => 'ghost',   'icon' => 'ti-file-plus'],
+                        ['label' => 'Contract nou',  'href' => 'contracts.php?new=1', 'variant' => 'primary', 'icon' => 'ti-plus'],
+                    ],
+                    'tabs'     => $arhTabs,
+                    'kpis'     => [
+                        ['label' => 'Total documente',   'value' => (int)$totalAll,                          'meta' => (int)$totalIssued . ' emise'],
+                        ['label' => 'Oferte',            'value' => (int)($stats['oferta']['total']        ?? 0), 'meta' => pz_docs_money($stats['oferta']['value']    ?? 0)],
+                        ['label' => 'Contracte',         'value' => (int)($stats['contract']['total']      ?? 0), 'meta' => pz_docs_money($stats['contract']['value']  ?? 0)],
+                        ['label' => 'Procese verbale',   'value' => (int)($stats['proces_verbal']['total'] ?? 0), 'meta' => (int)($stats['proces_verbal']['issued'] ?? 0) . ' emise'],
+                    ],
+                    'toolbar'  => $arhToolbarHtml,
+                ]);
+
+                pz_date_range_init('arhDateFrom', 'arhDateTo', 'date_from', 'date_to', [
+                    'form_id' => 'arhFilterForm',
+                ]);
+                ?>
+                <script>
+                (function() {
+                    var btn = document.getElementById('arhFiltersToggle');
+                    var pop = document.getElementById('arhFiltersPopover');
+                    if (!btn || !pop) return;
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        var open = pop.classList.toggle('is-open');
+                        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    });
+                    document.addEventListener('click', function(e) {
+                        if (!pop.classList.contains('is-open')) return;
+                        if (pop.contains(e.target) || btn.contains(e.target)) return;
+                        pop.classList.remove('is-open');
+                        btn.setAttribute('aria-expanded', 'false');
+                    });
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape' && pop.classList.contains('is-open')) {
+                            pop.classList.remove('is-open');
+                            btn.setAttribute('aria-expanded', 'false');
+                            btn.focus();
+                        }
+                    });
+                })();
+                </script>
 
             <section class="quick-grid">
                 <?php foreach (pz_docs_types() as $typeKey => $typeLabel): ?>
@@ -364,65 +482,6 @@ foreach ($stats as $stat) {
                         <a class="btn small primary" href="<?= pz_docs_h(pz_docs_type_new_url($typeKey)) ?>">Document nou</a>
                     </div>
                 <?php endforeach; ?>
-            </section>
-
-            <section class="panel">
-                <div class="panel-head">
-                    <div>
-                        <div class="panel-title">Filtrare documente</div>
-                        <div class="panel-subtitle">Caută după client, CUI, reprezentant, numar document, titlu sau locație.</div>
-                    </div>
-                    <a class="btn small" href="documents">Reset</a>
-                </div>
-                <div class="panel-body">
-                    <form method="get" class="filter-form">
-                        <div class="field">
-                            <label>Căutare</label>
-                            <div class="pz-search-wrap">
-                                <input type="search" id="documenteSearchInput" name="q" value="<?= pz_docs_h($q) ?>" placeholder="Caută" autocomplete="off">
-                                <div class="pz-search-preview"></div>
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label>Tip</label>
-                            <select name="type">
-                                <option value="all" <?= $type === 'all' ? 'selected' : '' ?>>Toate</option>
-                                <?php foreach (pz_docs_types() as $typeKey => $typeLabel): ?>
-                                    <option value="<?= pz_docs_h($typeKey) ?>" <?= $type === $typeKey ? 'selected' : '' ?>><?= pz_docs_h($typeLabel) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label>Status</label>
-                            <select name="status">
-                                <option value="all" <?= $status === 'all' ? 'selected' : '' ?>>Toate</option>
-                                <option value="draft" <?= $status === 'draft' ? 'selected' : '' ?>>Draft</option>
-                                <option value="issued" <?= $status === 'issued' ? 'selected' : '' ?>>Emis</option>
-                                <option value="cancelled" <?= $status === 'cancelled' ? 'selected' : '' ?>>Anulat</option>
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label>De la</label>
-                            <input type="date" name="date_from" value="<?= pz_docs_h($dateFrom) ?>">
-                        </div>
-                        <div class="field">
-                            <label>Până la</label>
-                            <input type="date" name="date_to" value="<?= pz_docs_h($dateTo) ?>">
-                        </div>
-                        <div class="field">
-                            <label>Rânduri</label>
-                            <select name="per_page">
-                                <?php foreach ($perPageOptions as $option): ?>
-                                    <option value="<?= (int)$option ?>" <?= $perPage === $option ? 'selected' : '' ?>><?= (int)$option ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label>&nbsp;</label>
-                            <button class="btn dark" type="submit">Aplică</button>
-                        </div>
-                    </form>
-                </div>
             </section>
 
             <section class="docs-list">
