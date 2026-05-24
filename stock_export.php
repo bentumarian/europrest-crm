@@ -15,7 +15,7 @@ require_login();
 require_once 'stock_lib.php';
 require_once 'settings_lib.php';
 
-if (!is_office_or_admin()) { http_response_code(403); exit('Acces interzis'); }
+if (!is_admin()) { http_response_code(403); exit('Acces interzis'); }
 stock_ensure_schema($pdo);
 
 // Date companie pentru cap-de-fisier la export (apare la inceputul CSV-ului)

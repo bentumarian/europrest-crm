@@ -5,9 +5,7 @@ require_once 'app_ui.php';
 require_once 'revenue_lib.php';
 
 $isAdmin = is_admin();
-$isOffice = function_exists('is_office') ? is_office() : false;
-// Dashboard este accesibil pentru admin și office; tehnicienii merg pe calendar.
-if (!$isAdmin && !$isOffice) {
+if (!$isAdmin) {
     header("Location: calendar.php");
     exit;
 }

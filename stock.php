@@ -3,7 +3,7 @@ require_once 'config.php';
 require_login();
 require_once 'app_ui.php';
 require_once 'stock_lib.php';
-if (!is_office_or_admin()) { header('Location: calendar.php'); exit; }
+if (!is_admin()) { header('Location: calendar.php'); exit; }
 stock_ensure_schema($pdo);
 
 $rows = stock_current_by_product($pdo);

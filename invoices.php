@@ -7,7 +7,7 @@ require_once __DIR__ . '/lib/billing/billing_lib.php';
 require_once __DIR__ . '/revenue_lib.php';
 
 $isAdmin = function_exists('is_admin') ? is_admin() : true;
-if (!$isAdmin && !is_office()) {
+if (!$isAdmin) {
     header('Location: calendar.php');
     exit;
 }

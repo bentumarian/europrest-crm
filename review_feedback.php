@@ -4,7 +4,7 @@ require_login();
 require_once __DIR__ . '/app_ui.php';
 require_once __DIR__ . '/review_lib.php';
 
-if (!is_office_or_admin()) {
+if (!is_admin()) {
     http_response_code(403);
     exit('Acces permis doar administratorului.');
 }

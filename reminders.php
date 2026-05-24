@@ -5,7 +5,7 @@ require_once 'app_ui.php';
 require_once __DIR__ . '/notification_lib.php';
 
 $isAdmin = is_admin();
-if (!$isAdmin && !is_office()) { header('Location: calendar.php'); exit; }
+if (!$isAdmin) { header('Location: calendar.php'); exit; }
 
 function rem_h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 

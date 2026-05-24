@@ -22,13 +22,6 @@ if (!function_exists('render_sidebar')) {
 {
     $userName = function_exists('current_user_name') ? current_user_name() : 'Utilizator';
     $originalActive = $active;
-    // Office: are aceeași structură de meniu ca admin, dar fără Setări.
-    // IMPORTANT: $canSeeSettings se calculează DIN VERIFICAREA REALĂ a rolului,
-    // NU din parametrul $isAdmin trimis de caller (unele pagini trimit true hardcoded).
-    $isOffice = function_exists('is_office') ? is_office() : false;
-    $isStrictAdmin = function_exists('is_admin') ? is_admin() : false;
-    $hasFullMenu = $isAdmin || $isOffice;
-    $canSeeSettings = $isStrictAdmin; // doar admin strict, ignoră parametrul
 
     $settingsActiveKeys = [
         'settings',
@@ -84,7 +77,7 @@ if (!function_exists('render_sidebar')) {
         $active = 'facturare';
     }
 
-    if ($hasFullMenu) {
+    if ($isAdmin) {
         $mainBeforeDocuments = [
             'dashboard' => ['label' => 'Dashboard', 'href' => 'dashboard.php', 'icon' => 'dashboard'],
             'clients'   => ['label' => 'Clienți', 'href' => 'clients.php', 'icon' => 'clients'],
@@ -117,11 +110,8 @@ if (!function_exists('render_sidebar')) {
             'reports'   => ['label' => 'Rapoarte', 'href' => 'reports.php', 'icon' => 'reports'],
             'reminders' => ['label' => 'Reminders', 'href' => 'reminders.php', 'icon' => 'alert'],
             'review_feedback' => ['label' => 'Feedback', 'href' => 'review_feedback.php', 'icon' => 'star'],
+            'settings'  => ['label' => 'Setări', 'href' => 'settings.php', 'icon' => 'settings'],
         ];
-        // Setări vizibil doar pentru admin strict (nu office).
-        if ($canSeeSettings) {
-            $mainAfterDocuments['settings'] = ['label' => 'Setări', 'href' => 'settings.php', 'icon' => 'settings'];
-        }
     } else {
         $mainBeforeDocuments = [
             'dashboard' => ['label' => 'Dashboard', 'href' => 'dashboard.php', 'icon' => 'dashboard'],
@@ -669,7 +659,7 @@ if (!function_exists('render_sidebar')) {
                 </a>
             <?php endforeach; ?>
 
-            <?php if ($hasFullMenu): ?>
+            <?php if ($isAdmin): ?>
                 <div class="nav-group">
                     <button
                         class="nav-item nav-group-button <?= $documentsOpen ? 'active open' : '' ?>"
@@ -694,7 +684,7 @@ if (!function_exists('render_sidebar')) {
                 </div>
             <?php endif; ?>
 
-            <?php if ($hasFullMenu): ?>
+            <?php if ($isAdmin): ?>
                 <div class="nav-group">
                     <button
                         class="nav-item nav-group-button <?= $billingOpen ? 'active open' : '' ?>"

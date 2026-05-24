@@ -5,7 +5,7 @@ require_once __DIR__ . '/app_ui.php';
 require_once __DIR__ . '/smartbill_lib.php';
 
 $isAdmin = function_exists('is_admin') ? is_admin() : true;
-if (!$isAdmin && !is_office()) {
+if (!$isAdmin) {
     header('Location: calendar.php');
     exit;
 }

@@ -255,9 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['user_id'] = $user['id'];
                         $_SESSION['user_name'] = $user['name'] ?? 'Administrator';
                         $_SESSION['user_email'] = $user['email'] ?? $email;
-                        // Citim rolul din DB (admin sau office). Backward compat: utilizatorii fără rol → admin.
-                        $dbRole = strtolower(trim((string)($user['role'] ?? '')));
-                        $_SESSION['user_role'] = in_array($dbRole, ['admin', 'office'], true) ? $dbRole : 'admin';
+                        $_SESSION['user_role'] = 'admin';
 
                         unset($_SESSION['team_member_id']);
                         unset($_SESSION['team_member_name']);

@@ -153,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'check_availability') {
         header('Content-Type: application/json; charset=utf-8');
 
-        if (!$isAdmin && !is_office()) {
+        if (!$isAdmin) {
             echo json_encode(['ok' => false, 'message' => 'Nu ai dreptul sa verifici disponibilitatea.']);
             exit;
         }
