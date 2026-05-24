@@ -735,8 +735,8 @@ body {
     </div>
 
     <div class="pz-hero">
-        <h1>Echipa face<br>diferența.</h1>
-        <p>Fiecare intervenție bine făcută, fiecare PV completat, fiecare client liniștit — totul pornește de la tine. Mulțumim că ești aici.</p>
+        <h1>Salut.<br>Mă bucur că ești aici.</h1>
+        <p>Programări, intervenții, oameni mulțumiți. Asta facem zi de zi și o facem bine pentru că fiecare pune umărul.</p>
     </div>
 
     <div class="pz-mini-cards">
