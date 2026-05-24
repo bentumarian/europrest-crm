@@ -593,7 +593,7 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 .mc-head .pill.ok { background: var(--mc-gr-soft); color: var(--mc-gr-deep); }
 .mc-head .pill.alert { background: var(--mc-re-soft); color: var(--mc-re-deep); }
 
-.mc-rings { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.mc-rings { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
 .mc-ring-card {
     background: var(--mc-surf); border-radius: 12px; padding: 16px;
     border: 0.5px solid var(--mc-line); position: relative;
@@ -709,6 +709,27 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 }
 .mc-leader-empty i { font-size: 24px; }
 
+/* Drag handle pentru re-ordonare carduri */
+.mc-drag {
+    position: absolute; top: 12px; left: 12px;
+    width: 24px; height: 24px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--mc-faint); cursor: grab; opacity: 0.5;
+    font-size: 16px; user-select: none;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+    z-index: 4;
+}
+.mc-drag:hover { opacity: 1; color: var(--mc-navy); background: rgba(15, 23, 42, 0.04); }
+.mc-drag:active { cursor: grabbing; }
+.mc-ring-card .head, .mc-card .head { padding-left: 30px; }
+.mc-mini { padding-left: 28px; position: relative; }
+.mc-mini .mc-drag { top: 6px; left: 6px; width: 20px; height: 20px; font-size: 13px; }
+
+/* Sortable feedback */
+.sortable-ghost { opacity: 0.25 !important; background: var(--mc-bl-soft) !important; border: 1.5px dashed var(--mc-bl) !important; }
+.sortable-chosen { box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12), 0 12px 32px rgba(15, 23, 42, 0.16) !important; transform: rotate(0.5deg); }
+.sortable-drag { opacity: 0.9 !important; }
+
 /* Setări (cog) - buton vizibil în colțul cardului */
 .mc-cog {
     position: absolute; top: 12px; right: 12px;
@@ -742,7 +763,7 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 .mc-cog-menu a.current { background: var(--mc-bl-soft); color: var(--mc-bl); font-weight: 500; }
 .mc-cog-menu a.current::after { content: '✓'; }
 
-.mc-secondary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mc-secondary { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
 .mc-card {
     background: var(--mc-surf); border: 0.5px solid var(--mc-line);
     border-radius: 12px; padding: 16px; position: relative;
@@ -770,7 +791,7 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 .mc-agenda-empty { font-size: 12px; color: var(--mc-faint); text-align: center; padding: 16px 0; }
 
 /* Mini stat cards (linie 4 carduri compacte sub ringuri) */
-.mc-mini-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.mc-mini-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
 .mc-mini {
     background: var(--mc-surf); border: 0.5px solid var(--mc-line); border-radius: 10px;
     padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;
@@ -801,7 +822,7 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 .mc-mini.info  .sub { color: #1E40AF; opacity: 0.85; }
 
 /* Charts row (donut status programări + bar top servicii) */
-.mc-charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mc-charts-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; }
 .mc-legend { display: flex; flex-direction: column; gap: 6px; font-size: 12px; flex: 1; }
 .mc-legend .row { display: flex; align-items: center; gap: 8px; }
 .mc-legend .sw { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
@@ -858,10 +879,11 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
             </div>
 
             <!-- 3 ringuri -->
-            <div class="mc-rings">
+            <div class="mc-rings" id="row-rings">
 
                 <!-- Operațional -->
-                <div class="mc-ring-card op">
+                <div class="mc-ring-card op" data-card-id="ring-op">
+                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
                     <div class="head">
                         <div>
                             <div class="label">Operațional</div>
@@ -919,7 +941,8 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                 </div>
 
                 <!-- Financiar -->
-                <div class="mc-ring-card fin">
+                <div class="mc-ring-card fin" data-card-id="ring-fin">
+                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
                     <div class="head">
                         <div>
                             <div class="label">Financiar</div>
@@ -978,7 +1001,8 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                 </div>
 
                 <!-- Echipă: top performeri -->
-                <div class="mc-ring-card team">
+                <div class="mc-ring-card team" data-card-id="ring-team">
+                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
                     <div class="head">
                         <div>
                             <div class="label">Echipă</div>
@@ -1033,8 +1057,9 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
             </div>
 
             <!-- Mini stat cards: stocuri / documente / PV alb / clienți activi -->
-            <div class="mc-mini-row">
-                <a class="mc-mini <?= $stockAlertsTotal > 0 ? 'alert' : '' ?>" href="stock_notifications.php">
+            <div class="mc-mini-row" id="row-mini">
+                <a class="mc-mini <?= $stockAlertsTotal > 0 ? 'alert' : '' ?>" href="stock_notifications.php" data-card-id="mini-stocuri">
+                    <span class="mc-drag" aria-label="Mută cardul" title="Mută" onclick="event.preventDefault();"><i class="ti ti-grip-vertical"></i></span>
                     <div class="top">
                         <span class="label">Alerte gestiune</span>
                         <i class="ti ti-package-export ico" aria-hidden="true"></i>
@@ -1049,7 +1074,8 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                     </div>
                 </a>
 
-                <a class="mc-mini info" href="documente.php">
+                <a class="mc-mini info" href="documente.php" data-card-id="mini-documente">
+                    <span class="mc-drag" aria-label="Mută cardul" title="Mută" onclick="event.preventDefault();"><i class="ti ti-grip-vertical"></i></span>
                     <div class="top">
                         <span class="label">Documente <?= dash_h(strtolower($opLabel)) ?></span>
                         <i class="ti ti-file-text ico" aria-hidden="true"></i>
@@ -1064,7 +1090,8 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                     </div>
                 </a>
 
-                <a class="mc-mini <?= $deferredPvCount > 0 ? 'warn' : '' ?>" href="stock_deferred_pvs.php">
+                <a class="mc-mini <?= $deferredPvCount > 0 ? 'warn' : '' ?>" href="stock_deferred_pvs.php" data-card-id="mini-pv-deferred">
+                    <span class="mc-drag" aria-label="Mută cardul" title="Mută" onclick="event.preventDefault();"><i class="ti ti-grip-vertical"></i></span>
                     <div class="top">
                         <span class="label">PV fără consum</span>
                         <i class="ti ti-clipboard-list ico" aria-hidden="true"></i>
@@ -1079,7 +1106,8 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                     </div>
                 </a>
 
-                <a class="mc-mini" href="clients.php">
+                <a class="mc-mini" href="clients.php" data-card-id="mini-clienti">
+                    <span class="mc-drag" aria-label="Mută cardul" title="Mută" onclick="event.preventDefault();"><i class="ti ti-grip-vertical"></i></span>
                     <div class="top">
                         <span class="label">Clienți activi</span>
                         <i class="ti ti-building-store ico" aria-hidden="true"></i>
@@ -1090,11 +1118,12 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
             </div>
 
             <!-- Secundar: alertă + agenda -->
-            <div class="mc-secondary">
+            <div class="mc-secondary" id="row-secondary">
 
                 <!-- Urgent alert / sarcină întârziată -->
                 <?php if ($urgentTask): ?>
-                <div class="mc-card danger">
+                <div class="mc-card danger" data-card-id="sec-urgent">
+                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
                     <div class="head">
                         <div class="title"><i class="ti ti-alert-triangle" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Sarcină urgentă</div>
                         <div class="meta">-<?= (int)$urgentTask['days_late'] ?>z</div>
@@ -1106,7 +1135,8 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                     </div>
                 </div>
                 <?php else: ?>
-                <div class="mc-card">
+                <div class="mc-card" data-card-id="sec-urgent">
+                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
                     <div class="head">
                         <div class="title" style="color:var(--mc-gr-deep);"><i class="ti ti-circle-check" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Fără sarcini urgente</div>
                         <div class="meta">la zi</div>
@@ -1118,7 +1148,8 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                 <?php endif; ?>
 
                 <!-- Agenda azi -->
-                <div class="mc-card">
+                <div class="mc-card" data-card-id="sec-agenda">
+                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
                     <div class="head">
                         <div class="title"><i class="ti ti-clock" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Agenda</div>
                         <div class="meta"><?= count($todayAppointments) ?> programări</div>
@@ -1145,9 +1176,10 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
             </div>
 
             <!-- Charts: distribuție status + top servicii -->
-            <div class="mc-charts-row">
+            <div class="mc-charts-row" id="row-charts">
                 <!-- Donut: Distribuție status programări -->
-                <div class="mc-card">
+                <div class="mc-card" data-card-id="chart-status">
+                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
                     <div class="head">
                         <div class="title"><i class="ti ti-chart-pie" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Distribuție status programări</div>
                         <div class="meta"><?= dash_h(strtolower($opLabel)) ?></div>
@@ -1194,7 +1226,8 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
                 </div>
 
                 <!-- Bar: Top servicii -->
-                <div class="mc-card">
+                <div class="mc-card" data-card-id="chart-services">
+                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
                     <div class="head">
                         <div class="title"><i class="ti ti-chart-bar" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Top servicii</div>
                         <div class="meta"><?= dash_h(strtolower($opLabel)) ?></div>
@@ -1268,6 +1301,7 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
         </div>
     </main>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 <script>
 (function () {
     // Toggle cog menus + click-outside-to-close
@@ -1292,6 +1326,58 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
         if (e.target.closest('.mc-cog-menu') || e.target.closest('.mc-cog')) return;
         document.querySelectorAll('.mc-cog-menu.open').forEach(function (m) { m.classList.remove('open'); });
         document.querySelectorAll('.mc-cog.active').forEach(function (b) { b.classList.remove('active'); });
+    });
+})();
+
+/* Drag & drop carduri dashboard (persistat în localStorage) */
+(function () {
+    if (typeof Sortable === 'undefined') return;
+    var STORE_KEY = 'pz_dash_order_v2';
+
+    function loadOrder(rowId) {
+        try { return JSON.parse(localStorage.getItem(STORE_KEY + '_' + rowId) || 'null'); }
+        catch (e) { return null; }
+    }
+    function saveOrder(rowId, order) {
+        try { localStorage.setItem(STORE_KEY + '_' + rowId, JSON.stringify(order)); }
+        catch (e) {}
+    }
+    function applyOrder(rowEl) {
+        var order = loadOrder(rowEl.id);
+        if (!order || !order.length) return;
+        var children = Array.from(rowEl.children);
+        order.forEach(function (cardId) {
+            var el = children.find(function (c) { return c.dataset && c.dataset.cardId === cardId; });
+            if (el) rowEl.appendChild(el);
+        });
+    }
+
+    ['row-rings', 'row-mini', 'row-secondary', 'row-charts'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        applyOrder(el);
+        new Sortable(el, {
+            animation: 180,
+            handle: '.mc-drag',
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            dragClass: 'sortable-drag',
+            forceFallback: false,
+            onEnd: function () {
+                var order = Array.from(el.children)
+                    .map(function (c) { return c.dataset ? c.dataset.cardId : null; })
+                    .filter(Boolean);
+                saveOrder(id, order);
+            }
+        });
+    });
+
+    /* Blochez navigarea de pe link-urile .mc-mini când se face drag */
+    document.querySelectorAll('.mc-mini .mc-drag').forEach(function (drag) {
+        drag.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        });
     });
 })();
 </script>
