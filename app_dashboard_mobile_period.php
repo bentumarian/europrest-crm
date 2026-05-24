@@ -36,14 +36,31 @@ if (!function_exists('app_dashboard_mobile_period_assets')) {
 }
 
 @media (max-width: 640px) {
+    .pz-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        column-gap: 12px;
+        row-gap: 0;
+    }
+
+    .pz-head > div:first-child {
+        min-width: 0;
+    }
+
     .pz-head-actions {
-        width: 100%;
+        width: auto;
         justify-content: flex-end;
+        align-items: flex-end;
+        align-self: end;
+        margin: 0 0 1px 0;
+        flex-shrink: 0;
     }
 
     .pz-period-control {
         width: auto;
-        margin-left: auto;
+        margin-left: 0;
+        align-self: end;
     }
 
     .pz-period-control > .pz-period {
