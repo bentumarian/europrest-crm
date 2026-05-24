@@ -377,11 +377,13 @@ if (!function_exists('app_theme_css')) {
             max-height: 160px;
             display: block;
             object-fit: contain;
-            /* Recolorează logo-ul la verdele PestZone --pz-gr (#166534) — identic cu
-               segmentul "Încasate" din donut-ul de pe dashboard. Filter chain calculat
-               pentru target #166534 pornind de la orice imagine.
-               Nu afectează varianta white de pe mobile (alt selector — .app-mobile-logo). */
-            filter: brightness(0) saturate(100%) invert(31%) sepia(38%) saturate(2230%) hue-rotate(102deg) brightness(91%) contrast(91%);
+        }
+        /* Variant masked — folosit când logo-ul e randerat ca <span> cu CSS mask
+           (recolorare 100% precisă prin background-color). Folosit în sidebar pentru
+           a afișa logo-ul în verdele PestZone (--pz-gr) indiferent de culoarea PNG-ului. */
+        .brand-logo.brand-logo-masked {
+            width: 160px;
+            height: 160px;
         }
 
         .brand-fallback {

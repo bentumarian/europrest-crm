@@ -19,7 +19,7 @@ if (!function_exists('app_brand_logo')) {
      * @param string $class    Clasa CSS aplicată pe <img>
      * @param string $variant  'default' (albastru, pe sidebar dark) sau 'white' (alb, pentru fundaluri albastre — ex. mobile header)
      */
-    function app_brand_logo(string $class = 'brand-logo', string $variant = 'default'): string
+    function app_brand_logo(string $class = 'brand-logo', string $variant = 'default', string $colorVar = ''): string
     {
         $isWhite = ($variant === 'white' || $variant === 'light');
 
@@ -45,7 +45,11 @@ if (!function_exists('app_brand_logo')) {
             $logoFile = __DIR__ . '/' . $logoPath;
             if (is_file($logoFile)) {
                 $version = @filemtime($logoFile) ?: time();
-                return '<img class="' . app_h($class) . '" src="' . app_h($logoPath . '?v=' . $version) . '" alt="">';
+                $url = $logoPath . '?v=' . $version;
+                if ($colorVar !== '') {
+                    return _app_brand_logo_masked_html($class, $url, $colorVar);
+                }
+                return '<img class="' . app_h($class) . '" src="' . app_h($url) . '" alt="">';
             }
         }
 
@@ -109,11 +113,36 @@ if (!function_exists('app_brand_logo')) {
                 });
                 $pick = $matches[0];
                 $version = $pick['mtime'] ?: time();
-                return '<img class="' . app_h($class) . '" src="' . app_h($pick['path'] . '?v=' . $version) . '" alt="">';
+                $url = $pick['path'] . '?v=' . $version;
+                if ($colorVar !== '') {
+                    return _app_brand_logo_masked_html($class, $url, $colorVar);
+                }
+                return '<img class="' . app_h($class) . '" src="' . app_h($url) . '" alt="">';
             }
         }
 
         return '<span class="brand-fallback" aria-hidden="true"></span>';
+    }
+}
+
+if (!function_exists('_app_brand_logo_masked_html')) {
+    /**
+     * Returnează un <span> care folosește PNG-ul ca CSS mask + background-color din var.
+     * Asta permite recolorare 100% precisă a logo-ului — orice culoare originală
+     * devine fix culoarea specificată în $colorVar (ex. 'var(--pz-gr)').
+     */
+    function _app_brand_logo_masked_html(string $class, string $url, string $colorVar): string
+    {
+        $maskUrl = app_h($url);
+        $cls     = app_h($class);
+        $color   = app_h($colorVar);
+        $style   = "background-color: {$color}; "
+                 . "-webkit-mask-image: url('{$maskUrl}'); mask-image: url('{$maskUrl}'); "
+                 . "-webkit-mask-size: contain; mask-size: contain; "
+                 . "-webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; "
+                 . "-webkit-mask-position: center; mask-position: center; "
+                 . "display: inline-block;";
+        return '<span class="' . $cls . ' ' . $cls . '-masked" style="' . $style . '" aria-label="PestZone" role="img"></span>';
     }
 }
 
