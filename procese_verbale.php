@@ -1390,48 +1390,131 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
             <?php endif; ?>
 
             <?php if ($isAdmin && empty($_GET['new']) && empty($editingDocument) && $selectedAppointmentId <= 0): ?>
-            <section class="panel">
-                <div class="panel-head">
-                    <div>
-                        <div class="pz-page-eyebrow">Documente</div>
-                        <div class="panel-title">Lista procese verbale</div>
+            <?php
+                /*
+                |------------------------------------------------------------
+                | Header unificat PestZone — înlocuiește panel-head + filter
+                | form vechi pentru lista PV-uri.
+                | Tabs principale = 5 sub-pagini Documente.
+                | Toolbar = search + popover (Status + Rânduri / pagină).
+                | Actions = PV nou (primary).
+                |------------------------------------------------------------
+                */
+                $pvTabs = [
+                    ['label' => 'Procese verbale',  'href' => 'service-reports',  'active' => true],
+                    ['label' => 'Contracte',        'href' => 'contracts.php'],
+                    ['label' => 'Oferte',           'href' => 'oferte.php'],
+                    ['label' => 'Acte adiționale',  'href' => 'addenda.php'],
+                    ['label' => 'Arhivă documente', 'href' => 'documents'],
+                ];
+
+                $pvActiveFilters = 0;
+                if (!empty($status))     $pvActiveFilters++;
+                if ($perPage !== 20)     $pvActiveFilters++;
+
+                $pvSubtitle = (int)($totalDocs ?? count($documents)) . ' procese verbale';
+                if ($filterClientId > 0 && !empty($filterClientName)) {
+                    $pvSubtitle .= ' · filtrate pentru ' . pz_pv_h($filterClientName);
+                } elseif ($filterClientId > 0) {
+                    $pvSubtitle .= ' · filtrate pentru client #' . (int)$filterClientId;
+                }
+                if ($q !== '') {
+                    $pvSubtitle .= ' · căutare: „' . pz_pv_h($q) . '"';
+                }
+
+                ob_start();
+                ?>
+                <form method="get" id="pvFilterForm" class="pz-fb">
+                    <?php if ($filterClientId > 0): ?>
+                        <input type="hidden" name="client_id" value="<?= (int)$filterClientId ?>">
+                    <?php endif; ?>
+
+                    <div class="pz-fb-search">
+                        <i class="ti ti-search" aria-hidden="true"></i>
+                        <input type="text" id="pvSearchInput" name="q" value="<?= pz_pv_h($q) ?>" placeholder="Caută client, locație, număr PV" autocomplete="off">
+                        <div class="pz-search-preview"></div>
                     </div>
-                
-                    <a class="pz-icon-btn primary lg" title="PV nou" aria-label="PV nou" href="service-reports?new=1<?= $filterClientId > 0 ? '&client_id=' . (int)$filterClientId : '' ?>"><?= app_icon_svg('plus') ?></a>
-                </div>
-                <div class="panel-body">
-                    <form class="filter-form" method="get">
-                        <?php if ($filterClientId > 0): ?>
-                            <input type="hidden" name="client_id" value="<?= (int)$filterClientId ?>">
-                        <?php endif; ?>
-                        <div class="field">
-                            <label>Căutare</label>
-                            <div class="pz-search-wrap">
-                                <input type="text" id="pvSearchInput" name="q" value="<?= pz_pv_h($q) ?>" placeholder="Caută" autocomplete="off">
-                                <div class="pz-search-preview"></div>
+
+                    <div class="pz-fb-spacer"></div>
+
+                    <a class="pz-fb-nav-btn" href="service-reports" title="Resetare filtre">↻</a>
+
+                    <div class="pz-fb-popover-wrap">
+                        <button type="button" class="pz-fb-filter-btn" id="pvFiltersToggle" aria-haspopup="true" aria-expanded="false">
+                            <i class="ti ti-adjustments-horizontal" aria-hidden="true"></i>
+                            Filtre
+                            <?php if ($pvActiveFilters > 0): ?>
+                                <span class="badge"><?= (int)$pvActiveFilters ?></span>
+                            <?php endif; ?>
+                        </button>
+                        <div class="pz-fb-popover" id="pvFiltersPopover" role="dialog" aria-label="Filtre suplimentare procese verbale">
+                            <div class="pf-row">
+                                <label for="pvStatusSelect">Status</label>
+                                <select id="pvStatusSelect" name="status">
+                                    <option value="">Toate</option>
+                                    <option value="draft"     <?= $status === 'draft'     ? 'selected' : '' ?>>Draft</option>
+                                    <option value="issued"    <?= $status === 'issued'    ? 'selected' : '' ?>>Emis</option>
+                                    <option value="cancelled" <?= $status === 'cancelled' ? 'selected' : '' ?>>Anulat</option>
+                                </select>
+                            </div>
+                            <div class="pf-row">
+                                <label for="pvPerPageSelect">Rânduri pe pagină</label>
+                                <select id="pvPerPageSelect" name="per_page">
+                                    <?php foreach ([20, 50, 100] as $n): ?>
+                                        <option value="<?= (int)$n ?>" <?= $perPage === $n ? 'selected' : '' ?>><?= (int)$n ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-actions">
+                                <button type="button" class="pz-ph-btn ghost" onclick="document.getElementById('pvFiltersPopover').classList.remove('is-open'); document.getElementById('pvFiltersToggle').setAttribute('aria-expanded','false');">Anulează</button>
+                                <button type="submit" class="pz-ph-btn primary">Aplică</button>
                             </div>
                         </div>
-                        <div class="field">
-                            <label>Status</label>
-                            <select name="status">
-                                <option value="">Toate</option>
-                                <option value="draft" <?= $status === 'draft' ? 'selected' : '' ?>>Draft</option>
-                                <option value="issued" <?= $status === 'issued' ? 'selected' : '' ?>>Emis</option>
-                                <option value="cancelled" <?= $status === 'cancelled' ? 'selected' : '' ?>>Anulat</option>
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label>Rânduri</label>
-                            <select name="per_page">
-                                <?php foreach ([20, 50, 100] as $n): ?>
-                                    <option value="<?= (int)$n ?>" <?= $perPage === $n ? 'selected' : '' ?>><?= (int)$n ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <button class="btn primary" type="submit">Filtrează</button>
-                    </form>
-                </div>
-            </section>
+                    </div>
+                </form>
+                <?php
+                $pvToolbarHtml = ob_get_clean();
+
+                pz_page_header([
+                    'kicker'   => 'Documente',
+                    'title'    => 'Procese verbale',
+                    'subtitle' => $pvSubtitle,
+                    'actions'  => [[
+                        'label'   => 'PV nou',
+                        'href'    => 'service-reports?new=1' . ($filterClientId > 0 ? '&client_id=' . (int)$filterClientId : ''),
+                        'variant' => 'primary',
+                        'icon'    => 'ti-plus',
+                    ]],
+                    'tabs'     => $pvTabs,
+                    'toolbar'  => $pvToolbarHtml,
+                ]);
+                ?>
+                <script>
+                (function() {
+                    var btn = document.getElementById('pvFiltersToggle');
+                    var pop = document.getElementById('pvFiltersPopover');
+                    if (!btn || !pop) return;
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        var open = pop.classList.toggle('is-open');
+                        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    });
+                    document.addEventListener('click', function(e) {
+                        if (!pop.classList.contains('is-open')) return;
+                        if (pop.contains(e.target) || btn.contains(e.target)) return;
+                        pop.classList.remove('is-open');
+                        btn.setAttribute('aria-expanded', 'false');
+                    });
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape' && pop.classList.contains('is-open')) {
+                            pop.classList.remove('is-open');
+                            btn.setAttribute('aria-expanded', 'false');
+                            btn.focus();
+                        }
+                    });
+                })();
+                </script>
+            <?php /* — sfârșit header unificat — */ ?>
 
             <?php if (!$documents): ?>
                 <div class="empty-state">Nu există procese verbale pentru filtrarea curenta.</div>
