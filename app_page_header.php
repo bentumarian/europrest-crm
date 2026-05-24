@@ -273,6 +273,211 @@ if (!function_exists('pz_page_header_css')) {
             margin-left: auto;
         }
 
+        /* Filter bar — bara de filtre cu popover pentru filtre extinse */
+        .pz-fb {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+        .pz-fb-date-range {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--pz-bg);
+            border: 1px solid var(--pz-line);
+            border-radius: 6px;
+            padding: 0 8px;
+            height: 32px;
+        }
+        .pz-fb-date-range:focus-within {
+            border-color: var(--pz-bl);
+            box-shadow: 0 0 0 3px var(--pz-bls);
+        }
+        .pz-fb-date-range i {
+            font-size: 14px;
+            color: var(--pz-fa);
+        }
+        .pz-fb-date-range input[type="date"] {
+            border: none;
+            background: transparent;
+            padding: 0;
+            height: auto;
+            font-size: 12px;
+            color: var(--pz-title);
+            font-family: inherit;
+            width: 110px;
+        }
+        .pz-fb-date-range input[type="date"]:focus {
+            outline: none;
+            box-shadow: none;
+        }
+        .pz-fb-date-range .sep { color: var(--pz-fa); font-size: 12px; }
+
+        .pz-fb-search {
+            position: relative;
+            flex: 1;
+            min-width: 160px;
+            max-width: 280px;
+        }
+        .pz-fb-search i {
+            position: absolute;
+            left: 9px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            color: var(--pz-fa);
+        }
+        .pz-fb-search input {
+            width: 100%;
+            height: 32px;
+            padding: 0 10px 0 30px;
+            border: 1px solid var(--pz-line);
+            border-radius: 6px;
+            font-size: 12px;
+            background: var(--pz-bg);
+            color: var(--pz-title);
+            font-family: inherit;
+        }
+        .pz-fb-search input:focus {
+            outline: none;
+            border-color: var(--pz-bl);
+            box-shadow: 0 0 0 3px var(--pz-bls);
+        }
+
+        .pz-fb-spacer { flex: 1; }
+
+        .pz-fb-filter-btn {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 32px;
+            padding: 0 12px;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: inherit;
+            border-radius: 6px;
+            cursor: pointer;
+            background: var(--pz-surf);
+            color: var(--pz-text);
+            border: 1px solid var(--pz-line);
+            white-space: nowrap;
+        }
+        .pz-fb-filter-btn:hover {
+            background: var(--pz-soft);
+            border-color: var(--pz-blb);
+            color: var(--pz-bld);
+        }
+        .pz-fb-filter-btn .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 9px;
+            background: var(--pz-bl);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 500;
+            margin-left: 2px;
+        }
+
+        /* Popover cu filtre */
+        .pz-fb-popover-wrap {
+            position: relative;
+            display: inline-block;
+        }
+        .pz-fb-popover {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 280px;
+            max-width: 320px;
+            background: var(--pz-surf);
+            border: 1px solid var(--pz-line);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+            padding: 14px;
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .pz-fb-popover.is-open { display: flex; }
+        .pz-fb-popover .pf-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .pz-fb-popover label {
+            font-size: 10.5px;
+            font-weight: 500;
+            color: var(--pz-mu);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .pz-fb-popover select,
+        .pz-fb-popover input {
+            width: 100%;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid var(--pz-line);
+            border-radius: 6px;
+            font-size: 13px;
+            background: var(--pz-surf);
+            color: var(--pz-title);
+            font-family: inherit;
+        }
+        .pz-fb-popover select:focus,
+        .pz-fb-popover input:focus {
+            outline: none;
+            border-color: var(--pz-bl);
+            box-shadow: 0 0 0 3px var(--pz-bls);
+        }
+        .pz-fb-popover .pf-actions {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+            padding-top: 4px;
+        }
+        .pz-fb-popover .pf-actions .pz-ph-btn { margin-left: 0; }
+
+        /* Mobile — filtre intră toate în popover */
+        @media (max-width: 640px) {
+            .pz-fb { gap: 6px; }
+            .pz-fb-date-range { width: 100%; justify-content: space-between; }
+            .pz-fb-date-range input[type="date"] { flex: 1; min-width: 0; width: auto; }
+            .pz-fb-search { max-width: 100%; }
+            .pz-fb-spacer { display: none; }
+            .pz-fb-popover {
+                position: fixed;
+                top: auto;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                max-width: 100%;
+                width: 100%;
+                border-radius: 12px 12px 0 0;
+                max-height: 70vh;
+                overflow-y: auto;
+            }
+            .pz-fb-popover.is-open::before {
+                content: '';
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.4);
+                z-index: -1;
+                animation: pz-fb-fade 0.2s ease;
+            }
+        }
+        @keyframes pz-fb-fade {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
         /* Meta bar (default când nu există kpis/tabs/toolbar) */
         .pz-ph-meta {
             display: flex;

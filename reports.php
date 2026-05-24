@@ -883,28 +883,65 @@ function reports_short_service_label(string $name): string {
                 $rangeCurrent = $isToday ? 'today' : ($isCurrentMonth ? 'month' : ($isPrevMonth ? 'prev_month' : ($isYear ? 'year' : '')));
             ?>
             <?php
+                // Calculează câte filtre extinse sunt active (diferite de 'all')
+                $activeExtraFilters = 0;
+                if ((string)$selectedTeam !== 'all' && $selectedTeam !== '')    $activeExtraFilters++;
+                if ((string)$selectedService !== 'all' && $selectedService !== '') $activeExtraFilters++;
+                if ((string)$selectedStatus !== 'all' && $selectedStatus !== '')   $activeExtraFilters++;
                 ob_start();
             ?>
-            <form method="get" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; width: 100%; margin: 0;">
-                <input type="date" name="date_from" value="<?= r_h($dateFrom) ?>" aria-label="Data început">
-                <input type="date" name="date_to" value="<?= r_h($dateTo) ?>" aria-label="Data final">
-                <select name="team">
-                    <?php foreach ($teamChoices as $choice): ?>
-                        <option value="<?= r_h($choice['value']) ?>" <?= (string)$choice['value'] === (string)$selectedTeam ? 'selected' : '' ?>><?= r_h($choice['label']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <select name="service">
-                    <?php foreach ($serviceChoices as $choice): ?>
-                        <option value="<?= r_h($choice['value']) ?>" <?= (string)$choice['value'] === (string)$selectedService ? 'selected' : '' ?>><?= r_h($choice['label']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <select name="status">
-                    <?php foreach ($statusChoices as $choice): ?>
-                        <option value="<?= r_h($choice['value']) ?>" <?= (string)$choice['value'] === (string)$selectedStatus ? 'selected' : '' ?>><?= r_h($choice['label']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <button type="submit" class="pz-ph-btn primary" style="margin-left: auto;">
-                    <i class="ti ti-filter" aria-hidden="true"></i>Aplică
+            <form method="get" id="reportsFilterForm" class="pz-fb">
+                <div class="pz-fb-date-range">
+                    <i class="ti ti-calendar" aria-hidden="true"></i>
+                    <input type="date" name="date_from" value="<?= r_h($dateFrom) ?>" aria-label="Data început">
+                    <span class="sep">—</span>
+                    <input type="date" name="date_to" value="<?= r_h($dateTo) ?>" aria-label="Data final">
+                </div>
+
+                <div class="pz-fb-spacer"></div>
+
+                <div class="pz-fb-popover-wrap">
+                    <button type="button" class="pz-fb-filter-btn" id="reportsFiltersToggle" aria-haspopup="true" aria-expanded="false">
+                        <i class="ti ti-adjustments-horizontal" aria-hidden="true"></i>
+                        Filtre
+                        <?php if ($activeExtraFilters > 0): ?>
+                            <span class="badge"><?= (int)$activeExtraFilters ?></span>
+                        <?php endif; ?>
+                    </button>
+                    <div class="pz-fb-popover" id="reportsFiltersPopover" role="dialog" aria-label="Filtre suplimentare">
+                        <div class="pf-row">
+                            <label for="reportsTeamFilter">Tehnician</label>
+                            <select id="reportsTeamFilter" name="team">
+                                <?php foreach ($teamChoices as $choice): ?>
+                                    <option value="<?= r_h($choice['value']) ?>" <?= (string)$choice['value'] === (string)$selectedTeam ? 'selected' : '' ?>><?= r_h($choice['label']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="pf-row">
+                            <label for="reportsServiceFilter">Serviciu</label>
+                            <select id="reportsServiceFilter" name="service">
+                                <?php foreach ($serviceChoices as $choice): ?>
+                                    <option value="<?= r_h($choice['value']) ?>" <?= (string)$choice['value'] === (string)$selectedService ? 'selected' : '' ?>><?= r_h($choice['label']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="pf-row">
+                            <label for="reportsStatusFilter">Status</label>
+                            <select id="reportsStatusFilter" name="status">
+                                <?php foreach ($statusChoices as $choice): ?>
+                                    <option value="<?= r_h($choice['value']) ?>" <?= (string)$choice['value'] === (string)$selectedStatus ? 'selected' : '' ?>><?= r_h($choice['label']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="pf-actions">
+                            <button type="button" class="pz-ph-btn ghost" onclick="document.getElementById('reportsFiltersPopover').classList.remove('is-open'); document.getElementById('reportsFiltersToggle').setAttribute('aria-expanded','false');">Anulează</button>
+                            <button type="submit" class="pz-ph-btn primary">Aplică</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="pz-ph-btn primary">
+                    <i class="ti ti-check" aria-hidden="true"></i>Aplică
                 </button>
             </form>
             <?php
@@ -928,6 +965,7 @@ function reports_short_service_label(string $name): string {
             ]); ?>
             <script>
             (function() {
+                // Period selector pills (Azi / Lună / etc.) → setează date_from + date_to
                 document.querySelectorAll('.pz-ph-period a').forEach(function(a) {
                     a.addEventListener('click', function(e) {
                         var u = new URL(a.href, location.href);
@@ -947,6 +985,30 @@ function reports_short_service_label(string $name): string {
                         location.href = 'reports.php?date_from=' + from + '&date_to=' + to + '&team=all&service=all&status=all';
                     });
                 });
+
+                // Popover filtre suplimentare — toggle on click, închidere click-outside
+                var toggleBtn = document.getElementById('reportsFiltersToggle');
+                var popover   = document.getElementById('reportsFiltersPopover');
+                if (toggleBtn && popover) {
+                    toggleBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        var open = popover.classList.toggle('is-open');
+                        toggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    });
+                    document.addEventListener('click', function(e) {
+                        if (!popover.classList.contains('is-open')) return;
+                        if (popover.contains(e.target) || toggleBtn.contains(e.target)) return;
+                        popover.classList.remove('is-open');
+                        toggleBtn.setAttribute('aria-expanded', 'false');
+                    });
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape' && popover.classList.contains('is-open')) {
+                            popover.classList.remove('is-open');
+                            toggleBtn.setAttribute('aria-expanded', 'false');
+                            toggleBtn.focus();
+                        }
+                    });
+                }
             })();
             </script>
 
