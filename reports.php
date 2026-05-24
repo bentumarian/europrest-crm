@@ -1268,17 +1268,9 @@ function reports_short_service_label(string $name): string {
                                         <td data-label="Ora"><?= r_h(substr((string)$appointment['start_time'], 0, 5)) ?></td>
                                         <td data-label="Client">
                                             <strong><?= r_h($appointment['client_name'] ?: 'Client') ?></strong>
-                                            <?php if (!empty($appointment['client_phone'])): ?>
-                                                <div class="cell-muted">Tel general: <?= r_h($appointment['client_phone']) ?></div>
-                                            <?php endif; ?>
                                         </td>
                                         <td data-label="Locație">
                                             <strong><?= r_h($locationName) ?></strong>
-                                            <?php if (!empty($appointment['client_location_id'])): ?>
-                                                <div class="cell-muted">Punct de lucru</div>
-                                            <?php else: ?>
-                                                <div class="cell-muted">Sediu / domiciliu</div>
-                                            <?php endif; ?>
                                         </td>
                                         <td data-label="Contact">
                                             <strong><?= r_h($contactPerson ?: '-') ?></strong>
