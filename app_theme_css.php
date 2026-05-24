@@ -357,7 +357,7 @@ if (!function_exists('app_theme_css')) {
         }
 
         .sidebar-brand {
-            padding: 18px 16px 16px;
+            padding: 18px 8px 16px;
             border-bottom: 1px solid rgba(255, 255, 255, .10);
             flex: 0 0 auto;
         }
@@ -366,15 +366,15 @@ if (!function_exists('app_theme_css')) {
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 124px;
+            min-height: 170px;
             text-decoration: none;
         }
 
         .brand-logo {
-            width: 112px;
-            height: 112px;
-            max-width: 112px;
-            max-height: 112px;
+            width: 160px;
+            height: 160px;
+            max-width: 160px;
+            max-height: 160px;
             display: block;
             object-fit: contain;
             filter: none;
