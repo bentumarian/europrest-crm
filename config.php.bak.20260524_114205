@@ -202,21 +202,6 @@ function is_admin(): bool
     return isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin';
 }
 
-function is_office(): bool
-{
-    return isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'office';
-}
-
-/**
- * True dacă utilizatorul curent este admin SAU office.
- * Folosit pentru pagini accesibile ambelor roluri (operațional + cele mai multe module).
- * Setările rămân strict pe is_admin().
- */
-function is_office_or_admin(): bool
-{
-    return is_admin() || is_office();
-}
-
 function is_team_user(): bool
 {
     return isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'team';

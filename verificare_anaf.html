@@ -1058,9 +1058,9 @@ function renderCard(entry) {
             <span class="icon">🏛️</span>
             <span class="text">Min. Finanțelor<small>Pagina oficială firmei</small></span>
           </a>
-          <a class="quick-link" href="https://portal.onrc.ro/ONRCPortalWeb/ONRCPortal.portal?_nfpb=true&_pageLabel=rc_search_dezvoltat" target="_blank" rel="noopener">
+          <a class="quick-link" href="https://myportal.onrc.ro/home" target="_blank" rel="noopener">
             <span class="icon">📋</span>
-            <span class="text">ONRC RECOM<small>Caută în registrul comerțului</small></span>
+            <span class="text">Portal ONRC<small>Furnizare informații RC / InfoCert-Recom</small></span>
           </a>
           <a class="quick-link" href="https://sicap.ai/firma/${dg.cui}" target="_blank" rel="noopener">
             <span class="icon">📜</span>
@@ -1108,6 +1108,7 @@ function renderOnrc(data) {
   const contentEl = document.getElementById("onrcContent");
   const dataset = data.dataset || {};
   const found = data.found || {};
+  const lookupSource = data.lookup_source || {};
   const firma = found.firma || null;
   const caen = Array.isArray(found.caen_autorizat) ? found.caen_autorizat : [];
   const reps = Array.isArray(found.reprezentanti_legali) ? found.reprezentanti_legali : [];
@@ -1158,7 +1159,11 @@ function renderOnrc(data) {
     }
     html += `</div>`;
   } else {
-    html += `<p class="onrc-muted">Nu sunt activități CAEN autorizate disponibile pentru acest CUI în resursa publică.</p>`;
+    html += `<p class="onrc-muted">${
+      lookupSource.caen === "unavailable"
+        ? "Resursa CAEN există în setul public, dar data.gov.ro nu o expune pentru căutare rapidă. Afișăm firma ONRC și linkul către setul complet."
+        : "Nu sunt activități CAEN autorizate disponibile pentru acest CUI în resursa publică."
+    }</p>`;
   }
 
   html += `<div class="onrc-subtitle">Reprezentanți legali</div>`;
@@ -1174,7 +1179,11 @@ function renderOnrc(data) {
     }
     html += `</div>`;
   } else {
-    html += `<p class="onrc-muted">Nu sunt reprezentanți legali disponibili pentru acest CUI în resursa publică.</p>`;
+    html += `<p class="onrc-muted">${
+      lookupSource.reprezentanti === "unavailable"
+        ? "Resursa reprezentanților legali există în setul public, dar data.gov.ro nu o expune pentru căutare rapidă. Afișăm firma ONRC și linkul către setul complet."
+        : "Nu sunt reprezentanți legali disponibili pentru acest CUI în resursa publică."
+    }</p>`;
   }
 
   contentEl.innerHTML = html;

@@ -297,7 +297,7 @@ try {
         }
 
         if ($action === 'delete_draft') {
-            if (!is_admin()) {
+            if (!is_office_or_admin()) {
                 throw new RuntimeException('Actiune disponibila doar pentru administrator.');
             }
             $document = pzdoc_get_document($pdo, $documentId, false);
@@ -308,7 +308,7 @@ try {
         }
 
         if ($action === 'cancel') {
-            if (!is_admin()) {
+            if (!is_office_or_admin()) {
                 throw new RuntimeException('Actiune disponibila doar pentru administrator.');
             }
             $reason = trim((string)($_POST['cancel_reason'] ?? ''));
@@ -318,7 +318,7 @@ try {
         }
 
         if ($action === 'toggle_stamp') {
-            if (!is_admin()) {
+            if (!is_office_or_admin()) {
                 throw new RuntimeException('Doar administratorul poate adauga / scoate ștampila pe document.');
             }
             $stampType = pzdoc_normalize_document_type((string)($actionDocument['document_type'] ?? ''));

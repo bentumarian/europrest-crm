@@ -4,7 +4,7 @@ require_login();
 require_once 'app_ui.php';
 require_once 'stock_lib.php';
 require_once 'settings_lib.php';
-if (!is_admin()) { header('Location: calendar.php'); exit; }
+if (!is_office_or_admin()) { header('Location: calendar.php'); exit; }
 stock_ensure_schema($pdo);
 
 $dateFrom = stock_date_or_default($_GET['date_from'] ?? '', date('Y-m-01'));

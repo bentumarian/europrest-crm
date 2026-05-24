@@ -4,7 +4,7 @@ require_login();
 require_once 'app_ui.php';
 require_once 'stock_lib.php';
 
-if (!is_admin()) { header('Location: calendar.php'); exit; }
+if (!is_office_or_admin()) { header('Location: calendar.php'); exit; }
 stock_ensure_schema($pdo);
 
 $msg = '';
