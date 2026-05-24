@@ -296,67 +296,132 @@ $statusLabels = [
     <?php render_sidebar('facturi', true); ?>
     <main class="main">
         <div class="content billing-home">
-            <section class="hero">
-                <div>
-                    <div class="pz-page-eyebrow">Financiar</div>
-                    <h1>Facturi <span class="count-badge"><?= (int)$stats['all'] ?></span></h1>
-                </div>
-                <div class="actions">
-                    <a class="btn accent" href="invoice.php">+ Emite factură</a>
-                </div>
-            </section>
+            <?php
+                /*
+                |------------------------------------------------------------
+                | Header unificat PestZone — înlocuiește hero + module_nav
+                | + filters + pz-kpi-grid + status tabs vechi.
+                | Tabs principale = 3 module financiar (Facturi activ).
+                | KPIs inline = Facturat / Încasat / Sold / Termen depășit.
+                | Toolbar = search + date range + popover cu Status (5 opțiuni).
+                | Actions = + Emite factură (primary).
+                |------------------------------------------------------------
+                */
+                $invoicesTabs = [
+                    ['label' => 'Facturi',       'href' => 'invoices.php',     'active' => true],
+                    ['label' => 'Încasări',      'href' => 'payments.php'],
+                    ['label' => 'Lista lucrări', 'href' => 'work_billing.php'],
+                ];
 
-            <?php render_billing_module_nav('facturi'); ?>
+                $invoicesActiveFilters = 0;
+                if ($statusFilter !== 'all') $invoicesActiveFilters++;
 
-            <section class="panel">
-                <div class="panel-body">
-                    <form method="get" class="filters">
-                        <div><label>Căutare</label>
-                            <div class="pz-search-wrap">
-                                <input type="search" id="invoicesSearchInput" name="q" value="<?= bill_h($q) ?>" placeholder="Caută" autocomplete="off">
-                                <div class="pz-search-preview"></div>
+                $dateFromDisplay = $dateFrom ? date('d.m.Y', strtotime($dateFrom)) : '';
+                $dateToDisplay   = $dateTo   ? date('d.m.Y', strtotime($dateTo))   : '';
+
+                ob_start();
+                ?>
+                <form method="get" id="invoicesFilterForm" class="pz-fb">
+                    <input type="hidden" name="date_from" value="<?= bill_h($dateFrom) ?>">
+                    <input type="hidden" name="date_to"   value="<?= bill_h($dateTo) ?>">
+                    <?php if ($clientIdFilter > 0): ?><input type="hidden" name="client_id" value="<?= (int)$clientIdFilter ?>"><?php endif; ?>
+
+                    <div class="pz-fb-date-range" id="invoicesDateRange">
+                        <i class="ti ti-calendar" aria-hidden="true"></i>
+                        <input type="text" id="invoicesDateFrom" value="<?= bill_h($dateFromDisplay) ?>" placeholder="zz.ll.aaaa" readonly autocomplete="off" aria-label="Data început">
+                        <span class="sep">—</span>
+                        <input type="text" id="invoicesDateTo" value="<?= bill_h($dateToDisplay) ?>" placeholder="zz.ll.aaaa" readonly autocomplete="off" aria-label="Data final">
+                    </div>
+
+                    <div class="pz-fb-search">
+                        <i class="ti ti-search" aria-hidden="true"></i>
+                        <input type="search" id="invoicesSearchInput" name="q" value="<?= bill_h($q) ?>" placeholder="Caută factură / client" autocomplete="off">
+                        <div class="pz-search-preview"></div>
+                    </div>
+
+                    <div class="pz-fb-spacer"></div>
+
+                    <a class="pz-fb-nav-btn" href="invoices.php" title="Resetare filtre">↻</a>
+
+                    <div class="pz-fb-popover-wrap">
+                        <button type="button" class="pz-fb-filter-btn" id="invoicesFiltersToggle" aria-haspopup="true" aria-expanded="false">
+                            <i class="ti ti-adjustments-horizontal" aria-hidden="true"></i>
+                            Filtre
+                            <?php if ($invoicesActiveFilters > 0): ?>
+                                <span class="badge"><?= (int)$invoicesActiveFilters ?></span>
+                            <?php endif; ?>
+                        </button>
+                        <div class="pz-fb-popover" id="invoicesFiltersPopover" role="dialog" aria-label="Filtre suplimentare facturi">
+                            <div class="pf-row">
+                                <label for="invoicesStatusSelect">Status</label>
+                                <select id="invoicesStatusSelect" name="status">
+                                    <?php foreach ($statusTabs as $key => $label):
+                                        $count = $stats[$key] ?? 0;
+                                    ?>
+                                        <option value="<?= bill_h($key) ?>" <?= $statusFilter === $key ? 'selected' : '' ?>><?= bill_h($label) ?> (<?= (int)$count ?>)</option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-actions">
+                                <button type="button" class="pz-ph-btn ghost" onclick="document.getElementById('invoicesFiltersPopover').classList.remove('is-open'); document.getElementById('invoicesFiltersToggle').setAttribute('aria-expanded','false');">Anulează</button>
+                                <button type="submit" class="pz-ph-btn primary">Aplică</button>
                             </div>
                         </div>
-                        <div><label>De la</label><input type="date" name="date_from" value="<?= bill_h($dateFrom) ?>"></div>
-                        <div><label>Până la</label><input type="date" name="date_to" value="<?= bill_h($dateTo) ?>"></div>
-                        <?php if ($clientIdFilter > 0): ?><input type="hidden" name="client_id" value="<?= (int)$clientIdFilter ?>"><?php endif; ?>
-                        <input type="hidden" name="status" value="<?= bill_h($statusFilter) ?>">
-                        <button class="btn accent" type="submit">Filtrează</button>
-                    </form>
-                </div>
-            </section>
+                    </div>
+                </form>
+                <?php
+                $invoicesToolbarHtml = ob_get_clean();
 
-            <section class="pz-kpi-grid">
-                <div class="pz-kpi-card bl">
-                    <div class="pz-kpi-label">Facturat</div>
-                    <div class="pz-kpi-value"><?= bill_h(bill_money($stats['gross'])) ?></div>
-                </div>
-                <div class="pz-kpi-card gr">
-                    <div class="pz-kpi-label">Încasat</div>
-                    <div class="pz-kpi-value"><?= bill_h(bill_money($stats['paid_amount'])) ?></div>
-                </div>
-                <div class="pz-kpi-card or">
-                    <div class="pz-kpi-label">Sold neachitat</div>
-                    <div class="pz-kpi-value"><?= bill_h(bill_money($stats['unpaid_amount'])) ?></div>
-                </div>
-                <div class="pz-kpi-card re">
-                    <div class="pz-kpi-label">Termen depășit</div>
-                    <div class="pz-kpi-value"><?= (int)$stats['overdue'] ?></div>
-                    <div class="pz-kpi-sub mu">facturi</div>
-                </div>
-            </section>
+                pz_page_header([
+                    'kicker'   => 'Financiar',
+                    'title'    => 'Facturi',
+                    'subtitle' => (int)$stats['all'] . ' facturi · ' . bill_h(bill_money($stats['gross'])) . ' facturat · ' . bill_h(bill_money($stats['unpaid_amount'])) . ' neîncasat',
+                    'actions'  => [[
+                        'label'   => 'Emite factură',
+                        'href'    => 'invoice.php',
+                        'variant' => 'primary',
+                        'icon'    => 'ti-plus',
+                    ]],
+                    'tabs'     => $invoicesTabs,
+                    'kpis'     => [
+                        ['label' => 'Facturat',       'value' => bill_h(bill_money($stats['gross']))],
+                        ['label' => 'Încasat',        'value' => bill_h(bill_money($stats['paid_amount'])),   'tone' => 'success'],
+                        ['label' => 'Sold neachitat', 'value' => bill_h(bill_money($stats['unpaid_amount'])), 'tone' => 'warning'],
+                        ['label' => 'Termen depășit', 'value' => (int)$stats['overdue'], 'meta' => 'facturi', 'tone' => 'danger'],
+                    ],
+                    'toolbar'  => $invoicesToolbarHtml,
+                ]);
 
-            <nav class="tabs" aria-label="Filtre facturi">
-                <?php foreach ($statusTabs as $key => $label): ?>
-                    <?php
-                    $query = $_GET;
-                    $query['status'] = $key;
-                    $href = 'invoices.php?' . http_build_query($query);
-                    $count = $stats[$key] ?? 0;
-                    ?>
-                    <a class="<?= $statusFilter === $key ? 'active' : '' ?>" href="<?= bill_h($href) ?>"><?= bill_h($label) ?> <small><?= (int)$count ?></small></a>
-                <?php endforeach; ?>
-            </nav>
+                pz_date_range_init('invoicesDateFrom', 'invoicesDateTo', 'date_from', 'date_to', [
+                    'form_id' => 'invoicesFilterForm',
+                ]);
+                ?>
+                <script>
+                (function() {
+                    var btn = document.getElementById('invoicesFiltersToggle');
+                    var pop = document.getElementById('invoicesFiltersPopover');
+                    if (!btn || !pop) return;
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        var open = pop.classList.toggle('is-open');
+                        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    });
+                    document.addEventListener('click', function(e) {
+                        if (!pop.classList.contains('is-open')) return;
+                        if (pop.contains(e.target) || btn.contains(e.target)) return;
+                        pop.classList.remove('is-open');
+                        btn.setAttribute('aria-expanded', 'false');
+                    });
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape' && pop.classList.contains('is-open')) {
+                            pop.classList.remove('is-open');
+                            btn.setAttribute('aria-expanded', 'false');
+                            btn.focus();
+                        }
+                    });
+                })();
+                </script>
+            <?php /* — sfârșit header unificat — */ ?>
 
             <?php $revCatList = pz_revenue_categories(); ?>
             <div class="cat-filter" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 4px;">
@@ -377,8 +442,9 @@ $statusLabels = [
                 <?php endforeach; ?>
             </div>
 
+            <?php pz_table_cards_css(); ?>
             <section class="panel">
-                <table>
+                <table class="pz-table-cards">
                     <thead>
                         <tr>
                             <th>Factură</th>
@@ -403,8 +469,8 @@ $statusLabels = [
                         $currency = (string)($invoice['currency'] ?? 'RON');
                         ?>
                         <tr>
-                            <td><a href="invoice.php?id=<?= (int)$invoice['id'] ?>"><?= bill_h(bill_invoice_ref($invoice)) ?></a></td>
-                            <td>
+                            <td data-label="Factură"><a href="invoice.php?id=<?= (int)$invoice['id'] ?>"><?= bill_h(bill_invoice_ref($invoice)) ?></a></td>
+                            <td data-label="Client">
                                 <strong><?= bill_h($invoice['client_name'] ?? '-') ?></strong>
                                 <div class="muted" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                                     <span><?= bill_h($invoice['client_fiscal_code'] ?? '') ?></span>
@@ -414,18 +480,18 @@ $statusLabels = [
                                     ) ?>
                                 </div>
                             </td>
-                            <td><?= bill_h($invoice['invoice_date'] ?? '-') ?></td>
-                            <td><?= bill_h($invoice['due_date'] ?? '-') ?></td>
-                            <td class="amount"><?= bill_h(bill_money($invoice['gross_amount'] ?? 0, $currency)) ?></td>
-                            <td class="amount"><?= bill_h(bill_money($invoice['paid_amount'] ?? 0, $currency)) ?></td>
-                            <td class="amount"><?= bill_h(bill_money($invoice['remaining_amount'] ?? 0, $currency)) ?></td>
-                            <td><span class="status-pill status-<?= bill_h($rowStatus) ?>"><?= bill_h($statusLabels[$rowStatus] ?? $rowStatus) ?></span></td>
+                            <td data-label="Data emiterii"><?= bill_h($invoice['invoice_date'] ?? '-') ?></td>
+                            <td data-label="Scadența"><?= bill_h($invoice['due_date'] ?? '-') ?></td>
+                            <td data-label="Total" class="amount"><?= bill_h(bill_money($invoice['gross_amount'] ?? 0, $currency)) ?></td>
+                            <td data-label="Încasat" class="amount"><?= bill_h(bill_money($invoice['paid_amount'] ?? 0, $currency)) ?></td>
+                            <td data-label="Sold" class="amount"><?= bill_h(bill_money($invoice['remaining_amount'] ?? 0, $currency)) ?></td>
+                            <td data-label="Status"><span class="status-pill status-<?= bill_h($rowStatus) ?>"><?= bill_h($statusLabels[$rowStatus] ?? $rowStatus) ?></span></td>
                             <?php
                                 $isIssuedRow = trim((string)($invoice['smartbill_number'] ?? '')) !== '';
                                 $efacturaStatusRaw = trim((string)($invoice['efactura_status'] ?? ''));
                                 $efacturaSent = ($efacturaStatusRaw !== '');
                             ?>
-                            <td>
+                            <td data-label="e-Factura">
                                 <?php if ($isIssuedRow): ?>
                                     <?php if ($efacturaSent): ?>
                                         <span class="status-pill efactura-sent" title="Status ANAF: <?= bill_h($efacturaStatusRaw) ?>">Trimisă</span>
@@ -436,7 +502,7 @@ $statusLabels = [
                                     <span class="muted">—</span>
                                 <?php endif; ?>
                             </td>
-                            <td>
+                            <td data-label="Acțiuni">
                                 <div class="row-actions row-actions-icons">
                                     <?php $clientEmailRow = trim((string)($invoice['client_email'] ?? '')); ?>
                                     <?php $isStornoRow = ($rowStatus === 'storno'); ?>

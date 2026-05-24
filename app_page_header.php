@@ -292,6 +292,9 @@ if (!function_exists('pz_page_header_css')) {
             height: 32px;
             width: fit-content;
             cursor: pointer;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
         .pz-fb-date-range:hover {
             border-color: var(--pz-blb);
@@ -523,7 +526,11 @@ if (!function_exists('pz_page_header_css')) {
             .pz-fb-date-range {
                 width: fit-content !important;
                 flex: 0 0 auto !important;
+                flex-wrap: nowrap !important;
+                white-space: nowrap !important;
+                flex-shrink: 0 !important;
                 justify-content: flex-start !important;
+                overflow: hidden !important;
             }
             .pz-fb-date-range input,
             .pz-fb-date-range input[type="date"],
@@ -531,6 +538,11 @@ if (!function_exists('pz_page_header_css')) {
                 width: 74px !important;
                 flex: 0 0 74px !important;
                 min-width: 74px !important;
+                max-width: 74px !important;
+            }
+            .pz-fb-date-range .sep {
+                flex: 0 0 auto !important;
+                display: inline-block !important;
             }
             .pz-fb-search { max-width: 100%; }
             .pz-fb-spacer { display: none; }
