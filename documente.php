@@ -249,8 +249,9 @@ function pz_docs_stats(PDO $pdo): array
 $q = trim((string)($_GET['q'] ?? ''));
 $type = pz_docs_filter_type((string)($_GET['type'] ?? 'all'));
 $status = pz_docs_filter_status((string)($_GET['status'] ?? 'all'));
-$dateFrom = trim((string)($_GET['date_from'] ?? ''));
-$dateTo = trim((string)($_GET['date_to'] ?? ''));
+// Default = anul curent (01.01.YYYY → 31.12.YYYY) când utilizatorul nu specifică nimic în URL.
+$dateFrom = trim((string)($_GET['date_from'] ?? date('Y-01-01')));
+$dateTo   = trim((string)($_GET['date_to']   ?? date('Y-12-31')));
 
 if ($dateFrom !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) {
     $dateFrom = '';
@@ -371,7 +372,7 @@ foreach ($stats as $stat) {
 
                     <div class="pz-fb-search">
                         <i class="ti ti-search" aria-hidden="true"></i>
-                        <input type="search" id="documenteSearchInput" name="q" value="<?= pz_docs_h($q) ?>" placeholder="Caută client, CUI, număr, titlu" autocomplete="off">
+                        <input type="search" id="documenteSearchInput" name="q" value="<?= pz_docs_h($q) ?>" placeholder="Caută" autocomplete="off">
                         <div class="pz-search-preview"></div>
                     </div>
 
@@ -428,10 +429,6 @@ foreach ($stats as $stat) {
                     'kicker'   => 'Documente',
                     'title'    => 'Arhivă documente',
                     'subtitle' => $arhSubtitle,
-                    'actions'  => [
-                        ['label' => 'Ofertă nouă',   'href' => 'offers?new=1',      'variant' => 'ghost',   'icon' => 'ti-file-plus'],
-                        ['label' => 'Contract nou',  'href' => 'contracts.php?new=1', 'variant' => 'primary', 'icon' => 'ti-plus'],
-                    ],
                     'tabs'     => $arhTabs,
                     'kpis'     => [
                         ['label' => 'Total documente',   'value' => (int)$totalAll,                          'meta' => (int)$totalIssued . ' emise'],
@@ -472,17 +469,7 @@ foreach ($stats as $stat) {
                 })();
                 </script>
 
-            <section class="quick-grid">
-                <?php foreach (pz_docs_types() as $typeKey => $typeLabel): ?>
-                    <div class="quick-card">
-                        <div>
-                            <strong><?= pz_docs_h($typeLabel) ?></strong>
-                            <span><?= (int)($stats[$typeKey]['total'] ?? 0) ?> documente inregistrate</span>
-                        </div>
-                        <a class="btn small primary" href="<?= pz_docs_h(pz_docs_type_new_url($typeKey)) ?>">Document nou</a>
-                    </div>
-                <?php endforeach; ?>
-            </section>
+<?php /* Quick-grid (carduri "Document nou" per tip) eliminat — crearea documentelor se face din tabs / sub-pagini. */ ?>
 
             <section class="docs-list">
                 <?php if (!$documents): ?>
