@@ -880,92 +880,76 @@ function reports_short_service_label(string $name): string {
         margin-bottom: 0 !important;
     }
     .report-table tbody td {
-        display: grid !important;
-        grid-template-columns: max-content 1fr !important;
-        column-gap: 12px !important;
-        row-gap: 2px !important;
-        align-items: start !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 2px !important;
         padding: 6px 0 !important;
         border: 0 !important;
         border-bottom: 1px solid var(--border2) !important;
-        font-size: 12.5px !important;
+        font-size: 13px !important;
+        text-align: left !important;
         min-height: 0 !important;
-        grid-column: 1 / -1 !important;   /* default: full row */
+        grid-column: 1 / -1 !important;
     }
     .report-table tbody td:last-child {
         border-bottom: 0 !important;
     }
     .report-table tbody td::before {
         content: attr(data-label) !important;
-        grid-column: 1 !important;
-        grid-row: 1 !important;
         font-weight: 600 !important;
-        font-size: 10.5px !important;
+        font-size: 10px !important;
         color: var(--muted) !important;
         text-transform: uppercase !important;
-        letter-spacing: 0.04em !important;
+        letter-spacing: 0.05em !important;
         text-align: left !important;
-        padding-top: 2px !important;
-        white-space: nowrap !important;
-        align-self: start !important;
+        line-height: 1.2 !important;
     }
     .report-table tbody td > * {
-        grid-column: 2 !important;
-        text-align: right !important;
+        text-align: left !important;
         min-width: 0 !important;
         word-break: break-word !important;
+        max-width: 100% !important;
     }
     .report-table tbody td strong {
         font-weight: 600 !important;
-    }
-    .report-table tbody td .cell-muted {
-        font-size: 10.5px !important;
-        line-height: 1.3 !important;
-        color: var(--muted) !important;
-        margin-top: 1px !important;
+        color: var(--text) !important;
     }
     .report-table tbody td .note-cell {
-        font-size: 11.5px !important;
-        line-height: 1.35 !important;
+        font-size: 13px !important;
+        line-height: 1.4 !important;
         word-break: break-word !important;
     }
     .report-table tbody td .note-cell.empty {
         color: var(--muted) !important;
     }
     .report-table tbody td .status-pill {
-        justify-self: end !important;
         border-radius: 6px !important;
         padding: 3px 8px !important;
-        font-size: 10.5px !important;
+        font-size: 11px !important;
         width: fit-content !important;
+        align-self: flex-start !important;
     }
-    /* Header card — DATA stânga, ORA dreapta, ambele pe rândul 1 al grid-ului */
+    /* Header card — DATA + ORA pe același rând (grid 1fr 1fr al tr-ului) */
     .report-table tbody tr td[data-label="Data"] {
         grid-column: 1 !important;
         grid-row: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 0 !important;
+        padding: 0 0 10px 0 !important;
+        border-bottom: 0 !important;
         font-weight: 700 !important;
         font-size: 15px !important;
         color: var(--text) !important;
-        padding: 0 0 10px 0 !important;
-        border-bottom: 0 !important;
         font-variant-numeric: tabular-nums !important;
     }
     .report-table tbody tr td[data-label="Ora"] {
         grid-column: 2 !important;
         grid-row: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-end !important;
-        gap: 0 !important;
+        align-items: flex-start !important;
+        padding: 0 0 10px 0 !important;
+        border-bottom: 0 !important;
         font-weight: 700 !important;
         font-size: 15px !important;
         color: var(--text) !important;
-        padding: 0 0 10px 0 !important;
-        border-bottom: 0 !important;
         font-variant-numeric: tabular-nums !important;
     }
     .report-table tbody tr td[data-label="Data"]::before,
@@ -973,10 +957,8 @@ function reports_short_service_label(string $name): string {
         font-size: 9.5px !important;
         font-weight: 600 !important;
         color: var(--muted) !important;
-        margin-bottom: 2px !important;
-        padding-top: 0 !important;
     }
-    /* Separator sub header (DATA + ORA) — adăug border pe primul td "normal" */
+    /* Separator sub header (DATA + ORA) — apare pe primul td "normal" */
     .report-table tbody tr td[data-label="Client"] {
         padding-top: 10px !important;
         border-top: 1px solid var(--border) !important;
@@ -1274,9 +1256,6 @@ function reports_short_service_label(string $name): string {
                                         </td>
                                         <td data-label="Contact">
                                             <strong><?= r_h($contactPerson ?: '-') ?></strong>
-                                            <?php if ($contactPhone !== ''): ?>
-                                                <div class="cell-muted"><?= r_h($contactPhone) ?></div>
-                                            <?php endif; ?>
                                         </td>
                                         <td data-label="Serviciu"><?= r_h($appointment['service_type'] ?: '-') ?></td>
                                         <td data-label="Tehnician"><?= r_h($appointment['team_name'] ?: '-') ?></td>
