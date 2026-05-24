@@ -84,7 +84,6 @@ $demoLowUrl = ($autoBase !== '') ? ($autoBase . '/feedback.php?demo=low') : 'fee
 <div class="layout">
     <?php render_sidebar('review_feedback', true); ?>
     <main class="main">
-        <div class="topbar" style="padding:12px 20px;"></div>
         <div class="content page">
             <?php
                 // Form de run_scan se trimite separat sub header (nu mai e inline în butoane)
