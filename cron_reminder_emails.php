@@ -26,6 +26,7 @@ if (!$isCli && ($expected === '' || !hash_equals($expected, $key))) {
     exit;
 }
 
+$today    = date('Y-m-d');
 $tomorrow = date('Y-m-d', strtotime('+1 day'));
 $pdo = pz_db();
 
@@ -41,8 +42,20 @@ if (!pz_table_exists('reminders')) {
     exit;
 }
 
-// Selectăm doar reminderele unde utilizatorul a bifat explicit notificarea email
-// (email_to e completat). Restul sunt ignorate la trimitere.
+/*
+|------------------------------------------------------------------------------
+| Logică corectă de notificare (înlocuiește vechea filtrare strict pentru "mâine")
+|------------------------------------------------------------------------------
+| Pentru fiecare reminder pending cu email setat:
+|   1. Calculăm notice_start = remind_date - notice_period (sau -1 zi default)
+|   2. Trimitem email dacă: AZI >= notice_start ȘI AZI <= remind_date ȘI nu am trimis deja
+|   3. Asta asigură catch-up dacă cronul ratează o zi (până la scadență inclusiv)
+|
+| Selectăm reminderele candidate (pending, cu email_to, nenotificate, cu scadență
+| azi sau în viitor — nu mai au sens reminderele complet trecute) și filtrăm în PHP
+| pe baza notice_period (nu putem face calc DATE_SUB cu unit variabilă în SQL portabil).
+|------------------------------------------------------------------------------
+*/
 $stmt = $pdo->prepare("
     SELECT r.*,
            r.email_to AS responsible_email,
@@ -50,15 +63,57 @@ $stmt = $pdo->prepare("
     FROM reminders r
     LEFT JOIN users uc ON uc.id = r.created_by
     WHERE r.status = 'pending'
-      AND r.remind_date = ?
+      AND r.remind_date >= ?
       AND r.email_notified_at IS NULL
       AND r.email_to IS NOT NULL
       AND r.email_to <> ''
-    ORDER BY r.id ASC
-    LIMIT 200
+    ORDER BY r.remind_date ASC, r.id ASC
+    LIMIT 500
 ");
-$stmt->execute([$tomorrow]);
-$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$stmt->execute([$today]);
+$candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Helper: calculează data de start a fereastrei de notificare pe baza preavizului.
+$noticeStart = function (string $remindDate, ?int $value, ?string $unit): string {
+    if (!$value || $value < 1 || !$unit) {
+        // Default: cu 1 zi înainte de scadență (compatibilitate retro)
+        try {
+            return (new DateTime($remindDate))->modify('-1 day')->format('Y-m-d');
+        } catch (Throwable $e) {
+            return $remindDate;
+        }
+    }
+    try {
+        $d = new DateTime($remindDate);
+        switch ($unit) {
+            case 'day':   $d->modify('-' . (int)$value . ' day'); break;
+            case 'week':  $d->modify('-' . (int)$value . ' week'); break;
+            case 'month': $d->modify('-' . (int)$value . ' month'); break;
+            default:
+                $d->modify('-1 day');
+        }
+        return $d->format('Y-m-d');
+    } catch (Throwable $e) {
+        return $remindDate;
+    }
+};
+
+// Filtrăm: păstrăm doar reminderele pentru care AZI cade în fereastra [notice_start, remind_date]
+$rows = [];
+foreach ($candidates as $rem) {
+    $remindDate = (string)$rem['remind_date'];
+    $startDate  = $noticeStart(
+        $remindDate,
+        isset($rem['notice_period_value']) ? (int)$rem['notice_period_value'] : null,
+        $rem['notice_period_unit'] ?? null
+    );
+    // Fereastra activă: AZI între start și remind_date (inclusiv)
+    if ($today >= $startDate && $today <= $remindDate) {
+        $rem['_notice_start'] = $startDate;
+        $rem['_days_until']   = (int)((strtotime($remindDate) - strtotime($today)) / 86400);
+        $rows[] = $rem;
+    }
+}
 
 $categories = [
     // categorii noi
@@ -97,20 +152,40 @@ foreach ($rows as $rem) {
     $title = (string)$rem['title'];
     $description = (string)($rem['description'] ?? '');
 
-    $subject = 'Reminder maine: ' . $title;
+    // Subject contextual în funcție de câte zile au mai rămas până la scadență
+    $daysUntil = (int)($rem['_days_until'] ?? 1);
+    if ($daysUntil <= 0) {
+        $subject = 'Reminder SCADENT azi: ' . $title;
+    } elseif ($daysUntil === 1) {
+        $subject = 'Reminder mâine: ' . $title;
+    } else {
+        $subject = 'Reminder (în ' . $daysUntil . ' zile): ' . $title;
+    }
 
     $linkHtml = '';
     if ($baseUrl !== '') {
         $linkHtml = '<p style="margin:18px 0 0;"><a href="' . htmlspecialchars($baseUrl . '/reminders.php?edit=' . (int)$rem['id'], ENT_QUOTES) . '" style="background:#2563EB;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;">Deschide reminder</a></p>';
     }
 
+    // Banner contextual + culoare în funcție de urgență
+    if ($daysUntil <= 0) {
+        $bannerLabel = 'SCADENT AZI';
+        $bannerBg    = '#fef2f2'; $bannerBorder = '#dc2626'; $bannerText = '#991b1b';
+    } elseif ($daysUntil === 1) {
+        $bannerLabel = 'Scadent mâine';
+        $bannerBg    = '#fff7ed'; $bannerBorder = '#ea580c'; $bannerText = '#9a3412';
+    } else {
+        $bannerLabel = 'Scadent în ' . $daysUntil . ' zile';
+        $bannerBg    = '#eff6ff'; $bannerBorder = '#2563eb'; $bannerText = '#1e3a8a';
+    }
+
     $html = '<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f8fafc;">'
         . '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:24px;">'
         . '<div style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:700;margin-bottom:8px;">Reminder · ' . htmlspecialchars($catLabel, ENT_QUOTES) . '</div>'
         . '<h1 style="font-size:22px;color:#0f172a;margin:0 0 16px;font-weight:700;letter-spacing:-.01em;">' . htmlspecialchars($title, ENT_QUOTES) . '</h1>'
-        . '<div style="background:#eff6ff;border-left:4px solid #2563eb;padding:12px 16px;border-radius:6px;margin-bottom:16px;">'
-        . '<div style="font-size:13px;color:#1e3a8a;font-weight:600;margin-bottom:2px;">Scadent mâine</div>'
-        . '<div style="font-size:18px;color:#1e3a8a;font-weight:700;">' . htmlspecialchars($dateRo, ENT_QUOTES);
+        . '<div style="background:' . $bannerBg . ';border-left:4px solid ' . $bannerBorder . ';padding:12px 16px;border-radius:6px;margin-bottom:16px;">'
+        . '<div style="font-size:13px;color:' . $bannerText . ';font-weight:600;margin-bottom:2px;">' . htmlspecialchars($bannerLabel, ENT_QUOTES) . '</div>'
+        . '<div style="font-size:18px;color:' . $bannerText . ';font-weight:700;">' . htmlspecialchars($dateRo, ENT_QUOTES);
     if ($timeStr) {
         $html .= ' &middot; ' . htmlspecialchars($timeStr, ENT_QUOTES);
     }
@@ -125,7 +200,14 @@ foreach ($rows as $rem) {
         . '<div style="font-size:11px;color:#94a3b8;">' . htmlspecialchars($brand, ENT_QUOTES) . ' · email automat. Nu răspunde la acest mesaj.</div>'
         . '</div></div>';
 
-    $text = 'Reminder pentru maine, ' . $dateRo . ($timeStr ? ' la ' . $timeStr : '') . "\n\n"
+    if ($daysUntil <= 0) {
+        $whenStr = 'SCADENT AZI, ' . $dateRo;
+    } elseif ($daysUntil === 1) {
+        $whenStr = 'maine, ' . $dateRo;
+    } else {
+        $whenStr = 'in ' . $daysUntil . ' zile (' . $dateRo . ')';
+    }
+    $text = 'Reminder ' . $whenStr . ($timeStr ? ' la ' . $timeStr : '') . "\n\n"
         . $title . "\n"
         . ($description ? "\n" . $description . "\n" : '');
 
@@ -144,8 +226,10 @@ foreach ($rows as $rem) {
 $summary = [
     'ok' => true,
     'date' => date('Y-m-d H:i:s'),
+    'today' => $today,
     'tomorrow' => $tomorrow,
-    'candidates' => count($rows),
+    'candidates_in_window' => count($rows),
+    'candidates_pending_total' => count($candidates),
     'sent' => $sentCount,
     'failed' => $failedCount,
     'skipped' => $skippedCount,
