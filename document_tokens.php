@@ -812,6 +812,8 @@ if (!function_exists('pzdoc_materials_table_html')) {
             $html .= '</tr></thead><tbody>';
 
             foreach ($materials as $m) {
+                $productGroup = trim((string)($m['product_group'] ?? ''));
+                $isMaterial = ($productGroup === 'materiale');
                 $method = '';
                 if (!$deferredConsumption) {
                     $method = trim((string)($m['application_method'] ?? ''));
@@ -824,12 +826,20 @@ if (!function_exists('pzdoc_materials_table_html')) {
                 $rawQty = $m['quantity'] ?? null;
                 $qtyText = ($deferredConsumption || $rawQty === null || $rawQty === '') ? '' : pzdoc_format_qty_display($rawQty);
                 $unitText = $deferredConsumption ? '' : trim((string)($m['unit'] ?? ''));
+                $lotText = trim((string)($m['lot_number'] ?? ''));
+                $expiryText = pzdoc_format_date_display($m['expiry_date'] ?? null, '');
+                if ($isMaterial && $lotText === '') {
+                    $lotText = '-';
+                }
+                if ($isMaterial && trim((string)$expiryText) === '') {
+                    $expiryText = '-';
+                }
 
                 $html .= '<tr>';
                 $html .= '<td style="' . $tdStyle . '">' . pzdoc_token_text($m['material_name'] ?? '-') . '</td>';
                 $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_token_text($m['aviz_no'] ?? '') . '</td>';
-                $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_token_text($m['lot_number'] ?? '') . '</td>';
-                $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_h(pzdoc_format_date_display($m['expiry_date'] ?? null, '')) . '</td>';
+                $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_token_text($lotText, '') . '</td>';
+                $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_h($expiryText) . '</td>';
                 $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_token_text($concentration, '') . '</td>';
                 $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_h($qtyText) . '</td>';
                 $html .= '<td style="' . $tdCompactStyle . '">' . pzdoc_h($unitText) . '</td>';

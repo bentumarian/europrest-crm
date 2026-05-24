@@ -568,6 +568,27 @@ function pz_pv_build_items_from_post(array $postItems, array $locationsById, ?in
     return $items;
 }
 
+function pz_pv_application_method_value(string $value): string {
+    $value = strtolower(trim($value));
+    $value = str_replace(['ă','â','î','ș','ş','ț','ţ'], ['a','a','i','s','s','t','t'], $value);
+    if (strpos($value, 'pulver') !== false) {
+        return 'pulverizare';
+    }
+    if (strpos($value, 'nebul') !== false) {
+        return 'nebulizare';
+    }
+    if (strpos($value, 'amplas') !== false) {
+        return 'amplasare';
+    }
+    if (strpos($value, 'direct') !== false) {
+        return 'aplicare directa';
+    }
+    if (strpos($value, 'momea') !== false) {
+        return 'momeala';
+    }
+    return '';
+}
+
 function pz_pv_build_materials_from_post(array $postMaterials, array $productsById, array $receiptsById, bool $deferStockConsumption = false): array {
     $materials = [];
     $sort = 0;
@@ -601,6 +622,9 @@ function pz_pv_build_materials_from_post(array $postMaterials, array $productsBy
 
         $quantity = pz_pv_decimal($row['quantity'] ?? 0, 0);
         $applicationMethod = pz_pv_str($row['application_method'] ?? '', 160);
+        if ($product && $applicationMethod === '') {
+            $applicationMethod = pz_pv_application_method_value((string)($product['default_application_method'] ?? ''));
+        }
         $applicationMethodCustom = pz_pv_str($row['application_method_custom'] ?? '', 255);
         $isBiocide = $product && function_exists('stock_is_biocide_group') && stock_is_biocide_group((string)($product['product_group'] ?? ''));
 
@@ -687,4 +711,3 @@ function pz_pv_redirect_with_error(string $message, int $editId = 0): void {
     header('Location: ' . $url);
     exit;
 }
-
