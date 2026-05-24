@@ -470,8 +470,18 @@ if (!function_exists('pz_page_header_css')) {
         /* Mobile — filtre intră toate în popover */
         @media (max-width: 640px) {
             .pz-fb { gap: 6px; }
-            .pz-fb-date-range { width: 100%; justify-content: space-between; }
-            .pz-fb-date-range input[type="date"] { flex: 1; min-width: 0; width: auto; }
+            .pz-fb-date-range {
+                width: fit-content !important;
+                flex: 0 0 auto !important;
+                justify-content: flex-start !important;
+            }
+            .pz-fb-date-range input,
+            .pz-fb-date-range input[type="date"],
+            .pz-fb-date-range input[type="text"] {
+                width: 74px !important;
+                flex: 0 0 74px !important;
+                min-width: 74px !important;
+            }
             .pz-fb-search { max-width: 100%; }
             .pz-fb-spacer { display: none; }
             .pz-fb-popover {
