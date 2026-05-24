@@ -35,6 +35,21 @@ if (!function_exists('app_dashboard_mobile_period_assets')) {
     display: none;
 }
 
+/* Umbre discrete pentru cardurile dashboard */
+.pz-kpi,
+.pz-card {
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .pz-kpi:hover,
+    .pz-card:hover {
+        box-shadow: 0 12px 30px rgba(15, 23, 42, .08);
+        transform: translateY(-1px);
+    }
+}
+
 @media (max-width: 640px) {
     .pz-head {
         display: grid;
