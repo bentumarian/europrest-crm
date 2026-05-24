@@ -1730,22 +1730,12 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
             <?php
             $calToolbarHtml = ob_get_clean();
 
-            $calActions = [];
-            if ($isAdmin) {
-                $calActions[] = [
-                    'label'   => 'Programare nouă',
-                    'icon'    => 'ti-plus',
-                    'variant' => 'primary',
-                    'type'    => 'button',
-                    'onclick' => "openCreateModal('" . hcal($currentDate) . "', '09:00', '" . (int)$defaultTeamId . "')",
-                ];
-            }
-
+            // Fără butoane în header — programările se creează direct cu click pe
+            // casetele din grid-ul calendarului (openCreateModal e legat acolo).
             pz_page_header([
                 'kicker'   => 'Operațional',
                 'title'    => 'Calendar tehnicieni',
                 'subtitle' => $calSubtitle,
-                'actions'  => $calActions,
                 'tabs'     => $calTabs,
                 'toolbar'  => $calToolbarHtml,
             ]);
