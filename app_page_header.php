@@ -337,6 +337,46 @@ if (!function_exists('pz_page_header_css')) {
         }
         .pz-fb-date-range .sep { color: var(--pz-fa); font-size: 11px; user-select: none; }
 
+        /* Navigare cu butoane stânga/dreapta + buton text (Azi) — folosit ex. în calendar */
+        .pz-fb-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .pz-fb-nav-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 32px;
+            min-width: 32px;
+            padding: 0 10px;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: inherit;
+            color: var(--pz-text);
+            background: var(--pz-surf);
+            border: 1px solid var(--pz-line);
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all .15s ease;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .pz-fb-nav-btn:hover {
+            background: var(--pz-soft);
+            border-color: var(--pz-blb);
+            color: var(--pz-bld);
+        }
+        .pz-fb-nav-btn.arrow {
+            font-size: 16px;
+            padding: 0 8px;
+            color: var(--pz-mu);
+        }
+        .pz-fb-nav-btn.arrow:hover {
+            color: var(--pz-bld);
+        }
+
         .pz-fb-search {
             position: relative;
             flex: 1;
@@ -909,6 +949,95 @@ if (!function_exists('pz_date_range_init')) {
                             toInput.addEventListener('changeDate', maybeSubmit);
                         }
                     }
+                });
+            });
+        })();
+        </script>
+        <?php
+    }
+}
+
+if (!function_exists('pz_date_single_init')) {
+    /**
+     * Variantă single-date a date picker-ului PestZone — pentru cazuri în care
+     * pagina lucrează cu o singură dată (ex. calendar pe zi/săptămână/lună).
+     *
+     * HTML necesar:
+     *   <input type="hidden" name="date" value="2026-05-24">
+     *   <input type="text" id="myDate" readonly value="24.05.2026" placeholder="zz.ll.aaaa">
+     *
+     * Apel:
+     *   pz_date_single_init('myDate', 'date', ['form_id' => 'navForm']);
+     *
+     * Pe schimbare, sincronizează hidden + opțional auto-submit la formular.
+     */
+    function pz_date_single_init(string $visibleId, string $hiddenName, array $opts = []): void
+    {
+        pz_date_picker_assets();
+        $minDate = isset($opts['min_date']) ? "'" . pz_ph_h($opts['min_date']) . "'" : 'null';
+        $maxDate = isset($opts['max_date']) ? "'" . pz_ph_h($opts['max_date']) . "'" : 'null';
+        $formId  = isset($opts['form_id'])  ? "'" . pz_ph_h($opts['form_id'])  . "'" : 'null';
+        $vid     = pz_ph_h($visibleId);
+        $hn      = pz_ph_h($hiddenName);
+        ?>
+        <script>
+        (function() {
+            function ready(fn) {
+                if (document.readyState !== 'loading') return fn();
+                document.addEventListener('DOMContentLoaded', fn);
+            }
+            function waitFor(checkFn, cb, tries) {
+                tries = tries || 0;
+                if (checkFn()) return cb();
+                if (tries > 80) return;
+                setTimeout(function() { waitFor(checkFn, cb, tries + 1); }, 50);
+            }
+            ready(function() {
+                waitFor(function() { return typeof Datepicker !== 'undefined'; }, function() {
+                    var input  = document.getElementById('<?= $vid ?>');
+                    var hidden = document.querySelector('input[type="hidden"][name="<?= $hn ?>"]');
+                    if (!input || !hidden) return;
+
+                    function isoFromDate(d) {
+                        if (!d) return '';
+                        var y = d.getFullYear();
+                        var m = String(d.getMonth() + 1).padStart(2, '0');
+                        var day = String(d.getDate()).padStart(2, '0');
+                        return y + '-' + m + '-' + day;
+                    }
+
+                    var hasRo = Datepicker.locales && Datepicker.locales.ro;
+                    var opts = {
+                        language: hasRo ? 'ro' : 'en',
+                        format: 'dd.mm.yyyy',
+                        weekStart: 1,
+                        autohide: true,
+                        todayHighlight: true,
+                        maxView: 3,
+                        showOnFocus: true,
+                        showOnClick: true,
+                        clearBtn: false,
+                        todayBtn: true,
+                        todayBtnMode: 1,
+                        prevArrow: '‹',
+                        nextArrow: '›'
+                    };
+                    var minDate = <?= $minDate ?>;
+                    var maxDate = <?= $maxDate ?>;
+                    if (minDate) opts.minDate = minDate;
+                    if (maxDate) opts.maxDate = maxDate;
+
+                    var dp = new Datepicker(input, opts);
+
+                    input.addEventListener('changeDate', function() {
+                        var d = dp.getDate();
+                        hidden.value = isoFromDate(d);
+                        var formId = <?= $formId ?>;
+                        if (formId) {
+                            var form = document.getElementById(formId);
+                            if (form && hidden.value) form.submit();
+                        }
+                    });
                 });
             });
         })();

@@ -1638,68 +1638,147 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 
     <main class="main">
 
-        <div class="topbar calendar-topbar">
-            <div class="calendar-toolbar">
+        <?php
+            /*
+            |----------------------------------------------------------------
+            | Header unificat PestZone: pz_page_header + filter bar pz-fb.
+            | Înlocuiește vechea zonă topbar + calendar-toolbar.
+            | Tab-urile Zi/Săpt/Lună sunt link-uri normale (păstrează contextul
+            | date + team prin URL). Filtrul de tehnicieni rămâne form GET cu
+            | popover standard pz-fb. Date picker = pz_date_single_init.
+            |----------------------------------------------------------------
+            */
+            $calBaseParams = ['team' => $selectedTeam];
 
-                <div class="pz-page-eyebrow" style="grid-column:1/-1;color:#fff;opacity:.72;margin-bottom:2px;">Operațional · Calendar tehnicieni</div>
+            $calTabs = [];
+            foreach ($viewLabels as $vKey => $vLabel) {
+                $href = 'calendar.php?' . http_build_query(array_merge(['date' => $currentDate, 'view' => $vKey], $calBaseParams));
+                $calTabs[] = ['label' => $vLabel, 'href' => $href, 'active' => ($view === $vKey)];
+            }
 
-                <div class="calendar-line calendar-date-line">
-                    <a class="btn nav-today-btn" href="calendar.php?date=<?= urlencode(date('Y-m-d')) ?>&view=<?= urlencode($view) ?>&team=<?= urlencode($selectedTeam) ?>">Azi</a>
-                    <a class="btn nav-arrow" href="calendar.php?date=<?= urlencode($prevDate) ?>&view=<?= urlencode($view) ?>&team=<?= urlencode($selectedTeam) ?>">&lsaquo;</a>
-                    <a class="btn nav-arrow" href="calendar.php?date=<?= urlencode($nextDate) ?>&view=<?= urlencode($view) ?>&team=<?= urlencode($selectedTeam) ?>">&rsaquo;</a>
+            $todayHref = 'calendar.php?' . http_build_query(['date' => date('Y-m-d'), 'view' => $view, 'team' => $selectedTeam]);
+            $prevHref  = 'calendar.php?' . http_build_query(['date' => $prevDate,   'view' => $view, 'team' => $selectedTeam]);
+            $nextHref  = 'calendar.php?' . http_build_query(['date' => $nextDate,   'view' => $view, 'team' => $selectedTeam]);
+            $currentDateDisplay = $currentDate ? date('d.m.Y', strtotime($currentDate)) : '';
 
-                    <form method="get" class="calendar-date-form">
-                        <input type="hidden" name="view" value="<?= hcal($view) ?>">
-                        <?php if ($isAdmin): ?><input type="hidden" name="team" value="<?= hcal($selectedTeam) ?>"><?php endif; ?>
-                        <input class="date-input" type="date" name="date" value="<?= hcal($currentDate) ?>" onchange="this.form.submit()">
-                    </form>
+            // Subtitle: data + (interval pentru week/month)
+            $calSubtitle = $prettyDate;
+            if ($view !== 'day') {
+                $calSubtitle .= ' · ' . ro_date_label($rangeStart) . ' — ' . ro_date_label($rangeEnd);
+            }
+
+            // Câte filtre extinse active (doar tehnicieni momentan)
+            $calActiveFilters = count($selectedTeamIds);
+
+            // Toolbar HTML custom — navigare zile + date picker + filtru tehnicieni
+            ob_start();
+            ?>
+            <div class="pz-fb">
+                <div class="pz-fb-nav">
+                    <a class="pz-fb-nav-btn" href="<?= hcal($prevHref) ?>" aria-label="Anterior">‹</a>
+                    <a class="pz-fb-nav-btn" href="<?= hcal($todayHref) ?>">Azi</a>
+                    <a class="pz-fb-nav-btn arrow" href="<?= hcal($nextHref) ?>" aria-label="Următor">›</a>
                 </div>
 
-                <form method="get" id="filterForm" class="calendar-line calendar-filter-line">
+                <form method="get" id="calDateForm" style="display:inline-flex;align-items:center;gap:0;">
+                    <input type="hidden" name="view" value="<?= hcal($view) ?>">
+                    <input type="hidden" name="team" value="<?= hcal($selectedTeam) ?>">
                     <input type="hidden" name="date" value="<?= hcal($currentDate) ?>">
-                    <input type="hidden" name="view" id="calendarViewInput" value="<?= hcal($view) ?>">
-                    <div class="cal-view-picker" id="calViewPicker">
-                        <button type="button" class="cal-view-summary" onclick="calToggleViewPicker(event)" aria-haspopup="true" aria-expanded="false">
-                            <span class="cal-view-summary-label"><?= hcal($viewLabels[$view] ?? 'Zi') ?></span>
-                            <span class="cal-view-caret" aria-hidden="true">▾</span>
-                        </button>
-                        <div class="cal-view-menu" id="calViewMenu" hidden>
-                            <?php foreach ($viewLabels as $v => $label): ?>
-                                <button class="cal-view-option <?= $view === $v ? 'active' : '' ?>" type="button" onclick="calSelectView(event, '<?= hcal($v) ?>')"><?= hcal($label) ?></button>
-                            <?php endforeach; ?>
-                        </div>
+                    <div class="pz-fb-date-range" id="calDateBox" title="Schimbă data afișată">
+                        <i class="ti ti-calendar" aria-hidden="true"></i>
+                        <input type="text" id="calDateVisible" value="<?= hcal($currentDateDisplay) ?>" placeholder="zz.ll.aaaa" readonly autocomplete="off" aria-label="Data selectată">
                     </div>
-
-                    <?php if ($isAdmin): ?>
-                        <div class="cal-team-picker" id="calTeamPicker">
-                            <button type="button" class="cal-team-summary" onclick="calTogglePicker(event)" aria-haspopup="true" aria-expanded="false">
-                                <span class="cal-team-summary-label"><?= $selectedTeamIds ? (count($selectedTeamIds) . ' tehnicieni') : 'Toți tehnicienii' ?></span>
-                                <span class="cal-team-caret" aria-hidden="true">▾</span>
-                            </button>
-                            <div class="cal-team-menu" id="calTeamMenu" hidden>
-                                <button class="cal-team-all" type="button" onclick="calSelectAllTeams(event)">Toți tehnicienii</button>
-                                <?php foreach ($allTeams as $team): ?>
-                                    <?php $pickerTeamColor = calendar_clean_hex_color($team['color'] ?? null); ?>
-                                    <label class="cal-team-option" style="--team-color:<?= hcal($pickerTeamColor) ?>;">
-                                        <input type="checkbox" name="team_ids[]" value="<?= (int)$team['id'] ?>" <?= in_array((int)$team['id'], $selectedTeamIds, true) ? 'checked' : '' ?>>
-                                        <span class="cal-team-color-dot" aria-hidden="true"></span>
-                                        <span class="cal-team-name"><?= hcal($team['name']) ?></span>
-                                    </label>
-                                <?php endforeach; ?>
-                                <button class="btn accent cal-team-apply" type="submit">Aplică</button>
-                            </div>
-                        </div>
-                    <?php endif; ?>
                 </form>
 
+                <div class="pz-fb-spacer"></div>
+
                 <?php if ($isAdmin): ?>
-                    <div class="calendar-action-line">
-                        <button class="pz-icon-btn primary lg" type="button" title="Programare nouă" aria-label="Programare nouă" onclick="openCreateModal('<?= hcal($currentDate) ?>', '09:00', '<?= (int)$defaultTeamId ?>')"><?= app_icon_svg('plus') ?></button>
+                    <div class="pz-fb-popover-wrap">
+                        <button type="button" class="pz-fb-filter-btn" id="calTeamToggle" aria-haspopup="true" aria-expanded="false">
+                            <i class="ti ti-users" aria-hidden="true"></i>
+                            <?= $selectedTeamIds ? hcal((string)count($selectedTeamIds)) . ' tehnicieni' : 'Toți tehnicienii' ?>
+                            <?php if ($calActiveFilters > 0): ?>
+                                <span class="badge"><?= (int)$calActiveFilters ?></span>
+                            <?php endif; ?>
+                        </button>
+                        <form method="get" class="pz-fb-popover" id="calTeamPopover" role="dialog" aria-label="Filtru tehnicieni">
+                            <input type="hidden" name="date" value="<?= hcal($currentDate) ?>">
+                            <input type="hidden" name="view" value="<?= hcal($view) ?>">
+                            <div class="pf-row">
+                                <label>Selectează tehnicieni</label>
+                                <div style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;padding:2px 0;">
+                                    <?php foreach ($allTeams as $team):
+                                        $pickerTeamColor = calendar_clean_hex_color($team['color'] ?? null);
+                                        $teamChecked = in_array((int)$team['id'], $selectedTeamIds, true);
+                                    ?>
+                                        <label style="display:flex;align-items:center;gap:8px;height:auto;padding:6px 4px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--pz-text);">
+                                            <input type="checkbox" name="team_ids[]" value="<?= (int)$team['id'] ?>" <?= $teamChecked ? 'checked' : '' ?> style="width:14px;height:14px;cursor:pointer;accent-color:<?= hcal($pickerTeamColor) ?>;">
+                                            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:<?= hcal($pickerTeamColor) ?>;flex:0 0 auto;"></span>
+                                            <span style="flex:1;"><?= hcal($team['name']) ?></span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <div class="pf-actions">
+                                <a class="pz-ph-btn ghost" href="calendar.php?<?= http_build_query(['date' => $currentDate, 'view' => $view, 'team' => 'all']) ?>">Toți</a>
+                                <button type="submit" class="pz-ph-btn primary">Aplică</button>
+                            </div>
+                        </form>
                     </div>
                 <?php endif; ?>
-
             </div>
-        </div>
+            <?php
+            $calToolbarHtml = ob_get_clean();
+
+            $calActions = [];
+            if ($isAdmin) {
+                $calActions[] = [
+                    'label'   => 'Programare nouă',
+                    'icon'    => 'ti-plus',
+                    'variant' => 'primary',
+                    'type'    => 'button',
+                    'onclick' => "openCreateModal('" . hcal($currentDate) . "', '09:00', '" . (int)$defaultTeamId . "')",
+                ];
+            }
+
+            pz_page_header([
+                'kicker'   => 'Operațional',
+                'title'    => 'Calendar tehnicieni',
+                'subtitle' => $calSubtitle,
+                'actions'  => $calActions,
+                'tabs'     => $calTabs,
+                'toolbar'  => $calToolbarHtml,
+            ]);
+
+            // Inițializare date picker (auto-submit la schimbare)
+            pz_date_single_init('calDateVisible', 'date', ['form_id' => 'calDateForm']);
+            ?>
+            <script>
+            (function() {
+                // Popover tehnicieni — toggle, close click-outside, close ESC
+                var btn = document.getElementById('calTeamToggle');
+                var pop = document.getElementById('calTeamPopover');
+                if (!btn || !pop) return;
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var open = pop.classList.toggle('is-open');
+                    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                });
+                document.addEventListener('click', function(e) {
+                    if (!pop.classList.contains('is-open')) return;
+                    if (pop.contains(e.target) || btn.contains(e.target)) return;
+                    pop.classList.remove('is-open');
+                    btn.setAttribute('aria-expanded', 'false');
+                });
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && pop.classList.contains('is-open')) {
+                        pop.classList.remove('is-open');
+                        btn.setAttribute('aria-expanded', 'false');
+                        btn.focus();
+                    }
+                });
+            })();
+            </script>
 
         <?php if (isset($_GET['success'])): ?><div class="notice notice-success">Programarea a fost adăugată cu succes.</div><?php endif; ?>
         <?php if (isset($_GET['sms_sent'])): ?><div class="notice notice-success">SMS-ul de confirmare a fost trimis.</div><?php endif; ?>
@@ -1739,16 +1818,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                 <?php endforeach; ?>
             </div>
 
-            <div class="day-header">
-                <div class="day-text">
-                    <h1><?= hcal($prettyDate) ?></h1>
-                    <?php if ($view === 'day'): ?>
-                        <p><?= $isAdmin ? 'Calendar zi - tehnicieni pe coloane' : 'Programările tale de astăzi' ?></p>
-                    <?php else: ?>
-                        <p>Vizualizare <?= hcal($viewLabels[$view]) ?>: <?= hcal(ro_date_label($rangeStart)) ?> - <?= hcal(ro_date_label($rangeEnd)) ?></p>
-                    <?php endif; ?>
-                </div>
-            </div>
+<?php /* Day-header eliminat — info-ul (data + interval) e deja în subtitle-ul pz_page_header. */ ?>
 
             <?php if ($view === 'day'): ?>
                 <div class="schedule-scroll <?= $currentDate === $todayDate ? 'today-calendar' : '' ?>">
