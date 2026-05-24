@@ -554,6 +554,23 @@ if (!function_exists('render_sidebar')) {
         font-weight: 500 !important;
     }
 
+    /* Fix contrast — forțează text + iconuri verde închis pe fundal verde deschis
+       când grup-ul Documente/Financiar e activ sau deschis. Override pentru
+       regulile vechi care setau #ffffff. */
+    .sidebar .nav-group-button.active .nav-label,
+    .sidebar .nav-group-button.open .nav-label,
+    .sidebar .nav-group-button.active svg,
+    .sidebar .nav-group-button.open svg,
+    .sidebar .nav-group-button.active .nav-chevron,
+    .sidebar .nav-group-button.open .nav-chevron,
+    .sidebar .nav-item.active .nav-label,
+    .sidebar .nav-item.active svg,
+    .sidebar .nav-subitem.active .nav-label,
+    .sidebar .nav-subitem.active svg {
+        color: var(--pz-gr) !important;
+        stroke: var(--pz-gr) !important;
+    }
+
     .nav-item.active::before {
         background: var(--pz-gr) !important;
         box-shadow: none !important;
