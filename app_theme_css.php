@@ -139,7 +139,7 @@ if (!function_exists('app_theme_css')) {
             --type-muted: #6B7280;
 
             /* === Layout === */
-            --sidebar-width: 230px;
+            --sidebar-width: 270px;
             --topbar-height: 60px;
         }
 
@@ -366,15 +366,15 @@ if (!function_exists('app_theme_css')) {
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 170px;
+            min-height: 200px;
             text-decoration: none;
         }
 
         .brand-logo {
-            width: 160px;
-            height: 160px;
-            max-width: 160px;
-            max-height: 160px;
+            width: 240px;
+            height: 200px;
+            max-width: 240px;
+            max-height: 200px;
             display: block;
             object-fit: contain;
         }
