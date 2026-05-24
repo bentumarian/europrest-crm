@@ -872,59 +872,6 @@ function reports_short_service_label(string $name): string {
 
     <main class="main">
 
-        <div class="topbar reports-topbar">
-            <div class="reports-toolbar">
-                <form method="get" class="reports-filters">
-                    <input type="date" name="date_from" value="<?= r_h($dateFrom) ?>" aria-label="Data început">
-                    <input type="date" name="date_to" value="<?= r_h($dateTo) ?>" aria-label="Data final">
-
-                    <div class="reports-choice" data-choice>
-                        <input class="reports-choice-input" type="hidden" name="team" value="<?= r_h((string)$selectedTeam) ?>">
-                        <button class="reports-choice-toggle" type="button" aria-haspopup="listbox" aria-expanded="false" data-static-label="1">
-                            <span>Tehnicieni</span>
-                        </button>
-                        <div class="reports-choice-menu" role="listbox">
-                            <?php foreach ($teamChoices as $choice): ?>
-                                <button class="reports-choice-option <?= (string)$choice['value'] === (string)$selectedTeam ? 'active' : '' ?>" type="button" data-value="<?= r_h($choice['value']) ?>" data-label="<?= r_h($choice['label']) ?>">
-                                    <?= r_h($choice['label']) ?>
-                                </button>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-
-                    <div class="reports-choice" data-choice>
-                        <input class="reports-choice-input" type="hidden" name="service" value="<?= r_h((string)$selectedService) ?>">
-                        <button class="reports-choice-toggle" type="button" aria-haspopup="listbox" aria-expanded="false" data-static-label="1">
-                            <span>Servicii</span>
-                        </button>
-                        <div class="reports-choice-menu" role="listbox">
-                            <?php foreach ($serviceChoices as $choice): ?>
-                                <button class="reports-choice-option <?= (string)$choice['value'] === (string)$selectedService ? 'active' : '' ?>" type="button" data-value="<?= r_h($choice['value']) ?>" data-label="<?= r_h($choice['label']) ?>">
-                                    <?= r_h($choice['label']) ?>
-                                </button>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-
-                    <div class="reports-choice" data-choice>
-                        <input class="reports-choice-input" type="hidden" name="status" value="<?= r_h((string)$selectedStatus) ?>">
-                        <button class="reports-choice-toggle" type="button" aria-haspopup="listbox" aria-expanded="false" data-static-label="1">
-                            <span>Status</span>
-                        </button>
-                        <div class="reports-choice-menu" role="listbox">
-                            <?php foreach ($statusChoices as $choice): ?>
-                                <button class="reports-choice-option <?= (string)$choice['value'] === (string)$selectedStatus ? 'active' : '' ?>" type="button" data-value="<?= r_h($choice['value']) ?>" data-label="<?= r_h($choice['label']) ?>">
-                                    <?= r_h($choice['label']) ?>
-                                </button>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-
-                    <button class="btn accent" type="submit">Aplică</button>
-                </form>
-            </div>
-        </div>
-
         <div class="content">
 
             <?php
@@ -934,6 +881,34 @@ function reports_short_service_label(string $name): string {
                 $isToday        = ($dateFrom === $today             && $dateTo === $today);
                 $isYear         = ($dateFrom === $currentYearStart  && $dateTo === $currentYearEnd);
                 $rangeCurrent = $isToday ? 'today' : ($isCurrentMonth ? 'month' : ($isPrevMonth ? 'prev_month' : ($isYear ? 'year' : '')));
+            ?>
+            <?php
+                ob_start();
+            ?>
+            <form method="get" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; width: 100%; margin: 0;">
+                <input type="date" name="date_from" value="<?= r_h($dateFrom) ?>" aria-label="Data început">
+                <input type="date" name="date_to" value="<?= r_h($dateTo) ?>" aria-label="Data final">
+                <select name="team">
+                    <?php foreach ($teamChoices as $choice): ?>
+                        <option value="<?= r_h($choice['value']) ?>" <?= (string)$choice['value'] === (string)$selectedTeam ? 'selected' : '' ?>><?= r_h($choice['label']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <select name="service">
+                    <?php foreach ($serviceChoices as $choice): ?>
+                        <option value="<?= r_h($choice['value']) ?>" <?= (string)$choice['value'] === (string)$selectedService ? 'selected' : '' ?>><?= r_h($choice['label']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <select name="status">
+                    <?php foreach ($statusChoices as $choice): ?>
+                        <option value="<?= r_h($choice['value']) ?>" <?= (string)$choice['value'] === (string)$selectedStatus ? 'selected' : '' ?>><?= r_h($choice['label']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit" class="pz-ph-btn primary" style="margin-left: auto;">
+                    <i class="ti ti-filter" aria-hidden="true"></i>Aplică
+                </button>
+            </form>
+            <?php
+                $reportsToolbarHtml = ob_get_clean();
             ?>
             <?php pz_page_header([
                 'kicker'   => 'Analiză',
@@ -949,6 +924,7 @@ function reports_short_service_label(string $name): string {
                         'year'       => 'An curent',
                     ],
                 ],
+                'toolbar' => $reportsToolbarHtml,
             ]); ?>
             <script>
             (function() {

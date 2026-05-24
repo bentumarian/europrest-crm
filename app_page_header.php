@@ -218,12 +218,89 @@ if (!function_exists('pz_page_header_css')) {
             font-weight: 500;
         }
 
+        /* Toolbar - filtre inline (replace pentru bare de filtre vechi) */
+        .pz-ph-toolbar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            padding-top: 12px;
+            margin-top: 14px;
+            border-top: 1px solid var(--pz-lines);
+            min-height: 32px;
+        }
+        .pz-ph-toolbar input[type="date"],
+        .pz-ph-toolbar input[type="text"],
+        .pz-ph-toolbar input[type="search"],
+        .pz-ph-toolbar select {
+            height: 32px;
+            padding: 0 10px;
+            border: 1px solid var(--pz-line);
+            border-radius: 6px;
+            font-size: 12px;
+            background: var(--pz-surf);
+            color: var(--pz-title);
+            font-family: inherit;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .pz-ph-toolbar input:focus,
+        .pz-ph-toolbar select:focus {
+            outline: none;
+            border-color: var(--pz-bl);
+            box-shadow: 0 0 0 3px var(--pz-bls);
+        }
+        .pz-ph-toolbar .pz-ph-search {
+            position: relative;
+            flex: 1;
+            min-width: 180px;
+            max-width: 320px;
+        }
+        .pz-ph-toolbar .pz-ph-search i {
+            position: absolute;
+            left: 9px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            color: var(--pz-fa);
+        }
+        .pz-ph-toolbar .pz-ph-search input {
+            width: 100%;
+            padding-left: 30px;
+            background: var(--pz-bg);
+        }
+        .pz-ph-toolbar button,
+        .pz-ph-toolbar .pz-ph-btn {
+            margin-left: auto;
+        }
+
+        /* Meta bar (default când nu există kpis/tabs/toolbar) */
+        .pz-ph-meta {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding-top: 10px;
+            margin-top: 12px;
+            border-top: 1px solid var(--pz-lines);
+            font-size: 11.5px;
+            color: var(--pz-fa);
+            flex-wrap: wrap;
+        }
+        .pz-ph-meta .meta-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .pz-ph-meta .meta-item i { font-size: 13px; color: var(--pz-mu); }
+        .pz-ph-meta .meta-item strong { font-weight: 500; color: var(--pz-text); }
+
         /* KPI inline */
         .pz-ph-kpis {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 8px;
             margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--pz-lines);
         }
         .pz-ph-kpi {
             background: var(--pz-soft);
@@ -287,13 +364,20 @@ if (!function_exists('pz_page_header')) {
             echo '<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.40.0/tabler-icons.min.css" rel="stylesheet">';
         }
 
-        $kicker   = (string)($opts['kicker']   ?? '');
-        $title    = (string)($opts['title']    ?? '');
-        $subtitle = (string)($opts['subtitle'] ?? '');
-        $actions  = is_array($opts['actions'] ?? null) ? $opts['actions'] : [];
-        $period   = is_array($opts['period']  ?? null) ? $opts['period']  : null;
-        $tabs     = is_array($opts['tabs']    ?? null) ? $opts['tabs']    : [];
-        $kpis     = is_array($opts['kpis']    ?? null) ? $opts['kpis']    : [];
+        $kicker    = (string)($opts['kicker']    ?? '');
+        $title     = (string)($opts['title']     ?? '');
+        $subtitle  = (string)($opts['subtitle']  ?? '');
+        $actions   = is_array($opts['actions']  ?? null) ? $opts['actions']  : [];
+        $period    = is_array($opts['period']   ?? null) ? $opts['period']   : null;
+        $tabs      = is_array($opts['tabs']     ?? null) ? $opts['tabs']     : [];
+        $kpis      = is_array($opts['kpis']     ?? null) ? $opts['kpis']     : [];
+        $toolbar   = (string)($opts['toolbar']   ?? '');  // HTML custom pentru filtre
+        $meta      = is_array($opts['meta']     ?? null) ? $opts['meta']     : [];
+
+        // Există conținut explicit pentru subheader?
+        $hasSubheader = !empty($kpis) || !empty($tabs) || ($toolbar !== '');
+        // Dacă nu, dar avem meta sau nimic, putem afișa o bară meta default
+        $showMeta = !$hasSubheader && !empty($meta);
 
         ?>
         <div class="pz-ph">
@@ -355,6 +439,12 @@ if (!function_exists('pz_page_header')) {
                 </div>
             </div>
 
+            <?php if ($toolbar !== ''): ?>
+                <div class="pz-ph-toolbar">
+                    <?= $toolbar ?>
+                </div>
+            <?php endif; ?>
+
             <?php if (!empty($kpis)): ?>
                 <div class="pz-ph-kpis">
                     <?php foreach ($kpis as $kpi):
@@ -367,6 +457,22 @@ if (!function_exists('pz_page_header')) {
                             <p class="label"><?= pz_ph_h($kLabel) ?></p>
                             <p class="value"><?= pz_ph_h($kValue) ?><?php if ($kMeta !== ''): ?><span class="meta"><?= pz_ph_h($kMeta) ?></span><?php endif; ?></p>
                         </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($showMeta): ?>
+                <div class="pz-ph-meta">
+                    <?php foreach ($meta as $m):
+                        $mLabel = (string)($m['label'] ?? '');
+                        $mValue = (string)($m['value'] ?? '');
+                        $mIcon  = (string)($m['icon']  ?? '');
+                    ?>
+                        <span class="meta-item">
+                            <?php if ($mIcon !== ''): ?><i class="ti <?= pz_ph_h($mIcon) ?>" aria-hidden="true"></i><?php endif; ?>
+                            <?php if ($mLabel !== ''): ?><?= pz_ph_h($mLabel) ?>:&nbsp;<?php endif; ?>
+                            <strong><?= pz_ph_h($mValue) ?></strong>
+                        </span>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
