@@ -1351,9 +1351,9 @@ if (!function_exists('app_theme_css')) {
                 justify-content: center;
                 min-height: 74px;
                 padding: 10px 72px 10px 72px;
-                background: var(--accent);
-                color: #fff;
-                border-bottom: 1px solid rgba(255, 255, 255, .12);
+                background: #FFFFFF;
+                color: var(--pz-title);
+                border-bottom: 1px solid var(--pz-line);
                 width: 100%;
                 overflow: hidden;
             }

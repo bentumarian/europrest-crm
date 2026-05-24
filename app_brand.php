@@ -151,7 +151,7 @@ if (!function_exists('render_mobile_app_header')) {
     {
         ?>
         <div class="app-mobile-header">
-            <?= app_brand_logo('app-mobile-logo', 'white') ?>
+            <?= app_brand_logo('app-mobile-logo') ?>
         </div>
         <?php
     }
