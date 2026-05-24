@@ -757,27 +757,42 @@ if (!function_exists('pz_date_picker_assets')) {
 
 if (!function_exists('pz_date_range_init')) {
     /**
-     * Emite inline <script> care inițializează un date range picker standard PestZone:
-     *   - inputurile vizibile devin text readonly cu format dd.mm.yyyy
-     *   - hidden inputs cu name-urile originale primesc ISO yyyy-mm-dd pentru backend
-     *   - DateRangePicker leagă cele 2 inputs, valida from <= to automat
+     * Emite inline <script> care atașează un DateRangePicker (vanillajs-datepicker)
+     * pe două inputuri vizibile (type=text) și sincronizează două inputuri hidden cu
+     * valori ISO yyyy-mm-dd pentru submit la backend.
      *
-     * $fromName / $toName = atributele name ale inputurilor existente în DOM (vor fi
-     * convertite la text + hidden ISO).
+     * IMPORTANT: HTML-ul trebuie pregătit în prealabil așa:
+     *   <input type="hidden" name="date_from" value="2026-05-01">
+     *   <input type="hidden" name="date_to"   value="2026-05-31">
+     *   <div class="pz-fb-date-range" id="myRange">
+     *       <i class="ti ti-calendar"></i>
+     *       <input type="text" id="myFrom" readonly value="01.05.2026">
+     *       <span class="sep">—</span>
+     *       <input type="text" id="myTo"   readonly value="31.05.2026">
+     *   </div>
+     *
+     * Apoi în PHP:
+     *   pz_date_range_init('myFrom', 'myTo', 'date_from', 'date_to', ['form_id' => 'filterForm']);
+     *
+     * Calendarul are vizibilitate clară pe an: click pe titlu „mai 2026" deschide
+     * view-ul de luni; click pe an deschide view-ul de ani; click pe interval
+     * deschide view-ul de decenii.
+     *
      * $opts:
-     *   'today_text' => '<?= date('Y-m-d') ?>'  (pt indicator azi, opțional)
-     *   'min_date'   => 'YYYY-MM-DD' (opțional)
-     *   'max_date'   => 'YYYY-MM-DD' (opțional)
-     *   'form_id'    => 'idFormular'  (opțional, pentru auto-submit la schimbare)
+     *   'min_date' => 'YYYY-MM-DD'
+     *   'max_date' => 'YYYY-MM-DD'
+     *   'form_id'  => 'idFormular'  (auto-submit la schimbare ambelor date)
      */
-    function pz_date_range_init(string $fromName, string $toName, array $opts = []): void
+    function pz_date_range_init(string $fromVisibleId, string $toVisibleId, string $fromHiddenName, string $toHiddenName, array $opts = []): void
     {
         pz_date_picker_assets();
         $minDate = isset($opts['min_date']) ? "'" . pz_ph_h($opts['min_date']) . "'" : 'null';
         $maxDate = isset($opts['max_date']) ? "'" . pz_ph_h($opts['max_date']) . "'" : 'null';
         $formId  = isset($opts['form_id'])  ? "'" . pz_ph_h($opts['form_id'])  . "'" : 'null';
-        $fromJs  = pz_ph_h($fromName);
-        $toJs    = pz_ph_h($toName);
+        $fromVid = pz_ph_h($fromVisibleId);
+        $toVid   = pz_ph_h($toVisibleId);
+        $fromHN  = pz_ph_h($fromHiddenName);
+        $toHN    = pz_ph_h($toHiddenName);
         ?>
         <script>
         (function() {
@@ -788,23 +803,19 @@ if (!function_exists('pz_date_range_init')) {
             function waitFor(checkFn, cb, tries) {
                 tries = tries || 0;
                 if (checkFn()) return cb();
-                if (tries > 60) return; // ~3s
+                if (tries > 80) return; // ~4s
                 setTimeout(function() { waitFor(checkFn, cb, tries + 1); }, 50);
             }
             ready(function() {
                 waitFor(function() {
                     return typeof Datepicker !== 'undefined' && typeof DateRangePicker !== 'undefined';
                 }, function() {
-                    var fromInput = document.querySelector('input[name="<?= $fromJs ?>"]');
-                    var toInput   = document.querySelector('input[name="<?= $toJs ?>"]');
-                    if (!fromInput || !toInput) return;
+                    var fromInput   = document.getElementById('<?= $fromVid ?>');
+                    var toInput     = document.getElementById('<?= $toVid ?>');
+                    var fromHidden  = document.querySelector('input[type="hidden"][name="<?= $fromHN ?>"]');
+                    var toHidden    = document.querySelector('input[type="hidden"][name="<?= $toHN ?>"]');
+                    if (!fromInput || !toInput || !fromHidden || !toHidden) return;
 
-                    function parseISO(s) {
-                        if (!s || typeof s !== 'string') return null;
-                        var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-                        if (!m) return null;
-                        return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
-                    }
                     function isoFromDate(d) {
                         if (!d) return '';
                         var y = d.getFullYear();
@@ -812,37 +823,8 @@ if (!function_exists('pz_date_range_init')) {
                         var day = String(d.getDate()).padStart(2, '0');
                         return y + '-' + m + '-' + day;
                     }
-                    function ddmmyyyy(d) {
-                        if (!d) return '';
-                        var day = String(d.getDate()).padStart(2, '0');
-                        var m   = String(d.getMonth() + 1).padStart(2, '0');
-                        return day + '.' + m + '.' + d.getFullYear();
-                    }
 
-                    // Convertesc input-urile la text + readonly și creez hidden ISO cu numele original.
-                    function prepareInput(input) {
-                        var name = input.name;
-                        var initialISO = input.value || '';
-                        var hidden = document.createElement('input');
-                        hidden.type = 'hidden';
-                        hidden.name = name;
-                        hidden.value = initialISO;
-                        input.parentNode.insertBefore(hidden, input.nextSibling);
-                        input.removeAttribute('name');
-                        input.type = 'text';
-                        input.readOnly = true;
-                        input.autocomplete = 'off';
-                        input.spellcheck = false;
-                        var d = parseISO(initialISO);
-                        input.value = d ? ddmmyyyy(d) : '';
-                        return hidden;
-                    }
-                    var fromHidden = prepareInput(fromInput);
-                    var toHidden   = prepareInput(toInput);
-
-                    // Container pentru DateRangePicker — creez un wrapper temporar fără afectare layout
-                    // (DateRangePicker cere ca cele 2 inputs să aibă ancestor comun cu el ca rangepicker).
-                    // Folosesc cel mai apropiat ancestor comun existent.
+                    // Container DateRangePicker = cel mai apropiat ancestor comun existent.
                     function commonAncestor(a, b) {
                         var anc = a;
                         while (anc) {
@@ -867,19 +849,18 @@ if (!function_exists('pz_date_range_init')) {
                         showOnClick: true,
                         clearBtn: false,
                         todayBtn: true,
-                        todayBtnMode: 1, // selectează ziua de azi în loc să navigheze
+                        todayBtnMode: 1,
                         prevArrow: '‹',
-                        nextArrow: '›',
-                        beforeShowDay: null
+                        nextArrow: '›'
                     };
                     if (minDate) common.minDate = minDate;
                     if (maxDate) common.maxDate = maxDate;
 
-                    var rangePicker = new DateRangePicker(rangeRoot, {
+                    var rangeOpts = Object.assign({}, common, {
                         inputs: [fromInput, toInput],
-                        allowOneSidedRange: true,
-                        ...common
+                        allowOneSidedRange: true
                     });
+                    var rangePicker = new DateRangePicker(rangeRoot, rangeOpts);
 
                     function syncHidden() {
                         var dates = rangePicker.getDates();
@@ -889,7 +870,7 @@ if (!function_exists('pz_date_range_init')) {
                     fromInput.addEventListener('changeDate', syncHidden);
                     toInput.addEventListener('changeDate', syncHidden);
 
-                    // Auto-submit opțional la schimbare
+                    // Auto-submit opțional la schimbare (debounced)
                     var formId = <?= $formId ?>;
                     if (formId) {
                         var form = document.getElementById(formId);
@@ -899,7 +880,7 @@ if (!function_exists('pz_date_range_init')) {
                                 clearTimeout(debounce);
                                 debounce = setTimeout(function() {
                                     if (fromHidden.value && toHidden.value) form.submit();
-                                }, 250);
+                                }, 350);
                             }
                             fromInput.addEventListener('changeDate', maybeSubmit);
                             toInput.addEventListener('changeDate', maybeSubmit);

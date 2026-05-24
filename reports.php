@@ -890,12 +890,19 @@ function reports_short_service_label(string $name): string {
                 if ((string)$selectedStatus !== 'all' && $selectedStatus !== '')   $activeExtraFilters++;
                 ob_start();
             ?>
+            <?php
+                // Format vizibil dd.mm.yyyy, valoarea originală ISO o trimitem prin hidden.
+                $dateFromDisplay = $dateFrom ? date('d.m.Y', strtotime($dateFrom)) : '';
+                $dateToDisplay   = $dateTo   ? date('d.m.Y', strtotime($dateTo))   : '';
+            ?>
             <form method="get" id="reportsFilterForm" class="pz-fb">
-                <div class="pz-fb-date-range">
+                <input type="hidden" name="date_from" value="<?= r_h($dateFrom) ?>">
+                <input type="hidden" name="date_to" value="<?= r_h($dateTo) ?>">
+                <div class="pz-fb-date-range" id="reportsDateRange">
                     <i class="ti ti-calendar" aria-hidden="true"></i>
-                    <input type="date" name="date_from" value="<?= r_h($dateFrom) ?>" aria-label="Data început">
+                    <input type="text" id="reportsDateFrom" value="<?= r_h($dateFromDisplay) ?>" placeholder="zi.lună.an" readonly autocomplete="off" aria-label="Data început">
                     <span class="sep">—</span>
-                    <input type="date" name="date_to" value="<?= r_h($dateTo) ?>" aria-label="Data final">
+                    <input type="text" id="reportsDateTo" value="<?= r_h($dateToDisplay) ?>" placeholder="zi.lună.an" readonly autocomplete="off" aria-label="Data final">
                 </div>
 
                 <div class="pz-fb-spacer"></div>
@@ -1243,12 +1250,14 @@ document.addEventListener('click', (event) => {
     /*
     |--------------------------------------------------------------------------
     | Date range picker — vanillajs-datepicker via helper unificat PestZone.
-    | Convertesc inputurile date_from/date_to la text + hidden ISO,
-    | iar pe schimbare auto-submit la form-ul de filtre.
+    | Inputurile vizibile (reportsDateFrom/reportsDateTo) sunt deja render-ate
+    | ca text readonly cu format dd.mm.yyyy. Hidden inputs (date_from/date_to)
+    | conțin valorile ISO trimise la backend. Helper-ul atașează DateRangePicker
+    | și sincronizează hidden-urile pe changeDate, plus auto-submit pe form.
     | Year picker e accesibil cu 1 click pe titlul calendarului.
     |--------------------------------------------------------------------------
     */
-    pz_date_range_init('date_from', 'date_to', [
+    pz_date_range_init('reportsDateFrom', 'reportsDateTo', 'date_from', 'date_to', [
         'form_id' => 'reportsFilterForm',
     ]);
 ?>
