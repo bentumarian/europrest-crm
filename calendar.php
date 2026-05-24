@@ -1676,7 +1676,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
             <div class="pz-fb">
                 <div class="pz-fb-nav">
                     <a class="pz-fb-nav-btn" href="<?= hcal($prevHref) ?>" aria-label="Anterior">‹</a>
-                    <a class="pz-fb-nav-btn" href="<?= hcal($todayHref) ?>">Azi</a>
+                    <a class="pz-fb-nav-btn primary" href="<?= hcal($todayHref) ?>">Azi</a>
                     <a class="pz-fb-nav-btn arrow" href="<?= hcal($nextHref) ?>" aria-label="Următor">›</a>
                 </div>
 

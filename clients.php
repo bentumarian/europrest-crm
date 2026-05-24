@@ -1432,35 +1432,7 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
     <?php render_sidebar('clients', $isAdmin); ?>
 
     <main class="main">
-        <div class="topbar clients-topbar">
-            <form method="get" class="clients-toolbar">
-                <select name="per_page" aria-label="Rânduri pe pagină">
-                    <?php foreach ([20, 50, 100] as $pp): ?>
-                        <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?></option>
-                    <?php endforeach; ?>
-                </select>
-
-                <select name="status" aria-label="Status client">
-                    <option value="active" <?= $statusFilter === 'active' ? 'selected' : '' ?>>Activ</option>
-                    <option value="inactive" <?= $statusFilter === 'inactive' ? 'selected' : '' ?>>Inactiv</option>
-                    <option value="all" <?= $statusFilter === 'all' ? 'selected' : '' ?>>Toate</option>
-                </select>
-
-                <select name="type" aria-label="Tip client">
-                    <option value="all" <?= $typeFilter === 'all' ? 'selected' : '' ?>>PJ + PF</option>
-                    <option value="company" <?= $typeFilter === 'company' ? 'selected' : '' ?>>Doar PJ</option>
-                    <option value="individual" <?= $typeFilter === 'individual' ? 'selected' : '' ?>>Doar PF</option>
-                </select>
-
-                <button class="btn" type="submit">Filtrează</button>
-                <div class="pz-search-wrap">
-                    <input class="search-input" type="text" id="clientsSearchInput" name="q" value="<?= c_h($search) ?>" placeholder="Caută client" autocomplete="off">
-                    <div class="pz-search-preview"></div>
-                </div>
-                <a class="btn" href="clients.php" title="Resetare filtre" aria-label="Resetare filtre">↻</a>
-                <a class="btn" href="clients_dedupe.php" title="Corelează telefonul și emailul între firme cu același reprezentant legal">🔗 Corelare reprezentanți</a>
-            </form>
-        </div>
+<?php /* Topbar vechi eliminat — înlocuit cu pz_page_header + pz-fb mai jos. */ ?>
 
         <?php if (isset($_GET['created'])): ?><div class="notice notice-success">Clientul a fost adaugat.</div><?php endif; ?>
         <?php if (isset($_GET['updated'])): ?><div class="notice notice-success">Fișa clientului a fost actualizată.</div><?php endif; ?>
@@ -1480,16 +1452,136 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
         <?php if (($_GET['error'] ?? '') === 'missing_location_required'): ?><div class="notice notice-danger">Fiecare locație activa trebuie sa aiba nume, adresa, persoană de contact, telefon si suprafata.</div><?php endif; ?>
 
         <div class="content">
-            <section class="clients-page-title">
-                <div>
-                    <div class="pz-page-eyebrow">Clienți</div>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <h1 style="margin:0;">Clienți</h1>
-                        <span class="clients-count-pill"><?= (int)$totalClients ?></span>
+            <?php
+                /*
+                |------------------------------------------------------------
+                | Header unificat PestZone + filter bar pz-fb.
+                | Înlocuiește vechea zonă topbar + clients-page-title.
+                | Search-ul rămâne cu pz-search-wrap (păstrează live preview).
+                | Filtrele extinse (per_page, status, type) intră în popover.
+                |------------------------------------------------------------
+                */
+                $clientsActiveFilters = 0;
+                if ($statusFilter !== 'active') $clientsActiveFilters++;
+                if ($typeFilter !== 'all')      $clientsActiveFilters++;
+                if ($perPage !== 20)            $clientsActiveFilters++;
+
+                ob_start();
+                ?>
+                <form method="get" id="clientsFilterForm" class="pz-fb">
+                    <div class="pz-fb-search">
+                        <i class="ti ti-search" aria-hidden="true"></i>
+                        <input type="text" id="clientsSearchInput" name="q" value="<?= c_h($search) ?>" placeholder="Caută client" autocomplete="off">
+                        <div class="pz-search-preview"></div>
                     </div>
-                </div>
-                <button class="pz-icon-btn primary lg" type="button" title="Adaugă client" aria-label="Adaugă client" onclick="openClientModal()"><?= app_icon_svg('plus') ?></button>
-            </section>
+
+                    <div class="pz-fb-spacer"></div>
+
+                    <a class="pz-fb-nav-btn" href="clients.php" title="Resetare filtre" aria-label="Resetare filtre">↻</a>
+
+                    <div class="pz-fb-popover-wrap">
+                        <button type="button" class="pz-fb-filter-btn" id="clientsFiltersToggle" aria-haspopup="true" aria-expanded="false">
+                            <i class="ti ti-adjustments-horizontal" aria-hidden="true"></i>
+                            Filtre
+                            <?php if ($clientsActiveFilters > 0): ?>
+                                <span class="badge"><?= (int)$clientsActiveFilters ?></span>
+                            <?php endif; ?>
+                        </button>
+                        <div class="pz-fb-popover" id="clientsFiltersPopover" role="dialog" aria-label="Filtre suplimentare clienți">
+                            <div class="pf-row">
+                                <label for="clientsStatusFilter">Status</label>
+                                <select id="clientsStatusFilter" name="status">
+                                    <option value="active" <?= $statusFilter === 'active' ? 'selected' : '' ?>>Activ</option>
+                                    <option value="inactive" <?= $statusFilter === 'inactive' ? 'selected' : '' ?>>Inactiv</option>
+                                    <option value="all" <?= $statusFilter === 'all' ? 'selected' : '' ?>>Toate</option>
+                                </select>
+                            </div>
+                            <div class="pf-row">
+                                <label for="clientsTypeFilter">Tip client</label>
+                                <select id="clientsTypeFilter" name="type">
+                                    <option value="all" <?= $typeFilter === 'all' ? 'selected' : '' ?>>PJ + PF</option>
+                                    <option value="company" <?= $typeFilter === 'company' ? 'selected' : '' ?>>Doar PJ</option>
+                                    <option value="individual" <?= $typeFilter === 'individual' ? 'selected' : '' ?>>Doar PF</option>
+                                </select>
+                            </div>
+                            <div class="pf-row">
+                                <label for="clientsPerPageFilter">Rânduri pe pagină</label>
+                                <select id="clientsPerPageFilter" name="per_page">
+                                    <?php foreach ([20, 50, 100] as $pp): ?>
+                                        <option value="<?= $pp ?>" <?= $perPage === $pp ? 'selected' : '' ?>><?= $pp ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-actions">
+                                <button type="button" class="pz-ph-btn ghost" onclick="document.getElementById('clientsFiltersPopover').classList.remove('is-open'); document.getElementById('clientsFiltersToggle').setAttribute('aria-expanded','false');">Anulează</button>
+                                <button type="submit" class="pz-ph-btn primary">Aplică</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="pz-ph-btn primary">
+                        <i class="ti ti-search" aria-hidden="true"></i>Caută
+                    </button>
+                </form>
+                <?php
+                $clientsToolbarHtml = ob_get_clean();
+
+                $clientsActions = [
+                    [
+                        'label'   => 'Corelare reprezentanți',
+                        'href'    => 'clients_dedupe.php',
+                        'variant' => 'ghost',
+                        'icon'    => 'ti-link',
+                        'title'   => 'Corelează telefonul și emailul între firme cu același reprezentant legal',
+                    ],
+                    [
+                        'label'   => 'Client nou',
+                        'icon'    => 'ti-plus',
+                        'variant' => 'primary',
+                        'type'    => 'button',
+                        'onclick' => 'openClientModal()',
+                    ],
+                ];
+
+                $clientsSubtitle = (int)$totalClients . ' clienți · afișare ' . (int)$fromResult . '–' . (int)$toResult;
+                if ($search !== '') {
+                    $clientsSubtitle = (int)$totalClients . ' rezultate pentru „' . c_h($search) . '"';
+                }
+
+                pz_page_header([
+                    'kicker'   => 'Operațional',
+                    'title'    => 'Clienți',
+                    'subtitle' => $clientsSubtitle,
+                    'actions'  => $clientsActions,
+                    'toolbar'  => $clientsToolbarHtml,
+                ]);
+            ?>
+            <script>
+            (function() {
+                // Popover filtre — toggle + close click-outside + ESC
+                var btn = document.getElementById('clientsFiltersToggle');
+                var pop = document.getElementById('clientsFiltersPopover');
+                if (!btn || !pop) return;
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var open = pop.classList.toggle('is-open');
+                    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                });
+                document.addEventListener('click', function(e) {
+                    if (!pop.classList.contains('is-open')) return;
+                    if (pop.contains(e.target) || btn.contains(e.target)) return;
+                    pop.classList.remove('is-open');
+                    btn.setAttribute('aria-expanded', 'false');
+                });
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && pop.classList.contains('is-open')) {
+                        pop.classList.remove('is-open');
+                        btn.setAttribute('aria-expanded', 'false');
+                        btn.focus();
+                    }
+                });
+            })();
+            </script>
 
             <section class="clients-layout">
                 <div class="clients-list-card">
@@ -1503,8 +1595,9 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
                     <?php if (!$clients): ?>
                         <div class="empty-state">Nu există clienți pentru filtrul selectat.</div>
                     <?php else: ?>
-                        <div class="clients-table-wrap">
-                            <table class="clients-table">
+                        <?php pz_table_cards_css(); ?>
+                        <div class="clients-table-wrap pz-table-cards-wrap">
+                            <table class="clients-table pz-table-cards">
                                 <thead>
                                     <tr>
                                         <th>ID client</th>

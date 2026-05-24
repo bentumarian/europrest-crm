@@ -376,6 +376,16 @@ if (!function_exists('pz_page_header_css')) {
         .pz-fb-nav-btn.arrow:hover {
             color: var(--pz-bld);
         }
+        .pz-fb-nav-btn.primary {
+            background: var(--pz-bl);
+            color: #fff;
+            border-color: var(--pz-bl);
+        }
+        .pz-fb-nav-btn.primary:hover {
+            background: var(--pz-bld);
+            border-color: var(--pz-bld);
+            color: #fff;
+        }
 
         .pz-fb-search {
             position: relative;
@@ -620,6 +630,105 @@ if (!function_exists('pz_page_header_css')) {
         @media (max-width: 480px) {
             .pz-ph-btn { padding: 0 9px; font-size: 11px; height: 30px; }
             .pz-ph-btn i { font-size: 12px; }
+        }
+        </style>
+        <?php
+    }
+}
+
+if (!function_exists('pz_table_cards_css')) {
+    /**
+     * Emite CSS-ul care pe mobile (max-width: 760px) transformă un tabel în
+     * carduri verticale, cu label-ul deasupra valorii și aliniere stânga.
+     *
+     * Pentru a se aplica, tabelul trebuie să aibă clasa pz-table-cards, iar
+     * fiecare <td> trebuie să aibă atributul data-label="X".
+     *
+     * Apel: pz_table_cards_css();  (o singură dată per pagină, idempotent)
+     */
+    function pz_table_cards_css(): void
+    {
+        static $rendered = false;
+        if ($rendered) return;
+        $rendered = true;
+        ?>
+        <style>
+        /* PZ Table → Cards layout pe mobile */
+        @media (max-width: 760px) {
+            .pz-table-cards-wrap {
+                overflow: visible !important;
+                background: transparent !important;
+                border: 0 !important;
+                box-shadow: none !important;
+            }
+            table.pz-table-cards {
+                display: block !important;
+                min-width: 0 !important;
+                width: 100% !important;
+            }
+            table.pz-table-cards thead {
+                display: none !important;
+            }
+            table.pz-table-cards tbody {
+                display: block !important;
+                width: 100% !important;
+            }
+            table.pz-table-cards tbody tr {
+                display: block !important;
+                background: var(--pz-surf) !important;
+                border: 1px solid var(--pz-line) !important;
+                border-radius: 10px !important;
+                padding: 12px 14px !important;
+                margin-bottom: 8px !important;
+                box-shadow: none !important;
+            }
+            table.pz-table-cards tbody tr:last-child {
+                margin-bottom: 0 !important;
+            }
+            table.pz-table-cards tbody td {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 2px !important;
+                padding: 6px 0 !important;
+                border: 0 !important;
+                border-bottom: 1px solid var(--pz-lines) !important;
+                font-size: 13px !important;
+                text-align: left !important;
+                min-height: 0 !important;
+                width: 100% !important;
+            }
+            table.pz-table-cards tbody td:last-child {
+                border-bottom: 0 !important;
+            }
+            table.pz-table-cards tbody td::before {
+                content: attr(data-label) !important;
+                font-weight: 600 !important;
+                font-size: 10px !important;
+                color: var(--pz-mu) !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.05em !important;
+                text-align: left !important;
+                line-height: 1.2 !important;
+            }
+            table.pz-table-cards tbody td > * {
+                text-align: left !important;
+                min-width: 0 !important;
+                word-break: break-word !important;
+                max-width: 100% !important;
+            }
+            table.pz-table-cards tbody td strong {
+                font-weight: 600 !important;
+                color: var(--pz-text) !important;
+            }
+            table.pz-table-cards tbody td .status-pill,
+            table.pz-table-cards tbody td .type-pill {
+                border-radius: 6px !important;
+                padding: 3px 8px !important;
+                font-size: 11px !important;
+                width: fit-content !important;
+                align-self: flex-start !important;
+            }
         }
         </style>
         <?php
