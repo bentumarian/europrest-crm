@@ -1238,5 +1238,108 @@ document.addEventListener('click', (event) => {
     });
 });
 </script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+<style>
+/* Flatpickr — match design system PestZone */
+.flatpickr-calendar {
+    background: var(--pz-surf);
+    border: 1px solid var(--pz-line);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10), 0 2px 6px rgba(15, 23, 42, 0.04);
+    font-family: 'Inter', system-ui, sans-serif;
+}
+.flatpickr-months .flatpickr-month {
+    background: var(--pz-surf);
+    color: var(--pz-title);
+    fill: var(--pz-title);
+}
+.flatpickr-current-month {
+    font-size: 14px;
+    font-weight: 500;
+    padding-top: 8px;
+}
+.flatpickr-current-month .flatpickr-monthDropdown-months {
+    background: var(--pz-soft);
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-weight: 500;
+}
+.flatpickr-current-month input.cur-year {
+    font-weight: 500;
+    color: var(--pz-title);
+}
+.flatpickr-weekday {
+    color: var(--pz-mu);
+    font-weight: 500;
+    font-size: 11px;
+}
+.flatpickr-day {
+    color: var(--pz-text);
+    border-radius: 6px;
+    font-size: 13px;
+}
+.flatpickr-day:hover {
+    background: var(--pz-soft);
+    border-color: transparent;
+}
+.flatpickr-day.today {
+    border-color: var(--pz-bl);
+    color: var(--pz-bld);
+}
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover {
+    background: var(--pz-bl);
+    border-color: var(--pz-bl);
+    color: #fff;
+}
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay { color: var(--pz-fa); }
+.flatpickr-day.flatpickr-disabled {
+    color: var(--pz-fa);
+    opacity: 0.4;
+}
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+    color: var(--pz-mu);
+    fill: var(--pz-mu);
+}
+.flatpickr-months .flatpickr-prev-month:hover svg,
+.flatpickr-months .flatpickr-next-month:hover svg {
+    fill: var(--pz-bl);
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/ro.js"></script>
+<script>
+(function() {
+    if (typeof flatpickr === 'undefined') return;
+    var common = {
+        locale: 'ro',
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'd.m.Y',
+        allowInput: false,
+        disableMobile: false
+    };
+    var fromInput = document.querySelector('input[name="date_from"]');
+    var toInput   = document.querySelector('input[name="date_to"]');
+    if (fromInput) {
+        var fpFrom = flatpickr(fromInput, Object.assign({}, common, {
+            onChange: function(selectedDates) {
+                if (selectedDates[0] && fpTo) {
+                    fpTo.set('minDate', selectedDates[0]);
+                }
+            }
+        }));
+    }
+    var fpTo;
+    if (toInput) {
+        fpTo = flatpickr(toInput, Object.assign({}, common, {
+            minDate: fromInput ? fromInput.value : undefined
+        }));
+    }
+})();
+</script>
 </body>
 </html>
