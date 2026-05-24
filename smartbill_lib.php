@@ -186,6 +186,11 @@ if (!function_exists('pz_smartbill_ensure_schema')) {
             'efactura_pdf_path' => "VARCHAR(255) NULL",
             // Pentru facturi de storno: pointer la factura originala anulata.
             'reverses_invoice_id' => "INT NULL",
+            // C2 — protecție concurență la emitere SmartBill:
+            //   smartbill_sent_at: timestamp set înainte de cURL la SmartBill; NULL după ce apelul s-a terminat.
+            //   idempotency_key:    UUID local unic per factură, util pentru reconciliere/debug.
+            'smartbill_sent_at' => "DATETIME NULL",
+            'idempotency_key' => "VARCHAR(64) NULL",
         ];
         foreach ($invoiceColumns as $column => $definition) {
             if (!pz_smartbill_column_exists($pdo, 'smartbill_invoices', $column)) {
@@ -1819,6 +1824,45 @@ if (!function_exists('pz_smartbill_issue_invoice')) {
             return ['ok' => false, 'error' => implode(' ', $errors), 'payload' => $payload];
         }
 
+        // C2 — protecție concurență:
+        // Marcăm atomic factura ca „sending" și setăm sent_at = NOW().
+        // UPDATE-ul reușește DOAR dacă starea curentă e draft/error sau e un sending blocat
+        // de mai mult de 5 minute. Asta blochează dublu-click + apeluri concurente.
+        $existingKey = trim((string)($invoice['idempotency_key'] ?? ''));
+        $idempotencyKey = $existingKey !== '' ? $existingKey : bin2hex(random_bytes(16));
+
+        $lockStmt = $pdo->prepare("
+            UPDATE smartbill_invoices
+            SET smartbill_status = 'sending',
+                smartbill_sent_at = NOW(),
+                idempotency_key = ?,
+                error_message = NULL
+            WHERE id = ?
+              AND (smartbill_number IS NULL OR smartbill_number = '')
+              AND (
+                    smartbill_status IN ('draft', 'error')
+                    OR (smartbill_status = 'sending' AND (smartbill_sent_at IS NULL OR smartbill_sent_at < (NOW() - INTERVAL 5 MINUTE)))
+              )
+        ");
+        $lockStmt->execute([$idempotencyKey, $invoiceId]);
+        if ($lockStmt->rowCount() === 0) {
+            // Verifică starea curentă ca să dăm un mesaj clar utilizatorului.
+            $current = $pdo->prepare("SELECT smartbill_status, smartbill_number, smartbill_sent_at FROM smartbill_invoices WHERE id = ?");
+            $current->execute([$invoiceId]);
+            $row = $current->fetch(PDO::FETCH_ASSOC) ?: [];
+            if (!empty($row['smartbill_number'])) {
+                return ['ok' => false, 'error' => 'Factura este deja emisă.'];
+            }
+            if (($row['smartbill_status'] ?? '') === 'sending') {
+                return [
+                    'ok'    => false,
+                    'error' => 'Apel către SmartBill deja în curs (început la ' . ($row['smartbill_sent_at'] ?? '?') . '). Așteaptă 1-5 minute, apoi reîncearcă sau folosește „Verifică în SmartBill".',
+                    'pending' => true,
+                ];
+            }
+            return ['ok' => false, 'error' => 'Nu pot iniția emiterea factúrii (stare: ' . ($row['smartbill_status'] ?? '?') . ').'];
+        }
+
         $result = pz_smartbill_api_post($settings, '/invoice', $payload);
         $response = is_array($result['response'] ?? null) ? $result['response'] : [];
         $status = !empty($result['ok']) ? 'issued' : 'error';
@@ -1827,12 +1871,15 @@ if (!function_exists('pz_smartbill_issue_invoice')) {
         $url = pz_smartbill_response_value($response, 'url');
         $error = (string)($result['error'] ?? '');
 
+        // C2 — clear smartbill_sent_at indiferent de rezultat (success sau error).
+        // Astfel, la error utilizatorul poate retry imediat (UPDATE-ul de la început acceptă status='error').
         $stmt = $pdo->prepare("
             UPDATE smartbill_invoices
             SET smartbill_status = ?,
                 smartbill_series = ?,
                 smartbill_number = ?,
                 smartbill_url = ?,
+                smartbill_sent_at = NULL,
                 request_json = ?,
                 response_json = ?,
                 error_message = ?,
@@ -1876,6 +1923,157 @@ if (!function_exists('pz_smartbill_issue_invoice')) {
             'response' => $response,
             'payload' => $payload,
         ];
+    }
+}
+
+if (!function_exists('pz_smartbill_is_stuck_sending')) {
+    /**
+     * C2 — Verifică dacă o factură este blocată în starea „sending" de mai mult de N minute.
+     * Folosit de UI ca să decidă dacă afișează butoanele de reconciliere manuală.
+     *
+     * @return bool
+     */
+    function pz_smartbill_is_stuck_sending(array $invoice, int $stuckMinutes = 5): bool
+    {
+        $status = strtolower(trim((string)($invoice['smartbill_status'] ?? '')));
+        if ($status !== 'sending') {
+            return false;
+        }
+        $sentAt = trim((string)($invoice['smartbill_sent_at'] ?? ''));
+        if ($sentAt === '') {
+            return true; // sending dar fără timestamp = clar abandonat
+        }
+        $sentTs = strtotime($sentAt);
+        if ($sentTs === false) {
+            return true;
+        }
+        return ($sentTs + $stuckMinutes * 60) < time();
+    }
+}
+
+if (!function_exists('pz_smartbill_mark_manually_issued')) {
+    /**
+     * C2 — Marchează manual o factură stuck ca fiind emisă în SmartBill.
+     * Folosit când operatorul a verificat în SmartBill UI și a găsit factura.
+     *
+     * @param PDO    $pdo
+     * @param int    $invoiceId
+     * @param string $series       Seria din SmartBill (ex: 'EUR')
+     * @param string $number       Numărul din SmartBill (ex: '00123')
+     * @param string $url          (opțional) Link direct către factura SmartBill
+     * @return array{ok: bool, error: ?string}
+     */
+    function pz_smartbill_mark_manually_issued(PDO $pdo, int $invoiceId, string $series, string $number, string $url = ''): array
+    {
+        $series = trim($series);
+        $number = trim($number);
+        $url = trim($url);
+
+        if ($invoiceId <= 0) {
+            return ['ok' => false, 'error' => 'invoice_id invalid.'];
+        }
+        if ($series === '' || $number === '') {
+            return ['ok' => false, 'error' => 'Seria și numărul sunt obligatorii.'];
+        }
+
+        // Citește factura curentă.
+        $stmt = $pdo->prepare("SELECT id, smartbill_status, smartbill_number FROM smartbill_invoices WHERE id = ? LIMIT 1");
+        $stmt->execute([$invoiceId]);
+        $invoice = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$invoice) {
+            return ['ok' => false, 'error' => 'Factura nu există.'];
+        }
+        if (trim((string)($invoice['smartbill_number'] ?? '')) !== '') {
+            return ['ok' => false, 'error' => 'Factura are deja serie și număr — nu poate fi remarcată.'];
+        }
+
+        // Verifică că nu există deja altă factură locală cu aceeași serie + număr.
+        $dupStmt = $pdo->prepare("SELECT id FROM smartbill_invoices WHERE smartbill_series = ? AND smartbill_number = ? AND id <> ? LIMIT 1");
+        $dupStmt->execute([$series, $number, $invoiceId]);
+        $existing = $dupStmt->fetch(PDO::FETCH_ASSOC);
+        if ($existing) {
+            return ['ok' => false, 'error' => 'Există deja o altă factură locală cu seria ' . $series . ' și numărul ' . $number . ' (id ' . (int)$existing['id'] . ').'];
+        }
+
+        try {
+            $upd = $pdo->prepare("
+                UPDATE smartbill_invoices
+                SET smartbill_status = 'issued',
+                    smartbill_series = ?,
+                    smartbill_number = ?,
+                    smartbill_url = ?,
+                    smartbill_sent_at = NULL,
+                    error_message = NULL,
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $upd->execute([$series, $number, $url ?: null, $invoiceId]);
+
+            // Log entry pentru audit.
+            $pdo->prepare("
+                INSERT INTO smartbill_invoice_logs
+                    (smartbill_invoice_id, appointment_id, action, status, message, request_json, response_json, created_by)
+                VALUES (?, NULL, 'manual_reconcile', 'issued', ?, NULL, NULL, ?)
+            ")->execute([
+                $invoiceId,
+                'Reconciliere manuală: seria=' . $series . ', numărul=' . $number . ' (operator a verificat în SmartBill UI).',
+                function_exists('current_user_id') ? current_user_id() : null,
+            ]);
+
+            return ['ok' => true, 'error' => null];
+        } catch (Throwable $e) {
+            error_log('pz_smartbill_mark_manually_issued: ' . $e->getMessage());
+            return ['ok' => false, 'error' => 'Eroare la salvare: ' . $e->getMessage()];
+        }
+    }
+}
+
+if (!function_exists('pz_smartbill_reset_stuck_to_error')) {
+    /**
+     * C2 — Resetează o factură stuck la starea 'error' ca să poată fi retry.
+     * Folosit când operatorul a verificat în SmartBill UI și NU a găsit factura
+     * (deci apelul nu a ajuns sau a fost respins de SmartBill silent).
+     *
+     * @return array{ok: bool, error: ?string}
+     */
+    function pz_smartbill_reset_stuck_to_error(PDO $pdo, int $invoiceId): array
+    {
+        if ($invoiceId <= 0) {
+            return ['ok' => false, 'error' => 'invoice_id invalid.'];
+        }
+
+        try {
+            // Acceptă reset DOAR dacă e stuck în sending și nu are deja serie/număr.
+            $upd = $pdo->prepare("
+                UPDATE smartbill_invoices
+                SET smartbill_status = 'error',
+                    smartbill_sent_at = NULL,
+                    error_message = 'Reset manual la error după verificare în SmartBill (nu a fost găsită). Operator poate retry.',
+                    updated_at = NOW()
+                WHERE id = ?
+                  AND smartbill_status = 'sending'
+                  AND (smartbill_number IS NULL OR smartbill_number = '')
+            ");
+            $upd->execute([$invoiceId]);
+
+            if ($upd->rowCount() === 0) {
+                return ['ok' => false, 'error' => 'Factura nu este în stare „sending" sau are deja serie/număr. Reset nu se aplică.'];
+            }
+
+            $pdo->prepare("
+                INSERT INTO smartbill_invoice_logs
+                    (smartbill_invoice_id, appointment_id, action, status, message, request_json, response_json, created_by)
+                VALUES (?, NULL, 'manual_reset', 'error', 'Reset manual din sending → error pentru retry.', NULL, NULL, ?)
+            ")->execute([
+                $invoiceId,
+                function_exists('current_user_id') ? current_user_id() : null,
+            ]);
+
+            return ['ok' => true, 'error' => null];
+        } catch (Throwable $e) {
+            error_log('pz_smartbill_reset_stuck_to_error: ' . $e->getMessage());
+            return ['ok' => false, 'error' => 'Eroare la reset: ' . $e->getMessage()];
+        }
     }
 }
 

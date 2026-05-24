@@ -2855,7 +2855,7 @@ async function loadAppointment(id) {
             setField('edit_currency', data.currency || 'RON');
             setField('edit_document_id', data.document_id || '');
             setField('edit_document_item_id', data.document_item_id || '');
-            setChecked('edit_not_invoiceable', (data.billing_status || '') === 'nefacturabil');
+            setChecked('edit_not_invoiceable', ['nefacturabil', 'nu_se_factureaza'].includes(String(data.billing_status || '').toLowerCase()));
             toggleNotInvoiceable('edit');
             setDurationValue('edit_duration', calcDuration(data.start_time, data.end_time));
         } else {

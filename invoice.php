@@ -724,6 +724,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // C2 — reconciliere manuală pentru facturi blocate în „sending".
+    if ($action === 'manual_reconcile') {
+        $invoiceId = max(0, (int)($_POST['invoice_id'] ?? 0));
+        $series = trim((string)($_POST['manual_series'] ?? ''));
+        $number = trim((string)($_POST['manual_number'] ?? ''));
+        $url = trim((string)($_POST['manual_url'] ?? ''));
+        if ($invoiceId <= 0) {
+            $error = 'Factura nu a fost găsită.';
+        } else {
+            $result = pz_smartbill_mark_manually_issued($pdo, $invoiceId, $series, $number, $url);
+            if (!empty($result['ok'])) {
+                header('Location: invoice.php?reconciled=1&id=' . $invoiceId);
+                exit;
+            }
+            header('Location: invoice.php?reconcile_error=' . urlencode((string)($result['error'] ?? 'Reconciliere eșuată.')) . '&id=' . $invoiceId);
+            exit;
+        }
+    }
+
+    // C2 — reset factură stuck la 'error' ca să poată fi re-emisă.
+    if ($action === 'reset_stuck') {
+        $invoiceId = max(0, (int)($_POST['invoice_id'] ?? 0));
+        if ($invoiceId <= 0) {
+            $error = 'Factura nu a fost găsită.';
+        } else {
+            $result = pz_smartbill_reset_stuck_to_error($pdo, $invoiceId);
+            if (!empty($result['ok'])) {
+                header('Location: invoice.php?reset_ok=1&id=' . $invoiceId);
+                exit;
+            }
+            header('Location: invoice.php?reset_error=' . urlencode((string)($result['error'] ?? 'Reset eșuat.')) . '&id=' . $invoiceId);
+            exit;
+        }
+    }
+
     if ($action === 'reverse_invoice') {
         $invoiceId = max(0, (int)($_POST['invoice_id'] ?? 0));
         if ($invoiceId <= 0) {
@@ -1479,6 +1514,71 @@ if (!$invoiceItems) {
                 $previewVat = pz_smartbill_money($loadedInvoice['vat_amount'] ?? 0);
                 $previewGross = pz_smartbill_money($loadedInvoice['gross_amount'] ?? 0);
             ?>
+            <?php
+                // C2 — verificare dacă factura e blocată în starea „sending".
+                $isStuckSending = function_exists('pz_smartbill_is_stuck_sending')
+                    ? pz_smartbill_is_stuck_sending($loadedInvoice, 5)
+                    : false;
+                $isCurrentlySending = strtolower(trim((string)($loadedInvoice['smartbill_status'] ?? ''))) === 'sending' && !$isStuckSending;
+            ?>
+            <?php if ($isStuckSending): ?>
+                <section class="card" style="border-left:4px solid #d97706;background:#fff7ed">
+                    <h3 style="margin:0 0 8px">⚠ Factură blocată în transmitere SmartBill</h3>
+                    <p style="margin:0 0 10px">
+                        Apelul către SmartBill a început la
+                        <strong><?= inv_h((string)($loadedInvoice['smartbill_sent_at'] ?? '?')) ?></strong>
+                        dar nu s-a confirmat. Există 2 posibilități:
+                    </p>
+                    <ol style="margin:6px 0 14px 18px;line-height:1.5">
+                        <li>Factura <strong>a fost emisă</strong> în SmartBill, dar răspunsul nu a ajuns la CRM (timeout rețea).</li>
+                        <li>Factura <strong>NU a fost emisă</strong> (cererea nu a ajuns la SmartBill sau a fost respinsă).</li>
+                    </ol>
+                    <p style="margin:0 0 12px">
+                        <strong>Pas obligatoriu:</strong> intră în <a href="https://cloud.smartbill.ro" target="_blank" rel="noopener">SmartBill</a>
+                        și caută factura după data
+                        <strong><?= inv_h((string)($loadedInvoice['invoice_date'] ?? '?')) ?></strong>,
+                        client <strong><?= inv_h((string)($loadedInvoice['client_name'] ?? '?')) ?></strong>,
+                        total <strong><?= number_format(pz_smartbill_money($loadedInvoice['gross_amount'] ?? 0), 2, ',', '.') ?> <?= inv_h((string)($loadedInvoice['currency'] ?? 'RON')) ?></strong>.
+                    </p>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">
+                        <details style="flex:1;min-width:280px">
+                            <summary class="btn accent" style="cursor:pointer">Am găsit-o — marchează ca emisă</summary>
+                            <form method="post" style="margin-top:10px;padding:12px;background:#fff;border:1px solid #e5e7eb;border-radius:6px">
+                                <?= function_exists('csrf_field') ? csrf_field() : '' ?>
+                                <input type="hidden" name="action" value="manual_reconcile">
+                                <input type="hidden" name="invoice_id" value="<?= (int)$loadedInvoice['id'] ?>">
+                                <label style="display:block;margin-bottom:8px">
+                                    Seria din SmartBill *
+                                    <input type="text" name="manual_series" required placeholder="ex: EUR" style="width:100%;padding:6px;margin-top:2px">
+                                </label>
+                                <label style="display:block;margin-bottom:8px">
+                                    Numărul din SmartBill *
+                                    <input type="text" name="manual_number" required placeholder="ex: 00123" style="width:100%;padding:6px;margin-top:2px">
+                                </label>
+                                <label style="display:block;margin-bottom:8px">
+                                    URL factură (opțional)
+                                    <input type="url" name="manual_url" placeholder="https://cloud.smartbill.ro/..." style="width:100%;padding:6px;margin-top:2px">
+                                </label>
+                                <button class="btn accent" type="submit" onclick="return confirm('Confirmi că ai verificat în SmartBill că această factură există cu seria și numărul introdus?');">Salvează ca emisă</button>
+                            </form>
+                        </details>
+                        <form method="post" style="margin:0">
+                            <?= function_exists('csrf_field') ? csrf_field() : '' ?>
+                            <input type="hidden" name="action" value="reset_stuck">
+                            <input type="hidden" name="invoice_id" value="<?= (int)$loadedInvoice['id'] ?>">
+                            <button class="btn ghost" type="submit" onclick="return confirm('Confirmi că NU ai găsit factura în SmartBill? Resetează la error pentru a o emite din nou.');">Nu am găsit-o — resetează pentru retry</button>
+                        </form>
+                    </div>
+                </section>
+            <?php elseif ($isCurrentlySending): ?>
+                <section class="card" style="border-left:4px solid #2563eb;background:#eff6ff">
+                    <h3 style="margin:0 0 6px">Emitere în curs către SmartBill...</h3>
+                    <p class="muted" style="margin:0">
+                        Apel început la <strong><?= inv_h((string)($loadedInvoice['smartbill_sent_at'] ?? '?')) ?></strong>.
+                        Așteaptă 1-2 minute și reîncarcă pagina. Dacă starea rămâne „sending" mai mult de 5 minute, vei vedea opțiuni de reconciliere.
+                    </p>
+                </section>
+            <?php endif; ?>
             <section class="card invoice-preview">
                 <div class="invoice-preview-head">
                     <div>
@@ -1492,7 +1592,7 @@ if (!$invoiceItems) {
                             <?= function_exists('csrf_field') ? csrf_field() : '' ?>
                             <input type="hidden" name="action" value="issue">
                             <input type="hidden" name="invoice_id" value="<?= (int)$loadedInvoice['id'] ?>">
-                            <button class="btn accent" type="submit">Emite factura</button>
+                            <button class="btn accent" type="submit"<?= ($isCurrentlySending || $isStuckSending) ? ' disabled style="opacity:.5;cursor:not-allowed"' : '' ?>>Emite factura</button>
                         </form>
                     </div>
                 </div>
