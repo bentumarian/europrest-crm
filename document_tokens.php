@@ -834,6 +834,9 @@ if (!function_exists('pzdoc_materials_table_html')) {
                 if ($isMaterial && trim((string)$expiryText) === '') {
                     $expiryText = '-';
                 }
+                if ($isMaterial && trim((string)$concentration) === '') {
+                    $concentration = '-';
+                }
 
                 $html .= '<tr>';
                 $html .= '<td style="' . $tdStyle . '">' . pzdoc_token_text($m['material_name'] ?? '-') . '</td>';
