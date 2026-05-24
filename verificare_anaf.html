@@ -342,6 +342,78 @@
   .bilant-tab.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
   .bilant-tab:hover:not(.active) { background: #f5f5f5; }
 
+  /* ── Date ONRC publice ───────────────────────────────────────────────────── */
+  .onrc-section {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid #f0f0f0;
+  }
+  .onrc-note {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 12px;
+  }
+  .onrc-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #1a1a2e;
+    font-size: 11px;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .onrc-source:hover { text-decoration: underline; }
+  .onrc-subtitle {
+    font-size: 11px;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-weight: 700;
+    margin: 14px 0 8px;
+  }
+  .onrc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+  }
+  .onrc-field {
+    background: #fafbfd;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .onrc-field.full { grid-column: 1 / -1; }
+  .onrc-field .lbl {
+    font-size: 10px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+  .onrc-field .val {
+    font-size: 13px;
+    color: #1a1a1a;
+    word-break: break-word;
+  }
+  .onrc-list {
+    display: grid;
+    gap: 7px;
+  }
+  .onrc-list-item {
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background: #fff;
+    padding: 9px 11px;
+    font-size: 12px;
+    color: #333;
+  }
+  .onrc-muted {
+    font-size: 12px;
+    color: #999;
+    font-style: italic;
+  }
+
   /* ── Quick links externe ─────────────────────────────────────────────────── */
   .quick-links {
     margin-top: 18px;
@@ -971,6 +1043,14 @@ function renderCard(entry) {
         <div id="bilantContent"></div>
       </div>
 
+      <div class="onrc-section" id="onrcSection">
+        <div class="bilant-title">
+          🏢 Date ONRC publice
+          <span style="font-weight:400;font-size:11px;color:#888;">Se încarcă...</span>
+        </div>
+        <div id="onrcContent"></div>
+      </div>
+
       <div class="quick-links">
         <div class="bilant-title">🔗 Surse oficiale (deschide în tab nou)</div>
         <div class="quick-links-grid">
@@ -1005,6 +1085,116 @@ function renderCard(entry) {
 
   // Încarcă bilanțurile pe ultimii 5 ani în paralel
   loadBilanturi(dg.cui);
+  loadOnrc(dg.cui);
+}
+
+// ── Date ONRC publice din ultimul set data.gov.ro ────────────────────────────
+function onrcVal(v) {
+  if (v === undefined || v === null || String(v).trim() === "") return "—";
+  return String(v).trim();
+}
+
+function onrcField(label, value, full = false) {
+  return `
+    <div class="onrc-field ${full ? "full" : ""}">
+      <div class="lbl">${esc(label)}</div>
+      <div class="val">${esc(onrcVal(value))}</div>
+    </div>
+  `;
+}
+
+function renderOnrc(data) {
+  const titleEl = document.querySelector("#onrcSection .bilant-title span");
+  const contentEl = document.getElementById("onrcContent");
+  const dataset = data.dataset || {};
+  const found = data.found || {};
+  const firma = found.firma || null;
+  const caen = Array.isArray(found.caen_autorizat) ? found.caen_autorizat : [];
+  const reps = Array.isArray(found.reprezentanti_legali) ? found.reprezentanti_legali : [];
+  const datasetDate = dataset.metadata_modified ? new Date(dataset.metadata_modified) : null;
+  const datasetDateText = datasetDate && !Number.isNaN(datasetDate.getTime())
+    ? datasetDate.toLocaleDateString("ro-RO")
+    : "";
+
+  titleEl.textContent = datasetDateText ? `Set actualizat: ${datasetDateText}` : "Set public data.gov.ro";
+
+  let html = `
+    <p class="onrc-note">
+      Datele ONRC sunt citite din ultimul set public disponibil pe data.gov.ro. Sunt date periodice, nu verificare live în RECOM.
+      ${dataset.url ? `<a class="onrc-source" href="${esc(dataset.url)}" target="_blank" rel="noopener">Deschide setul public</a>` : ""}
+    </p>
+  `;
+
+  if (!firma) {
+    contentEl.innerHTML = html + `<p class="onrc-muted">Nu există potrivire ONRC în setul public data.gov.ro pentru acest CUI.</p>`;
+    return;
+  }
+
+  const adresa = firma.adresa || [firma.strada, firma.numar, firma.localitate, firma.judet].filter(Boolean).join(", ");
+  html += `
+    <div class="onrc-grid">
+      ${onrcField("Denumire ONRC", firma.denumire)}
+      ${onrcField("CUI", firma.cui)}
+      ${onrcField("Reg. Com.", firma.reg_com)}
+      ${onrcField("EUID", firma.euid)}
+      ${onrcField("Stare ONRC", firma.stare)}
+      ${onrcField("Județ", firma.judet)}
+      ${onrcField("Localitate", firma.localitate)}
+      ${onrcField("Adresă ONRC", adresa, true)}
+    </div>
+  `;
+
+  html += `<div class="onrc-subtitle">CAEN autorizat</div>`;
+  if (caen.length) {
+    html += `<div class="onrc-list">`;
+    caen.slice(0, 8).forEach(item => {
+      const cod = onrcVal(item.cod);
+      const denumire = onrcVal(item.denumire);
+      const tip = item.tip ? ` · ${esc(item.tip)}` : "";
+      html += `<div class="onrc-list-item"><b>${esc(cod)}</b> ${esc(denumire)}${tip}</div>`;
+    });
+    if (caen.length > 8) {
+      html += `<div class="onrc-muted">+ încă ${caen.length - 8} activități în setul public.</div>`;
+    }
+    html += `</div>`;
+  } else {
+    html += `<p class="onrc-muted">Nu sunt activități CAEN autorizate disponibile pentru acest CUI în resursa publică.</p>`;
+  }
+
+  html += `<div class="onrc-subtitle">Reprezentanți legali</div>`;
+  if (reps.length) {
+    html += `<div class="onrc-list">`;
+    reps.slice(0, 6).forEach(item => {
+      const nume = [item.nume, item.prenume].filter(Boolean).join(" ");
+      const calitate = item.calitate ? ` · ${esc(item.calitate)}` : "";
+      html += `<div class="onrc-list-item">${esc(onrcVal(nume))}${calitate}</div>`;
+    });
+    if (reps.length > 6) {
+      html += `<div class="onrc-muted">+ încă ${reps.length - 6} reprezentanți în setul public.</div>`;
+    }
+    html += `</div>`;
+  } else {
+    html += `<p class="onrc-muted">Nu sunt reprezentanți legali disponibili pentru acest CUI în resursa publică.</p>`;
+  }
+
+  contentEl.innerHTML = html;
+}
+
+async function loadOnrc(cui) {
+  const proxyUrl = document.getElementById("proxyUrl").value.trim();
+  const titleEl = document.querySelector("#onrcSection .bilant-title span");
+  const contentEl = document.getElementById("onrcContent");
+  if (!proxyUrl || !cui || !titleEl || !contentEl) return;
+
+  try {
+    const resp = await fetch(`${proxyUrl}?action=onrc&cui=${encodeURIComponent(cui)}`);
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok || json.error) throw new Error(json.error || `HTTP ${resp.status}`);
+    renderOnrc(json);
+  } catch (err) {
+    titleEl.textContent = "Date indisponibile";
+    contentEl.innerHTML = `<p class="onrc-muted">Nu am putut încărca datele ONRC din data.gov.ro: ${esc(err.message)}</p>`;
+  }
 }
 
 // ── Bilanț financiar ──────────────────────────────────────────────────────────

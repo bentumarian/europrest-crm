@@ -7,6 +7,8 @@
 define('ALLOWED_ORIGIN', '*'); // sau: 'https://domeniultau.ro'
 define('ANAF_URL', 'https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva');
 define('ANAF_BILANT_URL', 'https://webservicesp.anaf.ro/bilant');
+define('DATA_GOV_API', 'https://data.gov.ro/api/3/action');
+define('DATA_GOV_API_RO', 'https://data.gov.ro/ro/api/3/action');
 define('MAX_CUIS', 500);
 
 header('Access-Control-Allow-Origin: ' . ALLOWED_ORIGIN);
@@ -14,10 +16,273 @@ header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 header('Content-Type: application/json; charset=utf-8');
 
+function pz_proxy_json(array $payload, int $statusCode = 200): void
+{
+    http_response_code($statusCode);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function pz_proxy_http_get_json(string $url, int $timeout = 20): array
+{
+    $body = '';
+    $status = 0;
+    $error = '';
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
+            CURLOPT_USERAGENT => 'PestZone-ANAF-Proxy/1.0',
+        ]);
+        $raw = curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        $body = $raw !== false ? (string)$raw : '';
+    } else {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'timeout' => $timeout,
+                'ignore_errors' => true,
+                'header' => "Accept: application/json\r\nUser-Agent: PestZone-ANAF-Proxy/1.0\r\n",
+            ],
+        ]);
+        $raw = @file_get_contents($url, false, $context);
+        $body = $raw !== false ? (string)$raw : '';
+        if (!empty($http_response_header) && is_array($http_response_header)) {
+            foreach ($http_response_header as $line) {
+                if (preg_match('/^HTTP\/\S+\s+(\d+)/', $line, $m)) {
+                    $status = (int)$m[1];
+                }
+            }
+        }
+        if ($raw === false) {
+            $error = 'Nu s-a putut citi răspunsul.';
+        }
+    }
+
+    $json = json_decode($body, true);
+    return [
+        'ok' => $status >= 200 && $status < 300 && is_array($json),
+        'status' => $status,
+        'error' => $error,
+        'body_preview' => substr($body, 0, 500),
+        'json' => is_array($json) ? $json : null,
+        'url' => $url,
+    ];
+}
+
+function pz_onrc_digits($value): string
+{
+    return preg_replace('/[^0-9]/', '', (string)$value) ?? '';
+}
+
+function pz_onrc_norm_key(string $key): string
+{
+    $ascii = $key;
+    if (function_exists('iconv')) {
+        $converted = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $key);
+        if ($converted !== false) {
+            $ascii = $converted;
+        }
+    }
+    return strtoupper(preg_replace('/[^A-Z0-9]/', '', $ascii) ?? '');
+}
+
+function pz_onrc_pick(array $row, array $names): string
+{
+    $normalized = [];
+    foreach ($row as $key => $value) {
+        $normalized[pz_onrc_norm_key((string)$key)] = $value;
+    }
+    foreach ($names as $name) {
+        $normName = pz_onrc_norm_key($name);
+        if (array_key_exists($normName, $normalized)) {
+            return trim((string)$normalized[$normName]);
+        }
+    }
+    return '';
+}
+
+function pz_onrc_row_matches_cui(array $row, string $cui): bool
+{
+    foreach ($row as $key => $value) {
+        if (stripos((string)$key, 'cui') !== false && pz_onrc_digits($value) === $cui) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function pz_onrc_find_resource(array $resources, string $needle): ?array
+{
+    $needle = strtoupper($needle);
+    foreach ($resources as $resource) {
+        $name = strtoupper((string)($resource['name'] ?? ''));
+        $url = strtoupper((string)($resource['url'] ?? ''));
+        if (strpos($name, $needle) !== false || strpos($url, $needle) !== false) {
+            return $resource;
+        }
+    }
+    return null;
+}
+
+function pz_onrc_latest_package(): array
+{
+    $query = http_build_query([
+        'fq' => 'organization:onrc',
+        'q' => 'Firme înregistrate la Registrul Comerțului',
+        'sort' => 'metadata_modified desc',
+        'rows' => 10,
+    ]);
+    $res = pz_proxy_http_get_json(DATA_GOV_API . '/package_search?' . $query);
+    if (!$res['ok'] || empty($res['json']['success'])) {
+        return ['ok' => false, 'error' => 'Nu am putut citi catalogul data.gov.ro.', 'debug' => $res];
+    }
+
+    foreach (($res['json']['result']['results'] ?? []) as $package) {
+        $title = (string)($package['title'] ?? '');
+        if (stripos($title, 'Firme înregistrate la Registrul Comerțului') !== false) {
+            return ['ok' => true, 'package' => $package];
+        }
+    }
+
+    return ['ok' => false, 'error' => 'Nu am găsit ultimul set ONRC pentru firme.'];
+}
+
+function pz_onrc_datastore_search(string $resourceId, string $cui, int $limit = 20): array
+{
+    $query = http_build_query([
+        'resource_id' => $resourceId,
+        'q' => $cui,
+        'limit' => $limit,
+    ]);
+
+    foreach ([DATA_GOV_API, DATA_GOV_API_RO] as $base) {
+        $res = pz_proxy_http_get_json($base . '/datastore_search?' . $query, 25);
+        if (!empty($res['ok']) && !empty($res['json']['success'])) {
+            $records = $res['json']['result']['records'] ?? [];
+            if (is_array($records)) {
+                $exact = array_values(array_filter($records, function ($row) use ($cui) {
+                    return is_array($row) && pz_onrc_row_matches_cui($row, $cui);
+                }));
+                return ['ok' => true, 'records' => $exact ?: $records, 'resource_id' => $resourceId];
+            }
+        }
+    }
+
+    return ['ok' => false, 'records' => [], 'resource_id' => $resourceId];
+}
+
+function pz_onrc_normalize_firma(array $row): array
+{
+    return [
+        'denumire' => pz_onrc_pick($row, ['DENUMIRE', 'FIRMA', 'NUME_FIRMA']),
+        'cui' => pz_onrc_pick($row, ['CUI']),
+        'reg_com' => pz_onrc_pick($row, ['COD_INMATRICULARE', 'NR_REG_COM', 'NUMAR_REGISTRU_COMERTULUI']),
+        'euid' => pz_onrc_pick($row, ['EUID']),
+        'stare' => pz_onrc_pick($row, ['STARE_FIRMA', 'STARE']),
+        'adresa' => pz_onrc_pick($row, ['ADRESA_COMPLETA', 'ADRESA']),
+        'tara' => pz_onrc_pick($row, ['ADR_TARA', 'TARA']),
+        'judet' => pz_onrc_pick($row, ['ADR_JUDET', 'JUDET']),
+        'localitate' => pz_onrc_pick($row, ['ADR_LOCALITATE', 'LOCALITATE']),
+        'strada' => pz_onrc_pick($row, ['ADR_DEN_STRADA', 'STRADA']),
+        'numar' => pz_onrc_pick($row, ['ADR_DEN_NR_STRADA', 'NUMAR']),
+        'cod_postal' => pz_onrc_pick($row, ['ADR_COD_POSTAL', 'COD_POSTAL']),
+        'raw' => $row,
+    ];
+}
+
+function pz_onrc_normalize_caen(array $row): array
+{
+    return [
+        'cod' => pz_onrc_pick($row, ['COD_CAEN', 'CAEN', 'CLASA_CAEN']),
+        'denumire' => pz_onrc_pick($row, ['DENUMIRE_CAEN', 'DEN_CAEN', 'DENUMIRE_ACTIVITATE']),
+        'tip' => pz_onrc_pick($row, ['TIP_ACTIVITATE', 'TIP', 'ACTIVITATE']),
+        'raw' => $row,
+    ];
+}
+
+function pz_onrc_normalize_reprezentant(array $row): array
+{
+    return [
+        'nume' => pz_onrc_pick($row, ['NUME', 'DENUMIRE', 'NUME_REPREZENTANT', 'REPREZENTANT']),
+        'prenume' => pz_onrc_pick($row, ['PRENUME']),
+        'calitate' => pz_onrc_pick($row, ['CALITATE', 'FUNCTIE', 'CALITATE_REPREZENTANT']),
+        'raw' => $row,
+    ];
+}
+
+function pz_onrc_lookup(string $cui): array
+{
+    $cui = pz_onrc_digits($cui);
+    if ($cui === '') {
+        return ['ok' => false, 'error' => 'CUI invalid.'];
+    }
+
+    $latest = pz_onrc_latest_package();
+    if (!$latest['ok']) {
+        return $latest;
+    }
+
+    $package = $latest['package'];
+    $resources = is_array($package['resources'] ?? null) ? $package['resources'] : [];
+    $firmaResource = pz_onrc_find_resource($resources, 'OD_FIRME');
+    $caenResource = pz_onrc_find_resource($resources, 'OD_CAEN_AUTORIZAT');
+    $repResource = pz_onrc_find_resource($resources, 'OD_REPREZENTANTI_LEGALI');
+
+    $firmaRows = $firmaResource ? pz_onrc_datastore_search((string)$firmaResource['id'], $cui, 10) : ['records' => []];
+    $caenRows = $caenResource ? pz_onrc_datastore_search((string)$caenResource['id'], $cui, 50) : ['records' => []];
+    $repRows = $repResource ? pz_onrc_datastore_search((string)$repResource['id'], $cui, 30) : ['records' => []];
+
+    return [
+        'ok' => true,
+        'dataset' => [
+            'title' => (string)($package['title'] ?? ''),
+            'name' => (string)($package['name'] ?? ''),
+            'metadata_modified' => (string)($package['metadata_modified'] ?? ''),
+            'url' => 'https://data.gov.ro/dataset/' . rawurlencode((string)($package['name'] ?? '')),
+        ],
+        'resources' => [
+            'firma' => $firmaResource ? ['id' => $firmaResource['id'] ?? '', 'name' => $firmaResource['name'] ?? '', 'url' => $firmaResource['url'] ?? ''] : null,
+            'caen' => $caenResource ? ['id' => $caenResource['id'] ?? '', 'name' => $caenResource['name'] ?? '', 'url' => $caenResource['url'] ?? ''] : null,
+            'reprezentanti' => $repResource ? ['id' => $repResource['id'] ?? '', 'name' => $repResource['name'] ?? '', 'url' => $repResource['url'] ?? ''] : null,
+        ],
+        'found' => [
+            'firma' => !empty($firmaRows['records'][0]) ? pz_onrc_normalize_firma($firmaRows['records'][0]) : null,
+            'caen_autorizat' => array_map('pz_onrc_normalize_caen', array_slice($caenRows['records'] ?? [], 0, 20)),
+            'reprezentanti_legali' => array_map('pz_onrc_normalize_reprezentant', array_slice($repRows['records'] ?? [], 0, 12)),
+        ],
+    ];
+}
+
 // ── Preflight CORS ────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
+}
+
+// ── GET cu action=onrc — date ONRC din ultimul set public data.gov.ro ─────────
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'onrc') {
+    $cui = pz_onrc_digits($_GET['cui'] ?? '');
+
+    if ($cui === '') {
+        pz_proxy_json(['error' => 'CUI invalid.'], 400);
+    }
+
+    $result = pz_onrc_lookup($cui);
+    if (empty($result['ok'])) {
+        pz_proxy_json(['error' => $result['error'] ?? 'Nu am putut citi datele ONRC.', 'debug' => $result['debug'] ?? null], 502);
+    }
+
+    pz_proxy_json($result);
 }
 
 // ── GET cu action=bilant — proxy pentru bilanț ANAF ───────────────────────────

@@ -487,6 +487,155 @@ if (!function_exists('render_sidebar')) {
         color: #FFFFFF !important;
     }
 
+    /* ============================================================
+       PZ Sidebar — refresh light theme (conform mockup)
+       Override final care preia controlul peste toate stilurile de mai sus.
+       Folosește tokens --pz-* din app_theme_css.php
+       ============================================================ */
+
+    .sidebar {
+        background: var(--pz-surf) !important;
+        border-right: 1px solid var(--pz-line) !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+    .sidebar::before, .sidebar::after { display: none !important; }
+
+    .sidebar-brand {
+        background: var(--pz-surf) !important;
+        border-bottom: 1px solid var(--pz-line) !important;
+        padding: 14px 16px !important;
+    }
+    .brand-logo, .brand-logo-link { color: var(--pz-brand) !important; }
+
+    .sidebar-nav {
+        gap: 2px !important;
+        padding: 12px 10px !important;
+    }
+
+    /* Nav items */
+    .nav-item,
+    .sidebar .nav-group-button,
+    .sidebar .nav-group-button.nav-item,
+    .nav-subitem {
+        min-height: 34px !important;
+        border: 1px solid transparent !important;
+        border-radius: 7px !important;
+        background: transparent !important;
+        color: var(--pz-text) !important;
+        box-shadow: none !important;
+        font-size: 13px !important;
+        font-weight: 400 !important;
+        letter-spacing: 0 !important;
+        padding: 6px 10px !important;
+        gap: 9px !important;
+        transition: background .15s ease, color .15s ease, border-color .15s ease !important;
+    }
+
+    .nav-item:hover,
+    .sidebar .nav-group-button:hover,
+    .nav-subitem:hover {
+        background: var(--pz-soft) !important;
+        border-color: transparent !important;
+        color: var(--pz-title) !important;
+        box-shadow: none !important;
+    }
+
+    .nav-item.active,
+    .sidebar .nav-group-button.active,
+    .sidebar .nav-group-button.open,
+    .sidebar .nav-group-button.active.open,
+    .nav-subitem.active {
+        background: var(--pz-grs) !important;
+        border-color: transparent !important;
+        color: var(--pz-gr) !important;
+        box-shadow: none !important;
+        font-weight: 500 !important;
+    }
+
+    .nav-item.active::before {
+        background: var(--pz-gr) !important;
+        box-shadow: none !important;
+        width: 3px !important;
+    }
+
+    .nav-item svg,
+    .sidebar .nav-group-button svg,
+    .nav-subitem svg,
+    .logout-btn svg {
+        stroke: currentColor !important;
+        opacity: 1 !important;
+    }
+
+    .nav-icon { color: inherit !important; }
+
+    .nav-submenu {
+        gap: 2px !important;
+        margin: 2px 0 6px !important;
+    }
+
+    .nav-subitem {
+        padding-left: 38px !important;
+        font-size: 12.5px !important;
+        font-weight: 400 !important;
+        color: var(--pz-mu) !important;
+        min-height: 30px !important;
+    }
+    .nav-subitem:hover { color: var(--pz-title) !important; }
+    .nav-subitem.active {
+        background: var(--pz-bls) !important;
+        color: var(--pz-bld) !important;
+        font-weight: 500 !important;
+    }
+
+    .nav-chevron { color: var(--pz-fa) !important; }
+
+    .sidebar-footer {
+        border-top: 1px solid var(--pz-line) !important;
+        background: var(--pz-surf) !important;
+        padding: 12px 14px !important;
+    }
+
+    .sidebar-user {
+        color: var(--pz-mu) !important;
+        font-size: 12px !important;
+        font-weight: 400 !important;
+    }
+    .sidebar-user-label {
+        color: var(--pz-fa) !important;
+        font-size: 10.5px !important;
+    }
+    .sidebar-user-name {
+        color: var(--pz-title) !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+    }
+
+    .logout-btn {
+        min-height: 32px !important;
+        border: 1px solid var(--pz-line) !important;
+        border-radius: 7px !important;
+        background: var(--pz-surf) !important;
+        color: var(--pz-text) !important;
+        font-weight: 400 !important;
+        font-size: 12.5px !important;
+        box-shadow: none !important;
+    }
+    .logout-btn:hover {
+        background: var(--pz-res) !important;
+        border-color: var(--pz-reb) !important;
+        color: var(--pz-re) !important;
+    }
+
+    /* Mobile menu button - keep light scheme */
+    .mobile-menu-button {
+        background: var(--pz-surf) !important;
+        border: 1px solid var(--pz-line) !important;
+        color: var(--pz-title) !important;
+    }
+    .mobile-menu-button span { background: var(--pz-title) !important; }
+
 </style>
 
     <button class="mobile-menu-button" id="mobileMenuButton" type="button" aria-label="Meniu" aria-expanded="false" onclick="toggleAppSidebar()">

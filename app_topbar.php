@@ -296,6 +296,101 @@ if (!function_exists('app_topbar')) {
             .app-topbar .tb-breadcrumb { font-size: 12px; }
             body:has(.app-topbar) .main { padding-top: var(--topbar-height); }
         }
+
+        /* ============================================================
+           PZ Topbar — refresh design (conform mockup)
+           Override final cu tokens --pz-*
+           ============================================================ */
+        .app-topbar {
+            background: var(--pz-surf) !important;
+            border-bottom: 1px solid var(--pz-line) !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+
+        .app-topbar .tb-breadcrumb {
+            color: var(--pz-mu) !important;
+            font-size: 13px !important;
+            font-weight: 400 !important;
+        }
+        .app-topbar .tb-breadcrumb .tb-current {
+            color: var(--pz-title) !important;
+            font-weight: 500 !important;
+        }
+        .app-topbar .tb-breadcrumb .tb-sep {
+            color: var(--pz-fa) !important;
+            opacity: 1 !important;
+        }
+        .app-topbar .tb-breadcrumb a {
+            color: var(--pz-mu) !important;
+        }
+        .app-topbar .tb-breadcrumb a:hover {
+            color: var(--pz-bl) !important;
+        }
+
+        .app-topbar .tb-search {
+            background: var(--pz-bg) !important;
+            border: 1px solid var(--pz-line) !important;
+            border-radius: var(--pz-r) !important;
+            box-shadow: none !important;
+            transition: border-color .15s ease, background .15s ease !important;
+            height: 34px !important;
+        }
+        .app-topbar .tb-search:hover {
+            background: var(--pz-soft) !important;
+            border-color: var(--pz-blb) !important;
+        }
+        .app-topbar .tb-search:focus-within {
+            background: var(--pz-surf) !important;
+            border-color: var(--pz-bl) !important;
+            box-shadow: 0 0 0 3px var(--pz-bls) !important;
+        }
+        .app-topbar .tb-search .nav-icon,
+        .app-topbar .tb-search > svg {
+            color: var(--pz-fa) !important;
+        }
+        .app-topbar .tb-search input {
+            color: var(--pz-title) !important;
+            font-size: 13px !important;
+        }
+        .app-topbar .tb-search input::placeholder {
+            color: var(--pz-fa) !important;
+        }
+
+        .app-topbar .tb-kbd {
+            background: var(--pz-surf) !important;
+            border: 1px solid var(--pz-line) !important;
+            color: var(--pz-mu) !important;
+            font-weight: 500 !important;
+        }
+
+        .app-topbar .tb-iconbtn,
+        .app-topbar .tb-bell {
+            background: var(--pz-surf) !important;
+            border: 1px solid var(--pz-line) !important;
+            color: var(--pz-text) !important;
+            border-radius: var(--pz-r) !important;
+            box-shadow: none !important;
+            transition: background .15s ease, border-color .15s ease, color .15s ease !important;
+        }
+        .app-topbar .tb-iconbtn:hover,
+        .app-topbar .tb-bell:hover {
+            background: var(--pz-soft) !important;
+            border-color: var(--pz-blb) !important;
+            color: var(--pz-bld) !important;
+        }
+        .app-topbar .tb-iconbtn .nav-icon,
+        .app-topbar .tb-iconbtn svg,
+        .app-topbar .tb-bell .nav-icon,
+        .app-topbar .tb-bell svg {
+            color: inherit !important;
+        }
+        .app-topbar .tb-bell .tb-bell-dot {
+            background: var(--pz-re) !important;
+            border: 2px solid var(--pz-surf) !important;
+        }
+
         </style>
         <div class="app-topbar" role="banner">
             <div class="tb-breadcrumb">

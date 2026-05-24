@@ -595,6 +595,79 @@ function dash_period_url(string $paramName, string $value): string {
 function dash_ring_offset(float $pct, float $circumference = 326.7): float {
     return round($circumference * (1 - max(0, min(100, $pct)) / 100), 1);
 }
+
+/* ────────────────────────────────────────────────────────────────────────
+   TOP CLIENȚI (după venituri emise în perioada financiară)
+   ──────────────────────────────────────────────────────────────────────── */
+
+$topClients = [];
+$topClientMax = 1.0;
+if ($hasSmartbillInvoices) {
+    $topClients = dash_rows($pdo, "
+        SELECT
+            COALESCE(NULLIF(TRIM(i.client_name), ''), c.name, '-') AS name,
+            COALESCE(SUM(i.gross_amount), 0) AS amount,
+            COUNT(i.id) AS invoices_count
+        FROM smartbill_invoices i
+        LEFT JOIN clients c ON c.id = i.client_id
+        WHERE i.invoice_date BETWEEN ? AND ?
+          AND TRIM(COALESCE(i.smartbill_number, '')) <> ''
+        GROUP BY COALESCE(NULLIF(TRIM(i.client_name), ''), c.name, '-')
+        ORDER BY amount DESC
+        LIMIT 5
+    ", [$finStart, $finEnd]);
+
+    if (!empty($topClients)) {
+        $topClientMax = max(1.0, max(array_map(fn($r) => (float)$r['amount'], $topClients)));
+    }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   TREND 6 LUNI FINANCIAR (venituri + încasări pentru chart-ul principal)
+   ──────────────────────────────────────────────────────────────────────── */
+
+$revTrend = []; // [['label' => 'Mai', 'issued' => 47230, 'paid' => 42100], ...]
+if ($hasSmartbillInvoices) {
+    $sixMonthsStart = date('Y-m-01', strtotime('-5 months'));
+    $sixMonthsEnd   = date('Y-m-t');
+    $rowsIssued = dash_rows($pdo, "
+        SELECT DATE_FORMAT(invoice_date, '%Y-%m') AS m, COALESCE(SUM(gross_amount), 0) AS s
+        FROM smartbill_invoices
+        WHERE invoice_date BETWEEN ? AND ?
+          AND TRIM(COALESCE(smartbill_number, '')) <> ''
+        GROUP BY m
+        ORDER BY m ASC
+    ", [$sixMonthsStart, $sixMonthsEnd]);
+    $byMonthIssued = [];
+    foreach ($rowsIssued as $r) { $byMonthIssued[(string)$r['m']] = (float)$r['s']; }
+
+    $byMonthPaid = [];
+    if ($hasSmartbillPayments) {
+        $rowsPaid = dash_rows($pdo, "
+            SELECT DATE_FORMAT(p.payment_date, '%Y-%m') AS m, COALESCE(SUM(p.amount), 0) AS s
+            FROM smartbill_invoice_payments p
+            WHERE p.payment_date BETWEEN ? AND ?
+              AND (p.smartbill_status IS NULL OR p.smartbill_status NOT IN ('error', 'deleted'))
+            GROUP BY m
+            ORDER BY m ASC
+        ", [$sixMonthsStart, $sixMonthsEnd]);
+        foreach ($rowsPaid as $r) { $byMonthPaid[(string)$r['m']] = (float)$r['s']; }
+    }
+
+    $cursor = strtotime($sixMonthsStart);
+    $monthShort = ['01'=>'Ian','02'=>'Feb','03'=>'Mar','04'=>'Apr','05'=>'Mai','06'=>'Iun','07'=>'Iul','08'=>'Aug','09'=>'Sep','10'=>'Oct','11'=>'Nov','12'=>'Dec'];
+    while ($cursor <= strtotime(date('Y-m-01'))) {
+        $k = date('Y-m', $cursor);
+        $mm = date('m', $cursor);
+        $revTrend[] = [
+            'label'  => $monthShort[$mm] ?? date('M', $cursor),
+            'issued' => round((float)($byMonthIssued[$k] ?? 0), 2),
+            'paid'   => round((float)($byMonthPaid[$k] ?? 0), 2),
+        ];
+        $cursor = strtotime('+1 month', $cursor);
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="ro">
@@ -604,334 +677,206 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.40.0/tabler-icons.min.css" rel="stylesheet">
 <?php app_theme_css(); ?>
 <style>
-.mc-dash {
-    --mc-navy: #12345A;
-    --mc-line: #E5E7EB;
-    --mc-line-soft: #F1F5F9;
-    --mc-text: #0F172A;
-    --mc-muted: #64748B;
-    --mc-faint: #94A3B8;
-    --mc-bg: #F8FAFC;
-    --mc-surf: #FFFFFF;
-    --mc-bl: #185FA5;  --mc-bl-soft: #EFF6FF;  --mc-bl-border: #BFDBFE;  --mc-bl-track: #DBEAFE;
-    --mc-or: #F97316;  --mc-or-deep: #9A3412;  --mc-or-soft: #FFF7ED;  --mc-or-border: #FED7AA;  --mc-or-track: #FFEDD5;
-    --mc-gr: #0F6E56;  --mc-gr-deep: #166534;  --mc-gr-soft: #F0FDF4;  --mc-gr-border: #BBF7D0;  --mc-gr-track: #DCFCE7;
-    --mc-re: #DC2626;  --mc-re-deep: #991B1B;  --mc-re-soft: #FEF2F2;  --mc-re-border: #FECACA;
-    --mc-pu: #534AB7;
+/* ============================================================
+   PZ Dashboard — layout nou (post audit, conform mockup)
+   Folosește variabilele globale --pz-* din app_theme_css.php
+   ============================================================ */
+
+.pz-dash {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    color: var(--mc-text);
-    background: var(--mc-bg);
-    padding: 16px;
+    color: var(--pz-text);
+    background: var(--pz-bg);
+    padding: 18px 20px;
     display: grid;
-    gap: 12px;
+    gap: 14px;
     max-width: 1680px;
     margin: 0 auto;
 }
-.mc-dash * { box-sizing: border-box; }
+.pz-dash * { box-sizing: border-box; }
+.pz-dash a { text-decoration: none; color: inherit; }
+.pz-dash .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
 
-.mc-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-.mc-head .small { font-size: 11.5px; color: var(--mc-muted); letter-spacing: .04em; text-transform: uppercase; font-weight: 500; }
-.mc-head .title { font-size: 20px; font-weight: 500; color: var(--mc-navy); margin-top: 2px; }
-.mc-head .pills { display: flex; gap: 6px; }
-.mc-head .pill { font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 500; }
-.mc-head .pill.ok { background: var(--mc-gr-soft); color: var(--mc-gr-deep); }
-.mc-head .pill.alert { background: var(--mc-re-soft); color: var(--mc-re-deep); }
-
-.mc-rings { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
-.mc-ring-card {
-    background: var(--mc-surf); border-radius: 12px; padding: 16px;
-    border: 0.5px solid var(--mc-line); position: relative;
-    display: flex; flex-direction: column;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.05);
-    transition: box-shadow 0.18s ease, transform 0.18s ease;
-}
-.mc-ring-card:hover { box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 10px 24px rgba(15, 23, 42, 0.08); transform: translateY(-1px); }
-.mc-ring-card.op { background: var(--mc-bl-soft); border-color: var(--mc-bl-border); }
-.mc-ring-card.fin { background: var(--mc-or-soft); border-color: var(--mc-or-border); }
-.mc-ring-card.team { background: var(--mc-gr-soft); border-color: var(--mc-gr-border); }
-.mc-ring-card .head { display: flex; justify-content: space-between; align-items: flex-start; }
-.mc-ring-card .head .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
-.mc-ring-card .head .sub { font-size: 13px; opacity: 0.75; margin-top: 2px; }
-.mc-ring-card.op .head .label, .mc-ring-card.op .head .sub { color: #1E40AF; }
-.mc-ring-card.fin .head .label, .mc-ring-card.fin .head .sub { color: var(--mc-or-deep); }
-.mc-ring-card.team .head .label, .mc-ring-card.team .head .sub { color: var(--mc-gr-deep); }
-.mc-ring-card .head .ico { font-size: 20px; opacity: 0.9; margin-right: 36px; }
-.mc-ring-card.op .head .ico { color: #1E40AF; }
-.mc-ring-card.fin .head .ico { color: var(--mc-or-deep); }
-.mc-ring-card.team .head .ico { color: var(--mc-gr-deep); }
-
-.mc-ring-wrap { margin-top: 16px; display: flex; align-items: center; justify-content: center; padding: 8px 0; }
-.mc-ring-foot { display: flex; justify-content: space-between; font-size: 12px; padding-top: 10px; margin-top: auto; }
-.mc-ring-card.op .mc-ring-foot { border-top: 0.5px solid var(--mc-bl-border); }
-.mc-ring-card.fin .mc-ring-foot { border-top: 0.5px solid var(--mc-or-border); }
-.mc-ring-card.team .mc-ring-foot { border-top: 0.5px solid var(--mc-gr-border); }
-.mc-ring-foot .key { opacity: 0.7; }
-.mc-ring-foot strong { font-weight: 500; }
-.mc-ring-foot .ok { color: var(--mc-gr-deep); }
-.mc-ring-foot .navy { color: var(--mc-navy); }
-
-/* Delta vs perioada anterioară (pe Operațional) */
-.mc-delta {
-    display: flex; align-items: center; gap: 6px;
-    padding: 6px 10px; margin: 8px 0 4px;
-    border-radius: 8px; font-size: 11.5px;
-    background: rgba(255, 255, 255, 0.5);
-}
-.mc-delta i { font-size: 14px; flex-shrink: 0; }
-.mc-delta strong { font-weight: 500; font-variant-numeric: tabular-nums; }
-.mc-delta span { color: var(--mc-muted); font-size: 11px; }
-.mc-delta.pos { color: var(--mc-gr-deep); }
-.mc-delta.pos i, .mc-delta.pos strong { color: var(--mc-gr); }
-.mc-delta.neg { color: var(--mc-re-deep); }
-.mc-delta.neg i, .mc-delta.neg strong { color: var(--mc-re); }
-.mc-delta.flat { color: var(--mc-muted); }
-
-/* Mini trend bars în card */
-.mc-trend-bars {
+/* Welcome header */
+.pz-head {
     display: flex; align-items: flex-end; justify-content: space-between;
-    gap: 2px; height: 40px;
-    padding: 6px 4px 2px;
-    margin-top: 4px;
+    flex-wrap: wrap; gap: 14px; margin-bottom: 2px;
 }
-.mc-trend-bars .trend-col {
-    flex: 1; display: flex; flex-direction: column; justify-content: flex-end;
-    min-width: 0;
-}
-.mc-trend-bars .bar {
-    width: 100%; background: var(--mc-bl); border-radius: 2px 2px 0 0;
-    min-height: 2px; transition: background 0.15s;
-}
-.mc-trend-bars .trend-col:last-child .bar { background: var(--mc-navy); }
-.mc-trend-bars .trend-col:hover .bar { background: var(--mc-navy); }
-/* Variantă orange pentru Financiar */
-.mc-trend-bars.fin .bar { background: var(--mc-or); }
-.mc-trend-bars.fin .trend-col:last-child .bar { background: var(--mc-or-deep); }
-.mc-trend-bars.fin .trend-col:hover .bar { background: var(--mc-or-deep); }
-/* Variantă green pentru Echipă */
-.mc-trend-bars.team .bar { background: var(--mc-gr); }
-.mc-trend-bars.team .trend-col:last-child .bar { background: var(--mc-gr-deep); }
-.mc-trend-bars.team .trend-col:hover .bar { background: var(--mc-gr-deep); }
+.pz-head .pz-greet { font-size: 13px; color: var(--pz-mu); margin: 0 0 4px; }
+.pz-head .pz-title { font-size: 22px; font-weight: 500; color: var(--pz-title); margin: 0; letter-spacing: -.005em; }
+.pz-head .pz-date  { font-size: 12px; color: var(--pz-fa); margin: 4px 0 0; }
 
-/* Leaderboard tehnicieni (cardul Echipă) */
-.mc-leader { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
-.mc-leader-row { display: flex; align-items: center; gap: 8px; }
-.mc-leader-row .rank {
-    width: 18px; flex-shrink: 0;
-    font-size: 11px; font-weight: 500; color: var(--mc-muted);
-    text-align: center;
+.pz-head-actions { display: flex; gap: 8px; align-items: center; }
+.pz-period {
+    display: inline-flex; padding: 3px;
+    border: 1px solid var(--pz-line);
+    border-radius: var(--pz-r);
+    background: var(--pz-surf);
 }
-.mc-leader-row .avatar {
+.pz-period a {
+    padding: 5px 12px; font-size: 12px; border-radius: 6px;
+    color: var(--pz-mu); font-weight: 400; transition: all .15s;
+}
+.pz-period a:hover { color: var(--pz-title); }
+.pz-period a.current {
+    background: var(--pz-soft);
+    color: var(--pz-title); font-weight: 500;
+}
+.pz-btn-ghost {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px; font-size: 12px;
+    background: var(--pz-surf);
+    border: 1px solid var(--pz-line);
+    border-radius: var(--pz-r);
+    color: var(--pz-text); cursor: pointer;
+    transition: all .15s;
+}
+.pz-btn-ghost:hover { background: var(--pz-soft); border-color: var(--pz-blb); color: var(--pz-bld); }
+.pz-btn-ghost i { font-size: 14px; }
+
+/* KPI Grid */
+.pz-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+.pz-kpi {
+    background: var(--pz-surf);
+    border: 1px solid var(--pz-line);
+    border-radius: var(--pz-r);
+    padding: 13px 15px;
+    transition: border-color .15s;
+}
+.pz-kpi:hover { border-color: var(--pz-blb); }
+.pz-kpi .pz-kpi-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+}
+.pz-kpi .pz-kpi-label { font-size: 11.5px; color: var(--pz-mu); }
+.pz-kpi .pz-kpi-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 10.5px; font-weight: 500;
+    padding: 2px 7px; border-radius: 11px;
+}
+.pz-kpi .pz-kpi-badge i { font-size: 11px; }
+.pz-kpi .pz-kpi-badge.up    { color: var(--pz-gr); background: var(--pz-grs); }
+.pz-kpi .pz-kpi-badge.down  { color: var(--pz-re); background: var(--pz-res); }
+.pz-kpi .pz-kpi-badge.flat  { color: var(--pz-mu); background: var(--pz-soft); }
+.pz-kpi .pz-kpi-badge.info  { color: var(--pz-bld); background: var(--pz-bls); }
+.pz-kpi .pz-kpi-badge.warn  { color: var(--pz-or); background: var(--pz-ors); }
+.pz-kpi .pz-kpi-value {
+    font-size: 22px; font-weight: 500; color: var(--pz-title);
+    line-height: 1.2; font-variant-numeric: tabular-nums;
+}
+.pz-kpi .pz-kpi-value .unit { font-size: 12px; color: var(--pz-fa); margin-left: 4px; font-weight: 400; }
+.pz-kpi .pz-kpi-foot { font-size: 11px; color: var(--pz-fa); margin-top: 4px; }
+.pz-kpi .pz-kpi-bar {
+    display: flex; height: 4px;
+    background: var(--pz-soft);
+    border-radius: 3px; margin-top: 8px;
+    overflow: hidden;
+}
+.pz-kpi .pz-kpi-bar > span { display: block; height: 100%; }
+
+/* Charts row */
+.pz-row-2 { display: grid; grid-template-columns: 1.5fr 1fr; gap: 10px; }
+.pz-row-2-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 900px) {
+    .pz-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .pz-row-2, .pz-row-2-bottom { grid-template-columns: 1fr; }
+}
+
+.pz-card {
+    background: var(--pz-surf);
+    border: 1px solid var(--pz-line);
+    border-radius: var(--pz-r);
+    padding: 14px 16px;
+}
+.pz-card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px; gap: 10px;
+}
+.pz-card-head .pz-card-title-sm { font-size: 11.5px; color: var(--pz-mu); margin: 0; }
+.pz-card-head .pz-card-title { font-size: 14px; font-weight: 500; color: var(--pz-title); margin: 2px 0 0; }
+.pz-card-link {
+    font-size: 11px; color: var(--pz-bl);
+    display: inline-flex; align-items: center; gap: 3px;
+    transition: color .15s;
+}
+.pz-card-link:hover { color: var(--pz-bld); }
+.pz-card-link i { font-size: 12px; }
+
+.pz-legend { display: flex; gap: 14px; font-size: 11px; color: var(--pz-mu); flex-wrap: wrap; }
+.pz-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.pz-legend .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+.pz-chart-wrap { position: relative; height: 220px; }
+.pz-chart-wrap.donut { height: 160px; }
+
+/* Donut legend (jos sub donut) */
+.pz-donut-legend { display: flex; flex-direction: column; gap: 5px; font-size: 12px; margin-top: 8px; }
+.pz-donut-legend .row { display: flex; align-items: center; justify-content: space-between; }
+.pz-donut-legend .row .label { display: inline-flex; align-items: center; gap: 6px; color: var(--pz-text); }
+.pz-donut-legend .row .label .dot { width: 8px; height: 8px; border-radius: 2px; }
+.pz-donut-legend .row .value { font-weight: 500; color: var(--pz-title); font-variant-numeric: tabular-nums; }
+
+/* Lista programări azi */
+.pz-appt-list { display: flex; flex-direction: column; gap: 4px; }
+.pz-appt-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 8px; border-radius: 6px;
+    transition: background .15s;
+}
+.pz-appt-row:hover { background: var(--pz-soft); }
+.pz-appt-row.active { background: var(--pz-bls); }
+.pz-appt-time { width: 38px; text-align: center; font-size: 12px; font-weight: 500; color: var(--pz-mu); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.pz-appt-info { flex: 1; min-width: 0; }
+.pz-appt-info .name { font-size: 12.5px; font-weight: 500; color: var(--pz-title); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pz-appt-info .tech { font-size: 10.5px; color: var(--pz-fa); margin: 1px 0 0; }
+.pz-appt-status { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 10px; flex-shrink: 0; }
+.pz-appt-status.in-progress { color: var(--pz-bld); background: var(--pz-bls); }
+.pz-appt-status.done { color: var(--pz-gr); background: var(--pz-grs); }
+.pz-appt-status.pending { color: var(--pz-mu); background: var(--pz-soft); }
+.pz-appt-empty {
+    text-align: center; padding: 20px 12px;
+    font-size: 12px; color: var(--pz-fa);
+}
+
+/* Top clienți */
+.pz-clients-list { display: flex; flex-direction: column; gap: 10px; }
+.pz-client-row { display: flex; align-items: center; gap: 10px; }
+.pz-client-avatar {
     width: 28px; height: 28px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 10.5px; font-weight: 500; color: #FFF;
-    flex-shrink: 0;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
+    font-size: 10.5px; font-weight: 500; flex-shrink: 0;
+    background: var(--pz-bls); color: var(--pz-bld);
 }
-.mc-leader-row .info { flex: 1; min-width: 0; }
-.mc-leader-row .info .top {
-    display: flex; justify-content: space-between; align-items: baseline;
-    font-size: 11.5px; margin-bottom: 3px;
+.pz-client-row:nth-child(2) .pz-client-avatar { background: var(--pz-grs); color: var(--pz-gr); }
+.pz-client-row:nth-child(3) .pz-client-avatar { background: var(--pz-ors); color: var(--pz-or); }
+.pz-client-row:nth-child(4) .pz-client-avatar { background: #FEF3C7; color: #92400E; }
+.pz-client-row:nth-child(5) .pz-client-avatar { background: #F3E8FF; color: #6D28D9; }
+.pz-client-body { flex: 1; min-width: 0; }
+.pz-client-name { font-size: 12.5px; font-weight: 500; color: var(--pz-title); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pz-client-bar { height: 3px; background: var(--pz-soft); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.pz-client-bar > span { display: block; height: 100%; background: var(--pz-bl); }
+.pz-client-row:nth-child(2) .pz-client-bar > span { background: var(--pz-gr); }
+.pz-client-row:nth-child(3) .pz-client-bar > span { background: var(--pz-or); }
+.pz-client-row:nth-child(4) .pz-client-bar > span { background: #D97706; }
+.pz-client-row:nth-child(5) .pz-client-bar > span { background: #7C3AED; }
+.pz-client-amount { font-size: 11.5px; font-weight: 500; color: var(--pz-title); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.pz-client-amount .unit { font-size: 10px; color: var(--pz-fa); font-weight: 400; margin-left: 2px; }
+.pz-empty {
+    text-align: center; padding: 28px 12px;
+    font-size: 12px; color: var(--pz-fa);
 }
-.mc-leader-row .info .name {
-    font-weight: 500; color: var(--mc-gr-deep);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.mc-leader-row .info .meta {
-    color: var(--mc-gr-deep); opacity: 0.7;
-    font-variant-numeric: tabular-nums;
-    flex-shrink: 0; margin-left: 6px;
-}
-.mc-leader-row .info .track {
-    height: 4px; background: var(--mc-gr-track); border-radius: 999px; overflow: hidden;
-}
-.mc-leader-row .info .fill { height: 100%; border-radius: 999px; transition: width 0.25s ease; }
 
-.mc-leader-empty {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; gap: 6px; padding: 16px 0;
-    color: var(--mc-gr-deep); opacity: 0.6; font-size: 12px;
-}
-.mc-leader-empty i { font-size: 24px; }
-
-/* Drag handle pentru re-ordonare carduri */
-.mc-drag {
-    position: absolute; top: 12px; left: 12px;
-    width: 24px; height: 24px; border-radius: 6px;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--mc-faint); cursor: grab; opacity: 0.5;
-    font-size: 16px; user-select: none;
-    transition: opacity 0.15s, color 0.15s, background 0.15s;
-    z-index: 4;
-}
-.mc-drag:hover { opacity: 1; color: var(--mc-navy); background: rgba(15, 23, 42, 0.04); }
-.mc-drag:active { cursor: grabbing; }
-.mc-ring-card .head, .mc-card .head { padding-left: 30px; }
-.mc-mini { padding-left: 28px; position: relative; }
-.mc-mini .mc-drag { top: 6px; left: 6px; width: 20px; height: 20px; font-size: 13px; }
-
-/* Sortable feedback */
-.sortable-ghost { opacity: 0.25 !important; background: var(--mc-bl-soft) !important; border: 1.5px dashed var(--mc-bl) !important; }
-.sortable-chosen { box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12), 0 12px 32px rgba(15, 23, 42, 0.16) !important; transform: rotate(0.5deg); }
-.sortable-drag { opacity: 0.9 !important; }
-
-/* Setări (cog) - buton vizibil în colțul cardului */
-.mc-cog {
-    position: absolute; top: 12px; right: 12px;
-    width: 30px; height: 30px; border-radius: 8px;
-    border: 0.5px solid rgba(15, 23, 42, 0.08);
-    background: rgba(255, 255, 255, 0.95);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-size: 15px; color: var(--mc-text);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-    transition: background 0.15s, border-color 0.15s, transform 0.15s;
-    z-index: 5;
-}
-.mc-cog:hover { background: #FFF; border-color: rgba(15, 23, 42, 0.18); transform: rotate(45deg); }
-.mc-cog.active { background: var(--mc-navy); border-color: var(--mc-navy); color: #FFF; transform: rotate(45deg); }
-.mc-cog i { display: block; }
-.mc-cog-menu {
-    position: absolute; top: 44px; right: 12px;
-    background: var(--mc-surf); border: 0.5px solid var(--mc-line);
-    border-radius: 8px; padding: 6px;
-    min-width: 180px; z-index: 50;
-    display: none;
-}
-.mc-cog-menu.open { display: block; }
-.mc-cog-menu .group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--mc-muted); padding: 6px 10px 4px; font-weight: 600; }
-.mc-cog-menu a {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 7px 10px; font-size: 12.5px; color: var(--mc-text);
-    border-radius: 4px; text-decoration: none;
-}
-.mc-cog-menu a:hover { background: var(--mc-bg); }
-.mc-cog-menu a.current { background: var(--mc-bl-soft); color: var(--mc-bl); font-weight: 500; }
-.mc-cog-menu a.current::after { content: '✓'; }
-
-.mc-secondary { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
-.mc-card {
-    background: var(--mc-surf); border: 0.5px solid var(--mc-line);
-    border-radius: 12px; padding: 16px; position: relative;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.05);
-    transition: box-shadow 0.18s ease, transform 0.18s ease;
-}
-.mc-card:hover { box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 10px 24px rgba(15, 23, 42, 0.08); transform: translateY(-1px); }
-.mc-card.danger { background: var(--mc-re-soft); border-color: var(--mc-re-border); }
-.mc-card .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.mc-card .head .title { font-size: 13px; font-weight: 500; }
-.mc-card.danger .head .title { color: var(--mc-re-deep); }
-.mc-card .head .meta { font-size: 11px; color: var(--mc-muted); }
-.mc-card.danger .head .meta { background: var(--mc-re-deep); color: #FFF; padding: 2px 8px; border-radius: 999px; font-weight: 500; }
-.mc-card .body { font-size: 12.5px; }
-
-.mc-urgent-name { font-size: 13px; color: var(--mc-re-deep); font-weight: 500; }
-.mc-urgent-sub { font-size: 12px; color: var(--mc-re-deep); opacity: 0.85; margin-top: 2px; }
-.mc-urgent-foot { margin-top: 12px; padding-top: 10px; border-top: 0.5px solid var(--mc-re-border); font-size: 12px; color: var(--mc-re-deep); }
-
-.mc-agenda-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 4px 0; }
-.mc-agenda-row .time { font-weight: 500; font-variant-numeric: tabular-nums; min-width: 38px; color: var(--mc-navy); }
-.mc-agenda-row .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.mc-agenda-row .who { flex: 1; color: var(--mc-text); }
-.mc-agenda-row .tech { font-size: 11px; color: var(--mc-muted); }
-.mc-agenda-empty { font-size: 12px; color: var(--mc-faint); text-align: center; padding: 16px 0; }
-
-/* Mini stat cards (linie 4 carduri compacte sub ringuri) */
-.mc-mini-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
-.mc-mini {
-    background: var(--mc-surf); border: 0.5px solid var(--mc-line); border-radius: 10px;
-    padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;
-    text-decoration: none; color: var(--mc-text);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 6px rgba(15, 23, 42, 0.04);
-    transition: box-shadow 0.18s ease, transform 0.18s ease;
-}
-.mc-mini:hover { box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 6px 16px rgba(15, 23, 42, 0.08); transform: translateY(-1px); }
-.mc-mini.alert { background: var(--mc-re-soft); border-color: var(--mc-re-border); }
-.mc-mini.warn  { background: var(--mc-or-soft); border-color: var(--mc-or-border); }
-.mc-mini.info  { background: var(--mc-bl-soft); border-color: var(--mc-bl-border); }
-.mc-mini .top { display: flex; justify-content: space-between; align-items: center; }
-.mc-mini .top .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mc-muted); font-weight: 500; }
-.mc-mini.alert .top .label { color: var(--mc-re-deep); }
-.mc-mini.warn  .top .label { color: var(--mc-or-deep); }
-.mc-mini.info  .top .label { color: #1E40AF; }
-.mc-mini .top .ico { font-size: 16px; color: var(--mc-faint); }
-.mc-mini.alert .top .ico { color: var(--mc-re); }
-.mc-mini.warn  .top .ico { color: var(--mc-or); }
-.mc-mini.info  .top .ico { color: var(--mc-bl); }
-.mc-mini .value { font-size: 22px; font-weight: 500; color: var(--mc-text); line-height: 1.15; }
-.mc-mini.alert .value { color: var(--mc-re-deep); }
-.mc-mini.warn  .value { color: var(--mc-or-deep); }
-.mc-mini.info  .value { color: #1E40AF; }
-.mc-mini .sub { font-size: 11.5px; color: var(--mc-muted); }
-.mc-mini.alert .sub { color: var(--mc-re-deep); opacity: 0.85; }
-.mc-mini.warn  .sub { color: var(--mc-or-deep); opacity: 0.85; }
-.mc-mini.info  .sub { color: #1E40AF; opacity: 0.85; }
-
-/* Venituri pe linie de business (row dedicat) */
-.mc-revenue-row { display: grid; grid-template-columns: 1fr; gap: 10px; }
-.mc-revenue .mc-revenue-total {
-    font-size: 12.5px; color: var(--mc-muted); margin-bottom: 12px;
-    padding-bottom: 10px; border-bottom: 0.5px solid var(--mc-line);
-}
-.mc-revenue .mc-revenue-total strong {
-    color: var(--mc-navy); font-size: 18px; font-weight: 500;
-    margin: 0 4px; font-variant-numeric: tabular-nums;
-}
-.mc-revenue-bars { display: flex; flex-direction: column; gap: 12px; }
-.mc-revenue-bar-row .top {
-    display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin-bottom: 5px;
-    flex-wrap: wrap;
-}
-.mc-revenue-bar-row .top .sw { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
-.mc-revenue-bar-row .top .name { color: var(--mc-text); font-weight: 500; min-width: 80px; }
-.mc-revenue-bar-row .top .val { color: var(--mc-text); font-variant-numeric: tabular-nums; margin-left: auto; }
-.mc-revenue-bar-row .top .val strong { font-weight: 500; color: var(--mc-navy); }
-.mc-revenue-bar-row .top .val .muted-val { color: var(--mc-muted); font-weight: 400; }
-.mc-revenue-bar-row .track {
-    height: 8px; background: var(--mc-line-soft); border-radius: 999px; overflow: hidden;
-}
-.mc-revenue-bar-row .fill { height: 100%; border-radius: 999px; transition: width 0.3s ease; }
-.mc-revenue-detail {
-    display: inline-block; margin-top: 12px; padding-top: 10px;
-    font-size: 12px; color: var(--mc-bl); text-decoration: none; font-weight: 500;
-    border-top: 0.5px solid var(--mc-line); width: 100%;
-}
-.mc-revenue-detail:hover { color: var(--mc-navy); }
-
-/* Charts row (donut status programări + bar top servicii) */
-.mc-charts-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; }
-.mc-legend { display: flex; flex-direction: column; gap: 6px; font-size: 12px; flex: 1; }
-.mc-legend .row { display: flex; align-items: center; gap: 8px; }
-.mc-legend .sw { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
-.mc-legend .name { flex: 1; color: var(--mc-text); }
-.mc-legend .val { color: var(--mc-muted); font-variant-numeric: tabular-nums; font-weight: 500; }
-
-.mc-bars { display: flex; flex-direction: column; gap: 10px; }
-.mc-bar-row .top { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; margin-bottom: 4px; }
-.mc-bar-row .top .nm { color: var(--mc-text); font-weight: 500; }
-.mc-bar-row .top .val { color: var(--mc-muted); font-variant-numeric: tabular-nums; }
-.mc-bar-row .track { height: 6px; background: var(--mc-line-soft); border-radius: 999px; overflow: hidden; }
-.mc-bar-row .fill { height: 100%; background: var(--mc-bl); border-radius: 999px; }
-
-.mc-banner {
-    background: var(--mc-navy); color: #FFF; border-radius: 12px;
-    padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px;
-    box-shadow: 0 4px 12px rgba(18, 52, 90, 0.18), 0 12px 32px rgba(18, 52, 90, 0.12);
-}
-.mc-banner .label { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; }
-.mc-banner .value { font-size: 22px; font-weight: 500; margin-top: 4px; }
-.mc-banner .value.pos { color: #86EFAC; }
-.mc-banner .value.neg { color: #FCA5A5; }
-.mc-banner .sub { font-size: 12px; opacity: 0.7; margin-top: 2px; }
-
-@media (max-width: 980px) {
-    .mc-rings { grid-template-columns: 1fr; }
-    .mc-secondary { grid-template-columns: 1fr; }
-    .mc-mini-row { grid-template-columns: repeat(2, 1fr); }
-    .mc-charts-row { grid-template-columns: 1fr; }
-}
-@media (max-width: 560px) {
-    .mc-mini-row { grid-template-columns: 1fr; }
+/* Responsive ajustari */
+@media (max-width: 640px) {
+    .pz-dash { padding: 14px 12px; }
+    .pz-kpi-grid { grid-template-columns: 1fr 1fr; }
+    .pz-head-actions { width: 100%; justify-content: flex-start; }
 }
 </style>
 </head>
@@ -939,576 +884,353 @@ function dash_ring_offset(float $pct, float $circumference = 326.7): float {
 <div class="layout">
     <?php render_sidebar('dashboard', $isAdmin); ?>
     <main class="main">
-        <div class="content mc-dash">
+        <div class="content pz-dash">
 
-            <!-- Header -->
-            <div class="mc-head">
+            <!-- Welcome / period header -->
+            <div class="pz-head">
                 <div>
-                    <div class="small"><?= dash_h($todayLabel) ?></div>
-                    <div class="title">Bună, <?= dash_h($userName) ?></div>
+                    <p class="pz-greet">Bună, <?= dash_h($userName) ?></p>
+                    <h2 class="pz-title">Dashboard</h2>
+                    <p class="pz-date"><?= dash_h($todayLabel) ?></p>
                 </div>
-                <div class="pills">
-                    <div class="pill ok"><?= count($todayAppointments) ?> active azi</div>
-                    <?php if ($tasksOverdue > 0): ?>
-                        <div class="pill alert"><?= (int)$tasksOverdue ?> alerte</div>
-                    <?php endif; ?>
+                <div class="pz-head-actions">
+                    <div class="pz-period" role="group" aria-label="Perioadă">
+                        <?php foreach (dash_period_options() as $key => $label): ?>
+                            <a href="<?= dash_h(dash_period_url('period_fin', $key)) ?>"
+                               class="<?= $periodFin === $key ? 'current' : '' ?>"
+                               title="<?= dash_h($label) ?>">
+                               <?= dash_h($label) ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
 
-            <!-- 3 ringuri -->
-            <div class="mc-rings" id="row-rings">
+            <!-- 4 KPI cards -->
+            <div class="pz-kpi-grid">
 
-                <!-- Operațional -->
-                <div class="mc-ring-card op" data-card-id="ring-op">
-                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
-                    <div class="head">
-                        <div>
-                            <div class="label">Operațional</div>
-                            <div class="sub"><?= dash_h(strtolower($opLabel)) ?> · <?= $opTotal ?> lucr<?= $opTotal === 1 ? 'are' : 'ări' ?></div>
-                        </div>
-                        <i class="ti ti-route ico" aria-hidden="true"></i>
+                <!-- KPI 1: Venituri perioada -->
+                <div class="pz-kpi">
+                    <div class="pz-kpi-head">
+                        <span class="pz-kpi-label">Venituri <?= dash_h(strtolower($finLabel)) ?></span>
+                        <?php if ($finDelta !== null): ?>
+                            <?php $deltaCls = $finDelta > 0 ? 'up' : ($finDelta < 0 ? 'down' : 'flat'); ?>
+                            <?php $deltaIco = $finDelta > 0 ? 'ti-trending-up' : ($finDelta < 0 ? 'ti-trending-down' : 'ti-minus'); ?>
+                            <span class="pz-kpi-badge <?= $deltaCls ?>">
+                                <i class="ti <?= $deltaIco ?>" aria-hidden="true"></i>
+                                <?= $finDelta > 0 ? '+' : '' ?><?= (int)$finDelta ?>%
+                            </span>
+                        <?php endif; ?>
                     </div>
-                    <button type="button" class="mc-cog" aria-label="Setări operațional" data-cog="op"><i class="ti ti-settings"></i></button>
-                    <div class="mc-cog-menu" id="cogmenu-op">
-                        <div class="group-label">Perioadă</div>
-                        <?php foreach (dash_period_options() as $key => $label): ?>
-                            <a href="<?= dash_h(dash_period_url('period_op', $key)) ?>" class="<?= $periodOp === $key ? 'current' : '' ?>"><?= dash_h($label) ?></a>
-                        <?php endforeach; ?>
-                    </div>
-                    <div class="mc-ring-wrap">
-                        <svg viewBox="0 0 130 130" width="130" height="130" role="img" aria-label="Lucrări <?= dash_h($opLabel) ?>">
-                            <circle cx="65" cy="65" r="52" fill="none" stroke="var(--mc-bl-track)" stroke-width="12"/>
-                            <circle cx="65" cy="65" r="52" fill="none" stroke="var(--mc-bl)" stroke-width="12" stroke-dasharray="326.7" stroke-dashoffset="<?= dash_ring_offset($opCompletePct) ?>" transform="rotate(-90 65 65)" stroke-linecap="round"/>
-                            <text x="65" y="60" text-anchor="middle" font-size="32" font-weight="500" fill="var(--mc-navy)"><?= $opTotal ?></text>
-                            <text x="65" y="80" text-anchor="middle" font-size="11" fill="#1E40AF"><?= $opCompletePct ?>% finalizate</text>
-                        </svg>
-                    </div>
-
-                    <!-- Delta vs perioada anterioară -->
-                    <?php if ($opDelta !== null): ?>
-                    <?php
-                        $deltaClass = $opDelta > 0 ? 'pos' : ($opDelta < 0 ? 'neg' : 'flat');
-                        $deltaIcon  = $opDelta > 0 ? 'ti-trending-up' : ($opDelta < 0 ? 'ti-trending-down' : 'ti-minus');
-                        $deltaSign  = $opDelta > 0 ? '+' : '';
-                    ?>
-                    <div class="mc-delta <?= $deltaClass ?>">
-                        <i class="ti <?= $deltaIcon ?>" aria-hidden="true"></i>
-                        <strong><?= $deltaSign ?><?= $opDelta ?>%</strong>
-                        <span>vs perioada anterioară (<?= $opPrevTotal ?> lucr<?= $opPrevTotal === 1 ? 'are' : 'ări' ?>)</span>
-                    </div>
-                    <?php endif; ?>
-
-                    <!-- Mini trend bars -->
-                    <?php if ($opTrendBars): ?>
-                    <div class="mc-trend-bars" aria-label="Trend lucrări <?= dash_h($opLabel) ?>">
-                        <?php foreach ($opTrendBars as $b):
-                            $h = $opTrendMax > 0 ? max(3, round(($b['count'] / $opTrendMax) * 36)) : 3;
-                        ?>
-                            <div class="trend-col" title="<?= dash_h($b['label']) ?>: <?= (int)$b['count'] ?>">
-                                <div class="bar" style="height: <?= $h ?>px;"></div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                    <?php endif; ?>
-
-                    <div class="mc-ring-foot">
-                        <div><span class="key">finalizate</span> <strong class="ok"><?= $opCompleted ?></strong></div>
-                        <div><span class="key">de programat</span> <strong class="navy"><?= $tasksToSchedule ?></strong></div>
+                    <div class="pz-kpi-value"><?= dash_money($finIssued) ?><span class="unit">lei</span></div>
+                    <div class="pz-kpi-foot">
+                        <?php if ($finPrevIssued > 0): ?>
+                            <?= dash_money($finPrevIssued) ?> lei perioada anterioară
+                        <?php else: ?>
+                            <?= (int)$finIssuedCount ?> facturi emise
+                        <?php endif; ?>
                     </div>
                 </div>
 
-                <!-- Financiar -->
-                <div class="mc-ring-card fin" data-card-id="ring-fin">
-                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
-                    <div class="head">
-                        <div>
-                            <div class="label">Financiar</div>
-                            <div class="sub"><?= dash_h(strtolower($finLabel)) ?> · de facturat</div>
-                        </div>
-                        <i class="ti ti-cash ico" aria-hidden="true"></i>
+                <!-- KPI 2: Facturi emise -->
+                <?php
+                    $kpiIssuedTotal = max(1, (int)$finIssuedCount);
+                    $kpiPaidPct     = $finIssued > 0 ? min(100, round(($finPaid / $finIssued) * 100)) : 0;
+                    // Aproximare: pe baza sumelor (paid / restanță / restul = în termen)
+                    $kpiRestPctSum  = $finIssued > 0 ? min(100, round(($restanteAmount / $finIssued) * 100)) : 0;
+                    $kpiPendingPct  = max(0, 100 - $kpiPaidPct - $kpiRestPctSum);
+                ?>
+                <div class="pz-kpi">
+                    <div class="pz-kpi-head">
+                        <span class="pz-kpi-label">Facturi emise</span>
+                        <span class="pz-kpi-badge info">
+                            <i class="ti ti-file-invoice" aria-hidden="true"></i><?= (int)$finIssuedCount ?>
+                        </span>
                     </div>
-                    <button type="button" class="mc-cog" aria-label="Setări financiar" data-cog="fin"><i class="ti ti-settings"></i></button>
-                    <div class="mc-cog-menu" id="cogmenu-fin">
-                        <div class="group-label">Perioadă</div>
-                        <?php foreach (dash_period_options() as $key => $label): ?>
-                            <a href="<?= dash_h(dash_period_url('period_fin', $key)) ?>" class="<?= $periodFin === $key ? 'current' : '' ?>"><?= dash_h($label) ?></a>
-                        <?php endforeach; ?>
+                    <div class="pz-kpi-value">
+                        <?= $kpiPaidPct ?><span class="unit">% încasate</span>
                     </div>
-                    <div class="mc-ring-wrap">
-                        <svg viewBox="0 0 130 130" width="130" height="130" role="img" aria-label="Financiar <?= dash_h($finLabel) ?>">
-                            <circle cx="65" cy="65" r="52" fill="none" stroke="var(--mc-or-track)" stroke-width="12"/>
-                            <circle cx="65" cy="65" r="52" fill="none" stroke="var(--mc-or)" stroke-width="12" stroke-dasharray="<?= round(326.7 * min(1, $finIssued > 0 ? $finDueAmount / max(1, $finIssued + $finDueAmount) : 0.5), 1) ?> 326.7" stroke-dashoffset="0" transform="rotate(-90 65 65)" stroke-linecap="round"/>
-                            <text x="65" y="58" text-anchor="middle" font-size="22" font-weight="500" fill="var(--mc-or-deep)"><?= dash_money($finDueAmount) ?></text>
-                            <text x="65" y="72" text-anchor="middle" font-size="10" fill="var(--mc-or-deep)">lei cu TVA</text>
-                            <text x="65" y="86" text-anchor="middle" font-size="11" font-weight="500" fill="var(--mc-or)"><?= $finDueCount ?> interven<?= $finDueCount === 1 ? 'ție' : 'ții' ?></text>
-                        </svg>
-                    </div>
-
-                    <!-- Delta facturate vs perioada anterioară -->
-                    <?php if ($finDelta !== null): ?>
-                    <?php
-                        $finDeltaClass = $finDelta > 0 ? 'pos' : ($finDelta < 0 ? 'neg' : 'flat');
-                        $finDeltaIcon  = $finDelta > 0 ? 'ti-trending-up' : ($finDelta < 0 ? 'ti-trending-down' : 'ti-minus');
-                        $finDeltaSign  = $finDelta > 0 ? '+' : '';
-                    ?>
-                    <div class="mc-delta <?= $finDeltaClass ?>">
-                        <i class="ti <?= $finDeltaIcon ?>" aria-hidden="true"></i>
-                        <strong><?= $finDeltaSign ?><?= $finDelta ?>%</strong>
-                        <span>facturate vs <?= dash_money($finPrevIssued) ?> lei</span>
-                    </div>
-                    <?php endif; ?>
-
-                    <!-- Mini trend bars (facturate per bucket) -->
-                    <?php if ($finTrendBars): ?>
-                    <div class="mc-trend-bars fin" aria-label="Trend facturate <?= dash_h($finLabel) ?>">
-                        <?php foreach ($finTrendBars as $b):
-                            $h = $finTrendMax > 0 ? max(3, round(($b['amount'] / $finTrendMax) * 36)) : 3;
-                        ?>
-                            <div class="trend-col" title="<?= dash_h($b['label']) ?>: <?= dash_money($b['amount']) ?> lei">
-                                <div class="bar" style="height: <?= $h ?>px;"></div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                    <?php endif; ?>
-
-                    <div class="mc-ring-foot">
-                        <div><span class="key">facturate</span> <strong class="ok"><?= $finIssuedCount ?></strong></div>
-                        <div><span class="key">restanțe</span> <strong class="<?= $restanteCount > 0 ? '' : 'ok' ?>" style="<?= $restanteCount > 0 ? 'color:var(--mc-re-deep)' : '' ?>"><?= $restanteCount ?></strong></div>
+                    <div class="pz-kpi-bar" aria-label="Distribuție facturi">
+                        <span style="width: <?= $kpiPaidPct ?>%; background: var(--pz-gr);"></span>
+                        <span style="width: <?= $kpiPendingPct ?>%; background: var(--pz-or);"></span>
+                        <span style="width: <?= $kpiRestPctSum ?>%; background: var(--pz-re);"></span>
                     </div>
                 </div>
 
-                <!-- Echipă: top performeri -->
-                <div class="mc-ring-card team" data-card-id="ring-team">
-                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
-                    <div class="head">
-                        <div>
-                            <div class="label">Echipă</div>
-                            <div class="sub"><?= dash_h(strtolower($teamLabel)) ?> · top performeri</div>
-                        </div>
-                        <i class="ti ti-trophy ico" aria-hidden="true"></i>
+                <!-- KPI 3: Programări azi -->
+                <?php
+                    $todayCount = is_array($todayAppointments) ? count($todayAppointments) : 0;
+                    $todayDoneCount = 0;
+                    foreach (($todayAppointments ?: []) as $apt) {
+                        if (($apt['status'] ?? '') === 'finalizata') $todayDoneCount++;
+                    }
+                    $todayPct = $todayCount > 0 ? round(($todayDoneCount / $todayCount) * 100) : 0;
+                ?>
+                <div class="pz-kpi">
+                    <div class="pz-kpi-head">
+                        <span class="pz-kpi-label">Programări azi</span>
+                        <span class="pz-kpi-badge info">
+                            <i class="ti ti-calendar" aria-hidden="true"></i><?= $todayPct ?>%
+                        </span>
                     </div>
-                    <button type="button" class="mc-cog" aria-label="Setări echipă" data-cog="team"><i class="ti ti-settings"></i></button>
-                    <div class="mc-cog-menu" id="cogmenu-team">
-                        <div class="group-label">Perioadă</div>
-                        <?php foreach (dash_period_options() as $key => $label): ?>
-                            <a href="<?= dash_h(dash_period_url('period_team', $key)) ?>" class="<?= $periodTeam === $key ? 'current' : '' ?>"><?= dash_h($label) ?></a>
-                        <?php endforeach; ?>
+                    <div class="pz-kpi-value">
+                        <?= $todayDoneCount ?><span class="unit">/ <?= $todayCount ?> finalizate</span>
                     </div>
+                    <div class="pz-kpi-bar" aria-label="Progres programări">
+                        <span style="width: <?= $todayPct ?>%; background: var(--pz-bl);"></span>
+                    </div>
+                </div>
 
-                    <div class="mc-leader">
-                        <?php if (!$teamList): ?>
-                            <div class="mc-leader-empty">
-                                <i class="ti ti-users-off" aria-hidden="true"></i>
-                                <div>Niciun tehnician cu lucrări în această perioadă.</div>
-                            </div>
-                        <?php else:
-                            $rank = 0;
-                            foreach ($teamList as $t):
-                                $rank++;
-                                $name      = (string)($t['name'] ?? '—');
-                                $color     = dash_safe_hex($t['color'] ?? null, '#0F6E56');
-                                $jobsTotal = (int)$t['jobs_total'];
-                                $jobsDone  = (int)$t['jobs_done'];
-                                $donePct   = $jobsTotal > 0 ? round(($jobsDone / $jobsTotal) * 100) : 0;
-                                $barPct    = $teamListMax > 0 ? round(($jobsTotal / $teamListMax) * 100) : 0;
-                        ?>
-                            <div class="mc-leader-row">
-                                <div class="rank"><?= $rank ?></div>
-                                <div class="avatar" style="background:<?= dash_h($color) ?>"><?= dash_h(dash_initials($name)) ?></div>
-                                <div class="info">
-                                    <div class="top">
-                                        <span class="name"><?= dash_h($name) ?></span>
-                                        <span class="meta"><?= $jobsTotal ?> · <?= $donePct ?>%</span>
+                <!-- KPI 4: De facturat -->
+                <div class="pz-kpi">
+                    <div class="pz-kpi-head">
+                        <span class="pz-kpi-label">De facturat</span>
+                        <?php if ($finDueCount > 0): ?>
+                            <span class="pz-kpi-badge warn">
+                                <i class="ti ti-alert-circle" aria-hidden="true"></i>urgent
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="pz-kpi-value"><?= (int)$finDueCount ?><span class="unit">poziții</span></div>
+                    <div class="pz-kpi-foot"><?= dash_money($finDueAmount) ?> lei în așteptare</div>
+                </div>
+
+            </div>
+
+            <!-- Row 2: Chart + Donut -->
+            <div class="pz-row-2">
+
+                <!-- Chart venituri/încasări 6 luni -->
+                <div class="pz-card">
+                    <div class="pz-card-head">
+                        <div>
+                            <p class="pz-card-title-sm">Venituri și încasări</p>
+                            <p class="pz-card-title">Ultimele 6 luni</p>
+                        </div>
+                        <div class="pz-legend">
+                            <span><span class="dot" style="background: var(--pz-bl);"></span>Venituri</span>
+                            <span><span class="dot" style="background: var(--pz-gr);"></span>Încasări</span>
+                        </div>
+                    </div>
+                    <div class="pz-chart-wrap">
+                        <canvas id="pzRevenueChart" role="img" aria-label="Trend venituri și încasări ultimele 6 luni"></canvas>
+                    </div>
+                </div>
+
+                <!-- Donut status facturi -->
+                <?php
+                    $stPaid = (int)round(($finIssued > 0 ? ($finPaid / $finIssued) * $finIssuedCount : 0));
+                    $stRestNum = (int)$restanteCount;
+                    $stPending = max(0, (int)$finIssuedCount - $stPaid - $stRestNum);
+                ?>
+                <div class="pz-card">
+                    <div class="pz-card-head" style="margin-bottom: 6px;">
+                        <div>
+                            <p class="pz-card-title-sm">Status facturi</p>
+                            <p class="pz-card-title"><?= dash_h($finLabel) ?></p>
+                        </div>
+                    </div>
+                    <div class="pz-chart-wrap donut">
+                        <canvas id="pzStatusChart" role="img" aria-label="Distribuție status facturi"></canvas>
+                    </div>
+                    <div class="pz-donut-legend">
+                        <div class="row">
+                            <span class="label"><span class="dot" style="background: var(--pz-gr);"></span>Încasate</span>
+                            <span class="value"><?= $stPaid ?></span>
+                        </div>
+                        <div class="row">
+                            <span class="label"><span class="dot" style="background: var(--pz-or);"></span>În termen</span>
+                            <span class="value"><?= $stPending ?></span>
+                        </div>
+                        <div class="row">
+                            <span class="label"><span class="dot" style="background: var(--pz-re);"></span>Restante</span>
+                            <span class="value"><?= $stRestNum ?></span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Row 3: Programări azi + Top clienți -->
+            <div class="pz-row-2-bottom">
+
+                <!-- Programări azi -->
+                <div class="pz-card">
+                    <div class="pz-card-head">
+                        <div>
+                            <p class="pz-card-title-sm">Programări astăzi</p>
+                            <p class="pz-card-title"><?= $todayDoneCount ?> finalizate · <?= max(0, $todayCount - $todayDoneCount) ?> rămase</p>
+                        </div>
+                        <a href="calendar.php" class="pz-card-link">Calendar<i class="ti ti-arrow-right" aria-hidden="true"></i></a>
+                    </div>
+                    <div class="pz-appt-list">
+                        <?php if (!empty($todayAppointments)): ?>
+                            <?php foreach (array_slice($todayAppointments, 0, 5) as $apt):
+                                $status = (string)($apt['status'] ?? '');
+                                $statusCls = 'pending';
+                                $statusLbl = '·';
+                                if ($status === 'finalizata') { $statusCls = 'done'; $statusLbl = 'gata'; }
+                                elseif ($status === 'in_lucru' || $status === 'inceput') { $statusCls = 'in-progress'; $statusLbl = 'curs'; }
+                                $rowCls = ($statusCls === 'in-progress') ? ' active' : '';
+                                $clientName = trim((string)($apt['client_name'] ?? ''));
+                                if ($clientName === '') { $clientName = 'Programare'; }
+                                $teamName = trim((string)($apt['team_member_name'] ?? ''));
+                            ?>
+                                <div class="pz-appt-row<?= $rowCls ?>">
+                                    <div class="pz-appt-time"><?= dash_h(dash_time($apt['start_time'] ?? null)) ?></div>
+                                    <div class="pz-appt-info">
+                                        <p class="name"><?= dash_h($clientName) ?></p>
+                                        <?php if ($teamName !== ''): ?>
+                                            <p class="tech"><?= dash_h($teamName) ?></p>
+                                        <?php endif; ?>
                                     </div>
-                                    <div class="track"><div class="fill" style="width:<?= $barPct ?>%; background:<?= dash_h($color) ?>"></div></div>
+                                    <span class="pz-appt-status <?= $statusCls ?>"><?= dash_h($statusLbl) ?></span>
                                 </div>
-                            </div>
-                        <?php endforeach; endif; ?>
-                    </div>
-
-                    <div class="mc-ring-foot">
-                        <div><span class="key">activi</span> <strong class="ok"><?= $teamActive ?></strong></div>
-                        <div><span class="key">total echipă</span> <strong class="navy"><?= $teamTotal ?></strong></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Mini stat cards: stocuri / documente / PV alb / clienți activi -->
-            <div class="mc-mini-row" id="row-mini">
-                <a class="mc-mini <?= $stockAlertsTotal > 0 ? 'alert' : '' ?>" href="stock_notifications.php" data-card-id="mini-stocuri">
-                    <span class="mc-drag" aria-label="Mută cardul" title="Mută" onclick="event.preventDefault();"><i class="ti ti-grip-vertical"></i></span>
-                    <div class="top">
-                        <span class="label">Alerte gestiune</span>
-                        <i class="ti ti-package-export ico" aria-hidden="true"></i>
-                    </div>
-                    <div class="value"><?= (int)$stockAlertsTotal ?></div>
-                    <div class="sub">
-                        <?php if ($stockAlertsTotal === 0): ?>
-                            stoc în parametri
+                            <?php endforeach; ?>
                         <?php else: ?>
-                            <?= $stockLowCount ?> sub minim · <?= $stockExpiredCount ?> expirate
+                            <div class="pz-appt-empty">Nu există programări astăzi.</div>
                         <?php endif; ?>
                     </div>
-                </a>
-
-                <a class="mc-mini info" href="documente.php" data-card-id="mini-documente">
-                    <span class="mc-drag" aria-label="Mută cardul" title="Mută" onclick="event.preventDefault();"><i class="ti ti-grip-vertical"></i></span>
-                    <div class="top">
-                        <span class="label">Documente <?= dash_h(strtolower($opLabel)) ?></span>
-                        <i class="ti ti-file-text ico" aria-hidden="true"></i>
-                    </div>
-                    <div class="value"><?= (int)$docsIssuedCount ?></div>
-                    <div class="sub">
-                        <?php if ($docsIssuedCount === 0): ?>
-                            niciun document emis
-                        <?php else: ?>
-                            <?= $docsByType['proces_verbal'] ?> PV · <?= $docsByType['contract'] ?> contracte · <?= $docsByType['oferta'] ?> oferte
-                        <?php endif; ?>
-                    </div>
-                </a>
-
-                <a class="mc-mini <?= $deferredPvCount > 0 ? 'warn' : '' ?>" href="stock_deferred_pvs.php" data-card-id="mini-pv-deferred">
-                    <span class="mc-drag" aria-label="Mută cardul" title="Mută" onclick="event.preventDefault();"><i class="ti ti-grip-vertical"></i></span>
-                    <div class="top">
-                        <span class="label">PV fără consum</span>
-                        <i class="ti ti-clipboard-list ico" aria-hidden="true"></i>
-                    </div>
-                    <div class="value"><?= (int)$deferredPvCount ?></div>
-                    <div class="sub">
-                        <?php if ($deferredPvCount === 0): ?>
-                            toate consumurile sunt închise
-                        <?php else: ?>
-                            de finalizat manual
-                        <?php endif; ?>
-                    </div>
-                </a>
-
-                <a class="mc-mini" href="clients.php" data-card-id="mini-clienti">
-                    <span class="mc-drag" aria-label="Mută cardul" title="Mută" onclick="event.preventDefault();"><i class="ti ti-grip-vertical"></i></span>
-                    <div class="top">
-                        <span class="label">Clienți activi</span>
-                        <i class="ti ti-building-store ico" aria-hidden="true"></i>
-                    </div>
-                    <div class="value"><?= (int)$activeClients ?><span style="font-size:14px;color:var(--mc-faint);font-weight:500;">/<?= (int)$totalClients ?></span></div>
-                    <div class="sub"><?= dash_h(strtolower($opLabel)) ?> · cu programări</div>
-                </a>
-            </div>
-
-            <!-- Secundar: alertă + agenda -->
-            <div class="mc-secondary" id="row-secondary">
-
-                <!-- Urgent alert / sarcină întârziată -->
-                <?php if ($urgentTask): ?>
-                <div class="mc-card danger" data-card-id="sec-urgent">
-                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
-                    <div class="head">
-                        <div class="title"><i class="ti ti-alert-triangle" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Sarcină urgentă</div>
-                        <div class="meta">-<?= (int)$urgentTask['days_late'] ?>z</div>
-                    </div>
-                    <div class="body">
-                        <div class="mc-urgent-name"><?= dash_h($urgentTask['client_name'] ?? 'Client necunoscut') ?></div>
-                        <div class="mc-urgent-sub"><?= dash_h($urgentTask['title'] ?? '-') ?></div>
-                        <div class="mc-urgent-foot"><?= $tasksToSchedule ?> sarcini de programat · <?= $tasksOverdue ?> întârziate</div>
-                    </div>
                 </div>
-                <?php else: ?>
-                <div class="mc-card" data-card-id="sec-urgent">
-                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
-                    <div class="head">
-                        <div class="title" style="color:var(--mc-gr-deep);"><i class="ti ti-circle-check" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Fără sarcini urgente</div>
-                        <div class="meta">la zi</div>
-                    </div>
-                    <div class="body" style="color:var(--mc-muted);">
-                        Toate sarcinile sunt în termen. <?= $tasksToSchedule ?> sarcini de programat · 0 întârziate.
-                    </div>
-                </div>
-                <?php endif; ?>
 
-                <!-- Agenda azi -->
-                <div class="mc-card" data-card-id="sec-agenda">
-                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
-                    <div class="head">
-                        <div class="title"><i class="ti ti-clock" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Agenda</div>
-                        <div class="meta"><?= count($todayAppointments) ?> programări</div>
+                <!-- Top clienți -->
+                <div class="pz-card">
+                    <div class="pz-card-head">
+                        <div>
+                            <p class="pz-card-title-sm">Top clienți</p>
+                            <p class="pz-card-title"><?= dash_h($finLabel) ?></p>
+                        </div>
+                        <a href="clients.php" class="pz-card-link">Toți<i class="ti ti-arrow-right" aria-hidden="true"></i></a>
                     </div>
-                    <div class="body">
-                        <?php if (!$todayAppointments): ?>
-                            <div class="mc-agenda-empty">Niciun program astăzi.</div>
-                        <?php else:
-                            $dotColors = ['neconfirmata'=>'#94A3B8','confirmata'=>'#185FA5','in_lucru'=>'#F97316','finalizata'=>'#22C55E','programat'=>'#185FA5'];
-                            foreach ($todayAppointments as $ap):
-                                $dotColor = $dotColors[$ap['status']] ?? '#94A3B8';
-                        ?>
-                            <div class="mc-agenda-row">
-                                <span class="time"><?= dash_h(dash_time($ap['start_time'] ?? null)) ?></span>
-                                <span class="dot" style="background:<?= $dotColor ?>"></span>
-                                <span class="who"><strong style="font-weight:500"><?= dash_h($ap['client_name'] ?? 'Client') ?></strong> · <?= dash_h($ap['service_type'] ?? '-') ?></span>
-                                <?php if (!empty($ap['team_name'])): ?>
-                                    <span class="tech"><?= dash_h($ap['team_name']) ?></span>
-                                <?php endif; ?>
-                            </div>
-                        <?php endforeach; endif; ?>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Venituri pe linie de business (split DDD / Ignifugări / Chirii / Altele) -->
-            <div class="mc-revenue-row" id="row-revenue">
-                <div class="mc-card mc-revenue" data-card-id="revenue-split">
-                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
-                    <div class="head">
-                        <div class="title"><i class="ti ti-cash" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Venituri pe linie de business</div>
-                        <div class="meta"><?= dash_h(strtolower($finLabel)) ?> · cu TVA</div>
-                    </div>
-                    <button type="button" class="mc-cog" aria-label="Setări venituri" data-cog="rev"><i class="ti ti-settings"></i></button>
-                    <div class="mc-cog-menu" id="cogmenu-rev">
-                        <div class="group-label">Perioadă (sincronizată cu Financiar)</div>
-                        <?php foreach (dash_period_options() as $key => $label): ?>
-                            <a href="<?= dash_h(dash_period_url('period_fin', $key)) ?>" class="<?= $periodFin === $key ? 'current' : '' ?>"><?= dash_h($label) ?></a>
-                        <?php endforeach; ?>
-                    </div>
-                    <div class="body">
-                        <?php if (!$revenueHasColumn): ?>
-                            <div class="mc-agenda-empty" style="text-align:left">
-                                Coloana de categorie va apărea automat la prima încărcare a paginii Servicii sau Facturi.
-                            </div>
-                        <?php elseif (!$revenueHasData || $revenueTotal <= 0): ?>
-                            <div class="mc-agenda-empty" style="text-align:left">
-                                Nu există facturi emise în <?= dash_h(strtolower($finLabel)) ?>.
-                            </div>
-                        <?php else: ?>
-                            <div class="mc-revenue-total">
-                                Total facturat <strong><?= dash_h(dash_money($revenueTotal)) ?></strong> lei
-                            </div>
-                            <div class="mc-revenue-bars">
-                                <?php foreach ($revenueByCategory as $row):
-                                    if ($row['amount'] <= 0 && $row['count'] === 0) continue;
-                                    $pct = $revenueTotal > 0 ? ($row['amount'] / $revenueTotal) * 100 : 0;
-                                ?>
-                                    <div class="mc-revenue-bar-row">
-                                        <div class="top">
-                                            <span class="sw" style="background:<?= dash_h($row['color']) ?>"></span>
-                                            <span class="name"><?= dash_h($row['label']) ?></span>
-                                            <span class="val">
-                                                <strong><?= dash_h(dash_money($row['amount'])) ?></strong> lei
-                                                <span class="muted-val">· <?= number_format($pct, 1, ',', '.') ?>%</span>
-                                                <span class="muted-val">· <?= (int)$row['count'] ?> fact.</span>
-                                            </span>
-                                        </div>
-                                        <div class="track"><div class="fill" style="width:<?= number_format($pct, 1, '.', '') ?>%;background:<?= dash_h($row['color']) ?>"></div></div>
+                    <div class="pz-clients-list">
+                        <?php if (!empty($topClients)): ?>
+                            <?php foreach ($topClients as $idx => $client):
+                                $name = trim((string)$client['name']);
+                                $amount = (float)$client['amount'];
+                                $pct = $topClientMax > 0 ? min(100, round(($amount / $topClientMax) * 100)) : 0;
+                                $initials = dash_initials($name);
+                            ?>
+                                <div class="pz-client-row">
+                                    <div class="pz-client-avatar"><?= dash_h($initials) ?></div>
+                                    <div class="pz-client-body">
+                                        <p class="pz-client-name"><?= dash_h($name) ?></p>
+                                        <div class="pz-client-bar"><span style="width: <?= $pct ?>%;"></span></div>
                                     </div>
-                                <?php endforeach; ?>
-                            </div>
-                            <a class="mc-revenue-detail" href="rapoarte_venituri.php">Vezi raportul detaliat →</a>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts: distribuție status + top servicii -->
-            <div class="mc-charts-row" id="row-charts">
-                <!-- Donut: Distribuție status programări -->
-                <div class="mc-card" data-card-id="chart-status">
-                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
-                    <div class="head">
-                        <div class="title"><i class="ti ti-chart-pie" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Distribuție status programări</div>
-                        <div class="meta"><?= dash_h(strtolower($opLabel)) ?></div>
-                    </div>
-                    <div class="body" style="display:flex;align-items:center;gap:16px;">
-                        <?php if ($statusTotal === 0): ?>
-                            <div class="mc-agenda-empty" style="width:100%">Nicio programare în perioadă.</div>
+                                    <div class="pz-client-amount"><?= dash_money($amount) ?><span class="unit">lei</span></div>
+                                </div>
+                            <?php endforeach; ?>
                         <?php else: ?>
-                            <svg viewBox="0 0 130 130" width="130" height="130" role="img" aria-label="Distribuție status programări">
-                                <circle cx="65" cy="65" r="52" fill="none" stroke="#E5E7EB" stroke-width="16"/>
-                                <?php
-                                    $offset = 0;
-                                    $circumference = 326.7;
-                                    foreach ($statusBreakdown as $st => $info):
-                                        if ($info['count'] === 0) continue;
-                                        $pct = $info['count'] / $statusTotal;
-                                        $dash = round($circumference * $pct, 1);
-                                        $rem = round($circumference - $dash, 1);
-                                ?>
-                                    <circle cx="65" cy="65" r="52" fill="none"
-                                            stroke="<?= dash_h($info['color']) ?>" stroke-width="16"
-                                            stroke-dasharray="<?= $dash ?> <?= $rem ?>"
-                                            stroke-dashoffset="<?= -round($offset, 1) ?>"
-                                            transform="rotate(-90 65 65)"/>
-                                <?php
-                                        $offset += $dash;
-                                    endforeach;
-                                ?>
-                                <text x="65" y="62" text-anchor="middle" font-size="22" font-weight="500" fill="var(--mc-navy)"><?= (int)$statusTotal ?></text>
-                                <text x="65" y="80" text-anchor="middle" font-size="10" fill="var(--mc-muted)">total</text>
-                            </svg>
-                            <div class="mc-legend">
-                                <?php foreach ($statusBreakdown as $st => $info): ?>
-                                    <?php if ($info['count'] === 0) continue; ?>
-                                    <div class="row">
-                                        <span class="sw" style="background:<?= dash_h($info['color']) ?>"></span>
-                                        <span class="name"><?= dash_h($info['label']) ?></span>
-                                        <span class="val"><?= (int)$info['count'] ?> · <?= round($info['count'] / $statusTotal * 100) ?>%</span>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
+                            <div class="pz-empty">Nu există facturi emise în perioada selectată.</div>
                         <?php endif; ?>
                     </div>
                 </div>
 
-                <!-- Bar: Top servicii -->
-                <div class="mc-card" data-card-id="chart-services">
-                    <span class="mc-drag" aria-label="Mută cardul" title="Mută"><i class="ti ti-grip-vertical"></i></span>
-                    <div class="head">
-                        <div class="title"><i class="ti ti-chart-bar" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>Top servicii</div>
-                        <div class="meta"><?= dash_h(strtolower($opLabel)) ?></div>
-                    </div>
-                    <div class="body">
-                        <?php if (!$topServices): ?>
-                            <div class="mc-agenda-empty">Niciun serviciu prestat.</div>
-                        <?php else: ?>
-                            <div class="mc-bars">
-                                <?php foreach ($topServices as $srv):
-                                    $cnt = (int)$srv['total'];
-                                    $pct = $topServiceMax > 0 ? min(100, round($cnt / $topServiceMax * 100)) : 0;
-                                ?>
-                                    <div class="mc-bar-row">
-                                        <div class="top">
-                                            <span class="nm"><?= dash_h($srv['service_name']) ?></span>
-                                            <span class="val"><?= $cnt ?> lucr<?= $cnt === 1 ? 'are' : 'ări' ?></span>
-                                        </div>
-                                        <div class="track"><div class="fill" style="width:<?= $pct ?>%"></div></div>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Banner navy: trend -->
-            <?php
-                $bannerLabel = 'Trend 6 luni';
-                $bannerValue = '—';
-                $bannerSub = 'date insuficiente';
-                $bannerClass = '';
-                if ($monthlyDelta !== null) {
-                    $bannerValue = ($monthlyDelta > 0 ? '+' : '') . $monthlyDelta . '%';
-                    $bannerSub = 'creștere lucrări vs luna anterioară';
-                    $bannerClass = $monthlyDelta >= 0 ? 'pos' : 'neg';
-                    if ($monthlyDelta < 0) { $bannerSub = 'scădere lucrări vs luna anterioară'; }
-                }
-                $maxV = max(1, max(array_column($monthly ?: [['v'=>0]], 'v')));
-                $points = [];
-                foreach ($monthly as $i => $m) {
-                    $x = 5 + ($i * 190 / max(1, count($monthly) - 1));
-                    $y = 52 - (($m['v'] / $maxV) * 44);
-                    $points[] = round($x, 1) . ',' . round($y, 1);
-                }
-                $polyline = implode(' ', $points);
-                $polygon = $points ? $points[0] . ' ' . $polyline . ' ' . end($points) : '';
-                if ($polygon !== '') {
-                    $lastIdx = count($points) - 1;
-                    $polygon = "5,58 {$polyline} " . explode(',', $points[$lastIdx])[0] . ",58";
-                }
-            ?>
-            <div class="mc-banner">
-                <div>
-                    <div class="label"><?= dash_h($bannerLabel) ?></div>
-                    <div class="value <?= $bannerClass ?>"><?= dash_h($bannerValue) ?></div>
-                    <div class="sub"><?= dash_h($bannerSub) ?></div>
-                </div>
-                <?php if ($monthly && count($monthly) > 1): ?>
-                <svg viewBox="0 0 200 60" width="200" height="60" role="img" aria-label="Trend creștere">
-                    <polyline points="<?= dash_h($polyline) ?>" fill="none" stroke="#86EFAC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <polygon points="<?= dash_h($polygon) ?>" fill="rgba(134,239,172,0.15)" stroke="none"/>
-                    <?php if ($points): $last = end($points); [$lx, $ly] = explode(',', $last); ?>
-                        <circle cx="<?= dash_h($lx) ?>" cy="<?= dash_h($ly) ?>" r="4" fill="#22C55E" stroke="#FFF" stroke-width="1"/>
-                    <?php endif; ?>
-                </svg>
-                <?php endif; ?>
             </div>
 
         </div>
     </main>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 (function () {
-    // Toggle cog menus + click-outside-to-close
-    document.querySelectorAll('.mc-cog').forEach(function (btn) {
-        var key = btn.getAttribute('data-cog');
-        var menu = document.getElementById('cogmenu-' + key);
-        if (!menu) return;
-        btn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            // close other menus first
-            document.querySelectorAll('.mc-cog-menu.open').forEach(function (m) {
-                if (m !== menu) m.classList.remove('open');
-            });
-            document.querySelectorAll('.mc-cog.active').forEach(function (b) {
-                if (b !== btn) b.classList.remove('active');
-            });
-            menu.classList.toggle('open');
-            btn.classList.toggle('active');
-        });
-    });
-    document.addEventListener('click', function (e) {
-        if (e.target.closest('.mc-cog-menu') || e.target.closest('.mc-cog')) return;
-        document.querySelectorAll('.mc-cog-menu.open').forEach(function (m) { m.classList.remove('open'); });
-        document.querySelectorAll('.mc-cog.active').forEach(function (b) { b.classList.remove('active'); });
-    });
-})();
+    if (typeof Chart === 'undefined') return;
 
-/* Drag & drop carduri dashboard (persistat în localStorage) */
-(function () {
-    if (typeof Sortable === 'undefined') return;
-    var STORE_KEY = 'pz_dash_order_v2';
+    var REV_DATA = <?= json_encode($revTrend ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    var labels  = REV_DATA.map(function (r) { return r.label; });
+    var issued  = REV_DATA.map(function (r) { return Math.round(Number(r.issued)  || 0); });
+    var paid    = REV_DATA.map(function (r) { return Math.round(Number(r.paid)    || 0); });
 
-    function loadOrder(rowId) {
-        try { return JSON.parse(localStorage.getItem(STORE_KEY + '_' + rowId) || 'null'); }
-        catch (e) { return null; }
-    }
-    function saveOrder(rowId, order) {
-        try { localStorage.setItem(STORE_KEY + '_' + rowId, JSON.stringify(order)); }
-        catch (e) {}
-    }
-    function applyOrder(rowEl) {
-        var order = loadOrder(rowEl.id);
-        if (!order || !order.length) return;
-        var children = Array.from(rowEl.children);
-        order.forEach(function (cardId) {
-            var el = children.find(function (c) { return c.dataset && c.dataset.cardId === cardId; });
-            if (el) rowEl.appendChild(el);
-        });
-    }
-
-    ['row-rings', 'row-mini', 'row-secondary', 'row-revenue', 'row-charts'].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        applyOrder(el);
-        new Sortable(el, {
-            animation: 180,
-            handle: '.mc-drag',
-            ghostClass: 'sortable-ghost',
-            chosenClass: 'sortable-chosen',
-            dragClass: 'sortable-drag',
-            forceFallback: false,
-            onEnd: function () {
-                var order = Array.from(el.children)
-                    .map(function (c) { return c.dataset ? c.dataset.cardId : null; })
-                    .filter(Boolean);
-                saveOrder(id, order);
+    var canvasRev = document.getElementById('pzRevenueChart');
+    if (canvasRev && REV_DATA.length > 0) {
+        new Chart(canvasRev, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Venituri',
+                        data: issued,
+                        borderColor: '#2563EB',
+                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                        tension: 0.35, fill: true, borderWidth: 2,
+                        pointRadius: 3, pointHoverRadius: 5,
+                        pointBackgroundColor: '#2563EB'
+                    },
+                    {
+                        label: 'Încasări',
+                        data: paid,
+                        borderColor: '#166534',
+                        backgroundColor: 'rgba(22, 101, 52, 0.08)',
+                        tension: 0.35, fill: true, borderWidth: 2,
+                        borderDash: [5, 3],
+                        pointRadius: 3, pointHoverRadius: 5,
+                        pointBackgroundColor: '#166534'
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: {
+                    callbacks: {
+                        label: function (ctx) {
+                            return ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('ro-RO') + ' lei';
+                        }
+                    }
+                }},
+                scales: {
+                    y: {
+                        grid: { color: 'rgba(0,0,0,0.06)', drawBorder: false },
+                        ticks: {
+                            color: '#64748B', font: { size: 10 },
+                            callback: function (v) { return Math.round(v/1000) + 'k'; }
+                        }
+                    },
+                    x: { grid: { display: false }, ticks: { color: '#64748B', font: { size: 10 } } }
+                }
             }
         });
-    });
+    }
 
-    /* Blochez navigarea de pe link-urile .mc-mini când se face drag */
-    document.querySelectorAll('.mc-mini .mc-drag').forEach(function (drag) {
-        drag.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-    });
+    var statusData = {
+        paid:    <?= (int)$stPaid ?>,
+        pending: <?= (int)$stPending ?>,
+        restant: <?= (int)$stRestNum ?>
+    };
+
+    var canvasSt = document.getElementById('pzStatusChart');
+    if (canvasSt) {
+        var totalSt = statusData.paid + statusData.pending + statusData.restant;
+        if (totalSt > 0) {
+            new Chart(canvasSt, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Încasate', 'În termen', 'Restante'],
+                    datasets: [{
+                        data: [statusData.paid, statusData.pending, statusData.restant],
+                        backgroundColor: ['#166534', '#9A3412', '#991B1B'],
+                        borderWidth: 0, spacing: 2
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    cutout: '72%',
+                    plugins: { legend: { display: false }, tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                var pct = totalSt > 0 ? Math.round((ctx.parsed / totalSt) * 100) : 0;
+                                return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+                            }
+                        }
+                    }}
+                }
+            });
+        } else {
+            // Fără date — desenez un cerc gri ca placeholder
+            var ctx = canvasSt.getContext('2d');
+            ctx.clearRect(0, 0, canvasSt.width, canvasSt.height);
+        }
+    }
 })();
 </script>
 </body>
