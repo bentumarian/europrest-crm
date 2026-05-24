@@ -11,10 +11,11 @@ if (!headers_sent()) {
 }
 
 $isAdmin = is_admin();
+$isOffice = function_exists('is_office') ? is_office() : false;
 $isTeamUser = is_team_user();
 $currentTeamId = current_team_id();
 
-if (!$isAdmin && !$isTeamUser) {
+if (!$isAdmin && !$isOffice && !$isTeamUser) {
     header('Location: calendar.php');
     exit;
 }

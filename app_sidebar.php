@@ -23,10 +23,12 @@ if (!function_exists('render_sidebar')) {
     $userName = function_exists('current_user_name') ? current_user_name() : 'Utilizator';
     $originalActive = $active;
     // Office: are aceeași structură de meniu ca admin, dar fără Setări.
-    // Caller-ul trimite $isAdmin = is_admin() (strict). Detectăm office aici.
+    // IMPORTANT: $canSeeSettings se calculează DIN VERIFICAREA REALĂ a rolului,
+    // NU din parametrul $isAdmin trimis de caller (unele pagini trimit true hardcoded).
     $isOffice = function_exists('is_office') ? is_office() : false;
+    $isStrictAdmin = function_exists('is_admin') ? is_admin() : false;
     $hasFullMenu = $isAdmin || $isOffice;
-    $canSeeSettings = $isAdmin; // doar admin strict
+    $canSeeSettings = $isStrictAdmin; // doar admin strict, ignoră parametrul
 
     $settingsActiveKeys = [
         'settings',
