@@ -4,6 +4,7 @@ require_login();
 require_once __DIR__ . '/app_ui.php';
 require_once __DIR__ . '/smartbill_lib.php';
 require_once __DIR__ . '/lib/billing/billing_lib.php';
+require_once __DIR__ . '/revenue_lib.php';
 
 $isAdmin = function_exists('is_admin') ? is_admin() : true;
 if (!$isAdmin) {
@@ -58,6 +59,13 @@ if (!in_array($statusFilter, $allowedStatuses, true)) {
     $statusFilter = 'all';
 }
 
+// Filtru categorie venit (ddd / ignifugari / chirii / altele).
+$catFilter = strtolower(trim((string)($_GET['cat'] ?? 'all')));
+$allowedCats = array_merge(['all'], pz_revenue_category_keys());
+if (!in_array($catFilter, $allowedCats, true)) {
+    $catFilter = 'all';
+}
+
 $where = ["source_type <> 'receipt'", "invoice_date BETWEEN ? AND ?"];
 $params = [$dateFrom, $dateTo];
 if ($q !== '') {
@@ -68,6 +76,10 @@ if ($q !== '') {
 if ($clientIdFilter > 0) {
     $where[] = "client_id = ?";
     $params[] = $clientIdFilter;
+}
+if ($catFilter !== 'all') {
+    $where[] = "COALESCE(revenue_category, 'ddd') = ?";
+    $params[] = $catFilter;
 }
 
 $stmt = $pdo->prepare("
@@ -346,6 +358,25 @@ $statusLabels = [
                 <?php endforeach; ?>
             </nav>
 
+            <?php $revCatList = pz_revenue_categories(); ?>
+            <div class="cat-filter" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 4px;">
+                <span style="font-size:10.5px;text-transform:uppercase;letter-spacing:0.04em;color:var(--pz-mu);font-weight:700;margin-right:4px;">Linie de business:</span>
+                <?php
+                    $catQueryAll = $_GET; $catQueryAll['cat'] = 'all';
+                ?>
+                <a href="invoices.php?<?= bill_h(http_build_query($catQueryAll)) ?>"
+                   style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;text-decoration:none;font-size:11.5px;font-weight:600;border:1px solid var(--pz-line);background:<?= $catFilter === 'all' ? 'var(--pz-navy,#12345A)' : '#FFF' ?>;color:<?= $catFilter === 'all' ? '#FFF' : 'var(--pz-mu)' ?>;">
+                    Toate
+                </a>
+                <?php foreach ($revCatList as $code => $info): ?>
+                    <?php $catQuery = $_GET; $catQuery['cat'] = $code; $isActive = $catFilter === $code; ?>
+                    <a href="invoices.php?<?= bill_h(http_build_query($catQuery)) ?>"
+                       style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;text-decoration:none;font-size:11.5px;font-weight:600;border:1px solid <?= bill_h($info['border']) ?>;background:<?= $isActive ? bill_h($info['color']) : bill_h($info['bg']) ?>;color:<?= $isActive ? '#FFF' : bill_h($info['color']) ?>;">
+                        <?= bill_h($info['label']) ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+
             <section class="panel">
                 <table>
                     <thead>
@@ -375,7 +406,13 @@ $statusLabels = [
                             <td><a href="invoice.php?id=<?= (int)$invoice['id'] ?>"><?= bill_h(bill_invoice_ref($invoice)) ?></a></td>
                             <td>
                                 <strong><?= bill_h($invoice['client_name'] ?? '-') ?></strong>
-                                <div class="muted"><?= bill_h($invoice['client_fiscal_code'] ?? '') ?></div>
+                                <div class="muted" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                                    <span><?= bill_h($invoice['client_fiscal_code'] ?? '') ?></span>
+                                    <?= pz_revenue_render_badge(
+                                        (string)($invoice['revenue_category'] ?? 'ddd'),
+                                        ['size' => 'sm']
+                                    ) ?>
+                                </div>
                             </td>
                             <td><?= bill_h($invoice['invoice_date'] ?? '-') ?></td>
                             <td><?= bill_h($invoice['due_date'] ?? '-') ?></td>

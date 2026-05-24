@@ -4,6 +4,7 @@ require_login();
 require_once __DIR__ . '/app_ui.php';
 require_once __DIR__ . '/smartbill_lib.php';
 require_once __DIR__ . '/lib/billing/billing_lib.php';
+require_once __DIR__ . '/revenue_lib.php';
 
 $isAdmin = function_exists('is_admin') ? is_admin() : true;
 if (!$isAdmin) {
@@ -470,6 +471,7 @@ $prefill = [
     'mentions' => '',
     'observations' => '',
     'notes' => '',
+    'revenue_category' => 'ddd',
 ];
 
 $loadedInvoice = null;
@@ -507,6 +509,10 @@ if ($invoiceIdFromRequest > 0) {
         $prefill['mentions'] = (string)($loadedInvoice['mentions'] ?? '');
         $prefill['observations'] = (string)($loadedInvoice['observations'] ?? '');
         $prefill['notes'] = (string)($loadedInvoice['notes'] ?? '');
+        $prefill['revenue_category'] = pz_revenue_category_normalize(
+            (string)($loadedInvoice['revenue_category'] ?? 'ddd'),
+            'ddd'
+        );
     }
 }
 
@@ -862,6 +868,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'update_revenue_category') {
+        $invoiceId = max(0, (int)($_POST['invoice_id'] ?? 0));
+        $newCategory = pz_revenue_category_normalize($_POST['revenue_category'] ?? '', 'ddd');
+        if ($invoiceId > 0) {
+            try {
+                $stmt = $pdo->prepare("UPDATE smartbill_invoices SET revenue_category = ? WHERE id = ?");
+                $stmt->execute([$newCategory, $invoiceId]);
+                header('Location: invoice.php?id=' . $invoiceId . '&revenue_updated=1');
+                exit;
+            } catch (Throwable $e) {
+                error_log('update_revenue_category: ' . $e->getMessage());
+                header('Location: invoice.php?id=' . $invoiceId . '&revenue_error=' . urlencode('Nu s-a putut salva categoria.'));
+                exit;
+            }
+        }
+        header('Location: invoice.php');
+        exit;
+    }
+
     $clientId = max(0, (int)($_POST['client_id'] ?? 0));
     $clientName = trim((string)($_POST['client_name'] ?? ''));
     $clientFiscalCode = trim((string)($_POST['client_fiscal_code'] ?? ''));
@@ -886,6 +911,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $mentions = trim((string)($_POST['mentions'] ?? ''));
     $observations = trim((string)($_POST['observations'] ?? ''));
     $notes = trim((string)($_POST['notes'] ?? ''));
+    $revenueCategoryPost = pz_revenue_category_normalize($_POST['revenue_category'] ?? 'ddd', 'ddd');
 
     if ($clientName === '' || $clientFiscalCode === '' || $clientCountry === '' || $clientCounty === '' || $clientCity === '' || $clientAddress === '') {
         $error = 'Completează datele clientului pentru factură.';
@@ -921,10 +947,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     client_contact = ?, client_email = ?, client_phone = ?, client_bank = ?, client_iban = ?,
                     client_country = ?, client_county = ?, client_city = ?, client_address = ?,
                     invoice_date = ?, due_date = ?, currency = ?, net_amount = ?, vat_code = ?, vat_amount = ?,
-                    gross_amount = ?, invoice_language = ?, mentions = ?, observations = ?, notes = ?, smartbill_status = 'draft', updated_at = NOW()
+                    gross_amount = ?, invoice_language = ?, mentions = ?, observations = ?, notes = ?, smartbill_status = 'draft', updated_at = NOW(),
+                    revenue_category = ?
                 WHERE id = ?
             ");
-            $stmt->execute([$appointmentId > 0 ? 'appointment' : 'manual', $clientId ?: null, $clientName, $clientFiscalCode, $clientRegCom, $clientContact, $clientEmail, $clientPhone, $clientBank, $clientIban, $clientCountry, $clientCounty, $clientCity, $clientAddress, $issueDate, $dueDate, $currency, $net, $vatCode, $vat, $gross, $invoiceLanguage, $mentions, $observations, $notes, $existingId]);
+            $stmt->execute([$appointmentId > 0 ? 'appointment' : 'manual', $clientId ?: null, $clientName, $clientFiscalCode, $clientRegCom, $clientContact, $clientEmail, $clientPhone, $clientBank, $clientIban, $clientCountry, $clientCounty, $clientCity, $clientAddress, $issueDate, $dueDate, $currency, $net, $vatCode, $vat, $gross, $invoiceLanguage, $mentions, $observations, $notes, $revenueCategoryPost, $existingId]);
             $invoiceId = $existingId;
             $pdo->prepare("DELETE FROM smartbill_invoice_items WHERE smartbill_invoice_id = ?")->execute([$invoiceId]);
         } else {
@@ -933,8 +960,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     (source_type, appointment_id, client_id, client_location_id, client_name, client_fiscal_code, client_reg_com,
                      client_contact, client_email, client_phone, client_bank, client_iban, client_country, client_county,
                      client_city, client_address, invoice_date, due_date, currency, net_amount, vat_code, vat_amount,
-                     gross_amount, invoice_language, mentions, observations, smartbill_status, notes, created_by)
-                VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)
+                     gross_amount, invoice_language, mentions, observations, smartbill_status, notes, created_by, revenue_category)
+                VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)
             ");
             $stmt->execute([
                 $appointmentId > 0 ? 'appointment' : 'manual',
@@ -964,6 +991,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $observations,
                 $notes,
                 function_exists('current_user_id') ? current_user_id() : null,
+                $revenueCategoryPost,
             ]);
             $invoiceId = (int)$pdo->lastInsertId();
         }
@@ -1429,6 +1457,8 @@ if (!$invoiceItems) {
             <?php if (isset($_GET['receipt_error'])): ?><div class="alert warn">Factura a fost emisă, dar chitanța NU a putut fi emisă: <?= inv_h($_GET['receipt_error']) ?>. Poți încasa manual din butonul „Încasează".</div><?php endif; ?>
             <?php if (isset($_GET['email_error'])): ?><div class="alert err"><?= inv_h($_GET['email_error']) ?></div><?php endif; ?>
             <?php if (isset($_GET['recurring_error'])): ?><div class="alert err"><?= inv_h($_GET['recurring_error']) ?></div><?php endif; ?>
+            <?php if (isset($_GET['revenue_updated'])): ?><div class="alert ok">Categoria veniturilor a fost actualizată.</div><?php endif; ?>
+            <?php if (isset($_GET['revenue_error'])): ?><div class="alert err"><?= inv_h($_GET['revenue_error']) ?></div><?php endif; ?>
             <?php if ($error !== ''): ?><div class="alert err"><?= inv_h($error) ?></div><?php endif; ?>
 
             <?php if ($showInvoicePreview):
@@ -1601,6 +1631,13 @@ if (!$invoiceItems) {
                         </div>
                         <div><label>Termen plată / scadență</label><input type="date" name="due_date" value="<?= inv_h($prefill['due_date']) ?>"></div>
                         <div><label>Limba</label><select name="invoice_language"><option value="RO" <?= $prefill['invoice_language'] === 'RO' ? 'selected' : '' ?>>RO</option><option value="EN" <?= $prefill['invoice_language'] === 'EN' ? 'selected' : '' ?>>EN</option></select></div>
+                        <div><label>Categorie venit</label>
+                            <select name="revenue_category">
+                                <?php foreach (pz_revenue_categories() as $code => $info): ?>
+                                    <option value="<?= inv_h($code) ?>" <?= $prefill['revenue_category'] === $code ? 'selected' : '' ?>><?= inv_h($info['label']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                         <div class="full compact-product">
                             <div class="items-head">
                                 <h2 style="font-size:18px">Poziții factură</h2>
@@ -1690,6 +1727,36 @@ if (!$invoiceItems) {
                     <a class="btn ghost" href="<?= inv_h(inv_payments_report_link($loadedInvoice)) ?>">Vezi încasări</a>
                     <a class="btn ghost" href="invoice.php">+ Factură</a>
                     <button class="btn ghost" type="button" onclick="openRecurringModal()">Recurentă</button>
+                </div>
+
+                <?php
+                    $currentRevenueCategory = pz_revenue_category_normalize(
+                        (string)($loadedInvoice['revenue_category'] ?? 'ddd'),
+                        'ddd'
+                    );
+                    $revenueCategoriesUI = pz_revenue_categories();
+                ?>
+                <div class="revenue-category-block" style="margin-top:14px;padding:12px 14px;border:0.5px solid var(--pz-line);border-radius:10px;background:var(--pz-bg);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+                        <div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--pz-muted);font-weight:600;">Categorie venit</div>
+                            <div style="font-size:12px;color:var(--pz-muted);margin-top:2px;">Determină pe ce linie de business apare factura în rapoarte. Schimbabil oricând.</div>
+                        </div>
+                        <?= pz_revenue_render_badge($currentRevenueCategory, ['size' => 'md']) ?>
+                    </div>
+                    <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                        <?= function_exists('csrf_field') ? csrf_field() : '' ?>
+                        <input type="hidden" name="action" value="update_revenue_category">
+                        <input type="hidden" name="invoice_id" value="<?= (int)$loadedInvoice['id'] ?>">
+                        <select name="revenue_category" style="flex:1;min-width:140px;max-width:240px;">
+                            <?php foreach ($revenueCategoriesUI as $code => $info): ?>
+                                <option value="<?= inv_h($code) ?>" <?= $currentRevenueCategory === $code ? 'selected' : '' ?>>
+                                    <?= inv_h($info['label']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="submit" class="btn ghost">Schimbă categoria</button>
+                    </form>
                 </div>
             </section>
 
