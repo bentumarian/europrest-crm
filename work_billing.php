@@ -422,37 +422,9 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
 <div class="layout">
     <?php render_sidebar('interventii_facturare', $isAdmin); ?>
     <main class="main">
-        <div class="topbar ib-topbar">
-            <div class="ib-toolbar">
-                <form method="get" class="ib-filters">
-                    <input type="date" name="date_from" value="<?= ib_h($dateFrom) ?>" aria-label="Data început">
-                    <input type="date" name="date_to" value="<?= ib_h($dateTo) ?>" aria-label="Data final">
-                    <div class="pz-search-wrap">
-                        <input type="search" id="workBillingSearchInput" name="q" value="<?= ib_h($q) ?>" placeholder="Caută" aria-label="Căutare" autocomplete="off">
-                        <div class="pz-search-preview"></div>
-                    </div>
-                    <select name="status" aria-label="Status">
-                        <option value="active"       <?= $selectedStatus === 'active' ? 'selected' : '' ?>>Active</option>
-                        <option value="to_review"    <?= $selectedStatus === 'to_review' ? 'selected' : '' ?>>De verificat</option>
-                        <option value="to_invoice"   <?= $selectedStatus === 'to_invoice' ? 'selected' : '' ?>>De facturat</option>
-                        <option value="invoiced"     <?= $selectedStatus === 'invoiced' ? 'selected' : '' ?>>Facturate</option>
-                        <option value="not_billable" <?= $selectedStatus === 'not_billable' ? 'selected' : '' ?>>Nefacturabile</option>
-                        <option value="all"          <?= $selectedStatus === 'all' ? 'selected' : '' ?>>Toate</option>
-                    </select>
-                    <select name="service" aria-label="Serviciu">
-                        <option value="all" <?= $selectedService === 'all' ? 'selected' : '' ?>>Toate serviciile</option>
-                        <?php foreach ($services as $service): ?>
-                            <option value="<?= ib_h($service['name']) ?>" <?= $selectedService === $service['name'] ? 'selected' : '' ?>><?= ib_h($service['name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <button class="btn accent" type="submit">Aplică</button>
-                    <a class="btn" href="work_billing.php">Resetează</a>
-                </form>
-            </div>
-        </div>
+<?php /* Topbar vechi eliminat — înlocuit cu pz_page_header + pz-fb mai jos. */ ?>
 
         <div class="content">
-            <?php render_billing_module_nav('interventii_facturare'); ?>
             <?php if (isset($_GET['saved'])): ?><div class="notice notice-success">Poziția a fost actualizată.</div><?php endif; ?>
             <?php
                 $errMessages = [
@@ -469,46 +441,184 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                 <div class="notice notice-warning"><?= ib_h($errMessages[$errCode]) ?></div>
             <?php endif; ?>
 
-            <section class="ib-hero">
-                <div>
-                    <div class="pz-page-eyebrow">Financiar</div>
-                    <h1>De facturat <span class="count-badge"><?= (int)count($rows) ?></span></h1>
-                    <p>Poziții generate din programări finalizate. Selectează una sau mai multe poziții ale aceluiași client și emite factura.</p>
-                </div>
-                <div class="hero-actions">
-                    <a class="btn light" href="<?= ib_h(ib_current_url(['export' => 'csv'])) ?>">Export CSV</a>
-                </div>
-            </section>
+            <?php
+                /*
+                |------------------------------------------------------------
+                | Header unificat PestZone — înlocuiește topbar + module_nav
+                | + ib-hero + quick-range + pz-kpi-grid vechi.
+                | Tabs = 3 module financiar (Facturi, Încasări, Lista lucrări).
+                | Period pills = Azi / Luna curentă / Luna trecută.
+                | KPIs inline = Total poziții + 3 statusuri cu sume net/cu TVA.
+                | Filter bar = date range (vanillajs) + search + popover
+                | status/serviciu.
+                |------------------------------------------------------------
+                */
+                $billingTabs = [
+                    ['label' => 'Facturi',       'href' => 'invoices.php'],
+                    ['label' => 'Încasări',      'href' => 'payments.php'],
+                    ['label' => 'Lista lucrări', 'href' => 'work_billing.php', 'active' => true],
+                ];
 
-            <div class="quick-range">
-                <a class="btn" href="work_billing.php?date_from=<?= ib_h($today) ?>&date_to=<?= ib_h($today) ?>&status=active&service=all&pv=all">Azi</a>
-                <a class="btn" href="work_billing.php?date_from=<?= ib_h($currentMonthStart) ?>&date_to=<?= ib_h($currentMonthEnd) ?>&status=active&service=all&pv=all">Luna curentă</a>
-                <a class="btn" href="work_billing.php?date_from=<?= ib_h($prevMonthStart) ?>&date_to=<?= ib_h($prevMonthEnd) ?>&status=active&service=all&pv=all">Luna trecută</a>
-                <a class="btn" href="work_billing.php?date_from=<?= ib_h($dateFrom) ?>&date_to=<?= ib_h($dateTo) ?>&status=all&service=all&pv=all">Toate statusurile</a>
-            </div>
+                // Period detection — comparăm cu intervalele canonice
+                $isToday        = ($dateFrom === $today             && $dateTo === $today);
+                $isCurrentMonth = ($dateFrom === $currentMonthStart && $dateTo === $currentMonthEnd);
+                $isPrevMonth    = ($dateFrom === $prevMonthStart    && $dateTo === $prevMonthEnd);
+                $rangeCurrent   = $isToday ? 'today' : ($isCurrentMonth ? 'month' : ($isPrevMonth ? 'prev_month' : ''));
 
-            <section class="pz-kpi-grid">
-                <div class="pz-kpi-card mu">
-                    <div class="pz-kpi-label">Total poziții</div>
-                    <div class="pz-kpi-value"><?= (int)$totalCount ?></div>
-                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($totalAmount)) ?> <span style="font-weight:600;opacity:.75">net</span></div>
-                </div>
-                <div class="pz-kpi-card or">
-                    <div class="pz-kpi-label">De verificat</div>
-                    <div class="pz-kpi-value"><?= (int)$summary['to_review']['count'] ?></div>
-                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['to_review']['amount'])) ?> <span style="font-weight:600;opacity:.75">net</span></div>
-                </div>
-                <div class="pz-kpi-card bl">
-                    <div class="pz-kpi-label">De facturat</div>
-                    <div class="pz-kpi-value"><?= (int)$summary['to_invoice']['count'] ?></div>
-                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['to_invoice']['amount'])) ?> <span style="font-weight:600;opacity:.75">net</span></div>
-                </div>
-                <div class="pz-kpi-card gr">
-                    <div class="pz-kpi-label">Facturate</div>
-                    <div class="pz-kpi-value"><?= (int)$summary['invoiced']['count'] ?></div>
-                    <div class="pz-kpi-sub mu"><?= ib_h(ib_money_label($summary['invoiced']['gross'])) ?> <span style="font-weight:600;opacity:.75">cu TVA</span></div>
-                </div>
-            </section>
+                $wbActiveFilters = 0;
+                if ($selectedStatus !== 'active') $wbActiveFilters++;
+                if ($selectedService !== 'all')   $wbActiveFilters++;
+
+                // Format vizibil + valori inițiale
+                $dateFromDisplay = $dateFrom ? date('d.m.Y', strtotime($dateFrom)) : '';
+                $dateToDisplay   = $dateTo   ? date('d.m.Y', strtotime($dateTo))   : '';
+
+                ob_start();
+                ?>
+                <form method="get" id="wbFilterForm" class="pz-fb">
+                    <input type="hidden" name="date_from" value="<?= ib_h($dateFrom) ?>">
+                    <input type="hidden" name="date_to"   value="<?= ib_h($dateTo) ?>">
+
+                    <div class="pz-fb-date-range" id="wbDateRange">
+                        <i class="ti ti-calendar" aria-hidden="true"></i>
+                        <input type="text" id="wbDateFrom" value="<?= ib_h($dateFromDisplay) ?>" placeholder="zz.ll.aaaa" readonly autocomplete="off" aria-label="Data început">
+                        <span class="sep">—</span>
+                        <input type="text" id="wbDateTo" value="<?= ib_h($dateToDisplay) ?>" placeholder="zz.ll.aaaa" readonly autocomplete="off" aria-label="Data final">
+                    </div>
+
+                    <div class="pz-fb-search">
+                        <i class="ti ti-search" aria-hidden="true"></i>
+                        <input type="search" id="workBillingSearchInput" name="q" value="<?= ib_h($q) ?>" placeholder="Caută" aria-label="Căutare" autocomplete="off">
+                        <div class="pz-search-preview"></div>
+                    </div>
+
+                    <div class="pz-fb-spacer"></div>
+
+                    <a class="pz-fb-nav-btn" href="work_billing.php" title="Resetare filtre">↻</a>
+
+                    <div class="pz-fb-popover-wrap">
+                        <button type="button" class="pz-fb-filter-btn" id="wbFiltersToggle" aria-haspopup="true" aria-expanded="false">
+                            <i class="ti ti-adjustments-horizontal" aria-hidden="true"></i>
+                            Filtre
+                            <?php if ($wbActiveFilters > 0): ?>
+                                <span class="badge"><?= (int)$wbActiveFilters ?></span>
+                            <?php endif; ?>
+                        </button>
+                        <div class="pz-fb-popover" id="wbFiltersPopover" role="dialog" aria-label="Filtre suplimentare">
+                            <div class="pf-row">
+                                <label for="wbStatusSelect">Status</label>
+                                <select id="wbStatusSelect" name="status">
+                                    <option value="active"       <?= $selectedStatus === 'active'       ? 'selected' : '' ?>>Active</option>
+                                    <option value="to_review"    <?= $selectedStatus === 'to_review'    ? 'selected' : '' ?>>De verificat</option>
+                                    <option value="to_invoice"   <?= $selectedStatus === 'to_invoice'   ? 'selected' : '' ?>>De facturat</option>
+                                    <option value="invoiced"     <?= $selectedStatus === 'invoiced'     ? 'selected' : '' ?>>Facturate</option>
+                                    <option value="not_billable" <?= $selectedStatus === 'not_billable' ? 'selected' : '' ?>>Nefacturabile</option>
+                                    <option value="all"          <?= $selectedStatus === 'all'          ? 'selected' : '' ?>>Toate</option>
+                                </select>
+                            </div>
+                            <div class="pf-row">
+                                <label for="wbServiceSelect">Serviciu</label>
+                                <select id="wbServiceSelect" name="service">
+                                    <option value="all" <?= $selectedService === 'all' ? 'selected' : '' ?>>Toate serviciile</option>
+                                    <?php foreach ($services as $service): ?>
+                                        <option value="<?= ib_h($service['name']) ?>" <?= $selectedService === $service['name'] ? 'selected' : '' ?>><?= ib_h($service['name']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-actions">
+                                <button type="button" class="pz-ph-btn ghost" onclick="document.getElementById('wbFiltersPopover').classList.remove('is-open'); document.getElementById('wbFiltersToggle').setAttribute('aria-expanded','false');">Anulează</button>
+                                <button type="submit" class="pz-ph-btn primary">Aplică</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+                <?php
+                $wbToolbarHtml = ob_get_clean();
+
+                pz_page_header([
+                    'kicker'   => 'Financiar',
+                    'title'    => 'Lista lucrări',
+                    'subtitle' => 'Poziții generate din programări finalizate · ' . (int)count($rows) . ' rezultate',
+                    'actions'  => [[
+                        'label'   => 'Export CSV',
+                        'href'    => ib_current_url(['export' => 'csv']),
+                        'variant' => 'ghost',
+                        'icon'    => 'ti-download',
+                    ]],
+                    'tabs'     => $billingTabs,
+                    'period'   => [
+                        'current' => $rangeCurrent,
+                        'param'   => '_range_quick',
+                        'options' => [
+                            'today'      => 'Azi',
+                            'month'      => 'Luna curentă',
+                            'prev_month' => 'Luna trecută',
+                        ],
+                    ],
+                    'kpis'     => [
+                        ['label' => 'Total poziții', 'value' => (int)$totalCount,                      'meta' => ib_h(ib_money_label($totalAmount)) . ' net'],
+                        ['label' => 'De verificat',  'value' => (int)$summary['to_review']['count'],   'meta' => ib_h(ib_money_label($summary['to_review']['amount'])) . ' net',  'tone' => 'warning'],
+                        ['label' => 'De facturat',   'value' => (int)$summary['to_invoice']['count'],  'meta' => ib_h(ib_money_label($summary['to_invoice']['amount'])) . ' net', 'tone' => 'info'],
+                        ['label' => 'Facturate',     'value' => (int)$summary['invoiced']['count'],    'meta' => ib_h(ib_money_label($summary['invoiced']['gross'])) . ' cu TVA',  'tone' => 'success'],
+                    ],
+                    'toolbar'  => $wbToolbarHtml,
+                ]);
+
+                // Period pills → setează date_from + date_to + resetează status/service la default
+                ?>
+                <script>
+                (function() {
+                    document.querySelectorAll('.pz-ph-period a').forEach(function(a) {
+                        a.addEventListener('click', function(e) {
+                            var u = new URL(a.href, location.href);
+                            var rq = u.searchParams.get('_range_quick');
+                            if (!rq) return;
+                            e.preventDefault();
+                            var today = '<?= ib_h($today) ?>';
+                            var cms   = '<?= ib_h($currentMonthStart) ?>'; var cme = '<?= ib_h($currentMonthEnd) ?>';
+                            var pms   = '<?= ib_h($prevMonthStart) ?>';    var pme = '<?= ib_h($prevMonthEnd) ?>';
+                            var from, to;
+                            if      (rq === 'today')      { from = today; to = today; }
+                            else if (rq === 'month')      { from = cms;   to = cme; }
+                            else if (rq === 'prev_month') { from = pms;   to = pme; }
+                            else return;
+                            location.href = 'work_billing.php?date_from=' + from + '&date_to=' + to + '&status=active&service=all&pv=all';
+                        });
+                    });
+                })();
+                </script>
+                <?php
+                pz_date_range_init('wbDateFrom', 'wbDateTo', 'date_from', 'date_to', [
+                    'form_id' => 'wbFilterForm',
+                ]);
+                ?>
+                <script>
+                (function() {
+                    // Popover filtre work_billing
+                    var btn = document.getElementById('wbFiltersToggle');
+                    var pop = document.getElementById('wbFiltersPopover');
+                    if (!btn || !pop) return;
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        var open = pop.classList.toggle('is-open');
+                        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    });
+                    document.addEventListener('click', function(e) {
+                        if (!pop.classList.contains('is-open')) return;
+                        if (pop.contains(e.target) || btn.contains(e.target)) return;
+                        pop.classList.remove('is-open');
+                        btn.setAttribute('aria-expanded', 'false');
+                    });
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape' && pop.classList.contains('is-open')) {
+                            pop.classList.remove('is-open');
+                            btn.setAttribute('aria-expanded', 'false');
+                            btn.focus();
+                        }
+                    });
+                })();
+                </script>
+            <?php /* — sfârșit header unificat — */ ?>
 
             <section class="table-card">
                 <div class="table-head">
