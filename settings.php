@@ -13,6 +13,11 @@ if (!is_admin()) {
     exit('Acces permis doar administratorului.');
 }
 
+// Gate cu parolă pentru zona de Setări (suplimentar la is_admin).
+// Cere parolă o dată la 30 minute. Prima accesare permite setarea ei.
+require_once __DIR__ . '/settings_gate.php';
+pz_settings_gate($pdo);
+
 function st_h($value): string
 {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
