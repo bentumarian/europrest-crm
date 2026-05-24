@@ -393,11 +393,12 @@ $stockConsumptionDeferred = $document && ($type === 'proces_verbal') && (($docum
 $hasClientSignature = $signaturePath !== '';
 $signatureSavedAt = $document ? dview_signature_saved_at($document) : '';
 $appointmentIdForSignature = $document ? dview_document_appointment_id($document) : 0;
+$pvIssuedByOffice = $document && $isTeamUser && $type === 'proces_verbal' && $isIssued && (int)($document['issued_by'] ?? 0) > 0;
 $canClientSign = false;
-if ($document && $isTeamUser && $type === 'proces_verbal' && $isIssued && $appointmentIdForSignature > 0) {
+if ($document && $isTeamUser && $type === 'proces_verbal' && $isIssued && !$pvIssuedByOffice && $appointmentIdForSignature > 0) {
     $canClientSign = pzdoc_user_can_access_appointment_for_pv($pdo, $appointmentIdForSignature, true);
 }
-$teamEmailBlockedBySignature = $isTeamUser && $type === 'proces_verbal' && $isIssued && !$hasClientSignature;
+$teamEmailBlockedBySignature = $isTeamUser && $type === 'proces_verbal' && $isIssued && !$pvIssuedByOffice && !$hasClientSignature;
 $printCacheKey = $document ? dview_print_cache_key($document, $template) : (string)time();
 if ($isTeamUser && $type === 'proces_verbal') {
     $backUrl = 'calendar.php';
@@ -519,7 +520,7 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                 <?php if ($document): ?>
                     <div class="document-toolbar">
                         <a class="btn accent" target="_blank" href="document_pdf.php?id=<?= (int)$document['id'] ?>&mode=download">Descarcă PDF</a>
-                        <?php if ($isIssued && $hasClientSignature): ?>
+                        <?php if ($isIssued && ($hasClientSignature || $pvIssuedByOffice)): ?>
                             <?php if ($hasClientEmail): ?>
                                 <button class="btn accent" type="button" onclick="sendQuickDocumentEmail(<?= (int)$document['id'] ?>, this, '<?= dview_h($clientEmail) ?>')">Trimite email</button>
                             <?php else: ?>

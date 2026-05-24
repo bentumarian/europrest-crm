@@ -2805,6 +2805,9 @@ function renderTeamPvActions(data) {
     const pvLabel = hasPv ? ((data.pv_status === 'draft') ? 'Editează PV' : 'Vezi PV') : 'Emite PV';
     const emailEnabled = hasPv && data.pv_status === 'issued' && String(data.pv_client_email || '').trim() !== '';
     const emailDisabled = hasPv && data.pv_status === 'issued' && !emailEnabled;
+    const openPvButton = (!hasPv || data.pv_status !== 'issued')
+        ? `<button class="btn pv-aero-btn" type="button" onclick="openPvFromTeam()">${pvLabel}</button>`
+        : '';
     const pdfButton = hasPv && data.pv_status === 'issued'
         ? `<a class="btn" target="_blank" href="${escHtml(pvPdfUrlFromData(data))}">PDF</a>`
         : '';
@@ -2813,7 +2816,7 @@ function renderTeamPvActions(data) {
         : '';
     box.innerHTML = `
         <div style="display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;">
-            <button class="btn pv-aero-btn" type="button" onclick="openPvFromTeam()">${pvLabel}</button>
+            ${openPvButton}
             ${pdfButton}
             ${emailButton}
         </div>
@@ -3457,4 +3460,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 </body>
-</html>
+</html>
