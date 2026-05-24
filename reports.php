@@ -1239,104 +1239,149 @@ document.addEventListener('click', (event) => {
 });
 </script>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/air-datepicker@3.5.0/air-datepicker.min.css">
 <style>
-/* Flatpickr — match design system PestZone */
-.flatpickr-calendar {
-    background: var(--pz-surf);
-    border: 1px solid var(--pz-line);
-    border-radius: 8px;
+/* Air-Datepicker — match design system PestZone */
+.air-datepicker {
+    --adp-font-family: 'Inter', system-ui, sans-serif;
+    --adp-font-size: 13px;
+    --adp-width: 280px;
+    --adp-z-index: 200;
+    --adp-padding: 10px;
+    --adp-grid-areas: "nav" "body" "timepicker" "buttons";
+    --adp-transition-duration: 0.18s;
+    --adp-transition-ease: ease-out;
+    --adp-background-color: var(--pz-surf);
+    --adp-background-color-hover: var(--pz-soft);
+    --adp-background-color-active: var(--pz-bls);
+    --adp-background-color-in-range: var(--pz-bls);
+    --adp-background-color-selected-other-month-focused: var(--pz-bl);
+    --adp-background-color-selected-other-month: var(--pz-bl);
+    --adp-color: var(--pz-text);
+    --adp-color-secondary: var(--pz-mu);
+    --adp-color-hover: var(--pz-title);
+    --adp-color-disabled: var(--pz-fa);
+    --adp-color-disabled-in-range: var(--pz-fa);
+    --adp-color-current-date: var(--pz-bld);
+    --adp-color-other-month: var(--pz-fa);
+    --adp-color-other-month-hover: var(--pz-mu);
+    --adp-border-color: var(--pz-line);
+    --adp-border-color-inner: var(--pz-lines);
+    --adp-border-radius: 8px;
+    --adp-border-color-inline: var(--pz-line);
+    --adp-nav-height: 36px;
+    --adp-nav-arrow-color: var(--pz-mu);
+    --adp-nav-action-size: 28px;
+    --adp-nav-color-secondary: var(--pz-fa);
+    --adp-day-name-color: var(--pz-mu);
+    --adp-day-name-color-hover: var(--pz-title);
+    --adp-day-cell-width: 1fr;
+    --adp-day-cell-height: 34px;
+    --adp-month-cell-height: 38px;
+    --adp-year-cell-height: 38px;
+    --adp-pointer-size: 0;
+    --adp-cell-border-radius: 6px;
+    --adp-cell-background-color-hover: var(--pz-soft);
+    --adp-cell-background-color-selected: var(--pz-bl);
+    --adp-cell-background-color-selected-hover: var(--pz-bld);
+    --adp-cell-background-color-in-range: var(--pz-bls);
+    --adp-cell-background-color-in-range-focused: var(--pz-blb);
+    --adp-cell-border-color-in-range: var(--pz-blb);
+    --adp-btn-height: 32px;
+    --adp-btn-color: var(--pz-text);
+    --adp-btn-color-hover: var(--pz-bld);
+    --adp-btn-border-radius: 6px;
+    --adp-btn-background-color-hover: var(--pz-soft);
+    --adp-btn-background-color-active: var(--pz-bls);
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10), 0 2px 6px rgba(15, 23, 42, 0.04);
-    font-family: 'Inter', system-ui, sans-serif;
 }
-.flatpickr-months .flatpickr-month {
-    background: var(--pz-surf);
-    color: var(--pz-title);
-    fill: var(--pz-title);
-}
-.flatpickr-current-month {
-    font-size: 14px;
-    font-weight: 500;
-    padding-top: 8px;
-}
-.flatpickr-current-month .flatpickr-monthDropdown-months {
-    background: var(--pz-soft);
-    border-radius: 4px;
-    padding: 2px 4px;
-    font-weight: 500;
-}
-.flatpickr-current-month input.cur-year {
-    font-weight: 500;
-    color: var(--pz-title);
-}
-.flatpickr-weekday {
-    color: var(--pz-mu);
-    font-weight: 500;
-    font-size: 11px;
-}
-.flatpickr-day {
-    color: var(--pz-text);
-    border-radius: 6px;
-    font-size: 13px;
-}
-.flatpickr-day:hover {
-    background: var(--pz-soft);
-    border-color: transparent;
-}
-.flatpickr-day.today {
-    border-color: var(--pz-bl);
-    color: var(--pz-bld);
-}
-.flatpickr-day.selected,
-.flatpickr-day.selected:hover {
-    background: var(--pz-bl);
-    border-color: var(--pz-bl);
-    color: #fff;
-}
-.flatpickr-day.prevMonthDay,
-.flatpickr-day.nextMonthDay { color: var(--pz-fa); }
-.flatpickr-day.flatpickr-disabled {
-    color: var(--pz-fa);
-    opacity: 0.4;
-}
-.flatpickr-months .flatpickr-prev-month,
-.flatpickr-months .flatpickr-next-month {
-    color: var(--pz-mu);
-    fill: var(--pz-mu);
-}
-.flatpickr-months .flatpickr-prev-month:hover svg,
-.flatpickr-months .flatpickr-next-month:hover svg {
-    fill: var(--pz-bl);
-}
+.air-datepicker-nav--title:hover { color: var(--pz-bl); }
+.air-datepicker-cell.-selected- { color: #fff !important; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/ro.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/air-datepicker@3.5.0/air-datepicker.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/air-datepicker@3.5.0/locale/ro.js"></script>
 <script>
 (function() {
-    if (typeof flatpickr === 'undefined') return;
+    if (typeof AirDatepicker === 'undefined') return;
+    function isoFromDate(d) {
+        var y = d.getFullYear();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + day;
+    }
+    function parseISO(s) {
+        if (!s || typeof s !== 'string') return null;
+        var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!m) return null;
+        return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    }
     var common = {
-        locale: 'ro',
-        dateFormat: 'Y-m-d',
-        altInput: true,
-        altFormat: 'd.m.Y',
-        allowInput: false,
-        disableMobile: false
+        locale: AirDatepickerLocale && AirDatepickerLocale.ro ? AirDatepickerLocale.ro : undefined,
+        dateFormat: 'dd.MM.yyyy',
+        autoClose: true,
+        navTitles: { days: 'MMMM <i>yyyy</i>' },
+        position: 'bottom left'
     };
     var fromInput = document.querySelector('input[name="date_from"]');
     var toInput   = document.querySelector('input[name="date_to"]');
+    var fromHidden, toHidden;
+    function attachHidden(input) {
+        // input vizibil = formatat dd.mm.yyyy; hidden = ISO yyyy-mm-dd pentru submit
+        var name = input.name;
+        var hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = name + '_iso';
+        hidden.value = input.value || '';
+        input.parentNode.appendChild(hidden);
+        // schimb name-ul input-ului vizibil ca să nu se mai trimită original
+        // şi adaug clona ascunsă cu name-ul original
+        var realHidden = document.createElement('input');
+        realHidden.type = 'hidden';
+        realHidden.name = name;
+        realHidden.value = input.value || '';
+        input.parentNode.appendChild(realHidden);
+        input.removeAttribute('name');
+        input.type = 'text';
+        input.readOnly = true;
+        input.autocomplete = 'off';
+        return realHidden;
+    }
+    if (fromInput) fromHidden = attachHidden(fromInput);
+    if (toInput)   toHidden   = attachHidden(toInput);
+
+    // setează valoarea vizibilă în format dd.mm.yyyy
+    function setVisible(input, isoValue) {
+        var d = parseISO(isoValue);
+        if (!d) { input.value = ''; return; }
+        var day = String(d.getDate()).padStart(2, '0');
+        var m   = String(d.getMonth() + 1).padStart(2, '0');
+        input.value = day + '.' + m + '.' + d.getFullYear();
+    }
+    if (fromInput && fromHidden) setVisible(fromInput, fromHidden.value);
+    if (toInput   && toHidden)   setVisible(toInput,   toHidden.value);
+
+    var dpTo;
     if (fromInput) {
-        var fpFrom = flatpickr(fromInput, Object.assign({}, common, {
-            onChange: function(selectedDates) {
-                if (selectedDates[0] && fpTo) {
-                    fpTo.set('minDate', selectedDates[0]);
+        new AirDatepicker(fromInput, Object.assign({}, common, {
+            selectedDates: fromHidden.value ? [parseISO(fromHidden.value)] : [],
+            onSelect: function(opt) {
+                if (opt.date) {
+                    fromHidden.value = isoFromDate(opt.date);
+                    if (dpTo) dpTo.update({ minDate: opt.date });
+                } else {
+                    fromHidden.value = '';
                 }
             }
         }));
     }
-    var fpTo;
     if (toInput) {
-        fpTo = flatpickr(toInput, Object.assign({}, common, {
-            minDate: fromInput ? fromInput.value : undefined
+        dpTo = new AirDatepicker(toInput, Object.assign({}, common, {
+            selectedDates: toHidden.value ? [parseISO(toHidden.value)] : [],
+            minDate: fromHidden && fromHidden.value ? parseISO(fromHidden.value) : undefined,
+            onSelect: function(opt) {
+                if (opt.date) toHidden.value = isoFromDate(opt.date);
+                else toHidden.value = '';
+            }
         }));
     }
 })();
