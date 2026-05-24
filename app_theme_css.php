@@ -37,7 +37,7 @@ if (!function_exists('app_theme_css')) {
             --accent:        #2563EB;
             --accent-strong: #1E3A8A;
             --accent-deep:   #12345A;
-            --accent-orange: #9A3412;
+            --accent-orange: #EA580C;
             --accent-pale:   #BFDBFE;
             --accent-soft:   rgba(37, 99, 235, .08);
             --accent-soft-2: rgba(37, 99, 235, .18);
@@ -63,12 +63,12 @@ if (!function_exists('app_theme_css')) {
             --pz-gr:      #166534;
             --pz-grs:     #F0FDF4;
             --pz-grb:     #BBF7D0;
-            --pz-or:      #9A3412;
+            --pz-or:      #EA580C;
             --pz-ors:     #FFF7ED;
-            --pz-orb:     #FED7AA;
-            --pz-re:      #991B1B;
+            --pz-orb:     #FDBA74;
+            --pz-re:      #DC2626;
             --pz-res:     #FEF2F2;
-            --pz-reb:     #FECACA;
+            --pz-reb:     #FCA5A5;
             --pz-r:       8px;
             --pz-rs:      4px;
             --pz-gap:     12px;
@@ -85,7 +85,7 @@ if (!function_exists('app_theme_css')) {
             --tone-danger:        #DC2626;
             --tone-danger-soft:   #FEE2E2;
             --tone-danger-bg:     #FEF2F2;
-            --tone-warning:       #9A3412;
+            --tone-warning:       #EA580C;
             --tone-warning-soft:  #FFF7ED;
             --tone-warning-bg:    #FFF7ED;
             --tone-success:       #166534;

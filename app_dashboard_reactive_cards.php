@@ -603,7 +603,7 @@ window.PZ_DASH_REACTIVE = {$json};
                 labels: ['Încasate', 'În termen', 'Restante'],
                 datasets: [{
                     data: [paid, pending, overdue],
-                    backgroundColor: ['#166534', '#9A3412', '#991B1B'],
+                    backgroundColor: ['#166534', '#EA580C', '#DC2626'],
                     borderWidth: 0,
                     spacing: 2
                 }]
