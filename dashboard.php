@@ -694,8 +694,17 @@ if ($hasSmartbillInvoices) {
     gap: 14px;
     max-width: 1680px;
     margin: 0 auto;
+    /* Fix: previne overflow horizontal pe mobile */
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
 }
 .pz-dash * { box-sizing: border-box; }
+/* Fix critic anti-overflow: toate elementele grid trebuie sa poata sa se micsoreze */
+.pz-dash > *,
+.pz-kpi-grid > *,
+.pz-row-2 > *,
+.pz-row-2-bottom > * { min-width: 0; }
 .pz-dash a { text-decoration: none; color: inherit; }
 .pz-dash .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
 
@@ -739,7 +748,7 @@ if ($hasSmartbillInvoices) {
 /* KPI Grid */
 .pz-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
 }
 .pz-kpi {
@@ -781,12 +790,19 @@ if ($hasSmartbillInvoices) {
 .pz-kpi .pz-kpi-bar > span { display: block; height: 100%; }
 
 /* Charts row */
-.pz-row-2 { display: grid; grid-template-columns: 1.5fr 1fr; gap: 10px; }
-.pz-row-2-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@media (max-width: 900px) {
-    .pz-kpi-grid { grid-template-columns: repeat(2, 1fr); }
-    .pz-row-2, .pz-row-2-bottom { grid-template-columns: 1fr; }
+.pz-row-2 { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px; }
+.pz-row-2-bottom { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+
+/* Period selector — orizontal scroll dacă nu încape */
+.pz-period {
+    max-width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
+.pz-period::-webkit-scrollbar { display: none; }
+.pz-period a { white-space: nowrap; flex-shrink: 0; }
 
 .pz-card {
     background: var(--pz-surf);
@@ -812,8 +828,17 @@ if ($hasSmartbillInvoices) {
 .pz-legend span { display: inline-flex; align-items: center; gap: 4px; }
 .pz-legend .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
 
-.pz-chart-wrap { position: relative; height: 220px; }
+.pz-chart-wrap {
+    position: relative;
+    height: 220px;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
 .pz-chart-wrap.donut { height: 160px; }
+.pz-chart-wrap canvas {
+    max-width: 100% !important;
+}
 
 /* Donut legend (jos sub donut) */
 .pz-donut-legend { display: flex; flex-direction: column; gap: 5px; font-size: 12px; margin-top: 8px; }
@@ -872,11 +897,88 @@ if ($hasSmartbillInvoices) {
     font-size: 12px; color: var(--pz-fa);
 }
 
-/* Responsive ajustari */
+/* ============================================================
+   Responsive — adaptare pe orice device
+   Breakpoints:
+   - 1100px: tablet landscape (4 KPI rămân, charts split menținut)
+   - 900px:  tablet portrait (KPI 2 coloane, row-2 stacked)
+   - 640px:  phone landscape (compactare valori)
+   - 480px:  phone portrait (1 coloană totală)
+   - 360px:  ultra-narrow (font + padding mai mic)
+   ============================================================ */
+
+@media (max-width: 1100px) {
+    .pz-row-2 { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 900px) {
+    .pz-dash { padding: 14px 14px; gap: 12px; }
+    .pz-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pz-row-2-bottom { grid-template-columns: minmax(0, 1fr); }
+    .pz-head { gap: 10px; }
+    .pz-head-actions { width: 100%; }
+    .pz-period { width: 100%; }
+    .pz-period a { flex: 1; text-align: center; }
+    .pz-chart-wrap { height: 200px; }
+}
+
 @media (max-width: 640px) {
-    .pz-dash { padding: 14px 12px; }
-    .pz-kpi-grid { grid-template-columns: 1fr 1fr; }
-    .pz-head-actions { width: 100%; justify-content: flex-start; }
+    .pz-dash { padding: 12px 10px; gap: 10px; }
+    .pz-head .pz-title { font-size: 19px; }
+    .pz-head .pz-date { font-size: 11px; }
+    .pz-kpi { padding: 11px 12px; }
+    .pz-kpi .pz-kpi-value { font-size: 19px; }
+    .pz-kpi .pz-kpi-value .unit { font-size: 11px; }
+    .pz-kpi .pz-kpi-label { font-size: 11px; }
+    .pz-kpi .pz-kpi-badge { font-size: 10px; padding: 1px 6px; }
+    .pz-card { padding: 12px 13px; }
+    .pz-card-head .pz-card-title { font-size: 13px; }
+    .pz-legend { gap: 10px; font-size: 10.5px; }
+    .pz-chart-wrap { height: 180px; }
+    .pz-chart-wrap.donut { height: 140px; }
+    .pz-period a { padding: 5px 8px; font-size: 11px; }
+    .pz-appt-time { width: 34px; font-size: 11px; }
+    .pz-appt-info .name { font-size: 12px; }
+    .pz-appt-info .tech { font-size: 10px; }
+    .pz-client-name { font-size: 12px; }
+    .pz-client-amount { font-size: 11px; }
+}
+
+@media (max-width: 480px) {
+    .pz-kpi-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    .pz-kpi { display: flex; flex-direction: column; }
+    .pz-kpi .pz-kpi-value { font-size: 22px; }
+    .pz-period {
+        padding: 2px;
+        border-radius: 6px;
+    }
+    .pz-period a {
+        padding: 5px 6px;
+        font-size: 10.5px;
+        min-width: 0;
+    }
+    /* Ascunde subiconul/badge-ul „urgent" text dar pastreaza culoarea */
+    .pz-kpi .pz-kpi-badge {
+        gap: 2px;
+    }
+    /* Top clients - ascunde bar-ul de progres, lasa doar nume + suma */
+    .pz-client-bar { display: none; }
+    .pz-client-row { gap: 8px; }
+    .pz-client-avatar { width: 26px; height: 26px; }
+    /* Programari - compactare */
+    .pz-appt-row { gap: 8px; padding: 6px; }
+    .pz-appt-status { font-size: 9.5px; padding: 1px 5px; }
+}
+
+@media (max-width: 360px) {
+    .pz-dash { padding: 10px 8px; }
+    .pz-kpi { padding: 10px 11px; }
+    .pz-kpi .pz-kpi-value { font-size: 19px; }
+    .pz-head .pz-title { font-size: 17px; }
+    /* Pe ultra-narrow ascund data si reduc padding */
+    .pz-head .pz-date { display: none; }
+    .pz-chart-wrap { height: 160px; }
+    .pz-chart-wrap.donut { height: 130px; }
 }
 </style>
 </head>
