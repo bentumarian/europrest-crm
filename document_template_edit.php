@@ -414,11 +414,26 @@ $isNew = (int)$form['id'] <= 0;
 .tox.tox-tinymce { border:0 !important; border-radius:var(--pz-r) !important; }
 .field textarea.editor { min-height:520px; font-family:var(--mono); font-size:12px; line-height:1.45; resize:vertical; white-space:pre-wrap; }
 
-.option-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:4px; }
-.check-pill { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; height:32px; border:1px solid var(--pz-line); border-radius:4px; background:#fff; font-size:12.5px; font-weight:500; color:var(--pz-text); cursor:pointer; transition:background .12s, border-color .12s, color .12s; box-sizing:border-box; }
-.check-pill input { width:14px; height:14px; min-width:0; min-height:0; margin:0; accent-color:var(--pz-bl); cursor:pointer; appearance:auto; -webkit-appearance:auto; }
-.check-pill:hover { border-color:var(--pz-mu); background:var(--pz-soft); }
-.check-pill:has(input:checked) { background:var(--pz-bls); border-color:var(--pz-blb); color:var(--pz-bld); font-weight:600; }
+.option-row { display:flex; gap:18px; flex-wrap:wrap; align-items:center; margin-top:4px; }
+/* .check-pill e <label>, dar .field label o face block uppercase. Override cu specificitate mai mare: */
+.field .check-pill {
+    display:inline-flex; align-items:center; gap:8px;
+    padding:0; margin:0; min-height:0;
+    font-size:13px; font-weight:500; color:var(--pz-text);
+    text-transform:none; letter-spacing:0;
+    background:transparent; border:0;
+    cursor:pointer; transition:color .12s;
+}
+.field .check-pill input {
+    width:16px; height:16px;
+    min-width:0; min-height:0;
+    margin:0; accent-color:var(--pz-bl);
+    cursor:pointer;
+    appearance:auto; -webkit-appearance:auto;
+    flex-shrink:0;
+}
+.field .check-pill:hover { color:var(--pz-bld); }
+.field .check-pill:has(input:checked) { color:var(--pz-bld); font-weight:600; }
 
 .editor-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; margin-top:12px; }
 
