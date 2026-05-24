@@ -238,65 +238,146 @@ $statusLabels = [
     <?php render_sidebar('incasari', true); ?>
     <main class="main">
         <div class="content payments-page">
-            <section class="hero">
-                <div>
-                    <h1>Încasări <span class="count-badge"><?= (int)$stats['all'] ?></span></h1>
-                </div>
-                <div class="actions">
-                    <a class="btn accent" href="payment.php">+ Încasare</a>
-                </div>
-            </section>
+            <?php
+                /*
+                |------------------------------------------------------------
+                | Header unificat PestZone — înlocuiește hero + module_nav
+                | + toolbar form + metrics + status tabs vechi.
+                | Tabs principale = 3 module financiar (Încasări activ).
+                | KPIs inline = Total / Numerar / Card / Bancă.
+                | Toolbar = date range + search + popover (Modalitate + Status).
+                | Actions = + Încasare (primary).
+                |------------------------------------------------------------
+                */
+                $paymentsTabs = [
+                    ['label' => 'Facturi',       'href' => 'invoices.php'],
+                    ['label' => 'Încasări',      'href' => 'payments.php',     'active' => true],
+                    ['label' => 'Lista lucrări', 'href' => 'work_billing.php'],
+                ];
 
-            <?php render_billing_module_nav('incasari'); ?>
+                $paymentsActiveFilters = 0;
+                if ($typeFilter !== 'all')    $paymentsActiveFilters++;
+                if ($statusFilter !== 'all')  $paymentsActiveFilters++;
 
-            <section class="panel">
-                <div class="panel-body">
-                <form method="get" class="toolbar">
-                    <div><label>Căutare</label>
-                        <div class="pz-search-wrap">
-                            <input type="search" id="paymentsSearchInput" name="q" value="<?= pay_h($q) ?>" placeholder="Caută" autocomplete="off">
-                            <div class="pz-search-preview"></div>
+                $dateFromDisplay = $dateFrom ? date('d.m.Y', strtotime($dateFrom)) : '';
+                $dateToDisplay   = $dateTo   ? date('d.m.Y', strtotime($dateTo))   : '';
+
+                ob_start();
+                ?>
+                <form method="get" id="paymentsFilterForm" class="pz-fb">
+                    <input type="hidden" name="date_from" value="<?= pay_h($dateFrom) ?>">
+                    <input type="hidden" name="date_to"   value="<?= pay_h($dateTo) ?>">
+                    <?php if ($clientIdFilter > 0): ?><input type="hidden" name="client_id" value="<?= (int)$clientIdFilter ?>"><?php endif; ?>
+
+                    <div class="pz-fb-date-range" id="paymentsDateRange">
+                        <i class="ti ti-calendar" aria-hidden="true"></i>
+                        <input type="text" id="paymentsDateFrom" value="<?= pay_h($dateFromDisplay) ?>" placeholder="zz.ll.aaaa" readonly autocomplete="off" aria-label="Data început">
+                        <span class="sep">—</span>
+                        <input type="text" id="paymentsDateTo" value="<?= pay_h($dateToDisplay) ?>" placeholder="zz.ll.aaaa" readonly autocomplete="off" aria-label="Data final">
+                    </div>
+
+                    <div class="pz-fb-search">
+                        <i class="ti ti-search" aria-hidden="true"></i>
+                        <input type="search" id="paymentsSearchInput" name="q" value="<?= pay_h($q) ?>" placeholder="Caută document / client" autocomplete="off">
+                        <div class="pz-search-preview"></div>
+                    </div>
+
+                    <div class="pz-fb-spacer"></div>
+
+                    <a class="pz-fb-nav-btn" href="payments.php" title="Resetare filtre">↻</a>
+
+                    <div class="pz-fb-popover-wrap">
+                        <button type="button" class="pz-fb-filter-btn" id="paymentsFiltersToggle" aria-haspopup="true" aria-expanded="false">
+                            <i class="ti ti-adjustments-horizontal" aria-hidden="true"></i>
+                            Filtre
+                            <?php if ($paymentsActiveFilters > 0): ?>
+                                <span class="badge"><?= (int)$paymentsActiveFilters ?></span>
+                            <?php endif; ?>
+                        </button>
+                        <div class="pz-fb-popover" id="paymentsFiltersPopover" role="dialog" aria-label="Filtre suplimentare încasări">
+                            <div class="pf-row">
+                                <label for="paymentsTypeSelect">Modalitate</label>
+                                <select id="paymentsTypeSelect" name="type">
+                                    <option value="all">Toate</option>
+                                    <?php foreach ($paymentTypes as $key => $label): ?>
+                                        <option value="<?= pay_h($key) ?>" <?= $typeFilter === $key ? 'selected' : '' ?>><?= pay_h($label) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-row">
+                                <label for="paymentsStatusSelect">Status</label>
+                                <select id="paymentsStatusSelect" name="status">
+                                    <?php foreach ($statusTabs as $key => $label):
+                                        $count = $key === 'all' ? $stats['all'] : ($stats[$key] ?? 0);
+                                    ?>
+                                        <option value="<?= pay_h($key) ?>" <?= $statusFilter === $key ? 'selected' : '' ?>><?= pay_h($label) ?> (<?= (int)$count ?>)</option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-actions">
+                                <button type="button" class="pz-ph-btn ghost" onclick="document.getElementById('paymentsFiltersPopover').classList.remove('is-open'); document.getElementById('paymentsFiltersToggle').setAttribute('aria-expanded','false');">Anulează</button>
+                                <button type="submit" class="pz-ph-btn primary">Aplică</button>
+                            </div>
                         </div>
                     </div>
-                    <div><label>De la</label><input type="date" name="date_from" value="<?= pay_h($dateFrom) ?>"></div>
-                    <div><label>Până la</label><input type="date" name="date_to" value="<?= pay_h($dateTo) ?>"></div>
-                    <div>
-                        <label>Modalitate</label>
-                        <select name="type">
-                            <option value="all">Toate</option>
-                            <?php foreach ($paymentTypes as $key => $label): ?>
-                                <option value="<?= pay_h($key) ?>" <?= $typeFilter === $key ? 'selected' : '' ?>><?= pay_h($label) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <?php if ($clientIdFilter > 0): ?><input type="hidden" name="client_id" value="<?= (int)$clientIdFilter ?>"><?php endif; ?>
-                    <input type="hidden" name="status" value="<?= pay_h($statusFilter) ?>">
-                    <button class="btn accent" type="submit">Filtrează</button>
                 </form>
-                </div>
-            </section>
+                <?php
+                $paymentsToolbarHtml = ob_get_clean();
 
-            <section class="metrics">
-                <div class="metric"><span>Total încasat</span><strong><?= pay_h(pay_money($stats['total'])) ?></strong></div>
-                <div class="metric"><span>Numerar / chitanțe</span><strong><?= pay_h(pay_money($stats['cash'])) ?></strong></div>
-                <div class="metric"><span>Card</span><strong><?= pay_h(pay_money($stats['card'])) ?></strong></div>
-                <div class="metric"><span>Bancă / transfer</span><strong><?= pay_h(pay_money($stats['bank'])) ?></strong></div>
-            </section>
+                pz_page_header([
+                    'kicker'   => 'Financiar',
+                    'title'    => 'Încasări',
+                    'subtitle' => (int)$stats['all'] . ' încasări · ' . pay_h(pay_money($stats['total'])) . ' total',
+                    'actions'  => [[
+                        'label'   => 'Încasare nouă',
+                        'href'    => 'payment.php',
+                        'variant' => 'primary',
+                        'icon'    => 'ti-plus',
+                    ]],
+                    'tabs'     => $paymentsTabs,
+                    'kpis'     => [
+                        ['label' => 'Total încasat',      'value' => pay_h(pay_money($stats['total'])), 'tone' => 'success'],
+                        ['label' => 'Numerar / chitanțe', 'value' => pay_h(pay_money($stats['cash']))],
+                        ['label' => 'Card',               'value' => pay_h(pay_money($stats['card']))],
+                        ['label' => 'Bancă / transfer',   'value' => pay_h(pay_money($stats['bank']))],
+                    ],
+                    'toolbar'  => $paymentsToolbarHtml,
+                ]);
 
-            <nav class="tabs" aria-label="Filtre încasări">
-                <?php foreach ($statusTabs as $key => $label): ?>
-                    <?php
-                    $query = $_GET;
-                    $query['status'] = $key;
-                    $href = 'payments.php?' . http_build_query($query);
-                    $count = $key === 'all' ? $stats['all'] : ($stats[$key] ?? 0);
-                    ?>
-                    <a class="<?= $statusFilter === $key ? 'active' : '' ?>" href="<?= pay_h($href) ?>"><?= pay_h($label) ?> <small><?= (int)$count ?></small></a>
-                <?php endforeach; ?>
-            </nav>
+                pz_date_range_init('paymentsDateFrom', 'paymentsDateTo', 'date_from', 'date_to', [
+                    'form_id' => 'paymentsFilterForm',
+                ]);
+                ?>
+                <script>
+                (function() {
+                    var btn = document.getElementById('paymentsFiltersToggle');
+                    var pop = document.getElementById('paymentsFiltersPopover');
+                    if (!btn || !pop) return;
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        var open = pop.classList.toggle('is-open');
+                        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    });
+                    document.addEventListener('click', function(e) {
+                        if (!pop.classList.contains('is-open')) return;
+                        if (pop.contains(e.target) || btn.contains(e.target)) return;
+                        pop.classList.remove('is-open');
+                        btn.setAttribute('aria-expanded', 'false');
+                    });
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape' && pop.classList.contains('is-open')) {
+                            pop.classList.remove('is-open');
+                            btn.setAttribute('aria-expanded', 'false');
+                            btn.focus();
+                        }
+                    });
+                })();
+                </script>
+            <?php /* — sfârșit header unificat — */ ?>
 
+            <?php pz_table_cards_css(); ?>
             <section class="panel">
-                <table>
+                <table class="pz-table-cards">
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -322,24 +403,24 @@ $statusLabels = [
                         $invoiceId = (int)($payment['smartbill_invoice_id'] ?? 0);
                         ?>
                         <tr>
-                            <td>#<?= (int)$payment['id'] ?></td>
-                            <td><?= pay_h(pay_document_ref($payment)) ?></td>
-                            <td>
+                            <td data-label="ID">#<?= (int)$payment['id'] ?></td>
+                            <td data-label="Document"><?= pay_h(pay_document_ref($payment)) ?></td>
+                            <td data-label="Factură">
                                 <?php if ($invoiceId > 0): ?>
                                     <a href="invoice.php?id=<?= $invoiceId ?>"><?= pay_h(pay_invoice_ref($payment)) ?></a>
                                 <?php else: ?>
                                     -
                                 <?php endif; ?>
                             </td>
-                            <td><?= pay_h(pz_smartbill_payment_label((string)($payment['payment_type'] ?? 'alta'))) ?></td>
-                            <td>
+                            <td data-label="Modalitate"><?= pay_h(pz_smartbill_payment_label((string)($payment['payment_type'] ?? 'alta'))) ?></td>
+                            <td data-label="Client">
                                 <strong><?= pay_h($payment['client_name'] ?? '-') ?></strong>
                                 <div class="muted"><?= pay_h($payment['client_fiscal_code'] ?? '') ?></div>
                             </td>
-                            <td><?= pay_h($payment['payment_date'] ?? '-') ?></td>
-                            <td class="amount"><?= pay_h(pay_money($payment['amount'] ?? 0, $currency)) ?></td>
-                            <td><span class="status-pill status-<?= pay_h($statusClass) ?>"><?= pay_h($statusLabels[$status] ?? $status) ?></span></td>
-                            <td>
+                            <td data-label="Data"><?= pay_h($payment['payment_date'] ?? '-') ?></td>
+                            <td data-label="Total" class="amount"><?= pay_h(pay_money($payment['amount'] ?? 0, $currency)) ?></td>
+                            <td data-label="Status"><span class="status-pill status-<?= pay_h($statusClass) ?>"><?= pay_h($statusLabels[$status] ?? $status) ?></span></td>
+                            <td data-label="Acțiuni">
                                 <div class="row-actions">
                                     <?php if ($invoiceId > 0): ?>
                                         <a class="btn ghost" href="invoice.php?id=<?= $invoiceId ?>">Factură</a>
