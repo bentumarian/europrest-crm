@@ -31,17 +31,18 @@ if (!function_exists('app_topbar')) {
             min-height: var(--topbar-height);
             padding: 10px 18px;
             background: #FFFFFF;
-            border-bottom: 1px solid var(--border);
+            border: 1px solid var(--border);
+            border-radius: var(--shell-radius);
             position: fixed;
-            top: 0;
-            left: var(--sidebar-width);
-            right: 0;
+            top: var(--shell-gap);
+            left: calc(var(--sidebar-width) + var(--shell-gap) * 2);
+            right: var(--shell-gap);
             z-index: 50;
             backdrop-filter: none;
             -webkit-backdrop-filter: none;
         }
-        /* Compensam pentru topbar-ul fixed - continutul incepe sub el */
-        body:has(.app-topbar) .main { padding-top: var(--topbar-height); }
+        /* Compensam pentru topbar-ul fixed (înălțime topbar + spațiu deasupra lui + gap între topbar și content) */
+        body:has(.app-topbar) .main { padding-top: calc(var(--topbar-height) + var(--shell-gap) * 2); }
         body:has(.app-topbar) .app-mobile-header { display: none !important; }
         .app-topbar .tb-breadcrumb {
             display: inline-flex;
