@@ -173,11 +173,17 @@ $flashError = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_require();
     $action = (string)($_POST['action'] ?? '');
+    // Suprascriere explicită (folosit doar de apply_group din tab Conflicte):
+    // dacă e setat, UPDATE fără safety guard - chosen value se aplică la toate firmele din grup,
+    // inclusiv suprascriind valori existente diferite. Confirmat prin browser-side confirm().
+    $overwriteMode = !empty($_POST['overwrite_mode']);
 
     try {
         if ($action === 'apply_group') {
             // Aplicăm o singură propunere de grup pentru modul curent.
-            // POST: group_<field> (valoarea de copiat), targets_<field>[] (ids unde câmpul e gol).
+            // POST: group_<field> (valoarea de copiat), targets_<field>[] (lista de ids ale firmelor).
+            // Fără overwrite_mode: UPDATE doar pe câmpuri goale (clean tab - fill missing).
+            // Cu overwrite_mode: UPDATE pe toate ids-urile primite (conflict tab - unify values).
             $updates = 0;
             foreach ($modeCfg['propagate'] as $field) {
                 $value = trim((string)($_POST['group_' . $field] ?? ''));
@@ -186,7 +192,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!cd_field_validator($field, $value)) continue;
                 $in = implode(',', array_fill(0, count($targets), '?'));
                 $params = array_merge([$value], $targets);
-                $stmt = $pdo->prepare("UPDATE clients SET {$field} = ? WHERE id IN ($in) AND ({$field} IS NULL OR {$field} = '')");
+                if ($overwriteMode) {
+                    $stmt = $pdo->prepare("UPDATE clients SET {$field} = ? WHERE id IN ($in)");
+                } else {
+                    $stmt = $pdo->prepare("UPDATE clients SET {$field} = ? WHERE id IN ($in) AND ({$field} IS NULL OR {$field} = '')");
+                }
                 $stmt->execute($params);
                 $updates += $stmt->rowCount();
             }
@@ -247,8 +257,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $flashError = $e->getMessage();
     }
 
+    // Păstrăm tab-ul curent în redirect ca să nu sară userul pe „clean" după apply.
+    $currentTab = (string)($_POST['tab'] ?? '');
+    if (!in_array($currentTab, ['clean', 'conflict', 'complete'], true)) $currentTab = 'clean';
     header('Location: clients_dedupe.php?' . http_build_query(array_filter([
         'mode' => $mode,
+        'tab' => $currentTab,
         'flash' => $flashSuccess,
         'flash_err' => $flashError,
     ])));
@@ -411,6 +425,7 @@ $modeUrl = function(string $m) {
                         <?= csrf_field() ?>
                         <input type="hidden" name="action" value="download_backup">
                         <input type="hidden" name="mode" value="<?= cd_h($mode) ?>">
+                        <input type="hidden" name="tab" value="<?= cd_h($tab) ?>">
                         <button class="btn" type="submit">⬇ Backup CSV</button>
                     </form>
                     <?php if ($statsClean > 0): ?>
@@ -418,6 +433,7 @@ $modeUrl = function(string $m) {
                             <?= csrf_field() ?>
                             <input type="hidden" name="action" value="apply_all_safe">
                             <input type="hidden" name="mode" value="<?= cd_h($mode) ?>">
+                            <input type="hidden" name="tab" value="<?= cd_h($tab) ?>">
                             <button class="btn accent" type="submit">⚡ Aplică toate propunerile fără conflict</button>
                         </form>
                     <?php endif; ?>
@@ -543,6 +559,7 @@ $modeUrl = function(string $m) {
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="apply_group">
                                 <input type="hidden" name="mode" value="<?= cd_h($mode) ?>">
+                                <input type="hidden" name="tab" value="<?= cd_h($tab) ?>">
                                 <?php foreach ($modeCfg['propagate'] as $f): ?>
                                     <input type="hidden" name="group_<?= cd_h($f) ?>" value="<?= cd_h($values[$f] ?? '') ?>">
                                     <?php foreach (($missing[$f] ?? []) as $id): ?>
@@ -575,22 +592,29 @@ $modeUrl = function(string $m) {
                                 <?php foreach ($clients as $c) { $renderTblRow($c); } ?>
                                 </tbody>
                             </table>
-                            <form method="post" id="<?= $formId ?>">
+                            <form method="post" id="<?= $formId ?>" onsubmit="return confirm('Vei SUPRASCRIE valorile alese pe toate firmele din acest grup (<?= count($clients) ?> firme). Valorile diferite existente vor fi înlocuite. Continui?');">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="apply_group">
                                 <input type="hidden" name="mode" value="<?= cd_h($mode) ?>">
+                                <input type="hidden" name="tab" value="<?= cd_h($tab) ?>">
+                                <input type="hidden" name="overwrite_mode" value="1">
+                                <?php
+                                // În tab Conflicte, targets = TOATE firmele din grup, indiferent dacă au câmpul completat.
+                                // Combinat cu overwrite_mode=1, UPDATE va suprascrie valorile existente diferite.
+                                $allIds = array_map(static fn($r) => (int)$r['id'], $clients);
+                                ?>
                                 <?php foreach ($modeCfg['propagate'] as $f):
                                     $vals = $values[$f] ?? [];
                                     $miss = $missing[$f] ?? [];
                                     $hasFieldConflict = count($vals) > 1;
                                     ?>
-                                    <?php foreach ($miss as $id): ?>
+                                    <?php foreach ($allIds as $id): ?>
                                         <input type="hidden" name="targets_<?= cd_h($f) ?>[]" value="<?= (int)$id ?>">
                                     <?php endforeach; ?>
-                                    <?php if ($hasFieldConflict && !empty($miss)): ?>
+                                    <?php if ($hasFieldConflict): ?>
                                         <div class="cd-conflict-choice">
-                                            <strong><?= cd_h(ucfirst(cd_field_label($f))) ?> - alege valoarea de copiat:</strong>
-                                            <label><input type="radio" name="group_<?= cd_h($f) ?>" value=""> Skip (nu copia <?= cd_h(cd_field_label($f)) ?>)</label>
+                                            <strong><?= cd_h(ucfirst(cd_field_label($f))) ?> - alege valoarea de aplicat la toate firmele:</strong>
+                                            <label><input type="radio" name="group_<?= cd_h($f) ?>" value="" checked> Skip (nu schimba <?= cd_h(cd_field_label($f)) ?>)</label>
                                             <?php foreach ($vals as $val): ?>
                                                 <label><input type="radio" name="group_<?= cd_h($f) ?>" value="<?= cd_h($val) ?>"> <?= cd_h($val) ?></label>
                                             <?php endforeach; ?>
