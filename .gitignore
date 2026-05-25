@@ -12,6 +12,8 @@ node_modules/
 *.sql
 *.sqlite
 *.zip
+# … dar pastram scripturile de migratie sub control de versiune.
+!/migrations/*.sql
 
 # Application storage
 /storage/
