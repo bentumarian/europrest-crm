@@ -330,6 +330,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        // ── Verificare duplicat după CUI / CNP ──
+        // Două firme nu pot avea același CUI, două persoane nu pot avea același CNP.
+        // Verifică inclusiv clienții inactivi (ca utilizatorul să-i poată reactiva
+        // în loc să creeze duplicat). La update excludem propriul id.
+        $normalizedFiscalCode = strtoupper(trim((string)$fiscalCode));
+        if ($normalizedFiscalCode !== '') {
+            $dupSql = "SELECT id, name, active FROM clients WHERE UPPER(TRIM(fiscal_code)) = ?";
+            $dupParams = [$normalizedFiscalCode];
+            if ($action === 'update' && $clientId > 0) {
+                $dupSql .= " AND id <> ?";
+                $dupParams[] = $clientId;
+            }
+            $dupSql .= " LIMIT 1";
+            $dupStmt = $pdo->prepare($dupSql);
+            $dupStmt->execute($dupParams);
+            $existingClient = $dupStmt->fetch(PDO::FETCH_ASSOC);
+            if ($existingClient) {
+                header('Location: clients.php?error=duplicate_fiscal_code&existing_id=' . (int)$existingClient['id']);
+                exit;
+            }
+        }
+
         if ($action === 'create') {
             $stmt = $pdo->prepare("
                 INSERT INTO clients
@@ -1450,6 +1472,14 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
         <?php if (($_GET['error'] ?? '') === 'missing_registered_address'): ?><div class="notice notice-danger">Completează adresa fiscală: țară, județ, oraș/localitate si adresa.</div><?php endif; ?>
         <?php if (($_GET['error'] ?? '') === 'missing_location'): ?><div class="notice notice-danger">Adaugă cel puțin un punct de lucru activ.</div><?php endif; ?>
         <?php if (($_GET['error'] ?? '') === 'missing_location_required'): ?><div class="notice notice-danger">Fiecare locație activa trebuie sa aiba nume, adresa, persoană de contact, telefon si suprafata.</div><?php endif; ?>
+        <?php if (($_GET['error'] ?? '') === 'duplicate_fiscal_code'): ?>
+            <div class="notice notice-danger">
+                Există deja un client cu acest CUI / CNP în baza de date.
+                <?php if (!empty($_GET['existing_id'])): ?>
+                    <a href="?edit=<?= (int)$_GET['existing_id'] ?>" style="margin-left:8px;">→ Deschide clientul existent</a>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
 
         <div class="content">
             <?php
