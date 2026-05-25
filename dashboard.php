@@ -740,6 +740,65 @@ if ($hasReminders) {
     $remindersFuture     = (int)dash_value($pdo, "SELECT COUNT(*) FROM reminders WHERE status = 'pending' AND remind_date > CURDATE() AND remind_date BETWEEN ? AND ?", [$finStart, $finEnd]);
 }
 
+/* ────────────────────────────────────────────────────────────────────────
+   SPARKLINE DATE — venituri zilnice în perioada financiară
+   Pentru graficul mic din KPI „Venituri".
+   ──────────────────────────────────────────────────────────────────────── */
+
+$dailyRevenue = []; // [['d' => 'Y-m-d', 'v' => float], ...] (complet, cu zile zero)
+if ($hasSmartbillInvoices) {
+    $rowsDaily = dash_rows($pdo, "
+        SELECT DATE(invoice_date) AS d, COALESCE(SUM(gross_amount), 0) AS s
+        FROM smartbill_invoices
+        WHERE invoice_date BETWEEN ? AND ?
+          AND TRIM(COALESCE(smartbill_number, '')) <> ''
+        GROUP BY DATE(invoice_date)
+        ORDER BY d ASC
+    ", [$finStart, $finEnd]);
+    $byDay = [];
+    foreach ($rowsDaily as $r) { $byDay[(string)$r['d']] = (float)$r['s']; }
+
+    $cursor = strtotime($finStart);
+    $endTs  = strtotime($finEnd);
+    while ($cursor <= $endTs) {
+        $key = date('Y-m-d', $cursor);
+        $dailyRevenue[] = ['d' => $key, 'v' => (float)($byDay[$key] ?? 0.0)];
+        $cursor = strtotime('+1 day', $cursor);
+    }
+}
+
+/**
+ * Construiește un path SVG (linie + zonă) dintr-o serie de valori,
+ * normalizat la viewBox 200x38. Întoarce ['line' => 'M...', 'area' => 'M...', 'last' => [x,y]]
+ * sau null dacă seria nu are date.
+ */
+function dash_sparkline_paths(array $values, float $w = 200.0, float $h = 38.0, float $padTop = 4.0, float $padBottom = 2.0): ?array {
+    $n = count($values);
+    if ($n < 1) return null;
+    $max = (float)max(0.0001, max($values));
+    $usable = $h - $padTop - $padBottom;
+    $denomX = ($n > 1) ? ($n - 1) : 1;
+
+    $linePts = [];
+    foreach ($values as $i => $val) {
+        $x = ($n === 1) ? ($w / 2) : ($i * $w / $denomX);
+        $y = $padTop + ($usable - ($val / $max) * $usable);
+        $linePts[] = round($x, 2) . ',' . round($y, 2);
+    }
+    $line = 'M' . implode(' L', $linePts);
+    $area = $line . ' L' . round(($n === 1 ? $w / 2 : $w), 2) . ',' . round($h, 2) . ' L0,' . round($h, 2) . ' Z';
+
+    $lastParts = explode(',', end($linePts));
+    return [
+        'line' => $line,
+        'area' => $area,
+        'last' => [(float)$lastParts[0], (float)$lastParts[1]],
+    ];
+}
+
+$revenueValues = array_map(fn($r) => (float)$r['v'], $dailyRevenue);
+$revenueSpark  = dash_sparkline_paths($revenueValues);
+
 // Iconuri pe categorie de reminder (folosesc set-ul Tabler deja încărcat de pagină)
 $remCategoryIcon = [
     'comercial'      => 'ti-mail',
@@ -918,6 +977,98 @@ if ($dashUserId > 0) {
     overflow: hidden;
 }
 .pz-kpi .pz-kpi-bar > span { display: block; height: 100%; }
+.pz-kpi .pz-spark {
+    display: block;
+    width: 100%;
+    height: 32px;
+    margin-top: 8px;
+    overflow: visible;
+}
+
+/* Status facturi — layout donut + bare orizontale */
+.pz-status-split {
+    display: grid;
+    grid-template-columns: minmax(0, 140px) minmax(0, 1fr);
+    gap: 16px;
+    align-items: center;
+    margin-top: 4px;
+}
+.pz-status-donut {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+}
+.pz-status-donut .pz-chart-wrap.donut {
+    height: 140px;
+    width: 100%;
+}
+.pz-status-donut-total {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+.pz-status-donut-total .num {
+    font-size: 18px; font-weight: 500; color: var(--pz-title);
+    line-height: 1; font-variant-numeric: tabular-nums;
+}
+.pz-status-donut-total .lbl {
+    font-size: 10px; color: var(--pz-fa); margin-top: 2px;
+}
+
+.pz-amount-bars { min-width: 0; }
+.pz-amount-bars .pz-amount-bars-title {
+    font-size: 10.5px; color: var(--pz-fa);
+    margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em;
+}
+.pz-amount-bars .row { margin-bottom: 9px; }
+.pz-amount-bars .row:last-child { margin-bottom: 0; }
+.pz-amount-bars .head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; margin-bottom: 3px; gap: 6px;
+}
+.pz-amount-bars .head .label {
+    display: inline-flex; align-items: center; gap: 5px;
+    color: var(--pz-text);
+    white-space: nowrap;
+}
+.pz-amount-bars .head .label .dot { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+.pz-amount-bars .head .value {
+    color: var(--pz-title); font-weight: 500;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+}
+.pz-amount-bars .bar {
+    height: 6px; background: var(--pz-lines);
+    border-radius: 3px; overflow: hidden;
+}
+.pz-amount-bars .bar > span { display: block; height: 100%; transition: width .3s ease; }
+
+/* Counts (sub split) — variantă compactă pe 3 coloane */
+.pz-donut-legend.pz-status-counts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--pz-lines);
+}
+.pz-donut-legend.pz-status-counts .row {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 2px;
+}
+.pz-donut-legend.pz-status-counts .row .label {
+    font-size: 10.5px; color: var(--pz-mu);
+}
+.pz-donut-legend.pz-status-counts .row .value {
+    font-size: 14px; font-weight: 500; color: var(--pz-title);
+}
 
 /* Charts row */
 .pz-row-2 { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px; }
@@ -1121,6 +1272,8 @@ if ($dashUserId > 0) {
     .pz-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .pz-row-2-bottom { grid-template-columns: minmax(0, 1fr); }
     .pz-big-grid { grid-template-columns: minmax(0, 1fr); }
+    .pz-status-split { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .pz-status-donut { max-width: 200px; margin: 0 auto; }
     .pz-head { gap: 10px; }
     .pz-head-actions { width: 100%; }
     .pz-period { width: 100%; }
@@ -1247,6 +1400,22 @@ if ($dashUserId > 0) {
                         <?php endif; ?>
                     </div>
                     <div class="pz-kpi-value"><?= dash_money($finIssued) ?><span class="unit">lei</span></div>
+
+                    <?php if ($revenueSpark !== null): ?>
+                        <svg class="pz-spark" viewBox="0 0 200 38" preserveAspectRatio="none"
+                             role="img" aria-label="Trend venituri zilnice <?= dash_h($finLabel) ?>">
+                            <defs>
+                                <linearGradient id="pzSparkRevGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="var(--pz-bl)" stop-opacity="0.18"/>
+                                    <stop offset="100%" stop-color="var(--pz-bl)" stop-opacity="0"/>
+                                </linearGradient>
+                            </defs>
+                            <path d="<?= dash_h($revenueSpark['area']) ?>" fill="url(#pzSparkRevGrad)"/>
+                            <path d="<?= dash_h($revenueSpark['line']) ?>" fill="none" stroke="var(--pz-bl)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="<?= $revenueSpark['last'][0] ?>" cy="<?= $revenueSpark['last'][1] ?>" r="2.2" fill="var(--pz-bl)"/>
+                        </svg>
+                    <?php endif; ?>
+
                     <div class="pz-kpi-foot">
                         <?php if ($finPrevIssued > 0): ?>
                             <?= dash_money($finPrevIssued) ?> lei perioada anterioară
@@ -1348,7 +1517,15 @@ if ($dashUserId > 0) {
                 </div>
                 <?php $bigCards['card-revchart'] = ob_get_clean();
 
-                // ---- Card: Donut status facturi
+                // ---- Card: Donut status facturi + bare orizontale pe sume
+                $amtPaid    = (float)$finPaid;
+                $amtOverdue = (float)$restanteAmount;
+                $amtPending = max(0.0, (float)$finIssued - $amtPaid - $amtOverdue);
+                $amtTotal   = max(0.0001, (float)$finIssued); // pentru % (evităm /0)
+                $pctPaid    = round(($amtPaid    / $amtTotal) * 100);
+                $pctPending = round(($amtPending / $amtTotal) * 100);
+                $pctOverdue = round(($amtOverdue / $amtTotal) * 100);
+
                 ob_start(); ?>
                 <div class="pz-card" data-card-id="card-statusdonut">
                     <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
@@ -1358,22 +1535,51 @@ if ($dashUserId > 0) {
                             <p class="pz-card-title"><?= dash_h($finLabel) ?></p>
                         </div>
                     </div>
-                    <div class="pz-chart-wrap donut">
-                        <canvas id="pzStatusChart" role="img" aria-label="Distribuție status facturi"></canvas>
+
+                    <div class="pz-status-split">
+                        <div class="pz-status-donut">
+                            <div class="pz-chart-wrap donut">
+                                <canvas id="pzStatusChart" role="img" aria-label="Distribuție status facturi pe număr"></canvas>
+                            </div>
+                            <div class="pz-status-donut-total">
+                                <span class="num"><?= (int)$finIssuedCount ?></span>
+                                <span class="lbl">facturi</span>
+                            </div>
+                        </div>
+
+                        <div class="pz-amount-bars">
+                            <p class="pz-amount-bars-title">Distribuție pe sume</p>
+
+                            <div class="row">
+                                <div class="head">
+                                    <span class="label"><span class="dot" style="background: var(--pz-gr);"></span>Încasate</span>
+                                    <span class="value"><?= dash_money($amtPaid) ?> lei · <?= (int)$pctPaid ?>%</span>
+                                </div>
+                                <div class="bar"><span style="width: <?= (int)$pctPaid ?>%; background: var(--pz-gr);"></span></div>
+                            </div>
+
+                            <div class="row">
+                                <div class="head">
+                                    <span class="label"><span class="dot" style="background: var(--pz-or);"></span>În termen</span>
+                                    <span class="value"><?= dash_money($amtPending) ?> lei · <?= (int)$pctPending ?>%</span>
+                                </div>
+                                <div class="bar"><span style="width: <?= (int)$pctPending ?>%; background: var(--pz-or);"></span></div>
+                            </div>
+
+                            <div class="row">
+                                <div class="head">
+                                    <span class="label"><span class="dot" style="background: var(--pz-re);"></span>Restante</span>
+                                    <span class="value"><?= dash_money($amtOverdue) ?> lei · <?= (int)$pctOverdue ?>%</span>
+                                </div>
+                                <div class="bar"><span style="width: <?= (int)$pctOverdue ?>%; background: var(--pz-re);"></span></div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="pz-donut-legend">
-                        <div class="row">
-                            <span class="label"><span class="dot" style="background: var(--pz-gr);"></span>Încasate</span>
-                            <span class="value"><?= $stPaid ?></span>
-                        </div>
-                        <div class="row">
-                            <span class="label"><span class="dot" style="background: var(--pz-or);"></span>În termen</span>
-                            <span class="value"><?= $stPending ?></span>
-                        </div>
-                        <div class="row">
-                            <span class="label"><span class="dot" style="background: var(--pz-re);"></span>Restante</span>
-                            <span class="value"><?= $stRestNum ?></span>
-                        </div>
+
+                    <div class="pz-donut-legend pz-status-counts">
+                        <div class="row"><span class="label">Încasate</span><span class="value"><?= $stPaid ?></span></div>
+                        <div class="row"><span class="label">În termen</span><span class="value"><?= $stPending ?></span></div>
+                        <div class="row"><span class="label">Restante</span><span class="value"><?= $stRestNum ?></span></div>
                     </div>
                 </div>
                 <?php $bigCards['card-statusdonut'] = ob_get_clean();
