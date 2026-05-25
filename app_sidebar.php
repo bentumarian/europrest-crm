@@ -488,14 +488,14 @@ if (!function_exists('render_sidebar')) {
     }
 
     /* ============================================================
-       PZ Sidebar — refresh light theme (conform mockup)
+       emma.ro Sidebar — Navy + Coral accent
        Override final care preia controlul peste toate stilurile de mai sus.
-       Folosește tokens --pz-* din app_theme_css.php
+       Folosește tokens --em-* / --pz-* din app_theme_css.php
        ============================================================ */
 
     .sidebar {
-        background: var(--pz-surf) !important;
-        border-right: 1px solid var(--pz-line) !important;
+        background: var(--em-navy) !important;
+        border-right: 1px solid var(--em-navy-alt) !important;
         box-shadow: none !important;
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
@@ -503,11 +503,19 @@ if (!function_exists('render_sidebar')) {
     .sidebar::before, .sidebar::after { display: none !important; }
 
     .sidebar-brand {
-        background: var(--pz-surf) !important;
-        border-bottom: 1px solid var(--pz-line) !important;
-        padding: 14px 16px !important;
+        background: var(--em-navy) !important;
+        border-bottom: 1px solid var(--em-navy-soft) !important;
+        padding: 16px 16px !important;
     }
-    .brand-logo, .brand-logo-link { color: var(--pz-brand) !important; }
+    .brand-logo, .brand-logo-link { color: #FFFFFF !important; }
+    /* Forțează logo-ul (img/svg/masked) să apară alb pe fundalul navy */
+    .sidebar-brand .brand-logo img,
+    .sidebar-brand img.brand-logo {
+        filter: brightness(0) invert(1) !important;
+    }
+    .sidebar-brand .brand-logo-masked {
+        background-color: #FFFFFF !important;
+    }
 
     .sidebar-nav {
         gap: 2px !important;
@@ -523,7 +531,7 @@ if (!function_exists('render_sidebar')) {
         border: 1px solid transparent !important;
         border-radius: 7px !important;
         background: transparent !important;
-        color: var(--pz-text) !important;
+        color: rgba(255, 255, 255, .72) !important;
         box-shadow: none !important;
         font-size: 13px !important;
         font-weight: 400 !important;
@@ -536,9 +544,9 @@ if (!function_exists('render_sidebar')) {
     .nav-item:hover,
     .sidebar .nav-group-button:hover,
     .nav-subitem:hover {
-        background: var(--pz-soft) !important;
+        background: rgba(255, 255, 255, .08) !important;
         border-color: transparent !important;
-        color: var(--pz-title) !important;
+        color: #FFFFFF !important;
         box-shadow: none !important;
     }
 
@@ -547,16 +555,14 @@ if (!function_exists('render_sidebar')) {
     .sidebar .nav-group-button.open,
     .sidebar .nav-group-button.active.open,
     .nav-subitem.active {
-        background: var(--pz-grs) !important;
+        background: var(--em-coral-gradient-h) !important;
         border-color: transparent !important;
-        color: var(--pz-gr) !important;
-        box-shadow: none !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 6px 16px -8px rgba(255, 90, 95, .55) !important;
         font-weight: 500 !important;
     }
 
-    /* Fix contrast — forțează text + iconuri verde închis pe fundal verde deschis
-       când grup-ul Documente/Financiar e activ sau deschis. Override pentru
-       regulile vechi care setau #ffffff. */
+    /* Text + iconuri albe pe gradient coral pentru orice variantă activă/open */
     .sidebar .nav-group-button.active .nav-label,
     .sidebar .nav-group-button.open .nav-label,
     .sidebar .nav-group-button.active svg,
@@ -567,14 +573,13 @@ if (!function_exists('render_sidebar')) {
     .sidebar .nav-item.active svg,
     .sidebar .nav-subitem.active .nav-label,
     .sidebar .nav-subitem.active svg {
-        color: var(--pz-gr) !important;
-        stroke: var(--pz-gr) !important;
+        color: #FFFFFF !important;
+        stroke: #FFFFFF !important;
     }
 
+    /* Eliminăm bara verticală stângă — gradientul coral e deja suficient marker */
     .nav-item.active::before {
-        background: var(--pz-gr) !important;
-        box-shadow: none !important;
-        width: 3px !important;
+        display: none !important;
     }
 
     .nav-item svg,
@@ -596,53 +601,54 @@ if (!function_exists('render_sidebar')) {
         padding-left: 38px !important;
         font-size: 12.5px !important;
         font-weight: 400 !important;
-        color: var(--pz-mu) !important;
+        color: rgba(255, 255, 255, .62) !important;
         min-height: 30px !important;
     }
-    .nav-subitem:hover { color: var(--pz-title) !important; }
+    .nav-subitem:hover { color: #FFFFFF !important; background: rgba(255,255,255,.06) !important; }
     .nav-subitem.active {
-        background: var(--pz-bls) !important;
-        color: var(--pz-bld) !important;
+        background: rgba(255, 122, 61, .18) !important;
+        color: #FFFFFF !important;
         font-weight: 500 !important;
+        box-shadow: none !important;
     }
 
-    .nav-chevron { color: var(--pz-fa) !important; }
+    .nav-chevron { color: rgba(255, 255, 255, .48) !important; }
 
     .sidebar-footer {
-        border-top: 1px solid var(--pz-line) !important;
-        background: var(--pz-surf) !important;
+        border-top: 1px solid var(--em-navy-soft) !important;
+        background: var(--em-navy) !important;
         padding: 12px 14px !important;
     }
 
     .sidebar-user {
-        color: var(--pz-mu) !important;
+        color: rgba(255, 255, 255, .68) !important;
         font-size: 12px !important;
         font-weight: 400 !important;
     }
     .sidebar-user-label {
-        color: var(--pz-fa) !important;
+        color: rgba(255, 255, 255, .52) !important;
         font-size: 10.5px !important;
     }
     .sidebar-user-name {
-        color: var(--pz-title) !important;
+        color: #FFFFFF !important;
         font-size: 13px !important;
         font-weight: 500 !important;
     }
 
     .logout-btn {
         min-height: 32px !important;
-        border: 1px solid var(--pz-line) !important;
+        border: 1px solid rgba(255, 255, 255, .14) !important;
         border-radius: 7px !important;
-        background: var(--pz-surf) !important;
-        color: var(--pz-text) !important;
+        background: rgba(255, 255, 255, .04) !important;
+        color: rgba(255, 255, 255, .78) !important;
         font-weight: 400 !important;
         font-size: 12.5px !important;
         box-shadow: none !important;
     }
     .logout-btn:hover {
-        background: var(--pz-res) !important;
-        border-color: var(--pz-reb) !important;
-        color: var(--pz-re) !important;
+        background: rgba(255, 90, 95, .14) !important;
+        border-color: rgba(255, 90, 95, .35) !important;
+        color: #FFFFFF !important;
     }
 
     /* Mobile menu button - keep light scheme */

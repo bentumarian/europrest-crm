@@ -522,8 +522,8 @@ $totalClients = $hasClients ? (int)dash_value($pdo, "SELECT COUNT(*) FROM client
 
 $statusBreakdown = [
     'finalizata'   => ['label' => 'Finalizate',   'count' => 0, 'color' => '#22C55E'],
-    'in_lucru'     => ['label' => 'În lucru',     'count' => 0, 'color' => '#F97316'],
-    'confirmata'   => ['label' => 'Confirmate',   'count' => 0, 'color' => '#185FA5'],
+    'in_lucru'     => ['label' => 'În lucru',     'count' => 0, 'color' => '#FF7A3D'],
+    'confirmata'   => ['label' => 'Confirmate',   'count' => 0, 'color' => '#061142'],
     'neconfirmata' => ['label' => 'Neconfirmate', 'count' => 0, 'color' => '#94A3B8'],
     'anulata'      => ['label' => 'Anulate',      'count' => 0, 'color' => '#DC2626'],
 ];
@@ -1796,21 +1796,21 @@ if ($dashUserId > 0) {
                     {
                         label: 'Venituri',
                         data: issued,
-                        borderColor: '#2563EB',
-                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                        borderColor: '#061142',
+                        backgroundColor: 'rgba(6, 17, 66, 0.10)',
                         tension: 0.35, fill: true, borderWidth: 2,
                         pointRadius: 3, pointHoverRadius: 5,
-                        pointBackgroundColor: '#2563EB'
+                        pointBackgroundColor: '#061142'
                     },
                     {
                         label: 'Încasări',
                         data: paid,
-                        borderColor: '#166534',
-                        backgroundColor: 'rgba(22, 101, 52, 0.08)',
+                        borderColor: '#FF7A3D',
+                        backgroundColor: 'rgba(255, 122, 61, 0.12)',
                         tension: 0.35, fill: true, borderWidth: 2,
                         borderDash: [5, 3],
                         pointRadius: 3, pointHoverRadius: 5,
-                        pointBackgroundColor: '#166534'
+                        pointBackgroundColor: '#FF7A3D'
                     }
                 ]
             },
@@ -1827,11 +1827,11 @@ if ($dashUserId > 0) {
                     y: {
                         grid: { color: 'rgba(0,0,0,0.06)', drawBorder: false },
                         ticks: {
-                            color: '#64748B', font: { size: 10 },
+                            color: '#3E4C8F', font: { size: 10 },
                             callback: function (v) { return Math.round(v/1000) + 'k'; }
                         }
                     },
-                    x: { grid: { display: false }, ticks: { color: '#64748B', font: { size: 10 } } }
+                    x: { grid: { display: false }, ticks: { color: '#3E4C8F', font: { size: 10 } } }
                 }
             }
         });
@@ -1853,7 +1853,7 @@ if ($dashUserId > 0) {
                     labels: ['Încasate', 'În termen', 'Restante'],
                     datasets: [{
                         data: [statusData.paid, statusData.pending, statusData.restant],
-                        backgroundColor: ['#166534', '#EA580C', '#DC2626'],
+                        backgroundColor: ['#061142', '#FF7A3D', '#DC2626'],
                         borderWidth: 0, spacing: 2
                     }]
                 },

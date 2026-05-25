@@ -20,52 +20,72 @@ if (!function_exists('app_theme_css')) {
         @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap&subset=latin-ext");
 
         :root {
+            /* ============================================================
+               emma.ro — paleta de brand (sursa de adevăr pentru tokens)
+               Navy = identitate, Coral = acțiune, Muted Blue = text secundar
+               ============================================================ */
+            --em-navy:           #061142;
+            --em-navy-alt:       #070F3F;
+            --em-navy-soft:      #1A2256;
+            --em-coral-start:    #FF5A5F;
+            --em-coral-mid:      #FF7A3D;
+            --em-coral-end:      #FF9A3D;
+            --em-coral-bg:       #FFF1EC;
+            --em-coral-border:   #FFD1C2;
+            --em-coral-gradient: linear-gradient(135deg, #FF5A5F, #FF7A3D);
+            --em-coral-gradient-h: linear-gradient(90deg, #FF5A5F, #FF7A3D);
+            --em-muted:          #3E4C8F;
+            --em-muted-light:    #9DA1BD;
+            --em-gray-50:        #F9FAFB;
+            --em-gray-200:       #E5E7EB;
+
             /* === Suprafete === */
-            --bg: #F8FAFC;
+            --bg: #F9FAFB;
             --surface: #FFFFFF;
-            --surface-soft: #F8FAFC;
-            --surface-strong: #E2E8F0;
-            --surface-muted: #F1F5F9;
+            --surface-soft: #F9FAFB;
+            --surface-strong: #E5E7EB;
+            --surface-muted: #F1F2F7;
 
             /* === Text === */
-            --text: #0F172A;
-            --text-body: #334155;
-            --muted: #64748B;
-            --muted-2: #94A3B8;
+            --text: var(--em-navy);
+            --text-body: #1F2547;
+            --muted: var(--em-muted);
+            --muted-2: var(--em-muted-light);
 
-            /* === Brand PestZone === */
-            --accent:        #2563EB;
-            --accent-strong: #1E3A8A;
-            --accent-deep:   #12345A;
-            --accent-orange: #EA580C;
-            --accent-pale:   #BFDBFE;
-            --accent-soft:   rgba(37, 99, 235, .08);
-            --accent-soft-2: rgba(37, 99, 235, .18);
+            /* === Brand emma.ro === */
+            --accent:        var(--em-coral-mid);
+            --accent-strong: var(--em-coral-start);
+            --accent-deep:   var(--em-navy);
+            --accent-orange: var(--em-coral-mid);
+            --accent-pale:   var(--em-coral-border);
+            --accent-soft:   rgba(255, 122, 61, .08);
+            --accent-soft-2: rgba(255, 122, 61, .18);
+            --accent-gradient: var(--em-coral-gradient);
 
             /* === Borduri === */
-            --border: #E2E8F0;
-            --border2: #F1F5F9;
+            --border: var(--em-gray-200);
+            --border2: #F0F2F7;
 
-            /* === Aliasuri --pz-* pentru pagini ce folosesc paleta pz === */
-            --pz-bg:      #F8FAFC;
+            /* === Aliasuri --pz-* (mapate la paleta emma.ro) === */
+            --pz-bg:      #F9FAFB;
             --pz-surf:    #FFFFFF;
-            --pz-soft:    #F8FAFC;
-            --pz-line:    #E2E8F0;
-            --pz-lines:   #F1F5F9;
-            --pz-title:   #0F172A;
-            --pz-text:    #334155;
-            --pz-mu:      #64748B;
-            --pz-fa:      #94A3B8;
-            --pz-bl:      #2563EB;
-            --pz-bld:     #1E3A8A;
-            --pz-bls:     #EFF6FF;
-            --pz-blb:     #BFDBFE;
+            --pz-soft:    #F9FAFB;
+            --pz-line:    var(--em-gray-200);
+            --pz-lines:   #F0F2F7;
+            --pz-title:   var(--em-navy);
+            --pz-text:    #1F2547;
+            --pz-mu:      var(--em-muted);
+            --pz-fa:      var(--em-muted-light);
+            --pz-bl:      var(--em-coral-mid);
+            --pz-bld:     var(--em-navy);
+            --pz-bls:     var(--em-coral-bg);
+            --pz-blb:     var(--em-coral-border);
             --pz-gr:      #166534;
             --pz-grs:     #F0FDF4;
             --pz-grb:     #BBF7D0;
-            --pz-or:      #EA580C;
-            --pz-ors:     #FFF7ED;
-            --pz-orb:     #FDBA74;
+            --pz-or:      var(--em-coral-mid);
+            --pz-ors:     var(--em-coral-bg);
+            --pz-orb:     var(--em-coral-border);
             --pz-re:      #DC2626;
             --pz-res:     #FEF2F2;
             --pz-reb:     #FCA5A5;
@@ -75,11 +95,11 @@ if (!function_exists('app_theme_css')) {
 
             /* Accente — variantele „acc" pentru dot-uri, accent-bars, status-dots */
             --pz-gr-acc:  #22C55E;
-            --pz-or-acc:  #F97316;
+            --pz-or-acc:  var(--em-coral-mid);
             --pz-re-acc:  #EF4444;
 
-            /* Brand — sidebar navy */
-            --pz-brand:   #12345A;
+            /* Brand — sidebar navy emma.ro */
+            --pz-brand:   var(--em-navy);
 
             /* === Tone semantice (FIX: înainte erau monocrome/sparte) === */
             --tone-danger:        #DC2626;
@@ -116,8 +136,8 @@ if (!function_exists('app_theme_css')) {
             --shadow-lg: none;
             --shadow-accent: none;
 
-            /* === Focus ring (matched la indigo accent) === */
-            --focus-ring: 0 0 0 4px rgba(17, 96, 183, .18);
+            /* === Focus ring (matched la coral accent emma.ro) === */
+            --focus-ring: 0 0 0 4px rgba(255, 122, 61, .22);
 
             /* === Tipografie === */
             --font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
