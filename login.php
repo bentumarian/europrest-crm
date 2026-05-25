@@ -429,17 +429,19 @@ body {
 }
 
 /* ============================================================
-   LAYOUT — Navy full screen, card centrat
+   LAYOUT — Navy full screen, logo deasupra + card centrat
    ============================================================ */
 .em-login {
     position: relative;
     min-height: 100vh;
     background: var(--em-navy);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 32px 20px;
+    padding: 48px 20px 80px;
     overflow: hidden;
+    gap: 28px;
 }
 
 /* Blob-uri coral difuze pe fundal */
@@ -490,55 +492,37 @@ body {
 }
 
 /* ============================================================
-   BRAND BLOCK — logo centrat + tagline aliniat sub el
+   BRAND BLOCK — logo deasupra cardului, pe Navy
    ============================================================ */
 .em-brand-area {
+    position: relative;
+    z-index: 2;
     text-align: center;
-    margin-bottom: 26px;
 }
 
-.em-brand-mark {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: stretch;
-    max-width: 100%;
-}
-
-/* Logo image — varianta principală */
+/* Logo image — varianta principală (pe fundal Navy) */
 .em-logo-img {
     display: block;
-    width: clamp(180px, 50vw, 240px);
+    width: clamp(220px, 28vw, 300px);
     height: auto;
     max-width: 100%;
+    margin: 0 auto;
     -webkit-user-select: none;
     user-select: none;
 }
 
 /* Wordmark text — fallback când nu există image */
 .em-wordmark {
-    display: flex;
+    display: inline-flex;
     align-items: baseline;
-    justify-content: center;
-    font-size: clamp(40px, 8vw, 52px);
+    font-size: clamp(44px, 8vw, 60px);
     font-weight: 700;
     letter-spacing: -0.04em;
     line-height: 0.95;
-    color: var(--em-navy);
+    color: #FFFFFF;
     font-family: var(--font);
 }
 .em-wordmark-dot { color: var(--em-coral-start); }
-
-/* Tagline — width = 100% din .em-brand-mark = logo width */
-.em-tagline {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-    margin-top: 8px;
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--em-muted);
-    letter-spacing: 0.04em;
-}
 
 /* ============================================================
    TITLU CARD
@@ -744,22 +728,16 @@ body {
    ============================================================ */
 @media (max-width: 520px) {
     .em-login {
-        padding: 24px 16px 80px;
-        align-items: flex-start;
-        padding-top: 8vh;
+        padding: 32px 16px 80px;
+        gap: 22px;
     }
     .em-card {
         padding: 32px 24px 28px;
         border-radius: 14px;
         box-shadow: 0 16px 40px -16px rgba(0, 0, 0, .5);
     }
-    .em-brand-area { margin-bottom: 22px; }
     .em-logo-img {
-        width: clamp(160px, 56vw, 220px);
-    }
-    .em-tagline {
-        font-size: 10.5px;
-        margin-top: 7px;
+        width: clamp(200px, 60vw, 260px);
     }
     .em-card-title {
         font-size: 13.5px;
@@ -773,8 +751,8 @@ body {
     .em-decor-3 { display: none; }
     .em-foot {
         position: static;
-        margin-top: 28px;
-        padding: 16px 18px 0;
+        margin-top: 12px;
+        padding: 8px 18px 0;
         font-size: 9.5px;
     }
     .em-foot .em-foot-sec { margin: 0 8px; }
@@ -790,24 +768,17 @@ body {
     <div class="em-decor em-decor-2" aria-hidden="true"></div>
     <div class="em-decor em-decor-3" aria-hidden="true"></div>
 
-    <main class="em-card">
-
-        <div class="em-brand-area">
-            <div class="em-brand-mark">
-                <?php if ($loginLogoUrl): ?>
-                    <img class="em-logo-img" src="<?= login_h($loginLogoUrl) ?>" alt="emma.ro" draggable="false">
-                <?php else: ?>
-                    <div class="em-wordmark" aria-label="emma.ro">
-                        <span>emma</span><span class="em-wordmark-dot">.ro</span>
-                    </div>
-                <?php endif; ?>
-                <div class="em-tagline" aria-hidden="true">
-                    <span>plan.</span>
-                    <span>execute.</span>
-                    <span>control.</span>
-                </div>
+    <div class="em-brand-area">
+        <?php if ($loginLogoUrl): ?>
+            <img class="em-logo-img" src="<?= login_h($loginLogoUrl) ?>" alt="emma.ro" draggable="false">
+        <?php else: ?>
+            <div class="em-wordmark" aria-label="emma.ro">
+                <span>emma</span><span class="em-wordmark-dot">.ro</span>
             </div>
-        </div>
+        <?php endif; ?>
+    </div>
+
+    <main class="em-card">
 
         <h1 class="em-card-title">Intră în contul tău</h1>
 
