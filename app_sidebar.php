@@ -507,15 +507,8 @@ if (!function_exists('render_sidebar')) {
         border-bottom: 1px solid var(--em-navy-soft) !important;
         padding: 16px 16px !important;
     }
-    .brand-logo, .brand-logo-link { color: #FFFFFF !important; }
-    /* Forțează logo-ul (img/svg/masked) să apară alb pe fundalul navy */
-    .sidebar-brand .brand-logo img,
-    .sidebar-brand img.brand-logo {
-        filter: brightness(0) invert(1) !important;
-    }
-    .sidebar-brand .brand-logo-masked {
-        background-color: #FFFFFF !important;
-    }
+    /* Logo pe culorile lui naturale (fără filtre sau recolorare) */
+    .brand-logo, .brand-logo-link { color: var(--pz-brand) !important; }
 
     .sidebar-nav {
         gap: 2px !important;
