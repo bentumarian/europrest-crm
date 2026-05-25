@@ -29,4 +29,9 @@ return [
     // 'sendgrid_api_key' => 'SG_xxxxxxxxx',
     // 'sendgrid_from_email' => 'office@firma-ta.ro',
     // 'sendgrid_from_name' => 'Firma ta',
+
+    // Webhook auto-deploy (folosit de deploy.php).
+    // Genereaza un string random puternic si pune acelasi string si in
+    // GitHub: Settings -> Webhooks -> Secret.
+    // 'github_webhook_secret' => 'INLOCUIESTE_CU_STRING_RANDOM_PUTERNIC',
 ];
