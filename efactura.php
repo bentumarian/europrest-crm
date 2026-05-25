@@ -529,38 +529,6 @@ try {
             'search' => $ref . ' ' . $nm . ' ' . $cf,
         ];
     }
-} catch (Throwable $e) { error_log('efac
-
-<?php
-$previewEfReceived = [];
-$previewEfSent = [];
-try {
-    if ($pdo->query("SHOW TABLES LIKE 'smartbill_supplier_invoices'")->fetch()) {
-        $stmtR = $pdo->query("SELECT id, supplier_name, supplier_fiscal_code, invoice_series, invoice_number FROM smartbill_supplier_invoices ORDER BY id DESC LIMIT 500");
-        while ($r = $stmtR->fetch(PDO::FETCH_ASSOC)) {
-            $nm  = html_entity_decode((string)($r['supplier_name'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            $cf  = html_entity_decode((string)($r['supplier_fiscal_code'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            $ref = trim(((string)$r['invoice_series']) . ' ' . ((string)$r['invoice_number']));
-            $previewEfReceived[] = [
-                'title'  => ($ref !== '' ? ($ref . ' Â· ') : '') . ($nm !== '' ? $nm : ('Factura #' . (int)$r['id'])),
-                'url'    => 'efactura.php?received_q=' . urlencode($ref !== '' ? $ref : $nm),
-                'type'   => 'invoice',
-                'search' => $ref . ' ' . $nm . ' ' . $cf,
-            ];
-        }
-    }
-    $stmtS = $pdo->query("SELECT id, smartbill_series, smartbill_number, client_name, client_fiscal_code FROM smartbill_invoices WHERE source_type <> 'receipt' ORDER BY id DESC LIMIT 500");
-    while ($r = $stmtS->fetch(PDO::FETCH_ASSOC)) {
-        $nm  = html_entity_decode((string)($r['client_name'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $cf  = html_entity_decode((string)($r['client_fiscal_code'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $ref = trim(((string)$r['smartbill_series']) . ' ' . ((string)$r['smartbill_number']));
-        $previewEfSent[] = [
-            'title'  => ($ref !== '' ? ($ref . ' Â· ') : '') . ($nm !== '' ? $nm : ('Factura #' . (int)$r['id'])),
-            'url'    => 'invoice.php?id=' . (int)$r['id'],
-            'type'   => 'invoice',
-            'search' => $ref . ' ' . $nm . ' ' . $cf,
-        ];
-    }
 } catch (Throwable $e) { error_log('efactura.php preview: ' . $e->getMessage()); }
 ?>
 <script>
