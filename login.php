@@ -698,6 +698,27 @@ body {
 .em-submit i { font-size: 16px; }
 
 /* ============================================================
+   STRAPLINE — text marketing sub card
+   ============================================================ */
+.em-strapline {
+    position: relative;
+    z-index: 2;
+    margin: 0;
+    padding: 0 16px;
+    max-width: 480px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.78);
+    line-height: 1.55;
+    letter-spacing: 0.005em;
+}
+.em-strapline-kw {
+    color: var(--em-coral-start);
+    font-weight: 500;
+}
+
+/* ============================================================
    FOOTER PE NAVY (sub card)
    ============================================================ */
 .em-foot {
@@ -730,6 +751,11 @@ body {
     .em-login {
         padding: 32px 16px 80px;
         gap: 22px;
+    }
+    .em-strapline {
+        font-size: 13.5px;
+        padding: 0 12px;
+        line-height: 1.5;
     }
     .em-card {
         padding: 32px 24px 28px;
@@ -837,6 +863,10 @@ body {
         </form>
 
     </main>
+
+    <p class="em-strapline">
+        The smart way to <span class="em-strapline-kw">plan</span>, <span class="em-strapline-kw">execute</span>, and <span class="em-strapline-kw">control</span> your business.
+    </p>
 
     <div class="em-foot">
         <span class="em-foot-sec">
