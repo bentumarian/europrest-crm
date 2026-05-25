@@ -1566,6 +1566,12 @@ if (!function_exists('pzdoc_build_tokens')) {
         if ($discountAmount > 0) {
             $discountBlock = '<p><strong>Discount:</strong> ' . pzdoc_h($discountLabel) . ' (-' . pzdoc_format_number_display($discountAmount) . ' ' . pzdoc_h($currency) . ')</p>';
         }
+
+        // Total efectiv = total_amount din DB minus discount (DB-ul nu stochează
+        // discount-ul scăzut, doar îl ține în payload). Pentru oferte fără TVA,
+        // asta înseamnă subtotal - discount.
+        $rawTotalAmount = (float)($document['total_amount'] ?? 0);
+        $netTotalAmount = max(0.0, round($rawTotalAmount - $discountAmount, 2));
         $offerIntro = trim((string)($payload['offer_intro'] ?? ''));
         if ($offerIntro === '') {
             $offerIntro = 'Va transmitem prezenta oferta comerciala pentru prestarea serviciilor detaliate mai jos:';
@@ -1602,11 +1608,11 @@ if (!function_exists('pzdoc_build_tokens')) {
             'subtotal' => pzdoc_format_number_display($document['subtotal'] ?? 0) . ' ' . pzdoc_h($currency),
             'vat_percent' => pzdoc_format_number_display($document['vat_percent'] ?? 0) . '%',
             'vat_amount' => pzdoc_format_number_display($document['vat_amount'] ?? 0) . ' ' . pzdoc_h($currency),
-            'document_total' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency),
-            'total_amount' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency),
+            'document_total' => pzdoc_format_number_display($netTotalAmount) . ' ' . pzdoc_h($currency),
+            'total_amount' => pzdoc_format_number_display($netTotalAmount) . ' ' . pzdoc_h($currency),
             'subtotal_without_vat' => pzdoc_format_number_display($document['subtotal'] ?? 0) . ' ' . pzdoc_h($currency) . ' fără TVA',
-            'total_without_vat' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency) . ' fără TVA',
-            'total_fara_tva' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency) . ' fără TVA',
+            'total_without_vat' => pzdoc_format_number_display($netTotalAmount) . ' ' . pzdoc_h($currency) . ' fără TVA',
+            'total_fara_tva' => pzdoc_format_number_display($netTotalAmount) . ' ' . pzdoc_h($currency) . ' fără TVA',
             'discount_label' => pzdoc_token_text($discountLabel),
             'discount_amount' => pzdoc_format_number_display($discountAmount) . ' ' . pzdoc_h($currency),
             'discount_block' => $discountBlock,
