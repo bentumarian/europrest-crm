@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/stock_lib.php';
+require_once __DIR__ . '/lib/stock_lib.php';
 require_once __DIR__ . '/app_ui.php';
 
 if (!headers_sent()) {

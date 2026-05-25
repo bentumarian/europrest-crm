@@ -2,7 +2,7 @@
 require_once __DIR__ . '/config.php';
 require_login();
 require_once __DIR__ . '/app_ui.php';
-require_once __DIR__ . '/smartbill_lib.php';
+require_once __DIR__ . '/lib/smartbill_lib.php';
 
 $isAdmin = function_exists('is_admin') ? is_admin() : true;
 if (!$isAdmin) {

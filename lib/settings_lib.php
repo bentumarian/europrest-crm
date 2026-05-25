@@ -212,7 +212,7 @@ if (!function_exists('pz_document_logo_path')) {
         if (strpos($path, '..') !== false) {
             return '';
         }
-        if (!file_exists(__DIR__ . '/' . $path)) {
+        if (!file_exists(__DIR__ . '/../' . $path)) {
             return '';
         }
         return $path;
@@ -235,7 +235,7 @@ if (!function_exists('pz_document_stamp_path')) {
         if (strpos($path, '..') !== false) {
             return '';
         }
-        if (!file_exists(__DIR__ . '/' . $path)) {
+        if (!file_exists(__DIR__ . '/../' . $path)) {
             return '';
         }
         return $path;

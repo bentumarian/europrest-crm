@@ -18,8 +18,8 @@
 */
 
 // Helper categorii venituri (linii de business).
-if (file_exists(__DIR__ . '/../../revenue_lib.php')) {
-    require_once __DIR__ . '/../../revenue_lib.php';
+if (file_exists(__DIR__ . '/../revenue_lib.php')) {
+    require_once __DIR__ . '/../revenue_lib.php';
 }
 
 if (!function_exists('pz_billing_money')) {

@@ -1,8 +1,8 @@
 <?php
 require_once 'config.php';
 require_login();
-require_once 'stock_lib.php';
-require_once 'settings_lib.php';
+require_once __DIR__ . '/lib/stock_lib.php';
+require_once __DIR__ . '/lib/settings_lib.php';
 if (!is_admin()) { http_response_code(403); exit('Acces interzis'); }
 if (!stock_table_exists($pdo, 'stock_movements')) { exit('Modulul Gestiune nu este instalat.'); }
 $dateFrom = stock_date_or_default($_GET['date_from'] ?? '', date('Y-m-01'));

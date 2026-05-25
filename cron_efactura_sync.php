@@ -30,7 +30,7 @@ if (!$fromCli) {
     }
 }
 
-require_once __DIR__ . '/anaf_efactura_lib.php';
+require_once __DIR__ . '/lib/anaf_efactura_lib.php';
 
 if (function_exists('pz_smartbill_ensure_schema')) {
     pz_smartbill_ensure_schema($pdo);

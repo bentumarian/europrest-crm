@@ -9,7 +9,7 @@
 |--------------------------------------------------------------------------
 */
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/notification_lib.php';
 
 if (!function_exists('pz_review_db')) {

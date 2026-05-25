@@ -1,8 +1,8 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/document_schema.php';
-if (file_exists(__DIR__ . '/stock_lib.php')) {
-    require_once __DIR__ . '/stock_lib.php';
+if (file_exists(__DIR__ . '/lib/stock_lib.php')) {
+    require_once __DIR__ . '/lib/stock_lib.php';
 }
 
 /*
@@ -1005,7 +1005,7 @@ if (!function_exists('pzdoc_issue_document')) {
 
             if ($documentType === 'contract') {
                 try {
-                    $flowFile = __DIR__ . '/contract_flow_lib.php';
+                    $flowFile = __DIR__ . '/lib/contract_flow_lib.php';
                     if (file_exists($flowFile)) {
                         require_once $flowFile;
                     }

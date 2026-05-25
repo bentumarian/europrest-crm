@@ -2,7 +2,7 @@
 require_once __DIR__ . '/config.php';
 require_login();
 require_once __DIR__ . '/app_ui.php';
-require_once __DIR__ . '/review_lib.php';
+require_once __DIR__ . '/lib/review_lib.php';
 
 if (!is_admin()) {
     http_response_code(403);

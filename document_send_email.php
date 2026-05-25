@@ -6,8 +6,8 @@ require_once __DIR__ . '/document_core.php';
 require_once __DIR__ . '/document_tokens.php';
 require_once __DIR__ . '/document_engine.php';
 
-if (file_exists(__DIR__ . '/notification_lib.php')) {
-    require_once __DIR__ . '/notification_lib.php';
+if (file_exists(__DIR__ . '/lib/notification_lib.php')) {
+    require_once __DIR__ . '/lib/notification_lib.php';
 }
 
 if (!headers_sent()) {

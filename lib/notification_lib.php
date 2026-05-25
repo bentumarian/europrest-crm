@@ -9,7 +9,7 @@ if (defined('PZ_NOTIFICATION_LIB_LOADED')) {
 }
 define('PZ_NOTIFICATION_LIB_LOADED', true);
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../config.php';
 
 function pz_db(): PDO
 {

@@ -4,7 +4,7 @@ require_login();
 require_once __DIR__ . '/app_ui.php';
 require_once __DIR__ . '/document_core.php';
 require_once __DIR__ . '/document_tokens.php';
-require_once __DIR__ . '/contract_flow_lib.php';
+require_once __DIR__ . '/lib/contract_flow_lib.php';
 
 if (!headers_sent()) {
     header('Content-Type: text/html; charset=utf-8');

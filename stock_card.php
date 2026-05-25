@@ -2,8 +2,8 @@
 require_once 'config.php';
 require_login();
 require_once 'app_ui.php';
-require_once 'stock_lib.php';
-require_once 'settings_lib.php';
+require_once __DIR__ . '/lib/stock_lib.php';
+require_once __DIR__ . '/lib/settings_lib.php';
 if (!is_admin()) { header('Location: calendar.php'); exit; }
 stock_ensure_schema($pdo);
 
