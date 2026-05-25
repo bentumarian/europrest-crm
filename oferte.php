@@ -510,12 +510,8 @@ if (!in_array($formDiscountType, ['none', 'percent', 'value'], true)) {
 }
 $formDiscountValue = (float)($editingPayload['discount_value'] ?? 0);
 
-$isOfferNew = !$editingDocument;
 $formPaymentTerms = (string)($editingPayload['payment_terms'] ?? '');
 $formNotes = (string)($formDocument['notes'] ?? '');
-if ($isOfferNew && $formPaymentTerms === '') {
-    $formPaymentTerms = '5 zile de la emiterea facturii';
-}
 
 if (!$editingItems) {
     $editingItems = [[
