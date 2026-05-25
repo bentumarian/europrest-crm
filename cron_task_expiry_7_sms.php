@@ -9,8 +9,8 @@
  */
 
 require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/sms_addon_lib.php';
-require_once __DIR__ . '/notification_lib.php';
+require_once __DIR__ . '/lib/sms_addon_lib.php';
+require_once __DIR__ . '/lib/notification_lib.php';
 
 pz_sms_init();
 

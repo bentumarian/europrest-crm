@@ -14,7 +14,7 @@
 require_once __DIR__ . '/config.php';
 require_login();
 require_once __DIR__ . '/app_ui.php';
-require_once __DIR__ . '/anaf_efactura_lib.php';
+require_once __DIR__ . '/lib/anaf_efactura_lib.php';
 
 $isAdmin = function_exists('is_admin') ? is_admin() : true;
 if (!$isAdmin) {

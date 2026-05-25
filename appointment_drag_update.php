@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_login();
-require_once __DIR__ . '/notification_lib.php';
+require_once __DIR__ . '/lib/notification_lib.php';
 
 if (!headers_sent()) {
     header('Content-Type: application/json; charset=UTF-8');

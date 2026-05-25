@@ -2,8 +2,8 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/document_core.php';
 
-if (file_exists(__DIR__ . '/settings_lib.php')) {
-    require_once __DIR__ . '/settings_lib.php';
+if (file_exists(__DIR__ . '/lib/settings_lib.php')) {
+    require_once __DIR__ . '/lib/settings_lib.php';
 }
 
 /*

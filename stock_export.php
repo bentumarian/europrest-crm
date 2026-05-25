@@ -12,8 +12,8 @@
  */
 require_once 'config.php';
 require_login();
-require_once 'stock_lib.php';
-require_once 'settings_lib.php';
+require_once __DIR__ . '/lib/stock_lib.php';
+require_once __DIR__ . '/lib/settings_lib.php';
 
 if (!is_admin()) { http_response_code(403); exit('Acces interzis'); }
 stock_ensure_schema($pdo);

@@ -26,7 +26,7 @@ if (!$isAdmin) {
 
 // Helper-i extracși în module separate (text/DB/view + ANAF lookup).
 require_once __DIR__ . '/clients_helpers.php';
-require_once __DIR__ . '/clients_anaf_lib.php';
+require_once __DIR__ . '/lib/clients_anaf_lib.php';
 
 /*
 |--------------------------------------------------------------------------

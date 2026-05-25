@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/review_lib.php';
+require_once __DIR__ . '/lib/review_lib.php';
 
 pz_review_init();
 

@@ -2,7 +2,7 @@
 require_once __DIR__ . '/config.php';
 require_login();
 require_once __DIR__ . '/app_ui.php';
-require_once __DIR__ . '/settings_lib.php';
+require_once __DIR__ . '/lib/settings_lib.php';
 require_once __DIR__ . '/super_admin_guard.php';
 
 pz_require_super_admin();

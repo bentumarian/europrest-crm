@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/password_reset_lib.php';
+require_once __DIR__ . '/lib/password_reset_lib.php';
 
 if (is_logged_in()) {
     header('Location: dashboard.php');

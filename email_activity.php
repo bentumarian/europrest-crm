@@ -14,7 +14,7 @@
 require_once __DIR__ . '/config.php';
 require_login();
 require_once __DIR__ . '/app_ui.php';
-require_once __DIR__ . '/notification_lib.php';
+require_once __DIR__ . '/lib/notification_lib.php';
 
 $isAdmin = is_admin();
 if (!$isAdmin) {

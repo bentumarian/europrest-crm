@@ -9,7 +9,7 @@
  * key: sms_cron_secret
  */
 require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/notification_lib.php';
+require_once __DIR__ . '/lib/notification_lib.php';
 
 pz_notify_init();
 

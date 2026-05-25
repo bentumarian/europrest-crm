@@ -2,7 +2,7 @@
 require_once 'config.php';
 require_login();
 require_once 'app_ui.php';
-require_once __DIR__ . '/notification_lib.php';
+require_once __DIR__ . '/lib/notification_lib.php';
 
 $isAdmin = is_admin();
 if (!$isAdmin) { header('Location: calendar.php'); exit; }

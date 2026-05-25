@@ -6,8 +6,8 @@ require_once __DIR__ . '/document_core.php';
 require_once __DIR__ . '/document_tokens.php';
 require_once __DIR__ . '/document_access.php';
 require_once __DIR__ . '/document_engine.php';
-if (file_exists(__DIR__ . '/contract_flow_lib.php')) {
-    require_once __DIR__ . '/contract_flow_lib.php';
+if (file_exists(__DIR__ . '/lib/contract_flow_lib.php')) {
+    require_once __DIR__ . '/lib/contract_flow_lib.php';
 }
 
 pzdoc_require_schema($pdo);
