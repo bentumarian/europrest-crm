@@ -17,6 +17,11 @@
 |--------------------------------------------------------------------------
 */
 
+// Helper categorii venituri (linii de business).
+if (file_exists(__DIR__ . '/../../revenue_lib.php')) {
+    require_once __DIR__ . '/../../revenue_lib.php';
+}
+
 if (!function_exists('pz_billing_money')) {
     /**
      * Conversie sigură la float, cu suport pentru formatul RO (virgulă zecimală).
@@ -58,7 +63,7 @@ if (!function_exists('pz_billing_status_class')) {
             'to_review'    => 'tone-warning',
             'to_invoice'   => 'tone-info',
             'invoiced'     => 'tone-success',
-            'not_billable' => 'tone-neutral',
+            'not_billable' => 'tone-danger',
             'cancelled'    => 'tone-danger',
         ];
         return $map[$status] ?? 'tone-neutral';
@@ -148,6 +153,12 @@ if (!function_exists('pz_billing_ensure_schema')) {
             error_log('pz_billing_ensure_schema add index: ' . $e->getMessage());
         }
 
+        // 4) Categoria veniturilor (linie de business) pe billing_items + smartbill_invoices.
+        if (function_exists('pz_revenue_ensure_column')) {
+            pz_revenue_ensure_column($pdo, 'billing_items', 'ddd');
+            pz_revenue_ensure_column($pdo, 'smartbill_invoices', 'ddd');
+        }
+
         $applied = true;
     }
 }
@@ -199,9 +210,11 @@ if (!function_exists('pz_billing_appointment_billing_data')) {
                 a.currency,
                 a.team_member_id,
                 COALESCE(cs.price, 0) AS contract_service_price,
-                cs.currency AS contract_service_currency
+                cs.currency AS contract_service_currency,
+                COALESCE(s.revenue_category, 'ddd') AS service_revenue_category
             FROM appointments a
             LEFT JOIN contract_services cs ON cs.id = a.contract_service_id
+            LEFT JOIN services s ON s.id = a.service_id
             WHERE a.id = ?
             LIMIT 1
         ";
@@ -326,6 +339,15 @@ if (!function_exists('pz_billing_ensure_item_for_appointment')) {
 
         $createdBy = function_exists('current_user_id') ? (int)current_user_id() : null;
 
+        // Categoria veniturilor — snapshot din service la momentul creării.
+        $revenueCategory = 'ddd';
+        if (function_exists('pz_revenue_category_normalize')) {
+            $revenueCategory = pz_revenue_category_normalize(
+                (string)($data['service_revenue_category'] ?? 'ddd'),
+                'ddd'
+            );
+        }
+
         try {
             $stmt = $pdo->prepare("
                 INSERT INTO billing_items (
@@ -333,13 +355,13 @@ if (!function_exists('pz_billing_ensure_item_for_appointment')) {
                     contract_id, contract_service_id, service_id,
                     description, work_date,
                     quantity, unit, unit_price_net, vat_code, total_net, currency,
-                    source, status, not_billable_reason, created_by
+                    source, status, not_billable_reason, created_by, revenue_category
                 ) VALUES (
                     :appointment_id, :client_id, :client_location_id,
                     :contract_id, :contract_service_id, :service_id,
                     :description, :work_date,
                     :quantity, :unit, :unit_price_net, :vat_code, :total_net, :currency,
-                    'appointment', :status, :not_billable_reason, :created_by
+                    'appointment', :status, :not_billable_reason, :created_by, :revenue_category
                 )
             ");
             $stmt->execute([
@@ -360,6 +382,7 @@ if (!function_exists('pz_billing_ensure_item_for_appointment')) {
                 ':status'              => $status,
                 ':not_billable_reason' => $notBillableReason,
                 ':created_by'          => $createdBy,
+                ':revenue_category'    => $revenueCategory,
             ]);
 
             return [
@@ -368,6 +391,24 @@ if (!function_exists('pz_billing_ensure_item_for_appointment')) {
                 'created' => true,
                 'error'   => null,
             ];
+        } catch (PDOException $e) {
+            // SQLSTATE 23000 = integrity constraint violation (UNIQUE pe appointment_id).
+            // Înseamnă că un alt request concurent a creat deja rândul între SELECT-ul
+            // de la începutul funcției și INSERT-ul de aici. Re-citim rândul existent
+            // și-l returnăm ca succes (idempotent, fără excepție vizibilă utilizatorului).
+            if ($e->getCode() === '23000') {
+                $existing = pz_billing_get_item_by_appointment($pdo, $appointmentId);
+                if ($existing) {
+                    return [
+                        'ok'      => true,
+                        'item_id' => (int)$existing['id'],
+                        'created' => false,
+                        'error'   => null,
+                    ];
+                }
+            }
+            error_log('pz_billing_ensure_item_for_appointment INSERT: ' . $e->getMessage());
+            return ['ok' => false, 'item_id' => 0, 'created' => false, 'error' => 'Eroare la creare poziție: ' . $e->getMessage()];
         } catch (Throwable $e) {
             error_log('pz_billing_ensure_item_for_appointment INSERT: ' . $e->getMessage());
             return ['ok' => false, 'item_id' => 0, 'created' => false, 'error' => 'Eroare la creare poziție: ' . $e->getMessage()];
@@ -671,7 +712,9 @@ if (!function_exists('pz_billing_calculate_totals')) {
             $vatPercent = 0.0;
             if (function_exists('pz_smartbill_tax_meta')) {
                 $meta = pz_smartbill_tax_meta($vatCode);
-                $vatPercent = (float)($meta['percentage'] ?? 0);
+                // pz_smartbill_tax_meta() returneaza 'taxPercentage', NU 'percentage'
+                // (vechi bug: cauzat TVA = 0 in totaluri si suma neta in chitanta SmartBill)
+                $vatPercent = (float)($meta['taxPercentage'] ?? $meta['percentage'] ?? 0);
             } else {
                 // Fallback simplu: '21' => 21, '11' => 11, alte coduri => 0.
                 if (preg_match('/^(\d+(?:\.\d+)?)/', $vatCode, $m)) {
@@ -935,6 +978,30 @@ if (!function_exists('pz_billing_issue_invoice')) {
         $primaryVatCode = trim((string)($items[0]['vat_code'] ?? pz_billing_default_vat_code($pdo)));
         $createdBy = function_exists('current_user_id') ? (int)current_user_id() : null;
 
+        // Categoria veniturilor: dacă toate item-urile au aceeași categorie, o folosim;
+        // altfel cădem pe 'altele' (factură mixtă). Override manual e disponibil ulterior.
+        $invoiceRevenueCategory = 'ddd';
+        if (function_exists('pz_revenue_category_normalize')) {
+            $categoriesSeen = [];
+            foreach ($items as $item) {
+                $categoriesSeen[] = pz_revenue_category_normalize(
+                    (string)($item['revenue_category'] ?? 'ddd'),
+                    'ddd'
+                );
+            }
+            $unique = array_values(array_unique($categoriesSeen));
+            if (!empty($options['revenue_category'])) {
+                $invoiceRevenueCategory = pz_revenue_category_normalize(
+                    (string)$options['revenue_category'],
+                    'ddd'
+                );
+            } elseif (count($unique) === 1) {
+                $invoiceRevenueCategory = $unique[0];
+            } else {
+                $invoiceRevenueCategory = 'altele';
+            }
+        }
+
         $pdo->beginTransaction();
         try {
             // INSERT smartbill_invoices.
@@ -967,6 +1034,7 @@ if (!function_exists('pz_billing_issue_invoice')) {
                 ':observations'        => (string)($options['observations'] ?? ''),
                 ':notes'               => (string)($options['notes'] ?? ''),
                 ':created_by'          => $createdBy,
+                ':revenue_category'    => $invoiceRevenueCategory,
             ];
 
             $stmt = $pdo->prepare("
@@ -979,7 +1047,8 @@ if (!function_exists('pz_billing_issue_invoice')) {
                     client_contact, client_email, client_phone,
                     client_bank, client_iban,
                     client_country, client_county, client_city, client_address,
-                    invoice_language, mentions, observations, notes, created_by
+                    invoice_language, mentions, observations, notes, created_by,
+                    revenue_category
                 ) VALUES (
                     :appointment_id, :client_id, :client_location_id,
                     :invoice_date, :due_date, :currency,
@@ -989,7 +1058,8 @@ if (!function_exists('pz_billing_issue_invoice')) {
                     :client_contact, :client_email, :client_phone,
                     :client_bank, :client_iban,
                     :client_country, :client_county, :client_city, :client_address,
-                    :invoice_language, :mentions, :observations, :notes, :created_by
+                    :invoice_language, :mentions, :observations, :notes, :created_by,
+                    :revenue_category
                 )
             ");
             $stmt->execute($invoiceData);
