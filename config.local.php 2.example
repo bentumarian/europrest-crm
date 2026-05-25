@@ -1,0 +1,32 @@
+<?php
+/*
+|--------------------------------------------------------------------------
+| Config local PestZone - TEMPLATE
+|--------------------------------------------------------------------------
+| ATENTIE:
+| - Acesta este DOAR un template / exemplu.
+| - Pe server, copiaza acest fisier ca "config.local.php" si completeaza
+|   datele reale.
+| - config.local.php NU se urca pe Git (e in .gitignore).
+| - Datele reale (parola DB) raman DOAR pe server.
+|--------------------------------------------------------------------------
+*/
+
+return [
+    'app_env' => 'production',
+    'app_debug' => false,
+
+    'db_host' => 'localhost',
+    'db_name' => 'crm_database_name',
+    'db_user' => 'crm_database_user',
+    'db_pass' => 'INLOCUIESTE_CU_PAROLA_SIGURA',
+
+    // Optional: contul principal care poate accesa zone critice.
+    'super_admin_user_id' => 1,
+    // 'super_admin_email' => 'admin@firma-ta.ro',
+
+    // Optional: email tranzactional.
+    // 'sendgrid_api_key' => 'SG_xxxxxxxxx',
+    // 'sendgrid_from_email' => 'office@firma-ta.ro',
+    // 'sendgrid_from_name' => 'Firma ta',
+];

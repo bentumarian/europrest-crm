@@ -1,0 +1,122 @@
+# =====================================================================
+# PestZone - Security hardening (Pack 3)
+# =====================================================================
+# Acest fisier intareste securitatea aplicatiei la nivel de Apache.
+# Se aplica peste configuratia implicita Romarg.
+# =====================================================================
+
+# Blocheaza accesul direct la fisiere sensibile
+<FilesMatch "^(\.htaccess|\.htpasswd|\.gitignore|\.gitattributes|\.env|\.env\..*|composer\.json|composer\.lock|package\.json|package-lock\.json|README\.md|.*\.log|error_log|config\.local\.php|.*\.bak(\..*)?|.*\.backup(\..*)?|.*\.example|.*\.sql|.*\.md|.*\.zip|.*\.tar|.*\.tar\.gz|.*\.gz|.*\.7z|.*\.rar)$">
+    Require all denied
+</FilesMatch>
+
+# Blocheaza scripturi de mentenanta / diagnostic pe productie.
+# Se ruleaza doar local sau temporar, apoi se dezactiveaza din server.
+<FilesMatch "^(install_.*|fix_.*|diag_.*|force_sms_off)\.php$">
+    Require all denied
+</FilesMatch>
+
+# Blocheaza folderul .git daca exista
+RedirectMatch 403 /\.git
+
+# Dezactiveaza directory listing
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Forteaza HTTPS pe toate cererile
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+    # Compatibilitate pentru URL-urile financiare create initial in romana.
+    # Le servim intern, fara redirect extern, ca sa nu rupem bookmark-uri sau linkuri.
+    RewriteRule ^facturi$ invoices.php [L,QSA]
+    RewriteRule ^factura$ invoice.php [L,QSA]
+    RewriteRule ^incasari$ payments.php [L,QSA]
+    RewriteRule ^incasare$ payment.php [L,QSA]
+    RewriteRule ^interventii_facturare$ work_billing.php [L,QSA]
+    RewriteRule ^facturi_recurente$ recurring_invoices.php [L,QSA]
+    RewriteRule ^facturi_pdf$ invoice_pdf.php [L,QSA]
+
+    # URL-uri englezesti curate pentru modulele principale.
+    # Nu redirectam aici; doar servim intern fisierul PHP ca sa evitam 404-uri cache-uite.
+    RewriteRule ^contacts$ clients.php [L,QSA]
+    RewriteRule ^contact$ client.php [L,QSA]
+    RewriteRule ^documents$ documente.php [L,QSA]
+    RewriteRule ^offers$ oferte.php [L,QSA]
+    RewriteRule ^contracts$ contracts.php [L,QSA]
+    RewriteRule ^service-reports$ procese_verbale.php [L,QSA]
+    RewriteRule ^tasks$ tasks.php [L,QSA]
+    RewriteRule ^reports$ reports.php [L,QSA]
+    RewriteRule ^invoices$ invoices.php [L,QSA]
+    RewriteRule ^invoice$ invoice.php [L,QSA]
+    RewriteRule ^payments$ payments.php [L,QSA]
+    RewriteRule ^payment$ payment.php [L,QSA]
+    RewriteRule ^inventory$ stock.php [L,QSA]
+    RewriteRule ^inventory/products$ stock_products.php [L,QSA]
+    RewriteRule ^inventory/receipts$ stock_receipts.php [L,QSA]
+    RewriteRule ^inventory/movements$ stock_movements.php [L,QSA]
+    RewriteRule ^inventory/notifications$ stock_notifications.php [L,QSA]
+    RewriteRule ^inventory/stock-card$ stock_card.php [L,QSA]
+    RewriteRule ^inventory/work-registry$ stock_work_registry.php [L,QSA]
+    RewriteRule ^billing/work-list$ work_billing.php [L,QSA]
+    RewriteRule ^billing/recurring-invoices$ recurring_invoices.php [L,QSA]
+    RewriteRule ^billing/e-invoice$ efactura.php [L,QSA]
+    RewriteRule ^settings/company$ company_settings.php [L,QSA]
+    RewriteRule ^settings/users$ users.php [L,QSA]
+    RewriteRule ^settings/document-templates$ document_templates.php [L,QSA]
+    RewriteRule ^settings/document-series$ document_series.php [L,QSA]
+    RewriteRule ^settings/document-design$ document_design.php [L,QSA]
+    RewriteRule ^settings/communication$ communication_settings.php [L,QSA]
+    RewriteRule ^settings/smartbill$ smartbill_settings.php [L,QSA]
+    RewriteRule ^settings/email-templates$ email_templates.php [L,QSA]
+    RewriteRule ^settings/sms-templates$ sms_templates.php [L,QSA]
+    RewriteRule ^settings/data-import$ data_import.php [L,QSA]
+
+    # URL-uri curate pentru paginile PHP fara alias explicit:
+    # /pagina.php -> /pagina, iar /pagina este servit intern din pagina.php.
+    RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$
+    RewriteCond %{THE_REQUEST} \s/+([^\s?]+)\.php[?\s] [NC]
+    RewriteRule ^ %1 [R=301,L,NE]
+
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME}.php -f
+    RewriteRule ^([A-Za-z0-9_-]+)$ $1.php [L,QSA]
+
+    # Calendar: toate view-urile (Zi, Saptamana, Luna) sunt randerate direct
+    # de calendar.php. Fisierul calendar_week.php face acum redirect pentru
+    # bookmark-urile vechi, iar calendar_classic_view.php nu mai e folosit.
+</IfModule>
+
+# Security headers
+<IfModule mod_headers.c>
+    # Previne incadrarea paginii in iframe (clickjacking)
+    Header always set X-Frame-Options "SAMEORIGIN"
+
+    # Previne MIME sniffing
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Referrer policy - nu trimitem URL-ul intern catre site-uri externe
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # HSTS - forteaza HTTPS pentru 6 luni in browser
+    Header always set Strict-Transport-Security "max-age=15552000; includeSubDomains"
+</IfModule>
+
+# Ascunde mesajele PHP de eroare de utilizatori (nu si din error_log)
+<IfModule mod_php7.c>
+    php_flag display_errors off
+    php_flag log_errors on
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag display_errors off
+    php_flag log_errors on
+</IfModule>
+
+# Dezactiveaza ETags care pot leak-ui informatii despre server
+FileETag None
+
+# Default charset
+AddDefaultCharset UTF-8
