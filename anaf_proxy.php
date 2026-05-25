@@ -4,7 +4,10 @@
  * Plasează în public_html și accesează via URL-ul exact (fără redirecturi).
  */
 
-define('ALLOWED_ORIGIN', '*'); // sau: 'https://domeniultau.ro'
+// Restrictiv la domeniul de productie ca proxy-ul sa nu fie folosit de alte site-uri.
+// Daca ai nevoie sa-l consumi si din alta origine (ex: staging), seteaza-l acolo
+// sau muta logica de Allow-Origin la o whitelist dinamica.
+define('ALLOWED_ORIGIN', 'https://app.pestzone.ro');
 define('ANAF_URL', 'https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva');
 define('ANAF_BILANT_URL', 'https://webservicesp.anaf.ro/bilant');
 define('DATA_GOV_API', 'https://data.gov.ro/api/3/action');
