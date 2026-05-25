@@ -668,6 +668,89 @@ if ($hasSmartbillInvoices) {
     }
 }
 
+/* ────────────────────────────────────────────────────────────────────────
+   SARCINI ACTIVE (în perioada financiară + restante)
+   Filtrul vizibil din header (period_fin) controlează intervalul afișat;
+   sarcinile cu due_date < azi rămân vizibile chiar dacă perioada selectată
+   nu le acoperă, pentru ca utilizatorul să nu rateze ce e restant.
+   ──────────────────────────────────────────────────────────────────────── */
+
+$tasksDash       = [];
+$tasksOverdue    = 0;
+$tasksTodayCount = 0;
+$tasksInPeriod   = 0;
+$tasksFuture     = 0;
+if ($hasTasks) {
+    $taskClientJoin = $hasClients
+        ? "LEFT JOIN clients c ON c.id = t.client_id"
+        : "";
+    $taskClientName = $hasClients
+        ? "COALESCE(NULLIF(TRIM(c.name), ''), t.title, t.service_type, 'Sarcină') AS client_name"
+        : "COALESCE(NULLIF(TRIM(t.title), ''), t.service_type, 'Sarcină') AS client_name";
+
+    $tasksDash = dash_rows($pdo, "
+        SELECT
+            t.id, t.due_date, t.title, t.service_type, t.status,
+            $taskClientName
+        FROM tasks t
+        $taskClientJoin
+        WHERE t.status NOT IN ('skipped', 'done', 'finalizata')
+          $taskActiveWhere
+          AND (
+                t.due_date BETWEEN ? AND ?
+             OR t.due_date < CURDATE()
+          )
+        ORDER BY t.due_date ASC, t.id ASC
+        LIMIT 5
+    ", [$finStart, $finEnd]);
+
+    $tasksOverdue    = (int)dash_value($pdo, "SELECT COUNT(*) FROM tasks WHERE status NOT IN ('skipped','done','finalizata') $taskActiveWhere AND due_date < CURDATE()");
+    $tasksTodayCount = (int)dash_value($pdo, "SELECT COUNT(*) FROM tasks WHERE status NOT IN ('skipped','done','finalizata') $taskActiveWhere AND due_date = CURDATE()");
+    $tasksInPeriod   = (int)dash_value($pdo, "SELECT COUNT(*) FROM tasks WHERE status NOT IN ('skipped','done','finalizata') $taskActiveWhere AND due_date BETWEEN ? AND ?", [$finStart, $finEnd]);
+    $tasksFuture     = (int)dash_value($pdo, "SELECT COUNT(*) FROM tasks WHERE status NOT IN ('skipped','done','finalizata') $taskActiveWhere AND due_date > CURDATE() AND due_date BETWEEN ? AND ?", [$finStart, $finEnd]);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   REMINDERS (în perioada financiară + restante)
+   ──────────────────────────────────────────────────────────────────────── */
+
+$hasReminders = dash_table_exists($pdo, 'reminders');
+
+$remindersDash       = [];
+$remindersOverdue    = 0;
+$remindersTodayCount = 0;
+$remindersInPeriod   = 0;
+$remindersFuture     = 0;
+if ($hasReminders) {
+    $remindersDash = dash_rows($pdo, "
+        SELECT id, title, category, remind_date, remind_time, status
+        FROM reminders
+        WHERE status = 'pending'
+          AND (
+                remind_date BETWEEN ? AND ?
+             OR remind_date < CURDATE()
+          )
+        ORDER BY remind_date ASC, COALESCE(remind_time, '00:00:00') ASC, id ASC
+        LIMIT 5
+    ", [$finStart, $finEnd]);
+
+    $remindersOverdue    = (int)dash_value($pdo, "SELECT COUNT(*) FROM reminders WHERE status = 'pending' AND remind_date < CURDATE()");
+    $remindersTodayCount = (int)dash_value($pdo, "SELECT COUNT(*) FROM reminders WHERE status = 'pending' AND remind_date = CURDATE()");
+    $remindersInPeriod   = (int)dash_value($pdo, "SELECT COUNT(*) FROM reminders WHERE status = 'pending' AND remind_date BETWEEN ? AND ?", [$finStart, $finEnd]);
+    $remindersFuture     = (int)dash_value($pdo, "SELECT COUNT(*) FROM reminders WHERE status = 'pending' AND remind_date > CURDATE() AND remind_date BETWEEN ? AND ?", [$finStart, $finEnd]);
+}
+
+// Iconuri pe categorie de reminder (folosesc set-ul Tabler deja încărcat de pagină)
+$remCategoryIcon = [
+    'comercial'      => 'ti-mail',
+    'administrativ'  => 'ti-phone',
+    'financiar'      => 'ti-cash',
+    'documente'      => 'ti-file-text',
+    'conformitate'   => 'ti-shield-check',
+    'tehnic'         => 'ti-tool',
+    'other'          => 'ti-bell',
+];
+
 ?>
 <!DOCTYPE html>
 <html lang="ro">
@@ -864,6 +947,20 @@ if ($hasSmartbillInvoices) {
 .pz-appt-status.in-progress { color: var(--pz-bld); background: var(--pz-bls); }
 .pz-appt-status.done { color: var(--pz-gr); background: var(--pz-grs); }
 .pz-appt-status.pending { color: var(--pz-mu); background: var(--pz-soft); }
+/* Modificatori folosiți de cardurile Sarcini & Reminders */
+.pz-appt-status.overdue { color: var(--pz-re); background: var(--pz-res); }
+.pz-appt-status.today   { color: var(--pz-bld); background: var(--pz-bls); }
+.pz-appt-status.future  { color: var(--pz-mu); background: var(--pz-soft); }
+.pz-appt-row.is-overdue,
+.pz-appt-row.is-overdue:hover { background: var(--pz-res); }
+.pz-appt-row.is-today,
+.pz-appt-row.is-today:hover   { background: var(--pz-bls); }
+.pz-appt-row.is-overdue .pz-appt-time { color: var(--pz-re); }
+.pz-appt-row.is-today   .pz-appt-time { color: var(--pz-bld); }
+/* Înălțime egală garantată în rândurile cu 2 carduri */
+.pz-row-2-bottom > .pz-card { display: flex; flex-direction: column; }
+.pz-row-2-bottom > .pz-card > .pz-appt-list,
+.pz-row-2-bottom > .pz-card > .pz-clients-list { flex: 1; }
 .pz-appt-empty {
     text-align: center; padding: 20px 12px;
     font-size: 12px; color: var(--pz-fa);
@@ -1223,6 +1320,109 @@ if ($hasSmartbillInvoices) {
                             <?php endforeach; ?>
                         <?php else: ?>
                             <div class="pz-empty">Nu există facturi emise în perioada selectată.</div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Row 4: Sarcini active + Reminders (reacționează la period_fin) -->
+            <div class="pz-row-2-bottom">
+
+                <!-- Sarcini active -->
+                <div class="pz-card">
+                    <div class="pz-card-head">
+                        <div>
+                            <p class="pz-card-title-sm">Sarcini active</p>
+                            <p class="pz-card-title">
+                                <?= (int)$tasksOverdue ?> restante · <?= (int)$tasksTodayCount ?> azi · <?= (int)$tasksInPeriod ?> în <?= dash_h(strtolower($finLabel)) ?>
+                            </p>
+                        </div>
+                        <a href="tasks.php" class="pz-card-link">Toate<i class="ti ti-arrow-right" aria-hidden="true"></i></a>
+                    </div>
+                    <div class="pz-appt-list">
+                        <?php if (!empty($tasksDash)): ?>
+                            <?php foreach ($tasksDash as $task):
+                                $due = (string)($task['due_date'] ?? '');
+                                $today = date('Y-m-d');
+                                if ($due === '') {
+                                    $statusCls = 'pending'; $statusLbl = '·'; $rowCls = ''; $dateBox = '--';
+                                } elseif ($due < $today) {
+                                    $statusCls = 'overdue'; $statusLbl = 'restant'; $rowCls = ' is-overdue';
+                                    $dateBox = date('d.m', strtotime($due));
+                                } elseif ($due === $today) {
+                                    $statusCls = 'today'; $statusLbl = 'azi'; $rowCls = ' is-today';
+                                    $dateBox = 'azi';
+                                } else {
+                                    $statusCls = 'future'; $statusLbl = 'viitor'; $rowCls = '';
+                                    $dateBox = date('d.m', strtotime($due));
+                                }
+                                $taskName = trim((string)($task['client_name'] ?? '')) ?: 'Sarcină';
+                                $svc      = trim((string)($task['service_type'] ?? ''));
+                            ?>
+                                <a href="tasks.php#task-<?= (int)$task['id'] ?>" class="pz-appt-row<?= $rowCls ?>">
+                                    <div class="pz-appt-time"><?= dash_h($dateBox) ?></div>
+                                    <div class="pz-appt-info">
+                                        <p class="name"><?= dash_h($taskName) ?></p>
+                                        <?php if ($svc !== ''): ?>
+                                            <p class="tech"><?= dash_h($svc) ?></p>
+                                        <?php endif; ?>
+                                    </div>
+                                    <span class="pz-appt-status <?= $statusCls ?>"><?= dash_h($statusLbl) ?></span>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="pz-appt-empty">Nu există sarcini active în perioada selectată.</div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Reminders -->
+                <div class="pz-card">
+                    <div class="pz-card-head">
+                        <div>
+                            <p class="pz-card-title-sm">Reminders</p>
+                            <p class="pz-card-title">
+                                <?= (int)$remindersOverdue ?> expirate · <?= (int)$remindersTodayCount ?> azi · <?= (int)$remindersInPeriod ?> în <?= dash_h(strtolower($finLabel)) ?>
+                            </p>
+                        </div>
+                        <a href="reminders.php" class="pz-card-link">Toate<i class="ti ti-arrow-right" aria-hidden="true"></i></a>
+                    </div>
+                    <div class="pz-appt-list">
+                        <?php if (!empty($remindersDash)): ?>
+                            <?php foreach ($remindersDash as $rem):
+                                $rdate = (string)($rem['remind_date'] ?? '');
+                                $rtime = (string)($rem['remind_time'] ?? '');
+                                $today = date('Y-m-d');
+                                if ($rdate === '') {
+                                    $statusCls = 'pending'; $statusLbl = '·'; $rowCls = ''; $dateBox = '--';
+                                } elseif ($rdate < $today) {
+                                    $statusCls = 'overdue'; $statusLbl = 'expirat'; $rowCls = ' is-overdue';
+                                    $dateBox = date('d.m', strtotime($rdate));
+                                } elseif ($rdate === $today) {
+                                    $statusCls = 'today'; $statusLbl = 'azi'; $rowCls = ' is-today';
+                                    $dateBox = $rtime !== '' ? dash_time($rtime) : 'azi';
+                                } else {
+                                    $statusCls = 'future'; $statusLbl = 'viitor'; $rowCls = '';
+                                    $dateBox = date('d.m', strtotime($rdate));
+                                }
+                                $rTitle = trim((string)($rem['title'] ?? '')) ?: 'Reminder';
+                                $rCat   = strtolower(trim((string)($rem['category'] ?? 'other')));
+                                $rIcon  = $remCategoryIcon[$rCat] ?? 'ti-bell';
+                                $catLbl = $rCat !== '' && $rCat !== 'other' ? ucfirst($rCat) : 'Reminder';
+                                $timeLbl = ($rtime !== '' && $rdate !== '' && $rdate !== $today) ? ' · ' . dash_time($rtime) : '';
+                            ?>
+                                <a href="reminders.php#rem-<?= (int)$rem['id'] ?>" class="pz-appt-row<?= $rowCls ?>">
+                                    <div class="pz-appt-time"><?= dash_h($dateBox) ?></div>
+                                    <div class="pz-appt-info">
+                                        <p class="name"><?= dash_h($rTitle) ?></p>
+                                        <p class="tech"><i class="ti <?= dash_h($rIcon) ?>" aria-hidden="true" style="font-size: 11px; vertical-align: -1px;"></i> <?= dash_h($catLbl . $timeLbl) ?></p>
+                                    </div>
+                                    <span class="pz-appt-status <?= $statusCls ?>"><?= dash_h($statusLbl) ?></span>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="pz-appt-empty">Nu există reminders pending în perioada selectată.</div>
                         <?php endif; ?>
                     </div>
                 </div>
