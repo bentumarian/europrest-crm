@@ -1,3 +1,2 @@
-# Auto detect text files and perform LF normalization
-* text=auto
-calendar.php -text
+# Auto-detect text files; convertește toate fișierele text la CRLF la checkout.
+# Proi
