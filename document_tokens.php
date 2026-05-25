@@ -1716,6 +1716,16 @@ if (!function_exists('pzdoc_build_tokens')) {
             'recommendations' => pzdoc_token_multiline($document['recommendations'] ?? ''),
             'client_notes' => pzdoc_token_multiline($document['client_notes'] ?? ''),
             'internal_notes' => pzdoc_token_multiline($document['internal_notes'] ?? ''),
+
+            // Token universal pentru „obiectul documentului" — funcționează pentru
+            // contracte standard (sursă: payload.contract_object), acte adiționale
+            // și alte tipizate ce stochează descrierea liberă în câmpul `notes`.
+            // Cu fallback automat între cele două surse.
+            'document_object' => pzdoc_token_multiline(
+                trim((string)($payload['contract_object'] ?? '')) !== ''
+                    ? (string)($payload['contract_object'] ?? '')
+                    : (string)($document['notes'] ?? '')
+            ),
         ];
 
         $tokens += $contractFirstItemTokens;
@@ -1886,7 +1896,7 @@ if (!function_exists('pzdoc_available_tokens')) {
                 '{{items_table}}', '{{services_table}}', '{{contract_services_table}}', '{{contract_items_table}}', '{{services_checks}}', '{{services_box}}', '{{materials_table}}', '{{biocides_table}}', '{{materials_safety}}', '{{safety_measures}}',
             ],
             'Observații' => [
-                '{{notes}}', '{{executor_notes}}', '{{recommendations}}', '{{client_notes}}', '{{internal_notes}}', '{{offer_intro}}', '{{offer_footer}}',
+                '{{document_object}}', '{{notes}}', '{{executor_notes}}', '{{recommendations}}', '{{client_notes}}', '{{internal_notes}}', '{{offer_intro}}', '{{offer_footer}}',
             ],
             'Avize sanitare' => [
                 '{{avize_sanitare_link}}', '{{avize_sanitare_url}}', '{{product_avize_link}}', '{{product_avize_url}}',

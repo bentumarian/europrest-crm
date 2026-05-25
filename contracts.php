@@ -1053,7 +1053,7 @@ foreach ($services as $service) {
                                 <div class="panel-head">
                                     <div>
                                         <div class="panel-title">Obiectul contractului</div>
-                                        <div class="panel-subtitle">Descrie obiectul contractului: servicii, lucrări, condiții punctuale. Acest text alimentează variabila {{contract_obiect}} din șablon.</div>
+                                        <div class="panel-subtitle">Descrie obiectul contractului: servicii, lucrări, condiții punctuale. Acest text alimentează variabila <code>{{document_object}}</code> din șablon.</div>
                                     </div>
                                 </div>
                                 <div class="panel-body">
@@ -1074,7 +1074,7 @@ foreach ($services as $service) {
                                     </div>
                                     <label for="contractObjectTextarea" class="ctype-label">Descriere obiect</label>
                                     <textarea name="contract_object" id="contractObjectTextarea" class="ctype-textarea" rows="10" placeholder="Ex: Prestari servicii de execuție lucrări de dezinsecție generală a imobilului situat la adresa ..., conform ofertei nr. ... din data de ..."><?= pz_contract_h($contractObjectValue) ?></textarea>
-                                    <div class="client-help" style="margin-top:6px;">Textul intră ca atare în PDF, prin tokenul <code>{{contract_obiect}}</code> din șablon.</div>
+                                    <div class="client-help" style="margin-top:6px;">Textul intră ca atare în PDF, prin tokenul <code>{{document_object}}</code> din șablon. Același token funcționează și pentru acte adiționale sau alte tipizate.</div>
                                 </div>
                             </div>
                                 </div>
