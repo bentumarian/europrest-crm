@@ -495,8 +495,9 @@ if (!function_exists('render_sidebar')) {
 
     .sidebar {
         background: var(--em-navy) !important;
-        border-right: 1px solid var(--em-navy-alt) !important;
-        box-shadow: none !important;
+        border-right: none !important;
+        border-radius: var(--shell-radius) !important;
+        box-shadow: 0 12px 32px -18px rgba(6, 17, 66, .45) !important;
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
     }

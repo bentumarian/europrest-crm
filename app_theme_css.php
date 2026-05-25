@@ -570,23 +570,23 @@ if (!function_exists('app_theme_css')) {
         /* Sidebar compact - icon stanga, text pe acelasi rand, culoare brand #21005b */
         @media(min-width: 861px) {
             .sidebar {
-                background: #21005b;
-                box-shadow: 4px 0 14px rgba(33, 0, 91, .16);
+                background: var(--em-navy);
+                box-shadow: 0 12px 32px -18px rgba(6, 17, 66, .45);
             }
 
             .sidebar-brand {
-                padding: 14px 8px 12px;
+                padding: 22px 14px 20px;
             }
 
             .brand-logo-link {
-                min-height: 94px;
+                min-height: 120px;
             }
 
             .brand-logo {
-                width: 144px;
-                height: 84px;
-                max-width: 144px;
-                max-height: 84px;
+                width: 190px;
+                height: 110px;
+                max-width: 190px;
+                max-height: 110px;
             }
 
             .brand-fallback {
@@ -1312,6 +1312,12 @@ if (!function_exists('app_theme_css')) {
                 height: 100dvh;
                 max-height: 100dvh;
                 overflow: hidden;
+                /* Pe mobil rămâne drawer full-edge (fără floating gap / radius) */
+                left: 0;
+                top: 0;
+                bottom: 0;
+                border-radius: 0;
+                box-shadow: 12px 0 28px -16px rgba(6, 17, 66, .45);
             }
 
             .sidebar.open {

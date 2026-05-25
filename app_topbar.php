@@ -286,7 +286,14 @@ if (!function_exists('app_topbar')) {
         }
         @media (max-width: 860px) {
             .app-topbar {
+                /* Pe mobil rămâne lipit pe edge (fără floating gap) */
+                top: 0;
                 left: 0;
+                right: 0;
+                border-radius: 0;
+                border: 0;
+                border-bottom: 1px solid var(--border);
+                box-shadow: none;
                 padding-left: 64px;
                 padding-right: 12px;
             }
@@ -299,13 +306,14 @@ if (!function_exists('app_topbar')) {
         }
 
         /* ============================================================
-           PZ Topbar — refresh design (conform mockup)
-           Override final cu tokens --pz-*
+           emma.ro Topbar — floating card
+           Override final cu tokens --pz-* / --em-*
            ============================================================ */
         .app-topbar {
             background: var(--pz-surf) !important;
-            border-bottom: 1px solid var(--pz-line) !important;
-            box-shadow: none !important;
+            border: 1px solid var(--pz-line) !important;
+            border-radius: var(--shell-radius) !important;
+            box-shadow: 0 8px 24px -18px rgba(6, 17, 66, .18) !important;
             backdrop-filter: none !important;
             -webkit-backdrop-filter: none !important;
         }
