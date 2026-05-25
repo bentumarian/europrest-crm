@@ -126,6 +126,9 @@ $cmds = [
     "cd $repoQ && git fetch --all 2>&1",
     "cd $repoQ && git reset --hard origin/main 2>&1",
     "cd $repoQ && cp -fR ./*.php $deployQ/ 2>&1",
+    // /lib/ contine helperele require-uite din root (notification_lib, smartbill_lib, etc).
+    // Trebuie copiat recursiv ca sa fie disponibil dupa deploy.
+    "cd $repoQ && [ -d lib ] && cp -fR ./lib $deployQ/ 2>&1 || true",
     // .htaccess este versionat in repo; il copiem doar daca exista
     "cd $repoQ && [ -f .htaccess ] && cp -f .htaccess $deployQ/ 2>&1 || true",
 ];
