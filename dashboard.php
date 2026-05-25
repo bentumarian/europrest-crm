@@ -751,6 +751,52 @@ $remCategoryIcon = [
     'other'          => 'ti-bell',
 ];
 
+/* ────────────────────────────────────────────────────────────────────────
+   LAYOUT PERSONALIZABIL (drag & drop)
+   Ordinea cardurilor se salvează per utilizator în user_dashboard_layout.
+   ──────────────────────────────────────────────────────────────────────── */
+
+$pdo->exec("
+    CREATE TABLE IF NOT EXISTS user_dashboard_layout (
+        user_id INT NOT NULL PRIMARY KEY,
+        layout_json TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+");
+
+$dashKpiDefaultOrder = ['kpi-revenue', 'kpi-invoices', 'kpi-today', 'kpi-due'];
+$dashBigDefaultOrder = [
+    'card-revchart', 'card-statusdonut',
+    'card-todayappts', 'card-topclients',
+    'card-tasks', 'card-reminders',
+];
+
+$dashKpiOrder = $dashKpiDefaultOrder;
+$dashBigOrder = $dashBigDefaultOrder;
+
+$dashUserId = function_exists('current_user_id') ? (int)current_user_id() : 0;
+if ($dashUserId > 0) {
+    $savedJson = (string)dash_value($pdo, "SELECT layout_json FROM user_dashboard_layout WHERE user_id = ?", [$dashUserId], '');
+    if ($savedJson !== '') {
+        $saved = json_decode($savedJson, true);
+        if (is_array($saved)) {
+            $maybeKpis = $saved['kpis']     ?? [];
+            $maybeBigs = $saved['bigCards'] ?? [];
+            // Validăm strict: aceleași seturi, fără duplicate, exact aceeași dimensiune.
+            $validKpis = is_array($maybeKpis)
+                && count($maybeKpis) === count($dashKpiDefaultOrder)
+                && count(array_diff($maybeKpis, $dashKpiDefaultOrder)) === 0
+                && count(array_unique($maybeKpis)) === count($dashKpiDefaultOrder);
+            $validBigs = is_array($maybeBigs)
+                && count($maybeBigs) === count($dashBigDefaultOrder)
+                && count(array_diff($maybeBigs, $dashBigDefaultOrder)) === 0
+                && count(array_unique($maybeBigs)) === count($dashBigDefaultOrder);
+            if ($validKpis) $dashKpiOrder = array_values($maybeKpis);
+            if ($validBigs) $dashBigOrder = array_values($maybeBigs);
+        }
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="ro">
@@ -787,7 +833,8 @@ $remCategoryIcon = [
 .pz-dash > *,
 .pz-kpi-grid > *,
 .pz-row-2 > *,
-.pz-row-2-bottom > * { min-width: 0; }
+.pz-row-2-bottom > *,
+.pz-big-grid > * { min-width: 0; }
 .pz-dash a { text-decoration: none; color: inherit; }
 .pz-dash .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
 
@@ -876,6 +923,14 @@ $remCategoryIcon = [
 .pz-row-2 { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px; }
 .pz-row-2-bottom { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 
+/* Grid unificat pentru cele 6 carduri mari (drag & drop cross-row) */
+.pz-big-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.pz-big-grid > * { min-width: 0; }
+
 /* Period selector — orizontal scroll dacă nu încape */
 .pz-period {
     max-width: 100%;
@@ -958,9 +1013,62 @@ $remCategoryIcon = [
 .pz-appt-row.is-overdue .pz-appt-time { color: var(--pz-re); }
 .pz-appt-row.is-today   .pz-appt-time { color: var(--pz-bld); }
 /* Înălțime egală garantată în rândurile cu 2 carduri */
-.pz-row-2-bottom > .pz-card { display: flex; flex-direction: column; }
+.pz-row-2-bottom > .pz-card,
+.pz-big-grid > .pz-card { display: flex; flex-direction: column; }
 .pz-row-2-bottom > .pz-card > .pz-appt-list,
-.pz-row-2-bottom > .pz-card > .pz-clients-list { flex: 1; }
+.pz-row-2-bottom > .pz-card > .pz-clients-list,
+.pz-big-grid > .pz-card > .pz-appt-list,
+.pz-big-grid > .pz-card > .pz-clients-list { flex: 1; }
+
+/* ── Drag & Drop ─────────────────────────────────────────── */
+.pz-kpi-grid > .pz-kpi,
+.pz-big-grid > .pz-card { position: relative; }
+
+.pz-card-grip {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pz-fa);
+    background: transparent;
+    border-radius: 4px;
+    cursor: grab;
+    opacity: 0.45;
+    transition: opacity .15s, background .15s, color .15s;
+    z-index: 3;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.pz-card-grip i { font-size: 14px; line-height: 1; pointer-events: none; }
+.pz-kpi:hover  .pz-card-grip,
+.pz-card:hover .pz-card-grip { opacity: 1; color: var(--pz-mu); background: var(--pz-soft); }
+.pz-card-grip:active { cursor: grabbing; background: var(--pz-bls); color: var(--pz-bld); }
+
+/* Offset minim ca handle-ul să nu suprapună eticheta */
+.pz-kpi .pz-kpi-head { padding-left: 18px; }
+.pz-card .pz-card-head { padding-left: 18px; }
+
+/* Stări vizuale Sortable */
+.pz-drag-ghost {
+    opacity: 0.35;
+    background: var(--pz-bls) !important;
+    border-color: var(--pz-blb) !important;
+}
+.pz-drag-chosen {
+    cursor: grabbing;
+}
+.pz-drag-active {
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.18);
+    transform: scale(1.01);
+    transition: transform .12s;
+    z-index: 10;
+}
+.pz-kpi-grid.is-sorting,
+.pz-big-grid.is-sorting { background: linear-gradient(transparent, transparent); }
 .pz-appt-empty {
     text-align: center; padding: 20px 12px;
     font-size: 12px; color: var(--pz-fa);
@@ -1012,6 +1120,7 @@ $remCategoryIcon = [
     .pz-dash { padding: 14px 14px; gap: 12px; }
     .pz-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .pz-row-2-bottom { grid-template-columns: minmax(0, 1fr); }
+    .pz-big-grid { grid-template-columns: minmax(0, 1fr); }
     .pz-head { gap: 10px; }
     .pz-head-actions { width: 100%; }
     .pz-period { width: 100%; }
@@ -1105,11 +1214,27 @@ $remCategoryIcon = [
                 </div>
             </div>
 
-            <!-- 4 KPI cards -->
-            <div class="pz-kpi-grid">
+            <!-- 4 KPI cards (drag & drop între ele) -->
+            <?php
+                // Pre-calcule comune
+                $kpiIssuedTotal = max(1, (int)$finIssuedCount);
+                $kpiPaidPct     = $finIssued > 0 ? min(100, round(($finPaid / $finIssued) * 100)) : 0;
+                $kpiRestPctSum  = $finIssued > 0 ? min(100, round(($restanteAmount / $finIssued) * 100)) : 0;
+                $kpiPendingPct  = max(0, 100 - $kpiPaidPct - $kpiRestPctSum);
 
-                <!-- KPI 1: Venituri perioada -->
-                <div class="pz-kpi">
+                $todayCount = is_array($todayAppointments) ? count($todayAppointments) : 0;
+                $todayDoneCount = 0;
+                foreach (($todayAppointments ?: []) as $apt) {
+                    if (($apt['status'] ?? '') === 'finalizata') $todayDoneCount++;
+                }
+                $todayPct = $todayCount > 0 ? round(($todayDoneCount / $todayCount) * 100) : 0;
+
+                $kpiCards = [];
+
+                // ---- KPI 1: Venituri perioada
+                ob_start(); ?>
+                <div class="pz-kpi" data-card-id="kpi-revenue">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-kpi-head">
                         <span class="pz-kpi-label">Venituri <?= dash_h(strtolower($finLabel)) ?></span>
                         <?php if ($finDelta !== null): ?>
@@ -1130,16 +1255,12 @@ $remCategoryIcon = [
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php $kpiCards['kpi-revenue'] = ob_get_clean();
 
-                <!-- KPI 2: Facturi emise -->
-                <?php
-                    $kpiIssuedTotal = max(1, (int)$finIssuedCount);
-                    $kpiPaidPct     = $finIssued > 0 ? min(100, round(($finPaid / $finIssued) * 100)) : 0;
-                    // Aproximare: pe baza sumelor (paid / restanță / restul = în termen)
-                    $kpiRestPctSum  = $finIssued > 0 ? min(100, round(($restanteAmount / $finIssued) * 100)) : 0;
-                    $kpiPendingPct  = max(0, 100 - $kpiPaidPct - $kpiRestPctSum);
-                ?>
-                <div class="pz-kpi">
+                // ---- KPI 2: Facturi emise
+                ob_start(); ?>
+                <div class="pz-kpi" data-card-id="kpi-invoices">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-kpi-head">
                         <span class="pz-kpi-label">Facturi emise</span>
                         <span class="pz-kpi-badge info">
@@ -1155,17 +1276,12 @@ $remCategoryIcon = [
                         <span style="width: <?= $kpiRestPctSum ?>%; background: var(--pz-re);"></span>
                     </div>
                 </div>
+                <?php $kpiCards['kpi-invoices'] = ob_get_clean();
 
-                <!-- KPI 3: Programări azi -->
-                <?php
-                    $todayCount = is_array($todayAppointments) ? count($todayAppointments) : 0;
-                    $todayDoneCount = 0;
-                    foreach (($todayAppointments ?: []) as $apt) {
-                        if (($apt['status'] ?? '') === 'finalizata') $todayDoneCount++;
-                    }
-                    $todayPct = $todayCount > 0 ? round(($todayDoneCount / $todayCount) * 100) : 0;
-                ?>
-                <div class="pz-kpi">
+                // ---- KPI 3: Programări azi
+                ob_start(); ?>
+                <div class="pz-kpi" data-card-id="kpi-today">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-kpi-head">
                         <span class="pz-kpi-label">Programări azi</span>
                         <span class="pz-kpi-badge info">
@@ -1179,9 +1295,12 @@ $remCategoryIcon = [
                         <span style="width: <?= $todayPct ?>%; background: var(--pz-bl);"></span>
                     </div>
                 </div>
+                <?php $kpiCards['kpi-today'] = ob_get_clean();
 
-                <!-- KPI 4: De facturat -->
-                <div class="pz-kpi">
+                // ---- KPI 4: De facturat
+                ob_start(); ?>
+                <div class="pz-kpi" data-card-id="kpi-due">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-kpi-head">
                         <span class="pz-kpi-label">De facturat</span>
                         <?php if ($finDueCount > 0): ?>
@@ -1193,14 +1312,26 @@ $remCategoryIcon = [
                     <div class="pz-kpi-value"><?= (int)$finDueCount ?><span class="unit">poziții</span></div>
                     <div class="pz-kpi-foot"><?= dash_money($finDueAmount) ?> lei în așteptare</div>
                 </div>
-
+                <?php $kpiCards['kpi-due'] = ob_get_clean();
+            ?>
+            <div class="pz-kpi-grid" data-pz-sortable="kpis">
+                <?php foreach ($dashKpiOrder as $kpiId): ?>
+                    <?= $kpiCards[$kpiId] ?? '' ?>
+                <?php endforeach; ?>
             </div>
 
-            <!-- Row 2: Chart + Donut -->
-            <div class="pz-row-2">
+            <!-- 6 carduri mari — un singur grid drag-able (cross-row) -->
+            <?php
+                $stPaid    = (int)round(($finIssued > 0 ? ($finPaid / $finIssued) * $finIssuedCount : 0));
+                $stRestNum = (int)$restanteCount;
+                $stPending = max(0, (int)$finIssuedCount - $stPaid - $stRestNum);
 
-                <!-- Chart venituri/încasări 6 luni -->
-                <div class="pz-card">
+                $bigCards = [];
+
+                // ---- Card: Chart venituri/încasări 6 luni
+                ob_start(); ?>
+                <div class="pz-card" data-card-id="card-revchart">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-card-head">
                         <div>
                             <p class="pz-card-title-sm">Venituri și încasări</p>
@@ -1215,14 +1346,12 @@ $remCategoryIcon = [
                         <canvas id="pzRevenueChart" role="img" aria-label="Trend venituri și încasări ultimele 6 luni"></canvas>
                     </div>
                 </div>
+                <?php $bigCards['card-revchart'] = ob_get_clean();
 
-                <!-- Donut status facturi -->
-                <?php
-                    $stPaid = (int)round(($finIssued > 0 ? ($finPaid / $finIssued) * $finIssuedCount : 0));
-                    $stRestNum = (int)$restanteCount;
-                    $stPending = max(0, (int)$finIssuedCount - $stPaid - $stRestNum);
-                ?>
-                <div class="pz-card">
+                // ---- Card: Donut status facturi
+                ob_start(); ?>
+                <div class="pz-card" data-card-id="card-statusdonut">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-card-head" style="margin-bottom: 6px;">
                         <div>
                             <p class="pz-card-title-sm">Status facturi</p>
@@ -1247,14 +1376,12 @@ $remCategoryIcon = [
                         </div>
                     </div>
                 </div>
+                <?php $bigCards['card-statusdonut'] = ob_get_clean();
 
-            </div>
-
-            <!-- Row 3: Programări azi + Top clienți -->
-            <div class="pz-row-2-bottom">
-
-                <!-- Programări azi -->
-                <div class="pz-card">
+                // ---- Card: Programări azi
+                ob_start(); ?>
+                <div class="pz-card" data-card-id="card-todayappts">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-card-head">
                         <div>
                             <p class="pz-card-title-sm">Programări astăzi</p>
@@ -1291,9 +1418,12 @@ $remCategoryIcon = [
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php $bigCards['card-todayappts'] = ob_get_clean();
 
-                <!-- Top clienți -->
-                <div class="pz-card">
+                // ---- Card: Top clienți
+                ob_start(); ?>
+                <div class="pz-card" data-card-id="card-topclients">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-card-head">
                         <div>
                             <p class="pz-card-title-sm">Top clienți</p>
@@ -1323,14 +1453,12 @@ $remCategoryIcon = [
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php $bigCards['card-topclients'] = ob_get_clean();
 
-            </div>
-
-            <!-- Row 4: Sarcini active + Reminders (reacționează la period_fin) -->
-            <div class="pz-row-2-bottom">
-
-                <!-- Sarcini active -->
-                <div class="pz-card">
+                // ---- Card: Sarcini active
+                ob_start(); ?>
+                <div class="pz-card" data-card-id="card-tasks">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-card-head">
                         <div>
                             <p class="pz-card-title-sm">Sarcini active</p>
@@ -1376,9 +1504,12 @@ $remCategoryIcon = [
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php $bigCards['card-tasks'] = ob_get_clean();
 
-                <!-- Reminders -->
-                <div class="pz-card">
+                // ---- Card: Reminders
+                ob_start(); ?>
+                <div class="pz-card" data-card-id="card-reminders">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-card-head">
                         <div>
                             <p class="pz-card-title-sm">Reminders</p>
@@ -1426,7 +1557,13 @@ $remCategoryIcon = [
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php $bigCards['card-reminders'] = ob_get_clean();
+            ?>
 
+            <div class="pz-big-grid" data-pz-sortable="big-cards">
+                <?php foreach ($dashBigOrder as $bigId): ?>
+                    <?= $bigCards[$bigId] ?? '' ?>
+                <?php endforeach; ?>
             </div>
 
         </div>
@@ -1532,6 +1669,96 @@ $remCategoryIcon = [
             var ctx = canvasSt.getContext('2d');
             ctx.clearRect(0, 0, canvasSt.width, canvasSt.height);
         }
+    }
+})();
+</script>
+
+<!-- Drag & drop carduri dashboard -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+(function () {
+    if (typeof Sortable === 'undefined') return;
+
+    var SAVE_URL = 'dashboard_layout_save.php';
+    var saveTimer = null;
+    var lastSent = null;
+
+    function collectOrder(container) {
+        return Array.prototype.slice
+            .call(container.querySelectorAll(':scope > [data-card-id]'))
+            .map(function (el) { return el.getAttribute('data-card-id'); });
+    }
+
+    function snapshot() {
+        var kpiGrid = document.querySelector('[data-pz-sortable="kpis"]');
+        var bigGrid = document.querySelector('[data-pz-sortable="big-cards"]');
+        return {
+            kpis:     kpiGrid ? collectOrder(kpiGrid) : [],
+            bigCards: bigGrid ? collectOrder(bigGrid) : []
+        };
+    }
+
+    function saveLayout() {
+        var payload = snapshot();
+        var serialized = JSON.stringify(payload);
+        if (serialized === lastSent) return;
+        lastSent = serialized;
+
+        if (typeof fetch !== 'function') return;
+
+        fetch(SAVE_URL, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: serialized
+        }).then(function (r) {
+            if (!r.ok) console.warn('[dashboard layout] save failed:', r.status);
+        }).catch(function (e) {
+            console.warn('[dashboard layout] save error:', e);
+        });
+    }
+
+    function scheduleSave() {
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveLayout, 200);
+    }
+
+    function initSortable(selector, opts) {
+        var el = document.querySelector(selector);
+        if (!el) return;
+        Sortable.create(el, Object.assign({
+            handle: '.pz-card-grip',
+            animation: 160,
+            ghostClass: 'pz-drag-ghost',
+            chosenClass: 'pz-drag-chosen',
+            dragClass:   'pz-drag-active',
+            forceFallback: false,
+            onStart: function () { el.classList.add('is-sorting'); },
+            onEnd:   function () { el.classList.remove('is-sorting'); scheduleSave(); }
+        }, opts || {}));
+    }
+
+    function init() {
+        // Memorez snapshotul inițial ca să nu trimit save inutil pe load.
+        lastSent = JSON.stringify(snapshot());
+
+        initSortable('[data-pz-sortable="kpis"]', { group: 'pz-kpis' });
+        initSortable('[data-pz-sortable="big-cards"]', { group: 'pz-big-cards' });
+
+        // Previn navigarea când utilizatorul apasă pe grip-ul unui link/anchor
+        document.addEventListener('click', function (e) {
+            var grip = e.target.closest && e.target.closest('.pz-card-grip');
+            if (grip) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
     }
 })();
 </script>
