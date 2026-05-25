@@ -1064,6 +1064,21 @@ if (!function_exists('pzdoc_contract_services_table_html')) {
     {
         $items = is_array($document['items'] ?? null) ? $document['items'] : [];
         if (!$items) {
+            // Fallback pentru contracte „standard" / de execuție: nu au tabel de
+            // servicii, dar utilizatorul a completat obiectul contractului într-un
+            // câmp text. Dacă există, îl randăm aici ca textul să apară în loc de
+            // liniuță. Sursa principală: payload.contract_object. Backup: notes
+            // (vezi contracts.php — pentru tipul „execution" textul ajunge și acolo).
+            $payload = is_array($document['payload'] ?? null) ? $document['payload'] : [];
+            $contractObject = trim((string)($payload['contract_object'] ?? ''));
+            if ($contractObject === '') {
+                $contractObject = trim((string)($document['notes'] ?? ''));
+            }
+            if ($contractObject !== '') {
+                return '<div class="pzdoc-contract-object">'
+                     . pzdoc_token_multiline($contractObject)
+                     . '</div>';
+            }
             return '<p>-</p>';
         }
 
