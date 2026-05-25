@@ -497,11 +497,12 @@ body {
 }
 
 /* Sub-container care wraps DOAR logo + tagline.
-   inline-block + width: max-content → lățimea egală cu logo-ul,
-   tagline-ul cu width: 100% se aliniază exact între edge-urile logo-ului. */
+   inline-flex column + align-items: stretch → lățimea = lățimea logo-ului,
+   tagline-ul (stretch) se aliniază exact între edge-urile logo-ului. */
 .em-brand-mark {
-    display: inline-block;
-    width: max-content;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: stretch;
     max-width: 100%;
 }
 
