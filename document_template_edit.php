@@ -710,12 +710,13 @@ function initTiny() {
         menubar: 'edit view insert format table tools',
         plugins: 'preview searchreplace autolink directionality visualblocks visualchars fullscreen link table charmap pagebreak nonbreaking anchor advlist lists wordcount help quickbars',
         toolbar: [
-            'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | forecolor backcolor removeformat',
+            'undo redo | blocks fontfamily fontsize lineheight | bold italic underline strikethrough | forecolor backcolor removeformat',
             'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | table link hr pagebreak | visualblocks fullscreen preview'
         ],
         toolbar_mode: 'wrap',
         font_size_formats: '7pt 8pt 9pt 10pt 10.5pt 11pt 12pt 13pt 14pt 15pt 16pt 18pt 20pt 22pt 24pt 28pt 32pt',
         fontsize_formats: '7pt 8pt 9pt 10pt 10.5pt 11pt 12pt 13pt 14pt 15pt 16pt 18pt 20pt 22pt 24pt 28pt 32pt',
+        line_height_formats: '1 1.15 1.25 1.35 1.5 1.75 2 2.5 3',
         quickbars_selection_toolbar: 'bold italic underline | blocks | forecolor backcolor | bullist numlist | link',
         quickbars_insert_toolbar: 'table hr pagebreak',
         table_toolbar: 'tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol',

@@ -510,20 +510,8 @@ if (!in_array($formDiscountType, ['none', 'percent', 'value'], true)) {
 }
 $formDiscountValue = (float)($editingPayload['discount_value'] ?? 0);
 
-$isOfferNew = !$editingDocument;
-$formOfferIntro = (string)($editingPayload['offer_intro'] ?? '');
 $formPaymentTerms = (string)($editingPayload['payment_terms'] ?? '');
-$formDeliveryTerms = (string)($editingPayload['delivery_terms'] ?? '');
-$formOfferFooter = (string)($editingPayload['offer_footer'] ?? '');
 $formNotes = (string)($formDocument['notes'] ?? '');
-if ($isOfferNew) {
-    if ($formOfferIntro === '') {
-        $formOfferIntro = 'Va transmitem prezenta oferta comerciala pentru prestarea serviciilor detaliate mai jos:';
-    }
-    if ($formPaymentTerms === '') {
-        $formPaymentTerms = 'Plata se efectueaza in termen de 5 zile de la emiterea facturii.';
-    }
-}
 
 if (!$editingItems) {
     $editingItems = [[
@@ -735,9 +723,6 @@ foreach ($services as $service) {
                         <form method="post" id="offerForm">
                             <?= csrf_field() ?>
                             <input type="hidden" name="document_id" value="<?= (int)($formDocument['id'] ?? 0) ?>">
-                        <input type="hidden" name="offer_intro" value="<?= pz_offer_h($formOfferIntro) ?>">
-                        <input type="hidden" name="delivery_terms" value="<?= pz_offer_h($formDeliveryTerms) ?>">
-                        <input type="hidden" name="offer_footer" value="<?= pz_offer_h($formOfferFooter) ?>">
 
                             <div class="contract-section" data-contract-step="1">
                                 <div class="contract-section-head">
@@ -779,27 +764,14 @@ foreach ($services as $service) {
                                 </div>
 
                                 <div class="field">
-                                    <label>Denumire oferta</label>
-                                    <input type="text" name="title" value="<?= pz_offer_h($formDocument['title'] ?? '') ?>" placeholder="ex: Oferta servicii DDD trimestriale">
-                                </div>
-
-                                <div class="field">
-                                    <label>Data oferta</label>
+                                    <label>Data ofertă</label>
                                     <input type="date" name="document_date" value="<?= pz_offer_h($formDocument['document_date'] ?? date('Y-m-d')) ?>">
                                 </div>
 
                                 <div class="field">
                                     <label>Valabilitate (zile)</label>
                                     <input type="number" step="1" min="1" name="valid_days" id="validDays" value="<?= pz_offer_h($formValidDays) ?>">
-                                </div>
-
-                                <div class="field">
-                                    <label>Moneda</label>
-                                    <select name="currency" id="currency">
-                                        <?php foreach (['RON', 'EUR', 'USD'] as $currency): ?>
-                                            <option value="<?= pz_offer_h($currency) ?>" <?= ($formDocument['currency'] ?? 'RON') === $currency ? 'selected' : '' ?>><?= pz_offer_h($currency) ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
+                                    <div class="client-help">Alimentează tokenul <code>{{valid_days}}</code> din șablon.</div>
                                 </div>
 
                             </div>
@@ -818,6 +790,16 @@ foreach ($services as $service) {
                                 <div class="contract-section-body">
                             <div class="panel" style="margin-top:0; box-shadow:none; border:1px solid var(--pz-line);">
                                 <div class="panel-body">
+                                    <div class="offer-form-grid" style="margin-bottom:14px;">
+                                        <div class="field">
+                                            <label>Moneda</label>
+                                            <select name="currency" id="currency">
+                                                <?php foreach (['RON', 'EUR', 'USD'] as $currency): ?>
+                                                    <option value="<?= pz_offer_h($currency) ?>" <?= ($formDocument['currency'] ?? 'RON') === $currency ? 'selected' : '' ?>><?= pz_offer_h($currency) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                    </div>
                                     <div class="items-wrap">
                                         <table class="items-table">
                                             <thead>
@@ -892,24 +874,21 @@ foreach ($services as $service) {
                                 <div class="contract-section-head">
                                     <div class="contract-section-titlewrap">
                                         <span class="contract-step-num">3</span>
-                                        <h3 class="contract-section-title">Condiții comerciale</h3>
-                                        <span class="contract-section-hint">plată și observații</span>
+                                        <h3 class="contract-section-title">Condiții și observații</h3>
+                                        <span class="contract-section-hint">apar în PDF</span>
                                     </div>
                                 </div>
                                 <div class="contract-section-body">
                             <div class="offer-form-grid">
                                 <div class="field span2">
-                                    <label>Conditii de plata</label>
+                                    <label>Termen de plată</label>
                                     <input type="text" name="payment_terms" value="<?= pz_offer_h($formPaymentTerms) ?>" placeholder="ex: 5 zile de la emiterea facturii">
-                                    <div class="client-help">Apare in șablon prin {{payment_terms}}.</div>
+                                    <div class="client-help">Numărul de zile se extrage automat din acest text și alimentează tokenul <code>{{payment_due_days}}</code> din șablon.</div>
                                 </div>
                                 <div class="field span2">
-                                    <label>Observații oferta</label>
-                                    <textarea name="notes" placeholder="Observații vizibile in document prin {{notes}}"><?= pz_offer_h($formNotes) ?></textarea>
-                                </div>
-                                <div class="field full">
-                                    <label>Note interne</label>
-                                    <textarea name="internal_notes" placeholder="Nu apar in document dacă șablonul nu folosește {{internal_notes}}."><?= pz_offer_h($formDocument['internal_notes'] ?? '') ?></textarea>
+                                    <label>Observații ofertă</label>
+                                    <textarea name="notes" placeholder="Observații despre lucrare, condiții speciale, mențiuni pentru client..."><?= pz_offer_h($formNotes) ?></textarea>
+                                    <div class="client-help">Apare în PDF prin tokenul <code>{{notes}}</code>.</div>
                                 </div>
                             </div>
 
@@ -920,6 +899,30 @@ foreach ($services as $service) {
                                 <div class="contract-section-head">
                                     <div class="contract-section-titlewrap">
                                         <span class="contract-step-num">4</span>
+                                        <h3 class="contract-section-title">Câmpuri interne</h3>
+                                        <span class="contract-section-hint">nu apar în PDF</span>
+                                    </div>
+                                </div>
+                                <div class="contract-section-body">
+                            <div class="offer-form-grid">
+                                <div class="field span2">
+                                    <label>Denumire ofertă</label>
+                                    <input type="text" name="title" value="<?= pz_offer_h($formDocument['title'] ?? '') ?>" placeholder="ex: Oferta servicii DDD trimestriale">
+                                    <div class="client-help">Doar pentru identificare în lista de oferte. Nu apare în PDF.</div>
+                                </div>
+                                <div class="field full">
+                                    <label>Note interne</label>
+                                    <textarea name="internal_notes" placeholder="Note pentru echipa internă, observații despre client, detalii care nu trebuie să apară în ofertă..."><?= pz_offer_h($formDocument['internal_notes'] ?? '') ?></textarea>
+                                </div>
+                            </div>
+
+                            </div>
+                            </div>
+
+                            <div class="contract-section" data-contract-step="5">
+                                <div class="contract-section-head">
+                                    <div class="contract-section-titlewrap">
+                                        <span class="contract-step-num">5</span>
                                         <h3 class="contract-section-title">Emitere</h3>
                                         <span class="contract-section-hint">salvezi draft sau emiți cu număr</span>
                                     </div>

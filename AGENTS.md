@@ -52,7 +52,7 @@ Scopul aplicației este să fie rapidă, clară, compactă și ușor de folosit 
 
 Platforma are o pagină oficială de design și identitate vizuală:
 
-`https://app.pestzone.ro/style_guide` (fișier local: `style_guide.php`)
+`https://app.pestzone.ro/ui_template`
 
 Această pagină este sursa principală pentru:
 - identitatea vizuală a platformei;

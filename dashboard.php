@@ -668,6 +668,194 @@ if ($hasSmartbillInvoices) {
     }
 }
 
+/* ────────────────────────────────────────────────────────────────────────
+   SARCINI ACTIVE (în perioada financiară + restante)
+   Filtrul vizibil din header (period_fin) controlează intervalul afișat;
+   sarcinile cu due_date < azi rămân vizibile chiar dacă perioada selectată
+   nu le acoperă, pentru ca utilizatorul să nu rateze ce e restant.
+   ──────────────────────────────────────────────────────────────────────── */
+
+$tasksDash       = [];
+$tasksOverdue    = 0;
+$tasksTodayCount = 0;
+$tasksInPeriod   = 0;
+$tasksFuture     = 0;
+if ($hasTasks) {
+    $taskClientJoin = $hasClients
+        ? "LEFT JOIN clients c ON c.id = t.client_id"
+        : "";
+    $taskClientName = $hasClients
+        ? "COALESCE(NULLIF(TRIM(c.name), ''), t.title, t.service_type, 'Sarcină') AS client_name"
+        : "COALESCE(NULLIF(TRIM(t.title), ''), t.service_type, 'Sarcină') AS client_name";
+
+    $tasksDash = dash_rows($pdo, "
+        SELECT
+            t.id, t.due_date, t.title, t.service_type, t.status,
+            $taskClientName
+        FROM tasks t
+        $taskClientJoin
+        WHERE t.status NOT IN ('skipped', 'done', 'finalizata')
+          $taskActiveWhere
+          AND (
+                t.due_date BETWEEN ? AND ?
+             OR t.due_date < CURDATE()
+          )
+        ORDER BY t.due_date ASC, t.id ASC
+        LIMIT 5
+    ", [$finStart, $finEnd]);
+
+    $tasksOverdue    = (int)dash_value($pdo, "SELECT COUNT(*) FROM tasks WHERE status NOT IN ('skipped','done','finalizata') $taskActiveWhere AND due_date < CURDATE()");
+    $tasksTodayCount = (int)dash_value($pdo, "SELECT COUNT(*) FROM tasks WHERE status NOT IN ('skipped','done','finalizata') $taskActiveWhere AND due_date = CURDATE()");
+    $tasksInPeriod   = (int)dash_value($pdo, "SELECT COUNT(*) FROM tasks WHERE status NOT IN ('skipped','done','finalizata') $taskActiveWhere AND due_date BETWEEN ? AND ?", [$finStart, $finEnd]);
+    $tasksFuture     = (int)dash_value($pdo, "SELECT COUNT(*) FROM tasks WHERE status NOT IN ('skipped','done','finalizata') $taskActiveWhere AND due_date > CURDATE() AND due_date BETWEEN ? AND ?", [$finStart, $finEnd]);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   REMINDERS (în perioada financiară + restante)
+   ──────────────────────────────────────────────────────────────────────── */
+
+$hasReminders = dash_table_exists($pdo, 'reminders');
+
+$remindersDash       = [];
+$remindersOverdue    = 0;
+$remindersTodayCount = 0;
+$remindersInPeriod   = 0;
+$remindersFuture     = 0;
+if ($hasReminders) {
+    $remindersDash = dash_rows($pdo, "
+        SELECT id, title, category, remind_date, remind_time, status
+        FROM reminders
+        WHERE status = 'pending'
+          AND (
+                remind_date BETWEEN ? AND ?
+             OR remind_date < CURDATE()
+          )
+        ORDER BY remind_date ASC, COALESCE(remind_time, '00:00:00') ASC, id ASC
+        LIMIT 5
+    ", [$finStart, $finEnd]);
+
+    $remindersOverdue    = (int)dash_value($pdo, "SELECT COUNT(*) FROM reminders WHERE status = 'pending' AND remind_date < CURDATE()");
+    $remindersTodayCount = (int)dash_value($pdo, "SELECT COUNT(*) FROM reminders WHERE status = 'pending' AND remind_date = CURDATE()");
+    $remindersInPeriod   = (int)dash_value($pdo, "SELECT COUNT(*) FROM reminders WHERE status = 'pending' AND remind_date BETWEEN ? AND ?", [$finStart, $finEnd]);
+    $remindersFuture     = (int)dash_value($pdo, "SELECT COUNT(*) FROM reminders WHERE status = 'pending' AND remind_date > CURDATE() AND remind_date BETWEEN ? AND ?", [$finStart, $finEnd]);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   SPARKLINE DATE — venituri zilnice în perioada financiară
+   Pentru graficul mic din KPI „Venituri".
+   ──────────────────────────────────────────────────────────────────────── */
+
+$dailyRevenue = []; // [['d' => 'Y-m-d', 'v' => float], ...] (complet, cu zile zero)
+if ($hasSmartbillInvoices) {
+    $rowsDaily = dash_rows($pdo, "
+        SELECT DATE(invoice_date) AS d, COALESCE(SUM(gross_amount), 0) AS s
+        FROM smartbill_invoices
+        WHERE invoice_date BETWEEN ? AND ?
+          AND TRIM(COALESCE(smartbill_number, '')) <> ''
+        GROUP BY DATE(invoice_date)
+        ORDER BY d ASC
+    ", [$finStart, $finEnd]);
+    $byDay = [];
+    foreach ($rowsDaily as $r) { $byDay[(string)$r['d']] = (float)$r['s']; }
+
+    $cursor = strtotime($finStart);
+    $endTs  = strtotime($finEnd);
+    while ($cursor <= $endTs) {
+        $key = date('Y-m-d', $cursor);
+        $dailyRevenue[] = ['d' => $key, 'v' => (float)($byDay[$key] ?? 0.0)];
+        $cursor = strtotime('+1 day', $cursor);
+    }
+}
+
+/**
+ * Construiește un path SVG (linie + zonă) dintr-o serie de valori,
+ * normalizat la viewBox 200x38. Întoarce ['line' => 'M...', 'area' => 'M...', 'last' => [x,y]]
+ * sau null dacă seria nu are date.
+ */
+function dash_sparkline_paths(array $values, float $w = 200.0, float $h = 38.0, float $padTop = 4.0, float $padBottom = 2.0): ?array {
+    $n = count($values);
+    if ($n < 1) return null;
+    $max = (float)max(0.0001, max($values));
+    $usable = $h - $padTop - $padBottom;
+    $denomX = ($n > 1) ? ($n - 1) : 1;
+
+    $linePts = [];
+    foreach ($values as $i => $val) {
+        $x = ($n === 1) ? ($w / 2) : ($i * $w / $denomX);
+        $y = $padTop + ($usable - ($val / $max) * $usable);
+        $linePts[] = round($x, 2) . ',' . round($y, 2);
+    }
+    $line = 'M' . implode(' L', $linePts);
+    $area = $line . ' L' . round(($n === 1 ? $w / 2 : $w), 2) . ',' . round($h, 2) . ' L0,' . round($h, 2) . ' Z';
+
+    $lastParts = explode(',', end($linePts));
+    return [
+        'line' => $line,
+        'area' => $area,
+        'last' => [(float)$lastParts[0], (float)$lastParts[1]],
+    ];
+}
+
+$revenueValues = array_map(fn($r) => (float)$r['v'], $dailyRevenue);
+$revenueSpark  = dash_sparkline_paths($revenueValues);
+
+// Iconuri pe categorie de reminder (folosesc set-ul Tabler deja încărcat de pagină)
+$remCategoryIcon = [
+    'comercial'      => 'ti-mail',
+    'administrativ'  => 'ti-phone',
+    'financiar'      => 'ti-cash',
+    'documente'      => 'ti-file-text',
+    'conformitate'   => 'ti-shield-check',
+    'tehnic'         => 'ti-tool',
+    'other'          => 'ti-bell',
+];
+
+/* ────────────────────────────────────────────────────────────────────────
+   LAYOUT PERSONALIZABIL (drag & drop)
+   Ordinea cardurilor se salvează per utilizator în user_dashboard_layout.
+   ──────────────────────────────────────────────────────────────────────── */
+
+$pdo->exec("
+    CREATE TABLE IF NOT EXISTS user_dashboard_layout (
+        user_id INT NOT NULL PRIMARY KEY,
+        layout_json TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+");
+
+$dashKpiDefaultOrder = ['kpi-revenue', 'kpi-invoices', 'kpi-today', 'kpi-due'];
+$dashBigDefaultOrder = [
+    'card-revchart', 'card-statusdonut',
+    'card-todayappts', 'card-topclients',
+    'card-tasks', 'card-reminders',
+];
+
+$dashKpiOrder = $dashKpiDefaultOrder;
+$dashBigOrder = $dashBigDefaultOrder;
+
+$dashUserId = function_exists('current_user_id') ? (int)current_user_id() : 0;
+if ($dashUserId > 0) {
+    $savedJson = (string)dash_value($pdo, "SELECT layout_json FROM user_dashboard_layout WHERE user_id = ?", [$dashUserId], '');
+    if ($savedJson !== '') {
+        $saved = json_decode($savedJson, true);
+        if (is_array($saved)) {
+            $maybeKpis = $saved['kpis']     ?? [];
+            $maybeBigs = $saved['bigCards'] ?? [];
+            // Validăm strict: aceleași seturi, fără duplicate, exact aceeași dimensiune.
+            $validKpis = is_array($maybeKpis)
+                && count($maybeKpis) === count($dashKpiDefaultOrder)
+                && count(array_diff($maybeKpis, $dashKpiDefaultOrder)) === 0
+                && count(array_unique($maybeKpis)) === count($dashKpiDefaultOrder);
+            $validBigs = is_array($maybeBigs)
+                && count($maybeBigs) === count($dashBigDefaultOrder)
+                && count(array_diff($maybeBigs, $dashBigDefaultOrder)) === 0
+                && count(array_unique($maybeBigs)) === count($dashBigDefaultOrder);
+            if ($validKpis) $dashKpiOrder = array_values($maybeKpis);
+            if ($validBigs) $dashBigOrder = array_values($maybeBigs);
+        }
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="ro">
@@ -704,7 +892,8 @@ if ($hasSmartbillInvoices) {
 .pz-dash > *,
 .pz-kpi-grid > *,
 .pz-row-2 > *,
-.pz-row-2-bottom > * { min-width: 0; }
+.pz-row-2-bottom > *,
+.pz-big-grid > * { min-width: 0; }
 .pz-dash a { text-decoration: none; color: inherit; }
 .pz-dash .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
 
@@ -788,10 +977,110 @@ if ($hasSmartbillInvoices) {
     overflow: hidden;
 }
 .pz-kpi .pz-kpi-bar > span { display: block; height: 100%; }
+.pz-kpi .pz-spark {
+    display: block;
+    width: 100%;
+    height: 32px;
+    margin-top: 8px;
+    overflow: visible;
+}
+
+/* Status facturi — layout donut + bare orizontale */
+.pz-status-split {
+    display: grid;
+    grid-template-columns: minmax(0, 140px) minmax(0, 1fr);
+    gap: 16px;
+    align-items: center;
+    margin-top: 4px;
+}
+.pz-status-donut {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+}
+.pz-status-donut .pz-chart-wrap.donut {
+    height: 140px;
+    width: 100%;
+}
+.pz-status-donut-total {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+.pz-status-donut-total .num {
+    font-size: 18px; font-weight: 500; color: var(--pz-title);
+    line-height: 1; font-variant-numeric: tabular-nums;
+}
+.pz-status-donut-total .lbl {
+    font-size: 10px; color: var(--pz-fa); margin-top: 2px;
+}
+
+.pz-amount-bars { min-width: 0; }
+.pz-amount-bars .pz-amount-bars-title {
+    font-size: 10.5px; color: var(--pz-fa);
+    margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em;
+}
+.pz-amount-bars .row { margin-bottom: 9px; }
+.pz-amount-bars .row:last-child { margin-bottom: 0; }
+.pz-amount-bars .head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; margin-bottom: 3px; gap: 6px;
+}
+.pz-amount-bars .head .label {
+    display: inline-flex; align-items: center; gap: 5px;
+    color: var(--pz-text);
+    white-space: nowrap;
+}
+.pz-amount-bars .head .label .dot { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+.pz-amount-bars .head .value {
+    color: var(--pz-title); font-weight: 500;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+}
+.pz-amount-bars .bar {
+    height: 6px; background: var(--pz-lines);
+    border-radius: 3px; overflow: hidden;
+}
+.pz-amount-bars .bar > span { display: block; height: 100%; transition: width .3s ease; }
+
+/* Counts (sub split) — variantă compactă pe 3 coloane */
+.pz-donut-legend.pz-status-counts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--pz-lines);
+}
+.pz-donut-legend.pz-status-counts .row {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 2px;
+}
+.pz-donut-legend.pz-status-counts .row .label {
+    font-size: 10.5px; color: var(--pz-mu);
+}
+.pz-donut-legend.pz-status-counts .row .value {
+    font-size: 14px; font-weight: 500; color: var(--pz-title);
+}
 
 /* Charts row */
 .pz-row-2 { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px; }
 .pz-row-2-bottom { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+
+/* Grid unificat pentru cele 6 carduri mari (drag & drop cross-row) */
+.pz-big-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.pz-big-grid > * { min-width: 0; }
 
 /* Period selector — orizontal scroll dacă nu încape */
 .pz-period {
@@ -864,6 +1153,73 @@ if ($hasSmartbillInvoices) {
 .pz-appt-status.in-progress { color: var(--pz-bld); background: var(--pz-bls); }
 .pz-appt-status.done { color: var(--pz-gr); background: var(--pz-grs); }
 .pz-appt-status.pending { color: var(--pz-mu); background: var(--pz-soft); }
+/* Modificatori folosiți de cardurile Sarcini & Reminders */
+.pz-appt-status.overdue { color: var(--pz-re); background: var(--pz-res); }
+.pz-appt-status.today   { color: var(--pz-bld); background: var(--pz-bls); }
+.pz-appt-status.future  { color: var(--pz-mu); background: var(--pz-soft); }
+.pz-appt-row.is-overdue,
+.pz-appt-row.is-overdue:hover { background: var(--pz-res); }
+.pz-appt-row.is-today,
+.pz-appt-row.is-today:hover   { background: var(--pz-bls); }
+.pz-appt-row.is-overdue .pz-appt-time { color: var(--pz-re); }
+.pz-appt-row.is-today   .pz-appt-time { color: var(--pz-bld); }
+/* Înălțime egală garantată în rândurile cu 2 carduri */
+.pz-row-2-bottom > .pz-card,
+.pz-big-grid > .pz-card { display: flex; flex-direction: column; }
+.pz-row-2-bottom > .pz-card > .pz-appt-list,
+.pz-row-2-bottom > .pz-card > .pz-clients-list,
+.pz-big-grid > .pz-card > .pz-appt-list,
+.pz-big-grid > .pz-card > .pz-clients-list { flex: 1; }
+
+/* ── Drag & Drop ─────────────────────────────────────────── */
+.pz-kpi-grid > .pz-kpi,
+.pz-big-grid > .pz-card { position: relative; }
+
+.pz-card-grip {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pz-fa);
+    background: transparent;
+    border-radius: 4px;
+    cursor: grab;
+    opacity: 0.45;
+    transition: opacity .15s, background .15s, color .15s;
+    z-index: 3;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.pz-card-grip i { font-size: 14px; line-height: 1; pointer-events: none; }
+.pz-kpi:hover  .pz-card-grip,
+.pz-card:hover .pz-card-grip { opacity: 1; color: var(--pz-mu); background: var(--pz-soft); }
+.pz-card-grip:active { cursor: grabbing; background: var(--pz-bls); color: var(--pz-bld); }
+
+/* Offset minim ca handle-ul să nu suprapună eticheta */
+.pz-kpi .pz-kpi-head { padding-left: 18px; }
+.pz-card .pz-card-head { padding-left: 18px; }
+
+/* Stări vizuale Sortable */
+.pz-drag-ghost {
+    opacity: 0.35;
+    background: var(--pz-bls) !important;
+    border-color: var(--pz-blb) !important;
+}
+.pz-drag-chosen {
+    cursor: grabbing;
+}
+.pz-drag-active {
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.18);
+    transform: scale(1.01);
+    transition: transform .12s;
+    z-index: 10;
+}
+.pz-kpi-grid.is-sorting,
+.pz-big-grid.is-sorting { background: linear-gradient(transparent, transparent); }
 .pz-appt-empty {
     text-align: center; padding: 20px 12px;
     font-size: 12px; color: var(--pz-fa);
@@ -915,6 +1271,9 @@ if ($hasSmartbillInvoices) {
     .pz-dash { padding: 14px 14px; gap: 12px; }
     .pz-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .pz-row-2-bottom { grid-template-columns: minmax(0, 1fr); }
+    .pz-big-grid { grid-template-columns: minmax(0, 1fr); }
+    .pz-status-split { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .pz-status-donut { max-width: 200px; margin: 0 auto; }
     .pz-head { gap: 10px; }
     .pz-head-actions { width: 100%; }
     .pz-period { width: 100%; }
@@ -1008,11 +1367,27 @@ if ($hasSmartbillInvoices) {
                 </div>
             </div>
 
-            <!-- 4 KPI cards -->
-            <div class="pz-kpi-grid">
+            <!-- 4 KPI cards (drag & drop între ele) -->
+            <?php
+                // Pre-calcule comune
+                $kpiIssuedTotal = max(1, (int)$finIssuedCount);
+                $kpiPaidPct     = $finIssued > 0 ? min(100, round(($finPaid / $finIssued) * 100)) : 0;
+                $kpiRestPctSum  = $finIssued > 0 ? min(100, round(($restanteAmount / $finIssued) * 100)) : 0;
+                $kpiPendingPct  = max(0, 100 - $kpiPaidPct - $kpiRestPctSum);
 
-                <!-- KPI 1: Venituri perioada -->
-                <div class="pz-kpi">
+                $todayCount = is_array($todayAppointments) ? count($todayAppointments) : 0;
+                $todayDoneCount = 0;
+                foreach (($todayAppointments ?: []) as $apt) {
+                    if (($apt['status'] ?? '') === 'finalizata') $todayDoneCount++;
+                }
+                $todayPct = $todayCount > 0 ? round(($todayDoneCount / $todayCount) * 100) : 0;
+
+                $kpiCards = [];
+
+                // ---- KPI 1: Venituri perioada
+                ob_start(); ?>
+                <div class="pz-kpi" data-card-id="kpi-revenue">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-kpi-head">
                         <span class="pz-kpi-label">Venituri <?= dash_h(strtolower($finLabel)) ?></span>
                         <?php if ($finDelta !== null): ?>
@@ -1025,6 +1400,22 @@ if ($hasSmartbillInvoices) {
                         <?php endif; ?>
                     </div>
                     <div class="pz-kpi-value"><?= dash_money($finIssued) ?><span class="unit">lei</span></div>
+
+                    <?php if ($revenueSpark !== null): ?>
+                        <svg class="pz-spark" viewBox="0 0 200 38" preserveAspectRatio="none"
+                             role="img" aria-label="Trend venituri zilnice <?= dash_h($finLabel) ?>">
+                            <defs>
+                                <linearGradient id="pzSparkRevGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="var(--pz-bl)" stop-opacity="0.18"/>
+                                    <stop offset="100%" stop-color="var(--pz-bl)" stop-opacity="0"/>
+                                </linearGradient>
+                            </defs>
+                            <path d="<?= dash_h($revenueSpark['area']) ?>" fill="url(#pzSparkRevGrad)"/>
+                            <path d="<?= dash_h($revenueSpark['line']) ?>" fill="none" stroke="var(--pz-bl)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="<?= $revenueSpark['last'][0] ?>" cy="<?= $revenueSpark['last'][1] ?>" r="2.2" fill="var(--pz-bl)"/>
+                        </svg>
+                    <?php endif; ?>
+
                     <div class="pz-kpi-foot">
                         <?php if ($finPrevIssued > 0): ?>
                             <?= dash_money($finPrevIssued) ?> lei perioada anterioară
@@ -1033,16 +1424,12 @@ if ($hasSmartbillInvoices) {
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php $kpiCards['kpi-revenue'] = ob_get_clean();
 
-                <!-- KPI 2: Facturi emise -->
-                <?php
-                    $kpiIssuedTotal = max(1, (int)$finIssuedCount);
-                    $kpiPaidPct     = $finIssued > 0 ? min(100, round(($finPaid / $finIssued) * 100)) : 0;
-                    // Aproximare: pe baza sumelor (paid / restanță / restul = în termen)
-                    $kpiRestPctSum  = $finIssued > 0 ? min(100, round(($restanteAmount / $finIssued) * 100)) : 0;
-                    $kpiPendingPct  = max(0, 100 - $kpiPaidPct - $kpiRestPctSum);
-                ?>
-                <div class="pz-kpi">
+                // ---- KPI 2: Facturi emise
+                ob_start(); ?>
+                <div class="pz-kpi" data-card-id="kpi-invoices">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-kpi-head">
                         <span class="pz-kpi-label">Facturi emise</span>
                         <span class="pz-kpi-badge info">
@@ -1058,17 +1445,12 @@ if ($hasSmartbillInvoices) {
                         <span style="width: <?= $kpiRestPctSum ?>%; background: var(--pz-re);"></span>
                     </div>
                 </div>
+                <?php $kpiCards['kpi-invoices'] = ob_get_clean();
 
-                <!-- KPI 3: Programări azi -->
-                <?php
-                    $todayCount = is_array($todayAppointments) ? count($todayAppointments) : 0;
-                    $todayDoneCount = 0;
-                    foreach (($todayAppointments ?: []) as $apt) {
-                        if (($apt['status'] ?? '') === 'finalizata') $todayDoneCount++;
-                    }
-                    $todayPct = $todayCount > 0 ? round(($todayDoneCount / $todayCount) * 100) : 0;
-                ?>
-                <div class="pz-kpi">
+                // ---- KPI 3: Programări azi
+                ob_start(); ?>
+                <div class="pz-kpi" data-card-id="kpi-today">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-kpi-head">
                         <span class="pz-kpi-label">Programări azi</span>
                         <span class="pz-kpi-badge info">
@@ -1082,9 +1464,12 @@ if ($hasSmartbillInvoices) {
                         <span style="width: <?= $todayPct ?>%; background: var(--pz-bl);"></span>
                     </div>
                 </div>
+                <?php $kpiCards['kpi-today'] = ob_get_clean();
 
-                <!-- KPI 4: De facturat -->
-                <div class="pz-kpi">
+                // ---- KPI 4: De facturat
+                ob_start(); ?>
+                <div class="pz-kpi" data-card-id="kpi-due">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-kpi-head">
                         <span class="pz-kpi-label">De facturat</span>
                         <?php if ($finDueCount > 0): ?>
@@ -1096,14 +1481,26 @@ if ($hasSmartbillInvoices) {
                     <div class="pz-kpi-value"><?= (int)$finDueCount ?><span class="unit">poziții</span></div>
                     <div class="pz-kpi-foot"><?= dash_money($finDueAmount) ?> lei în așteptare</div>
                 </div>
-
+                <?php $kpiCards['kpi-due'] = ob_get_clean();
+            ?>
+            <div class="pz-kpi-grid" data-pz-sortable="kpis">
+                <?php foreach ($dashKpiOrder as $kpiId): ?>
+                    <?= $kpiCards[$kpiId] ?? '' ?>
+                <?php endforeach; ?>
             </div>
 
-            <!-- Row 2: Chart + Donut -->
-            <div class="pz-row-2">
+            <!-- 6 carduri mari — un singur grid drag-able (cross-row) -->
+            <?php
+                $stPaid    = (int)round(($finIssued > 0 ? ($finPaid / $finIssued) * $finIssuedCount : 0));
+                $stRestNum = (int)$restanteCount;
+                $stPending = max(0, (int)$finIssuedCount - $stPaid - $stRestNum);
 
-                <!-- Chart venituri/încasări 6 luni -->
-                <div class="pz-card">
+                $bigCards = [];
+
+                // ---- Card: Chart venituri/încasări 6 luni
+                ob_start(); ?>
+                <div class="pz-card" data-card-id="card-revchart">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-card-head">
                         <div>
                             <p class="pz-card-title-sm">Venituri și încasări</p>
@@ -1118,46 +1515,79 @@ if ($hasSmartbillInvoices) {
                         <canvas id="pzRevenueChart" role="img" aria-label="Trend venituri și încasări ultimele 6 luni"></canvas>
                     </div>
                 </div>
+                <?php $bigCards['card-revchart'] = ob_get_clean();
 
-                <!-- Donut status facturi -->
-                <?php
-                    $stPaid = (int)round(($finIssued > 0 ? ($finPaid / $finIssued) * $finIssuedCount : 0));
-                    $stRestNum = (int)$restanteCount;
-                    $stPending = max(0, (int)$finIssuedCount - $stPaid - $stRestNum);
-                ?>
-                <div class="pz-card">
+                // ---- Card: Donut status facturi + bare orizontale pe sume
+                $amtPaid    = (float)$finPaid;
+                $amtOverdue = (float)$restanteAmount;
+                $amtPending = max(0.0, (float)$finIssued - $amtPaid - $amtOverdue);
+                $amtTotal   = max(0.0001, (float)$finIssued); // pentru % (evităm /0)
+                $pctPaid    = round(($amtPaid    / $amtTotal) * 100);
+                $pctPending = round(($amtPending / $amtTotal) * 100);
+                $pctOverdue = round(($amtOverdue / $amtTotal) * 100);
+
+                ob_start(); ?>
+                <div class="pz-card" data-card-id="card-statusdonut">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-card-head" style="margin-bottom: 6px;">
                         <div>
                             <p class="pz-card-title-sm">Status facturi</p>
                             <p class="pz-card-title"><?= dash_h($finLabel) ?></p>
                         </div>
                     </div>
-                    <div class="pz-chart-wrap donut">
-                        <canvas id="pzStatusChart" role="img" aria-label="Distribuție status facturi"></canvas>
+
+                    <div class="pz-status-split">
+                        <div class="pz-status-donut">
+                            <div class="pz-chart-wrap donut">
+                                <canvas id="pzStatusChart" role="img" aria-label="Distribuție status facturi pe număr"></canvas>
+                            </div>
+                            <div class="pz-status-donut-total">
+                                <span class="num"><?= (int)$finIssuedCount ?></span>
+                                <span class="lbl">facturi</span>
+                            </div>
+                        </div>
+
+                        <div class="pz-amount-bars">
+                            <p class="pz-amount-bars-title">Distribuție pe sume</p>
+
+                            <div class="row">
+                                <div class="head">
+                                    <span class="label"><span class="dot" style="background: var(--pz-gr);"></span>Încasate</span>
+                                    <span class="value"><?= dash_money($amtPaid) ?> lei · <?= (int)$pctPaid ?>%</span>
+                                </div>
+                                <div class="bar"><span style="width: <?= (int)$pctPaid ?>%; background: var(--pz-gr);"></span></div>
+                            </div>
+
+                            <div class="row">
+                                <div class="head">
+                                    <span class="label"><span class="dot" style="background: var(--pz-or);"></span>În termen</span>
+                                    <span class="value"><?= dash_money($amtPending) ?> lei · <?= (int)$pctPending ?>%</span>
+                                </div>
+                                <div class="bar"><span style="width: <?= (int)$pctPending ?>%; background: var(--pz-or);"></span></div>
+                            </div>
+
+                            <div class="row">
+                                <div class="head">
+                                    <span class="label"><span class="dot" style="background: var(--pz-re);"></span>Restante</span>
+                                    <span class="value"><?= dash_money($amtOverdue) ?> lei · <?= (int)$pctOverdue ?>%</span>
+                                </div>
+                                <div class="bar"><span style="width: <?= (int)$pctOverdue ?>%; background: var(--pz-re);"></span></div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="pz-donut-legend">
-                        <div class="row">
-                            <span class="label"><span class="dot" style="background: var(--pz-gr);"></span>Încasate</span>
-                            <span class="value"><?= $stPaid ?></span>
-                        </div>
-                        <div class="row">
-                            <span class="label"><span class="dot" style="background: var(--pz-or);"></span>În termen</span>
-                            <span class="value"><?= $stPending ?></span>
-                        </div>
-                        <div class="row">
-                            <span class="label"><span class="dot" style="background: var(--pz-re);"></span>Restante</span>
-                            <span class="value"><?= $stRestNum ?></span>
-                        </div>
+
+                    <div class="pz-donut-legend pz-status-counts">
+                        <div class="row"><span class="label">Încasate</span><span class="value"><?= $stPaid ?></span></div>
+                        <div class="row"><span class="label">În termen</span><span class="value"><?= $stPending ?></span></div>
+                        <div class="row"><span class="label">Restante</span><span class="value"><?= $stRestNum ?></span></div>
                     </div>
                 </div>
+                <?php $bigCards['card-statusdonut'] = ob_get_clean();
 
-            </div>
-
-            <!-- Row 3: Programări azi + Top clienți -->
-            <div class="pz-row-2-bottom">
-
-                <!-- Programări azi -->
-                <div class="pz-card">
+                // ---- Card: Programări azi
+                ob_start(); ?>
+                <div class="pz-card" data-card-id="card-todayappts">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-card-head">
                         <div>
                             <p class="pz-card-title-sm">Programări astăzi</p>
@@ -1194,9 +1624,12 @@ if ($hasSmartbillInvoices) {
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php $bigCards['card-todayappts'] = ob_get_clean();
 
-                <!-- Top clienți -->
-                <div class="pz-card">
+                // ---- Card: Top clienți
+                ob_start(); ?>
+                <div class="pz-card" data-card-id="card-topclients">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-card-head">
                         <div>
                             <p class="pz-card-title-sm">Top clienți</p>
@@ -1226,7 +1659,117 @@ if ($hasSmartbillInvoices) {
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php $bigCards['card-topclients'] = ob_get_clean();
 
+                // ---- Card: Sarcini active
+                ob_start(); ?>
+                <div class="pz-card" data-card-id="card-tasks">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
+                    <div class="pz-card-head">
+                        <div>
+                            <p class="pz-card-title-sm">Sarcini active</p>
+                            <p class="pz-card-title">
+                                <?= (int)$tasksOverdue ?> restante · <?= (int)$tasksTodayCount ?> azi · <?= (int)$tasksInPeriod ?> în <?= dash_h(strtolower($finLabel)) ?>
+                            </p>
+                        </div>
+                        <a href="tasks.php" class="pz-card-link">Toate<i class="ti ti-arrow-right" aria-hidden="true"></i></a>
+                    </div>
+                    <div class="pz-appt-list">
+                        <?php if (!empty($tasksDash)): ?>
+                            <?php foreach ($tasksDash as $task):
+                                $due = (string)($task['due_date'] ?? '');
+                                $today = date('Y-m-d');
+                                if ($due === '') {
+                                    $statusCls = 'pending'; $statusLbl = '·'; $rowCls = ''; $dateBox = '--';
+                                } elseif ($due < $today) {
+                                    $statusCls = 'overdue'; $statusLbl = 'restant'; $rowCls = ' is-overdue';
+                                    $dateBox = date('d.m', strtotime($due));
+                                } elseif ($due === $today) {
+                                    $statusCls = 'today'; $statusLbl = 'azi'; $rowCls = ' is-today';
+                                    $dateBox = 'azi';
+                                } else {
+                                    $statusCls = 'future'; $statusLbl = 'viitor'; $rowCls = '';
+                                    $dateBox = date('d.m', strtotime($due));
+                                }
+                                $taskName = trim((string)($task['client_name'] ?? '')) ?: 'Sarcină';
+                                $svc      = trim((string)($task['service_type'] ?? ''));
+                            ?>
+                                <a href="tasks.php#task-<?= (int)$task['id'] ?>" class="pz-appt-row<?= $rowCls ?>">
+                                    <div class="pz-appt-time"><?= dash_h($dateBox) ?></div>
+                                    <div class="pz-appt-info">
+                                        <p class="name"><?= dash_h($taskName) ?></p>
+                                        <?php if ($svc !== ''): ?>
+                                            <p class="tech"><?= dash_h($svc) ?></p>
+                                        <?php endif; ?>
+                                    </div>
+                                    <span class="pz-appt-status <?= $statusCls ?>"><?= dash_h($statusLbl) ?></span>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="pz-appt-empty">Nu există sarcini active în perioada selectată.</div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php $bigCards['card-tasks'] = ob_get_clean();
+
+                // ---- Card: Reminders
+                ob_start(); ?>
+                <div class="pz-card" data-card-id="card-reminders">
+                    <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
+                    <div class="pz-card-head">
+                        <div>
+                            <p class="pz-card-title-sm">Reminders</p>
+                            <p class="pz-card-title">
+                                <?= (int)$remindersOverdue ?> expirate · <?= (int)$remindersTodayCount ?> azi · <?= (int)$remindersInPeriod ?> în <?= dash_h(strtolower($finLabel)) ?>
+                            </p>
+                        </div>
+                        <a href="reminders.php" class="pz-card-link">Toate<i class="ti ti-arrow-right" aria-hidden="true"></i></a>
+                    </div>
+                    <div class="pz-appt-list">
+                        <?php if (!empty($remindersDash)): ?>
+                            <?php foreach ($remindersDash as $rem):
+                                $rdate = (string)($rem['remind_date'] ?? '');
+                                $rtime = (string)($rem['remind_time'] ?? '');
+                                $today = date('Y-m-d');
+                                if ($rdate === '') {
+                                    $statusCls = 'pending'; $statusLbl = '·'; $rowCls = ''; $dateBox = '--';
+                                } elseif ($rdate < $today) {
+                                    $statusCls = 'overdue'; $statusLbl = 'expirat'; $rowCls = ' is-overdue';
+                                    $dateBox = date('d.m', strtotime($rdate));
+                                } elseif ($rdate === $today) {
+                                    $statusCls = 'today'; $statusLbl = 'azi'; $rowCls = ' is-today';
+                                    $dateBox = $rtime !== '' ? dash_time($rtime) : 'azi';
+                                } else {
+                                    $statusCls = 'future'; $statusLbl = 'viitor'; $rowCls = '';
+                                    $dateBox = date('d.m', strtotime($rdate));
+                                }
+                                $rTitle = trim((string)($rem['title'] ?? '')) ?: 'Reminder';
+                                $rCat   = strtolower(trim((string)($rem['category'] ?? 'other')));
+                                $rIcon  = $remCategoryIcon[$rCat] ?? 'ti-bell';
+                                $catLbl = $rCat !== '' && $rCat !== 'other' ? ucfirst($rCat) : 'Reminder';
+                                $timeLbl = ($rtime !== '' && $rdate !== '' && $rdate !== $today) ? ' · ' . dash_time($rtime) : '';
+                            ?>
+                                <a href="reminders.php#rem-<?= (int)$rem['id'] ?>" class="pz-appt-row<?= $rowCls ?>">
+                                    <div class="pz-appt-time"><?= dash_h($dateBox) ?></div>
+                                    <div class="pz-appt-info">
+                                        <p class="name"><?= dash_h($rTitle) ?></p>
+                                        <p class="tech"><i class="ti <?= dash_h($rIcon) ?>" aria-hidden="true" style="font-size: 11px; vertical-align: -1px;"></i> <?= dash_h($catLbl . $timeLbl) ?></p>
+                                    </div>
+                                    <span class="pz-appt-status <?= $statusCls ?>"><?= dash_h($statusLbl) ?></span>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="pz-appt-empty">Nu există reminders pending în perioada selectată.</div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php $bigCards['card-reminders'] = ob_get_clean();
+            ?>
+
+            <div class="pz-big-grid" data-pz-sortable="big-cards">
+                <?php foreach ($dashBigOrder as $bigId): ?>
+                    <?= $bigCards[$bigId] ?? '' ?>
+                <?php endforeach; ?>
             </div>
 
         </div>
@@ -1332,6 +1875,96 @@ if ($hasSmartbillInvoices) {
             var ctx = canvasSt.getContext('2d');
             ctx.clearRect(0, 0, canvasSt.width, canvasSt.height);
         }
+    }
+})();
+</script>
+
+<!-- Drag & drop carduri dashboard -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+(function () {
+    if (typeof Sortable === 'undefined') return;
+
+    var SAVE_URL = 'dashboard_layout_save.php';
+    var saveTimer = null;
+    var lastSent = null;
+
+    function collectOrder(container) {
+        return Array.prototype.slice
+            .call(container.querySelectorAll(':scope > [data-card-id]'))
+            .map(function (el) { return el.getAttribute('data-card-id'); });
+    }
+
+    function snapshot() {
+        var kpiGrid = document.querySelector('[data-pz-sortable="kpis"]');
+        var bigGrid = document.querySelector('[data-pz-sortable="big-cards"]');
+        return {
+            kpis:     kpiGrid ? collectOrder(kpiGrid) : [],
+            bigCards: bigGrid ? collectOrder(bigGrid) : []
+        };
+    }
+
+    function saveLayout() {
+        var payload = snapshot();
+        var serialized = JSON.stringify(payload);
+        if (serialized === lastSent) return;
+        lastSent = serialized;
+
+        if (typeof fetch !== 'function') return;
+
+        fetch(SAVE_URL, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: serialized
+        }).then(function (r) {
+            if (!r.ok) console.warn('[dashboard layout] save failed:', r.status);
+        }).catch(function (e) {
+            console.warn('[dashboard layout] save error:', e);
+        });
+    }
+
+    function scheduleSave() {
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveLayout, 200);
+    }
+
+    function initSortable(selector, opts) {
+        var el = document.querySelector(selector);
+        if (!el) return;
+        Sortable.create(el, Object.assign({
+            handle: '.pz-card-grip',
+            animation: 160,
+            ghostClass: 'pz-drag-ghost',
+            chosenClass: 'pz-drag-chosen',
+            dragClass:   'pz-drag-active',
+            forceFallback: false,
+            onStart: function () { el.classList.add('is-sorting'); },
+            onEnd:   function () { el.classList.remove('is-sorting'); scheduleSave(); }
+        }, opts || {}));
+    }
+
+    function init() {
+        // Memorez snapshotul inițial ca să nu trimit save inutil pe load.
+        lastSent = JSON.stringify(snapshot());
+
+        initSortable('[data-pz-sortable="kpis"]', { group: 'pz-kpis' });
+        initSortable('[data-pz-sortable="big-cards"]', { group: 'pz-big-cards' });
+
+        // Previn navigarea când utilizatorul apasă pe grip-ul unui link/anchor
+        document.addEventListener('click', function (e) {
+            var grip = e.target.closest && e.target.closest('.pz-card-grip');
+            if (grip) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
     }
 })();
 </script>

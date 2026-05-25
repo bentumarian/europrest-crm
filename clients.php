@@ -39,6 +39,35 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'anaf_lookup') {
     exit;
 }
 
+// Verificare rapidă duplicat după CUI/CNP — folosit la blur pe câmpul fiscal_code
+// din formularul de adăugare/editare, ca utilizatorul să fie informat din timp.
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'check_fiscal_code') {
+    header('Content-Type: application/json; charset=utf-8');
+    $cui = strtoupper(trim((string)($_GET['cui'] ?? '')));
+    $excludeId = (int)($_GET['exclude_id'] ?? 0);
+    if ($cui === '') {
+        echo json_encode(['exists' => false]);
+        exit;
+    }
+    $sql = "SELECT id, name, active FROM clients WHERE UPPER(TRIM(fiscal_code)) = ?";
+    $params = [$cui];
+    if ($excludeId > 0) {
+        $sql .= " AND id <> ?";
+        $params[] = $excludeId;
+    }
+    $sql .= " LIMIT 1";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    echo json_encode([
+        'exists' => (bool)$row,
+        'id'     => $row ? (int)$row['id'] : null,
+        'name'   => $row ? (string)$row['name'] : null,
+        'active' => $row ? (int)$row['active'] : null,
+    ]);
+    exit;
+}
+
 /*
 |--------------------------------------------------------------------------
 | Schema
@@ -328,6 +357,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($activeLocationCount < 1) {
             header('Location: clients.php?error=missing_location');
             exit;
+        }
+
+        // ── Verificare duplicat după CUI / CNP ──
+        // Două firme nu pot avea același CUI, două persoane nu pot avea același CNP.
+        // Verifică inclusiv clienții inactivi (ca utilizatorul să-i poată reactiva
+        // în loc să creeze duplicat). La update excludem propriul id.
+        $normalizedFiscalCode = strtoupper(trim((string)$fiscalCode));
+        if ($normalizedFiscalCode !== '') {
+            $dupSql = "SELECT id, name, active FROM clients WHERE UPPER(TRIM(fiscal_code)) = ?";
+            $dupParams = [$normalizedFiscalCode];
+            if ($action === 'update' && $clientId > 0) {
+                $dupSql .= " AND id <> ?";
+                $dupParams[] = $clientId;
+            }
+            $dupSql .= " LIMIT 1";
+            $dupStmt = $pdo->prepare($dupSql);
+            $dupStmt->execute($dupParams);
+            $existingClient = $dupStmt->fetch(PDO::FETCH_ASSOC);
+            if ($existingClient) {
+                header('Location: clients.php?error=duplicate_fiscal_code&existing_id=' . (int)$existingClient['id']);
+                exit;
+            }
         }
 
         if ($action === 'create') {
@@ -1026,6 +1077,9 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
 .anaf-message { margin-top: 8px; font-size: 12px; font-weight: 800; color: var(--muted); }
 .anaf-message.ok { color: #166534; }
 .anaf-message.bad { color: #991b1b; }
+.fiscal-check-msg { margin-top: 6px; font-size: 12px; padding: 6px 9px; border-radius: 6px; }
+.fiscal-check-msg.bad { color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; }
+.fiscal-check-msg a { color: #1e3a8a; font-weight: 600; text-decoration: underline; }
 .client-danger-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .client-danger-actions form { margin: 0; }
 .client-danger-actions .btn { min-height: 42px; }
@@ -1450,6 +1504,14 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
         <?php if (($_GET['error'] ?? '') === 'missing_registered_address'): ?><div class="notice notice-danger">Completează adresa fiscală: țară, județ, oraș/localitate si adresa.</div><?php endif; ?>
         <?php if (($_GET['error'] ?? '') === 'missing_location'): ?><div class="notice notice-danger">Adaugă cel puțin un punct de lucru activ.</div><?php endif; ?>
         <?php if (($_GET['error'] ?? '') === 'missing_location_required'): ?><div class="notice notice-danger">Fiecare locație activa trebuie sa aiba nume, adresa, persoană de contact, telefon si suprafata.</div><?php endif; ?>
+        <?php if (($_GET['error'] ?? '') === 'duplicate_fiscal_code'): ?>
+            <div class="notice notice-danger">
+                Există deja un client cu acest CUI / CNP în baza de date.
+                <?php if (!empty($_GET['existing_id'])): ?>
+                    <a href="?edit=<?= (int)$_GET['existing_id'] ?>" style="margin-left:8px;">→ Deschide clientul existent</a>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
 
         <div class="content">
             <?php
@@ -1891,7 +1953,8 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
                     </div>
                     <div>
                         <label>CUI / CNP *</label>
-                        <input type="text" name="fiscal_code" id="fiscal_code" required>
+                        <input type="text" name="fiscal_code" id="fiscal_code" required onblur="checkFiscalCodeDuplicate()">
+                        <div id="fiscal_code_check" class="fiscal-check-msg" style="display:none;"></div>
                     </div>
                     <div>
                         <label>Nr. Reg. Com. / Serie CI</label>
@@ -2527,12 +2590,55 @@ async function lookupAnaf() {
     }
 }
 
-document.querySelectorAll('.modal').forEach(modal => {
-    modal.addEventListener('click', event => {
-        if (event.target === modal) modal.classList.remove('open');
-    });
-});
+// Verificare CUI/CNP duplicat (apelată din onblur pe câmpul fiscal_code).
+// Afișează inline un mesaj de avertizare cu link spre clientul existent,
+// pentru ca utilizatorul să fie informat din timp și să nu mai completeze
+// restul formularului degeaba.
+async function checkFiscalCodeDuplicate() {
+    const input = document.getElementById('fiscal_code');
+    const box = document.getElementById('fiscal_code_check');
+    if (!input || !box) return;
 
+    const cui = (input.value || '').trim();
+    if (cui === '') {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        return;
+    }
+
+    const excludeIdField = document.getElementById('client_id');
+    const excludeId = excludeIdField ? parseInt(excludeIdField.value || '0', 10) : 0;
+
+    try {
+        const url = 'clients.php?ajax=check_fiscal_code&cui=' + encodeURIComponent(cui)
+            + (excludeId > 0 ? '&exclude_id=' + excludeId : '');
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && data.exists) {
+            const statusLabel = data.active ? '' : ' (inactiv)';
+            box.className = 'fiscal-check-msg bad';
+            box.innerHTML =
+                '⚠ Acest CUI / CNP există deja la clientul: <strong>'
+                + escapeHtml(data.name || '-') + '</strong>' + statusLabel
+                + ' &nbsp;·&nbsp; <a href="?edit=' + data.id + '">→ Deschide clientul existent</a>';
+            box.style.display = 'block';
+        } else {
+            box.style.display = 'none';
+            box.innerHTML = '';
+        }
+    } catch (err) {
+        box.style.display = 'none';
+    }
+}
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+// Modal-urile NU se mai închid la click pe backdrop (prea ușor de atins involuntar
+// și pierzi datele introduse). Închidere doar pe butonul X sau Escape.
 document.addEventListener('keydown', event => {
     if (event.key === 'Escape') document.querySelectorAll('.modal.open').forEach(modal => modal.classList.remove('open'));
 });

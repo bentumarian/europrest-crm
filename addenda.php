@@ -657,7 +657,7 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                                 <div class="panel-head">
                                     <div>
                                         <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">2</span><span>Obiectul actului adițional</span></div>
-                                        <div class="panel-subtitle">Descrie liber ce se modifică: prelungirea perioadei de valabilitate, modificarea prețului, schimbarea termenelor, completarea lucrărilor sau orice altă modificare. Textul intră în PDF prin <code>{{notes}}</code>.</div>
+                                        <div class="panel-subtitle">Descrie liber ce se modifică: prelungirea perioadei de valabilitate, modificarea prețului, schimbarea termenelor, completarea lucrărilor sau orice altă modificare. Textul intră în PDF prin <code>{{document_object}}</code> (token universal, funcționează și în contracte standard).</div>
                                     </div>
                                 </div>
                                 <div class="panel-body">

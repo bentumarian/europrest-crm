@@ -1064,6 +1064,21 @@ if (!function_exists('pzdoc_contract_services_table_html')) {
     {
         $items = is_array($document['items'] ?? null) ? $document['items'] : [];
         if (!$items) {
+            // Fallback pentru contracte „standard" / de execuție: nu au tabel de
+            // servicii, dar utilizatorul a completat obiectul contractului într-un
+            // câmp text. Dacă există, îl randăm aici ca textul să apară în loc de
+            // liniuță. Sursa principală: payload.contract_object. Backup: notes
+            // (vezi contracts.php — pentru tipul „execution" textul ajunge și acolo).
+            $payload = is_array($document['payload'] ?? null) ? $document['payload'] : [];
+            $contractObject = trim((string)($payload['contract_object'] ?? ''));
+            if ($contractObject === '') {
+                $contractObject = trim((string)($document['notes'] ?? ''));
+            }
+            if ($contractObject !== '') {
+                return '<div class="pzdoc-contract-object">'
+                     . pzdoc_token_multiline($contractObject)
+                     . '</div>';
+            }
             return '<p>-</p>';
         }
 
@@ -1551,6 +1566,12 @@ if (!function_exists('pzdoc_build_tokens')) {
         if ($discountAmount > 0) {
             $discountBlock = '<p><strong>Discount:</strong> ' . pzdoc_h($discountLabel) . ' (-' . pzdoc_format_number_display($discountAmount) . ' ' . pzdoc_h($currency) . ')</p>';
         }
+
+        // Total efectiv = total_amount din DB minus discount (DB-ul nu stochează
+        // discount-ul scăzut, doar îl ține în payload). Pentru oferte fără TVA,
+        // asta înseamnă subtotal - discount.
+        $rawTotalAmount = (float)($document['total_amount'] ?? 0);
+        $netTotalAmount = max(0.0, round($rawTotalAmount - $discountAmount, 2));
         $offerIntro = trim((string)($payload['offer_intro'] ?? ''));
         if ($offerIntro === '') {
             $offerIntro = 'Va transmitem prezenta oferta comerciala pentru prestarea serviciilor detaliate mai jos:';
@@ -1587,11 +1608,11 @@ if (!function_exists('pzdoc_build_tokens')) {
             'subtotal' => pzdoc_format_number_display($document['subtotal'] ?? 0) . ' ' . pzdoc_h($currency),
             'vat_percent' => pzdoc_format_number_display($document['vat_percent'] ?? 0) . '%',
             'vat_amount' => pzdoc_format_number_display($document['vat_amount'] ?? 0) . ' ' . pzdoc_h($currency),
-            'document_total' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency),
-            'total_amount' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency),
+            'document_total' => pzdoc_format_number_display($netTotalAmount) . ' ' . pzdoc_h($currency),
+            'total_amount' => pzdoc_format_number_display($netTotalAmount) . ' ' . pzdoc_h($currency),
             'subtotal_without_vat' => pzdoc_format_number_display($document['subtotal'] ?? 0) . ' ' . pzdoc_h($currency) . ' fără TVA',
-            'total_without_vat' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency) . ' fără TVA',
-            'total_fara_tva' => pzdoc_format_number_display($document['total_amount'] ?? 0) . ' ' . pzdoc_h($currency) . ' fără TVA',
+            'total_without_vat' => pzdoc_format_number_display($netTotalAmount) . ' ' . pzdoc_h($currency) . ' fără TVA',
+            'total_fara_tva' => pzdoc_format_number_display($netTotalAmount) . ' ' . pzdoc_h($currency) . ' fără TVA',
             'discount_label' => pzdoc_token_text($discountLabel),
             'discount_amount' => pzdoc_format_number_display($discountAmount) . ' ' . pzdoc_h($currency),
             'discount_block' => $discountBlock,
@@ -1701,6 +1722,16 @@ if (!function_exists('pzdoc_build_tokens')) {
             'recommendations' => pzdoc_token_multiline($document['recommendations'] ?? ''),
             'client_notes' => pzdoc_token_multiline($document['client_notes'] ?? ''),
             'internal_notes' => pzdoc_token_multiline($document['internal_notes'] ?? ''),
+
+            // Token universal pentru „obiectul documentului" — funcționează pentru
+            // contracte standard (sursă: payload.contract_object), acte adiționale
+            // și alte tipizate ce stochează descrierea liberă în câmpul `notes`.
+            // Cu fallback automat între cele două surse.
+            'document_object' => pzdoc_token_multiline(
+                trim((string)($payload['contract_object'] ?? '')) !== ''
+                    ? (string)($payload['contract_object'] ?? '')
+                    : (string)($document['notes'] ?? '')
+            ),
         ];
 
         $tokens += $contractFirstItemTokens;
@@ -1871,7 +1902,7 @@ if (!function_exists('pzdoc_available_tokens')) {
                 '{{items_table}}', '{{services_table}}', '{{contract_services_table}}', '{{contract_items_table}}', '{{services_checks}}', '{{services_box}}', '{{materials_table}}', '{{biocides_table}}', '{{materials_safety}}', '{{safety_measures}}',
             ],
             'Observații' => [
-                '{{notes}}', '{{executor_notes}}', '{{recommendations}}', '{{client_notes}}', '{{internal_notes}}', '{{offer_intro}}', '{{offer_footer}}',
+                '{{document_object}}', '{{notes}}', '{{executor_notes}}', '{{recommendations}}', '{{client_notes}}', '{{internal_notes}}', '{{offer_intro}}', '{{offer_footer}}',
             ],
             'Avize sanitare' => [
                 '{{avize_sanitare_link}}', '{{avize_sanitare_url}}', '{{product_avize_link}}', '{{product_avize_url}}',
