@@ -362,25 +362,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Autentificare · PestZone CRM</title>
+<title>Autentificare · emma.ro</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.40.0/tabler-icons.min.css" rel="stylesheet">
 
 <style>
 :root {
-    /* Paleta oficială PestZone — preluată din app_theme_css */
-    --pz-bl:    #2563EB;
-    --pz-bld:   #1E3A8A;
-    --pz-blb:   #BFDBFE;
-    --pz-gr:    #166534;
-    --pz-grb:   #BBF7D0;
-    --pz-title: #0F172A;
-    --pz-text:  #334155;
-    --pz-mu:    #64748B;
+    /* Paleta oficială emma.ro */
+    --em-navy:        #061142;
+    --em-navy-alt:    #070F3F;
+    --em-coral-start: #FF5A5F;
+    --em-coral-mid:   #FF7A3D;
+    --em-coral-end:   #FF9A3D;
+    --em-muted:       #3E4C8F;
 
     --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -392,469 +390,401 @@ html { -webkit-text-size-adjust: 100%; }
 body {
     min-height: 100vh;
     font-family: var(--font);
-    background: var(--pz-title);
-    color: #fff;
+    background: var(--em-navy);
+    color: #FFFFFF;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
 }
 
-.pz-login-page {
+.em-login {
     position: relative;
     min-height: 100vh;
     overflow: hidden;
-    padding: 44px 40px 40px;
     display: flex;
     flex-direction: column;
 }
 
-/* Blob-uri decorative cu paleta PestZone */
-.pz-decor {
+/* Blob-uri decorative coral foarte difuze */
+.em-decor {
     position: absolute;
     pointer-events: none;
     border-radius: 50%;
+    z-index: 0;
 }
-.pz-decor-1 {
-    top: 0; right: 0;
-    width: 480px; height: 480px;
-    background: var(--pz-bl);
-    transform: translate(160px, -160px);
+.em-decor-1 {
+    top: -180px; right: -120px;
+    width: 520px; height: 520px;
+    background: radial-gradient(circle, rgba(255, 90, 95, .22), transparent 65%);
+    filter: blur(40px);
 }
-.pz-decor-2 {
-    bottom: 0; left: 0;
-    width: 360px; height: 360px;
-    background: var(--pz-bld);
-    transform: translate(-140px, 140px);
+.em-decor-2 {
+    bottom: -160px; left: -100px;
+    width: 460px; height: 460px;
+    background: radial-gradient(circle, rgba(255, 122, 61, .18), transparent 65%);
+    filter: blur(50px);
 }
-.pz-decor-3 {
-    top: 46%; left: 38%;
-    width: 160px; height: 160px;
-    background: var(--pz-gr);
-    transform: translate(-50%, -50%) rotate(45deg);
-    border-radius: 28px;
-    opacity: 0.28;
-}
-
-/* Brand */
-.pz-brand {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 52px;
-    z-index: 2;
-}
-.pz-brand-bar {
-    width: 9px; height: 34px;
-    background: var(--pz-bl);
-    border-radius: 3px;
-}
-.pz-brand-name {
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    color: #fff;
-}
-.pz-brand-chip {
-    margin-left: 4px;
-    font-size: 11px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    padding: 3px 8px;
-    border-radius: 6px;
+.em-decor-3 {
+    top: 40%; right: 35%;
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, rgba(255, 154, 61, .12), transparent 65%);
+    filter: blur(40px);
 }
 
-/* Hero text */
-.pz-hero {
-    position: relative;
-    z-index: 2;
-    margin-bottom: 36px;
-    max-width: 480px;
-}
-.pz-hero h1 {
-    font-size: 42px;
-    font-weight: 600;
-    line-height: 1.05;
-    letter-spacing: -0.025em;
-    margin: 0 0 14px;
-    color: #fff;
-}
-.pz-hero p {
-    font-size: 15px;
-    color: rgba(255, 255, 255, 0.62);
-    line-height: 1.55;
-    margin: 0;
-    max-width: 420px;
+/* Linie verticală subtilă coral — accent editorial */
+.em-divider {
+    position: absolute;
+    top: 12%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1px;
+    height: 76%;
+    background: linear-gradient(180deg, transparent, rgba(255, 122, 61, .25), transparent);
+    z-index: 0;
 }
 
-/* Mini cards demo */
-.pz-mini-cards {
+/* Container principal — grid pe desktop, stack pe mobil */
+.em-wrap {
     position: relative;
     z-index: 2;
-    display: flex;
-    gap: 14px;
-    max-width: 480px;
-    margin-bottom: 32px;
-}
-.pz-mini-card {
     flex: 1;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 12px 14px;
-}
-.pz-mini-card .pz-mini-head {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
-}
-.pz-mini-card .pz-mini-head i {
-    font-size: 15px;
-}
-.pz-mini-card .pz-mini-head .lbl {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.55);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-.pz-mini-card .pz-mini-val {
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: #fff;
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 60px 56px;
 }
 
-/* Form card */
-.pz-form-card {
-    position: relative;
-    z-index: 2;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 26px 28px;
-    max-width: 480px;
-    margin-bottom: 20px;
+/* ============================================================
+   BRAND BLOCK — logo emma.ro + tagline aliniat ca în logo
+   ============================================================ */
+.em-brand {
+    display: inline-block;
+    /* Lățimea cardului brand e dată de wordmark; tagline-ul se întinde sub el */
 }
 
-.pz-form-group {
-    margin-bottom: 18px;
+.em-wordmark {
+    display: flex;
+    align-items: baseline;
+    font-size: clamp(52px, 6.5vw, 76px);
+    font-weight: 700;
+    letter-spacing: -0.045em;
+    line-height: 0.92;
+    color: #FFFFFF;
+    font-family: var(--font);
 }
-.pz-form-group:last-of-type {
-    margin-bottom: 24px;
-}
+.em-wordmark-dot { color: var(--em-coral-start); }
 
-.pz-form-group label {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.55);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 8px;
-}
-
-.pz-label-row {
+/* Tagline — width = wordmark width, cele 3 cuvinte se întind uniform */
+.em-tagline {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
+    width: 100%;
+    margin-top: 10px;
+    font-size: clamp(11px, 0.9vw, 13.5px);
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.52);
+    letter-spacing: 0.04em;
+}
+
+.em-hero-copy {
+    margin-top: 36px;
+    max-width: 340px;
+    font-size: 16px;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.72);
+    font-weight: 400;
+}
+
+/* ============================================================
+   FORM
+   ============================================================ */
+.em-form-wrap {
+    width: 100%;
+    max-width: 380px;
+}
+
+.em-error {
+    margin-bottom: 22px;
+    padding: 11px 14px;
+    background: rgba(220, 38, 38, 0.12);
+    border: 1px solid rgba(220, 38, 38, 0.35);
+    border-radius: 8px;
+    color: #FCA5A5;
+    font-size: 12.5px;
+    line-height: 1.45;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.em-error i {
+    font-size: 16px;
+    color: #F87171;
+    flex-shrink: 0;
+}
+
+.em-form-group {
+    margin-bottom: 22px;
+}
+
+.em-form-label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.48);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
     margin-bottom: 8px;
 }
-.pz-label-row label { margin-bottom: 0; }
-.pz-label-row a {
+
+.em-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+}
+.em-label-row .em-form-label { margin-bottom: 0; }
+.em-label-row a {
     font-size: 11px;
-    color: var(--pz-blb);
+    color: var(--em-coral-mid);
     text-decoration: none;
     font-weight: 500;
+    letter-spacing: 0;
 }
-.pz-label-row a:hover { text-decoration: underline; }
+.em-label-row a:hover { color: var(--em-coral-start); }
 
-.pz-input-wrap { position: relative; }
+.em-input-wrap { position: relative; }
 
-.pz-form-card input[type="email"],
-.pz-form-card input[type="password"],
-.pz-form-card input[type="text"] {
+.em-form-wrap input[type="email"],
+.em-form-wrap input[type="password"],
+.em-form-wrap input[type="text"] {
     width: 100%;
-    height: 42px;
+    height: 40px;
     padding: 0 32px 10px 0;
     border: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 0;
     font-size: 15px;
-    color: #fff;
+    color: #FFFFFF;
     background: transparent;
-    box-sizing: border-box;
     font-family: inherit;
     outline: none;
     -webkit-appearance: none;
     appearance: none;
-    transition: border-color 0.16s ease;
+    transition: border-color 0.18s ease;
 }
-.pz-form-card input::placeholder {
-    color: rgba(255, 255, 255, 0.35);
+.em-form-wrap input::placeholder {
+    color: rgba(255, 255, 255, 0.32);
     font-weight: 400;
 }
-.pz-form-card input:focus {
-    border-bottom-color: var(--pz-blb);
+.em-form-wrap input:focus {
+    border-bottom-color: var(--em-coral-mid);
 }
-.pz-form-card input:-webkit-autofill {
-    -webkit-text-fill-color: #fff;
+.em-form-wrap input:-webkit-autofill {
+    -webkit-text-fill-color: #FFFFFF;
     -webkit-box-shadow: 0 0 0 1000px transparent inset;
     transition: background-color 999999s ease-in-out 0s;
-    caret-color: #fff;
+    caret-color: #FFFFFF;
 }
 
-.pz-input-eye {
+.em-input-eye {
     position: absolute;
     right: 0;
-    top: 11px;
-    font-size: 18px;
+    top: 8px;
+    font-size: 16px;
     color: rgba(255, 255, 255, 0.4);
     cursor: pointer;
     background: transparent;
     border: 0;
-    padding: 0;
+    padding: 4px;
     line-height: 1;
 }
-.pz-input-eye:hover { color: rgba(255, 255, 255, 0.7); }
+.em-input-eye:hover { color: rgba(255, 255, 255, 0.85); }
 
-/* Buton principal — pill albastru PestZone */
-.pz-submit {
+.em-submit {
     width: 100%;
+    margin-top: 8px;
     height: 48px;
-    background: var(--pz-bl);
-    color: #fff;
+    background: linear-gradient(135deg, var(--em-coral-start), var(--em-coral-mid));
+    color: #FFFFFF;
     border: 0;
-    border-radius: 24px;
+    border-radius: 10px;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
     font-family: inherit;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    letter-spacing: 0.01em;
-    transition: background-color 0.15s ease, transform 0.1s ease;
-}
-.pz-submit:hover { background: var(--pz-bld); }
-.pz-submit:active { transform: translateY(1px); }
-.pz-submit i { font-size: 16px; }
-
-/* Eroare */
-.pz-error {
-    position: relative;
-    z-index: 2;
-    background: rgba(220, 38, 38, 0.12);
-    border: 1px solid rgba(220, 38, 38, 0.45);
-    color: #FCA5A5;
-    border-radius: 10px;
-    padding: 12px 14px;
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 1.45;
-    max-width: 480px;
-    margin-bottom: 18px;
-    display: flex;
-    align-items: center;
     gap: 10px;
+    letter-spacing: 0.02em;
+    transition: transform 0.12s ease, box-shadow 0.18s ease, filter 0.18s ease;
+    box-shadow: 0 10px 28px -12px rgba(255, 90, 95, 0.55);
 }
-.pz-error i {
-    font-size: 18px;
-    color: #F87171;
-    flex-shrink: 0;
+.em-submit:hover {
+    filter: brightness(1.05);
+    box-shadow: 0 14px 32px -10px rgba(255, 90, 95, 0.65);
 }
+.em-submit:active { transform: translateY(1px); }
+.em-submit i { font-size: 16px; }
 
 /* Footer */
-.pz-foot {
+.em-foot {
     position: relative;
     z-index: 2;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.4);
-    max-width: 480px;
-    margin-top: auto;
-    padding-top: 20px;
-    letter-spacing: 0.04em;
+    text-align: center;
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.32);
+    letter-spacing: 0.12em;
+    padding: 20px 24px 24px;
+    text-transform: uppercase;
 }
-.pz-foot-sec {
+.em-foot .em-foot-sec {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    margin: 0 14px;
 }
-.pz-foot-sec i {
-    font-size: 13px;
-    color: var(--pz-grb);
+.em-foot .em-foot-sec i {
+    font-size: 12px;
+    color: var(--em-coral-mid);
 }
 
-/* Responsive */
-@media (max-width: 720px) {
-    .pz-login-page { padding: 32px 24px 24px; }
-    .pz-brand { margin-bottom: 36px; }
-    .pz-hero { margin-bottom: 28px; }
-    .pz-hero h1 { font-size: 34px; }
-    .pz-hero p { font-size: 14px; }
-    .pz-decor-1 { width: 360px; height: 360px; transform: translate(140px, -180px); }
-    .pz-decor-2 { width: 280px; height: 280px; transform: translate(-100px, 140px); }
+/* ============================================================
+   RESPONSIVE — pe mobil stack vertical: logo+tagline DEASUPRA formularului
+   ============================================================ */
+@media (max-width: 860px) {
+    .em-wrap {
+        grid-template-columns: 1fr;
+        gap: 44px;
+        padding: 48px 32px;
+        max-width: 480px;
+        text-align: left;
+    }
+    .em-divider { display: none; }
+    .em-brand { display: block; }
+    .em-hero-copy { margin-top: 28px; max-width: 100%; font-size: 15px; }
+    .em-form-wrap { max-width: 100%; }
+    .em-decor-3 { display: none; }
 }
 
 @media (max-width: 520px) {
-    /* Pe mobil — totul centrat orizontal și grupat vertical pe centrul ecranului. */
-    .pz-login-page {
-        padding: 32px 20px;
-        justify-content: center;
-        align-items: center;
-        text-align: center;
+    .em-wrap {
+        gap: 36px;
+        padding: 40px 22px 32px;
     }
-    .pz-brand {
-        margin-bottom: 28px;
-        justify-content: center;
+    .em-wordmark {
+        font-size: clamp(46px, 14vw, 60px);
     }
-    .pz-brand-bar { width: 7px; height: 28px; }
-    .pz-brand-name { font-size: 16px; }
-    .pz-hero {
-        text-align: center;
-        max-width: 100%;
-        margin-bottom: 28px;
+    .em-tagline {
+        font-size: 11px;
+        margin-top: 8px;
     }
-    .pz-hero h1 { font-size: 28px; }
-    .pz-hero p {
-        font-size: 13.5px;
+    .em-hero-copy {
+        margin-top: 22px;
+        font-size: 14px;
         line-height: 1.5;
-        max-width: 100%;
-        margin-left: auto;
-        margin-right: auto;
     }
-    .pz-mini-cards { display: none; }
-    .pz-error {
-        width: 100%;
-        max-width: 100%;
-        text-align: left;
+    .em-form-wrap input { font-size: 16px; }
+    .em-submit { height: 46px; font-size: 14px; }
+    .em-foot {
+        font-size: 9.5px;
+        padding: 16px 18px 22px;
     }
-    .pz-form-card {
-        width: 100%;
-        max-width: 100%;
-        padding: 22px 20px;
-        border-radius: 16px;
-        text-align: left;
-    }
-    .pz-form-card input[type="email"],
-    .pz-form-card input[type="password"] { font-size: 16px; }
-    .pz-submit { height: 46px; }
-    .pz-foot {
-        width: 100%;
-        max-width: 100%;
-        font-size: 10.5px;
-        flex-direction: column;
-        gap: 8px;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        margin-top: 24px;
-        padding-top: 0;
-    }
-    .pz-decor-1 { width: 280px; height: 280px; opacity: 0.85; }
-    .pz-decor-2 { width: 220px; height: 220px; opacity: 0.85; }
-    .pz-decor-3 { display: none; }
+    .em-foot .em-foot-sec { margin: 0 8px; }
+    .em-decor-1 { width: 320px; height: 320px; top: -120px; right: -100px; }
+    .em-decor-2 { width: 280px; height: 280px; bottom: -120px; left: -80px; }
 }
 </style>
 </head>
 
 <body>
 
-<div class="pz-login-page">
+<div class="em-login">
 
-    <div class="pz-decor pz-decor-1" aria-hidden="true"></div>
-    <div class="pz-decor pz-decor-2" aria-hidden="true"></div>
-    <div class="pz-decor pz-decor-3" aria-hidden="true"></div>
+    <div class="em-decor em-decor-1" aria-hidden="true"></div>
+    <div class="em-decor em-decor-2" aria-hidden="true"></div>
+    <div class="em-decor em-decor-3" aria-hidden="true"></div>
+    <div class="em-divider" aria-hidden="true"></div>
 
-    <div class="pz-brand">
-        <div class="pz-brand-bar" aria-hidden="true"></div>
-        <span class="pz-brand-name">PestZone</span>
-        <span class="pz-brand-chip">CRM</span>
-    </div>
+    <div class="em-wrap">
 
-    <div class="pz-hero">
-        <h1>Salut.<br>Mă bucur că ești aici.</h1>
-        <p>Programări, intervenții, oameni mulțumiți. Asta facem zi de zi și o facem bine pentru că fiecare pune umărul.</p>
-    </div>
-
-    <div class="pz-mini-cards">
-        <div class="pz-mini-card">
-            <div class="pz-mini-head">
-                <i class="ti ti-calendar-event" style="color: var(--pz-blb);" aria-hidden="true"></i>
-                <span class="lbl">Azi</span>
+        <div class="em-brand">
+            <div class="em-wordmark" aria-label="emma.ro">
+                <span>emma</span><span class="em-wordmark-dot">.ro</span>
             </div>
-            <div class="pz-mini-val">23 lucrări</div>
-        </div>
-        <div class="pz-mini-card">
-            <div class="pz-mini-head">
-                <i class="ti ti-clock" style="color: var(--pz-grb);" aria-hidden="true"></i>
-                <span class="lbl">În curs</span>
+            <div class="em-tagline" aria-hidden="true">
+                <span>plan.</span>
+                <span>execute.</span>
+                <span>control.</span>
             </div>
-            <div class="pz-mini-val">4 echipe</div>
-        </div>
-    </div>
-
-    <?php if ($error): ?>
-        <div class="pz-error">
-            <i class="ti ti-alert-circle" aria-hidden="true"></i>
-            <span><?= login_h($error) ?></span>
-        </div>
-    <?php endif; ?>
-
-    <form class="pz-form-card" method="post" autocomplete="on" novalidate>
-        <?= csrf_field() ?>
-
-        <div class="pz-form-group">
-            <label for="email">Email</label>
-            <div class="pz-input-wrap">
-                <input
-                    id="email"
-                    type="email"
-                    name="email"
-                    placeholder="nume@firma.ro"
-                    autocomplete="username"
-                    required
-                    value="<?= login_h($_POST['email'] ?? '') ?>"
-                >
-            </div>
+            <p class="em-hero-copy">Operațiunile firmei tale, dintr-un singur ecran. Bun venit înapoi.</p>
         </div>
 
-        <div class="pz-form-group">
-            <div class="pz-label-row">
-                <label for="password">Parolă</label>
-                <a href="forgot_password.php">Ai uitat?</a>
-            </div>
-            <div class="pz-input-wrap">
-                <input
-                    id="password"
-                    type="password"
-                    name="password"
-                    placeholder="••••••••••"
-                    autocomplete="current-password"
-                    required
-                >
-                <button type="button" class="pz-input-eye" id="pzPwdToggle" aria-label="Arată/ascunde parola">
-                    <i class="ti ti-eye" id="pzPwdEyeIcon" aria-hidden="true"></i>
+        <div class="em-form-wrap">
+
+            <?php if ($error): ?>
+                <div class="em-error">
+                    <i class="ti ti-alert-circle" aria-hidden="true"></i>
+                    <span><?= login_h($error) ?></span>
+                </div>
+            <?php endif; ?>
+
+            <form method="post" autocomplete="on" novalidate>
+                <?= csrf_field() ?>
+
+                <div class="em-form-group">
+                    <label class="em-form-label" for="email">Email</label>
+                    <div class="em-input-wrap">
+                        <input
+                            id="email"
+                            type="email"
+                            name="email"
+                            placeholder="nume@firma.ro"
+                            autocomplete="username"
+                            required
+                            value="<?= login_h($_POST['email'] ?? '') ?>"
+                        >
+                    </div>
+                </div>
+
+                <div class="em-form-group">
+                    <div class="em-label-row">
+                        <label class="em-form-label" for="password">Parolă</label>
+                        <a href="forgot_password.php">Am uitat parola</a>
+                    </div>
+                    <div class="em-input-wrap">
+                        <input
+                            id="password"
+                            type="password"
+                            name="password"
+                            placeholder="••••••••••"
+                            autocomplete="current-password"
+                            required
+                        >
+                        <button type="button" class="em-input-eye" id="pzPwdToggle" aria-label="Arată/ascunde parola">
+                            <i class="ti ti-eye" id="pzPwdEyeIcon" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button class="em-submit" type="submit">
+                    Autentificare
+                    <i class="ti ti-arrow-right" aria-hidden="true"></i>
                 </button>
-            </div>
+            </form>
         </div>
 
-        <button class="pz-submit" type="submit">
-            Conectare
-            <i class="ti ti-arrow-right" aria-hidden="true"></i>
-        </button>
-    </form>
+    </div>
 
-    <div class="pz-foot">
-        <span class="pz-foot-sec">
+    <div class="em-foot">
+        <span class="em-foot-sec">
             <i class="ti ti-shield-check" aria-hidden="true"></i>
-            CONEXIUNE SECURIZATĂ
+            Conexiune securizată
         </span>
-        <span>© <?= (int)date('Y') ?> · MADE IN ROMÂNIA</span>
+        <span class="em-foot-sec">© <?= (int)date('Y') ?> · emma.ro</span>
     </div>
 
 </div>
