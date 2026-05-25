@@ -87,7 +87,7 @@ Options -Indexes
 
     # Calendar: toate view-urile (Zi, Saptamana, Luna) sunt randerate direct
     # de calendar.php. Fisierul calendar_week.php face acum redirect pentru
-    # bookmark-urile vechi, iar calendar_classic_view.php nu mai e folosit.
+    # bookmark-urile vechi.
 </IfModule>
 
 # Security headers
