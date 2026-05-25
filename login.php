@@ -195,6 +195,36 @@ try {
     error_log('Login: nu s-a putut crea login_attempts: ' . $e->getMessage());
 }
 
+/*
+|--------------------------------------------------------------------------
+| Detectare logo pagină login (din /assets/)
+|--------------------------------------------------------------------------
+| Acceptă orice extensie comună. Dacă nu există, cade pe wordmark text.
+| Cache busting cu filemtime astfel încât refresh-ul să prindă imaginea nouă.
+*/
+function login_find_logo(): ?string
+{
+    $candidates = [
+        'loghin-logo.svg',
+        'loghin-logo.png',
+        'loghin-logo.jpg',
+        'loghin-logo.jpeg',
+        'loghin-logo.webp',
+        'login-logo.svg',
+        'login-logo.png',
+    ];
+    foreach ($candidates as $name) {
+        $abs = __DIR__ . '/assets/' . $name;
+        if (is_file($abs)) {
+            $ver = @filemtime($abs) ?: time();
+            return 'assets/' . $name . '?v=' . $ver;
+        }
+    }
+    return null;
+}
+
+$loginLogoUrl = login_find_logo();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!csrf_check()) {
@@ -466,14 +496,26 @@ body {
     align-items: flex-start;
 }
 
-/* Sub-container care wraps DOAR wordmark + tagline.
-   inline-block + width: max-content → lățimea egală cu wordmark-ul,
-   tagline-ul cu width: 100% se aliniază exact între edge-urile lui "emma" și ".ro". */
+/* Sub-container care wraps DOAR logo + tagline.
+   inline-block + width: max-content → lățimea egală cu logo-ul,
+   tagline-ul cu width: 100% se aliniază exact între edge-urile logo-ului. */
 .em-brand-mark {
     display: inline-block;
     width: max-content;
+    max-width: 100%;
 }
 
+/* Logo image — varianta principală (când există fișierul în /assets) */
+.em-logo-img {
+    display: block;
+    width: clamp(220px, 26vw, 320px);
+    height: auto;
+    max-width: 100%;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Wordmark text — fallback când nu există image */
 .em-wordmark {
     display: flex;
     align-items: baseline;
@@ -778,9 +820,13 @@ body {
 
         <div class="em-brand">
             <div class="em-brand-mark">
-                <div class="em-wordmark" aria-label="emma.ro">
-                    <span>emma</span><span class="em-wordmark-dot">.ro</span>
-                </div>
+                <?php if ($loginLogoUrl): ?>
+                    <img class="em-logo-img" src="<?= login_h($loginLogoUrl) ?>" alt="emma.ro" draggable="false">
+                <?php else: ?>
+                    <div class="em-wordmark" aria-label="emma.ro">
+                        <span>emma</span><span class="em-wordmark-dot">.ro</span>
+                    </div>
+                <?php endif; ?>
                 <div class="em-tagline" aria-hidden="true">
                     <span>plan.</span>
                     <span>execute.</span>
