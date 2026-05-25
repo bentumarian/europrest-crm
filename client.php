@@ -716,6 +716,38 @@ if ($client) {
                                 </div>
                             </div>
                         </section>
+
+                        <section class="dossier-card">
+                            <div class="dossier-card-head">
+                                <div class="dossier-card-title" style="color:#991b1b;">Administrare cont</div>
+                            </div>
+                            <div class="dossier-card-body">
+                                <div class="danger-zone">
+                                    <?php if ((int)($client['active'] ?? 1) === 1): ?>
+                                        <form method="post" action="clients.php" onsubmit="return confirm('Sigur vrei să dezactivezi acest client? Nu se șterge istoricul, doar se ascunde din listele active.');">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="action" value="deactivate">
+                                            <input type="hidden" name="client_id" value="<?= (int)$clientId ?>">
+                                            <button class="btn danger" type="submit" style="width:100%;">Dezactivează clientul</button>
+                                        </form>
+                                    <?php else: ?>
+                                        <form method="post" action="clients.php">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="action" value="reactivate">
+                                            <input type="hidden" name="client_id" value="<?= (int)$clientId ?>">
+                                            <button class="btn accent" type="submit" style="width:100%;">Reactivează clientul</button>
+                                        </form>
+                                    <?php endif; ?>
+
+                                    <form method="post" action="clients.php" onsubmit="return confirm('Ștergere definitivă. Funcționează doar dacă clientul nu are programări, sarcini, oferte sau alte documente. Continui?');" style="margin-top:8px;">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="action" value="permanent_delete">
+                                        <input type="hidden" name="client_id" value="<?= (int)$clientId ?>">
+                                        <button class="btn danger" type="submit" style="width:100%;">Șterge definitiv</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </section>
                     </aside>
                 </div>
             <?php endif; ?>
