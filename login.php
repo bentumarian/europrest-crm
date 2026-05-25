@@ -461,8 +461,17 @@ body {
    BRAND BLOCK — logo emma.ro + tagline aliniat ca în logo
    ============================================================ */
 .em-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+/* Sub-container care wraps DOAR wordmark + tagline.
+   inline-block + width: max-content → lățimea egală cu wordmark-ul,
+   tagline-ul cu width: 100% se aliniază exact între edge-urile lui "emma" și ".ro". */
+.em-brand-mark {
     display: inline-block;
-    /* Lățimea cardului brand e dată de wordmark; tagline-ul se întinde sub el */
+    width: max-content;
 }
 
 .em-wordmark {
@@ -477,7 +486,7 @@ body {
 }
 .em-wordmark-dot { color: var(--em-coral-start); }
 
-/* Tagline — width = wordmark width, cele 3 cuvinte se întind uniform */
+/* Tagline — width = 100% din .em-brand-mark = wordmark width */
 .em-tagline {
     display: flex;
     justify-content: space-between;
@@ -496,6 +505,67 @@ body {
     line-height: 1.55;
     color: rgba(255, 255, 255, 0.72);
     font-weight: 400;
+}
+
+/* ============================================================
+   GROWTH STATS — sparkline-uri crescătoare (subliminal trust signal)
+   ============================================================ */
+.em-stats {
+    margin-top: 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 340px;
+}
+.em-stat {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.em-spark {
+    width: 62px;
+    height: 26px;
+    flex-shrink: 0;
+    overflow: visible;
+}
+.em-spark path.line {
+    fill: none;
+    stroke: url(#emSparkGradient);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.em-spark path.area {
+    fill: url(#emSparkArea);
+    opacity: .9;
+}
+.em-spark .dot {
+    fill: var(--em-coral-start);
+}
+.em-stat-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+    min-width: 0;
+}
+.em-stat-num {
+    font-size: 18px;
+    font-weight: 500;
+    color: #FFFFFF;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+}
+.em-stat-num .arrow {
+    color: var(--em-coral-mid);
+    font-size: 13px;
+    margin-right: 2px;
+    vertical-align: 1px;
+}
+.em-stat-lbl {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.48);
+    margin-top: 4px;
+    letter-spacing: 0.04em;
 }
 
 /* ============================================================
@@ -658,21 +728,21 @@ body {
 @media (max-width: 860px) {
     .em-wrap {
         grid-template-columns: 1fr;
-        gap: 44px;
+        gap: 36px;
         padding: 48px 32px;
         max-width: 480px;
-        text-align: left;
     }
     .em-divider { display: none; }
-    .em-brand { display: block; }
-    .em-hero-copy { margin-top: 28px; max-width: 100%; font-size: 15px; }
+    /* Pe mobil ascundem copy-ul descriptiv și mini-stats — doar logo + tagline + form */
+    .em-hero-copy { display: none; }
+    .em-stats { display: none; }
     .em-form-wrap { max-width: 100%; }
     .em-decor-3 { display: none; }
 }
 
 @media (max-width: 520px) {
     .em-wrap {
-        gap: 36px;
+        gap: 32px;
         padding: 40px 22px 32px;
     }
     .em-wordmark {
@@ -681,11 +751,6 @@ body {
     .em-tagline {
         font-size: 11px;
         margin-top: 8px;
-    }
-    .em-hero-copy {
-        margin-top: 22px;
-        font-size: 14px;
-        line-height: 1.5;
     }
     .em-form-wrap input { font-size: 16px; }
     .em-submit { height: 46px; font-size: 14px; }
@@ -712,15 +777,69 @@ body {
     <div class="em-wrap">
 
         <div class="em-brand">
-            <div class="em-wordmark" aria-label="emma.ro">
-                <span>emma</span><span class="em-wordmark-dot">.ro</span>
+            <div class="em-brand-mark">
+                <div class="em-wordmark" aria-label="emma.ro">
+                    <span>emma</span><span class="em-wordmark-dot">.ro</span>
+                </div>
+                <div class="em-tagline" aria-hidden="true">
+                    <span>plan.</span>
+                    <span>execute.</span>
+                    <span>control.</span>
+                </div>
             </div>
-            <div class="em-tagline" aria-hidden="true">
-                <span>plan.</span>
-                <span>execute.</span>
-                <span>control.</span>
-            </div>
+
             <p class="em-hero-copy">Operațiunile firmei tale, dintr-un singur ecran. Bun venit înapoi.</p>
+
+            <div class="em-stats" aria-hidden="true">
+                <svg width="0" height="0" style="position:absolute;">
+                    <defs>
+                        <linearGradient id="emSparkGradient" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0" stop-color="#FF5A5F"/>
+                            <stop offset="1" stop-color="#FF9A3D"/>
+                        </linearGradient>
+                        <linearGradient id="emSparkArea" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0" stop-color="#FF7A3D" stop-opacity=".22"/>
+                            <stop offset="1" stop-color="#FF7A3D" stop-opacity="0"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+
+                <div class="em-stat">
+                    <svg class="em-spark" viewBox="0 0 62 26" preserveAspectRatio="none">
+                        <path class="area" d="M0,22 L10,20 L20,17 L30,13 L42,8 L52,5 L62,2 L62,26 L0,26 Z"/>
+                        <path class="line" d="M0,22 L10,20 L20,17 L30,13 L42,8 L52,5 L62,2"/>
+                        <circle class="dot" cx="62" cy="2" r="2"/>
+                    </svg>
+                    <div class="em-stat-text">
+                        <span class="em-stat-num"><span class="arrow">▲</span>+24%</span>
+                        <span class="em-stat-lbl">facturare luna asta</span>
+                    </div>
+                </div>
+
+                <div class="em-stat">
+                    <svg class="em-spark" viewBox="0 0 62 26" preserveAspectRatio="none">
+                        <path class="area" d="M0,21 L8,19 L16,18 L24,15 L32,12 L40,9 L50,6 L62,4 L62,26 L0,26 Z"/>
+                        <path class="line" d="M0,21 L8,19 L16,18 L24,15 L32,12 L40,9 L50,6 L62,4"/>
+                        <circle class="dot" cx="62" cy="4" r="2"/>
+                    </svg>
+                    <div class="em-stat-text">
+                        <span class="em-stat-num"><span class="arrow">▲</span>+312</span>
+                        <span class="em-stat-lbl">lucrări finalizate</span>
+                    </div>
+                </div>
+
+                <div class="em-stat">
+                    <svg class="em-spark" viewBox="0 0 62 26" preserveAspectRatio="none">
+                        <path class="area" d="M0,23 L12,21 L22,19 L32,16 L40,11 L48,7 L56,4 L62,3 L62,26 L0,26 Z"/>
+                        <path class="line" d="M0,23 L12,21 L22,19 L32,16 L40,11 L48,7 L56,4 L62,3"/>
+                        <circle class="dot" cx="62" cy="3" r="2"/>
+                    </svg>
+                    <div class="em-stat-text">
+                        <span class="em-stat-num"><span class="arrow">▲</span>98%</span>
+                        <span class="em-stat-lbl">timp economisit la facturare</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="em-form-wrap">
