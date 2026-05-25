@@ -409,6 +409,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     --em-coral-mid:   #FF7A3D;
     --em-coral-end:   #FF9A3D;
     --em-muted:       #3E4C8F;
+    --em-gray-200:    #E5E7EB;
+    --em-gray-50:     #F9FAFB;
 
     --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -426,79 +428,75 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+/* ============================================================
+   LAYOUT — Navy full screen, card centrat
+   ============================================================ */
 .em-login {
     position: relative;
     min-height: 100vh;
-    overflow: hidden;
+    background: var(--em-navy);
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+    overflow: hidden;
 }
 
-/* Blob-uri decorative coral foarte difuze */
+/* Blob-uri coral difuze pe fundal */
 .em-decor {
     position: absolute;
     pointer-events: none;
-    border-radius: 50%;
     z-index: 0;
+    border-radius: 50%;
 }
 .em-decor-1 {
-    top: -180px; right: -120px;
-    width: 520px; height: 520px;
-    background: radial-gradient(circle, rgba(255, 90, 95, .22), transparent 65%);
+    top: -120px;
+    left: -80px;
+    width: 420px;
+    height: 420px;
+    background: radial-gradient(circle, rgba(255, 122, 61, .35), transparent 70%);
     filter: blur(40px);
 }
 .em-decor-2 {
-    bottom: -160px; left: -100px;
-    width: 460px; height: 460px;
-    background: radial-gradient(circle, rgba(255, 122, 61, .18), transparent 65%);
+    bottom: -140px;
+    right: -90px;
+    width: 460px;
+    height: 460px;
+    background: radial-gradient(circle, rgba(255, 90, 95, .32), transparent 70%);
     filter: blur(50px);
 }
 .em-decor-3 {
-    top: 40%; right: 35%;
-    width: 220px; height: 220px;
-    background: radial-gradient(circle, rgba(255, 154, 61, .12), transparent 65%);
-    filter: blur(40px);
-}
-
-/* Linie verticală subtilă coral — accent editorial */
-.em-divider {
-    position: absolute;
-    top: 12%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 1px;
-    height: 76%;
-    background: linear-gradient(180deg, transparent, rgba(255, 122, 61, .25), transparent);
-    z-index: 0;
-}
-
-/* Container principal — grid pe desktop, stack pe mobil */
-.em-wrap {
-    position: relative;
-    z-index: 2;
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 80px;
-    align-items: center;
-    max-width: 1100px;
-    width: 100%;
-    margin: 0 auto;
-    padding: 60px 56px;
+    top: 28%;
+    right: 22%;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(255, 154, 61, .22), transparent 70%);
+    filter: blur(34px);
 }
 
 /* ============================================================
-   BRAND BLOCK — logo emma.ro + tagline aliniat ca în logo
+   CARD ALB CENTRAT
    ============================================================ */
-.em-brand {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+.em-card {
+    position: relative;
+    z-index: 2;
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 38px 36px 32px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 30px 70px -20px rgba(0, 0, 0, .45),
+                0 10px 30px -15px rgba(255, 90, 95, .18);
 }
 
-/* Sub-container care wraps DOAR logo + tagline.
-   inline-flex column + align-items: stretch → lățimea = lățimea logo-ului,
-   tagline-ul (stretch) se aliniază exact între edge-urile logo-ului. */
+/* ============================================================
+   BRAND BLOCK — logo centrat + tagline aliniat sub el
+   ============================================================ */
+.em-brand-area {
+    text-align: center;
+    margin-bottom: 26px;
+}
+
 .em-brand-mark {
     display: inline-flex;
     flex-direction: column;
@@ -506,10 +504,10 @@ body {
     max-width: 100%;
 }
 
-/* Logo image — varianta principală (când există fișierul în /assets) */
+/* Logo image — varianta principală */
 .em-logo-img {
     display: block;
-    width: clamp(220px, 26vw, 320px);
+    width: clamp(180px, 50vw, 240px);
     height: auto;
     max-width: 100%;
     -webkit-user-select: none;
@@ -520,112 +518,50 @@ body {
 .em-wordmark {
     display: flex;
     align-items: baseline;
-    font-size: clamp(52px, 6.5vw, 76px);
+    justify-content: center;
+    font-size: clamp(40px, 8vw, 52px);
     font-weight: 700;
-    letter-spacing: -0.045em;
-    line-height: 0.92;
-    color: #FFFFFF;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+    color: var(--em-navy);
     font-family: var(--font);
 }
 .em-wordmark-dot { color: var(--em-coral-start); }
 
-/* Tagline — width = 100% din .em-brand-mark = wordmark width */
+/* Tagline — width = 100% din .em-brand-mark = logo width */
 .em-tagline {
     display: flex;
     justify-content: space-between;
     width: 100%;
-    margin-top: 10px;
-    font-size: clamp(11px, 0.9vw, 13.5px);
-    font-weight: 400;
-    color: rgba(255, 255, 255, 0.52);
-    letter-spacing: 0.04em;
-}
-
-.em-hero-copy {
-    margin-top: 36px;
-    max-width: 340px;
-    font-size: 16px;
-    line-height: 1.55;
-    color: rgba(255, 255, 255, 0.72);
-    font-weight: 400;
-}
-
-/* ============================================================
-   GROWTH STATS — sparkline-uri crescătoare (subliminal trust signal)
-   ============================================================ */
-.em-stats {
-    margin-top: 36px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    max-width: 340px;
-}
-.em-stat {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-.em-spark {
-    width: 62px;
-    height: 26px;
-    flex-shrink: 0;
-    overflow: visible;
-}
-.em-spark path.line {
-    fill: none;
-    stroke: url(#emSparkGradient);
-    stroke-width: 1.6;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
-.em-spark path.area {
-    fill: url(#emSparkArea);
-    opacity: .9;
-}
-.em-spark .dot {
-    fill: var(--em-coral-start);
-}
-.em-stat-text {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.1;
-    min-width: 0;
-}
-.em-stat-num {
-    font-size: 18px;
-    font-weight: 500;
-    color: #FFFFFF;
-    letter-spacing: -0.01em;
-    font-variant-numeric: tabular-nums;
-}
-.em-stat-num .arrow {
-    color: var(--em-coral-mid);
-    font-size: 13px;
-    margin-right: 2px;
-    vertical-align: 1px;
-}
-.em-stat-lbl {
+    margin-top: 8px;
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.48);
-    margin-top: 4px;
+    font-weight: 400;
+    color: var(--em-muted);
     letter-spacing: 0.04em;
 }
 
 /* ============================================================
-   FORM
+   TITLU CARD
    ============================================================ */
-.em-form-wrap {
-    width: 100%;
-    max-width: 380px;
+.em-card-title {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--em-navy);
+    margin: 0 0 22px;
+    letter-spacing: -.005em;
 }
 
+/* ============================================================
+   EROARE
+   ============================================================ */
 .em-error {
-    margin-bottom: 22px;
+    margin-bottom: 18px;
     padding: 11px 14px;
-    background: rgba(220, 38, 38, 0.12);
-    border: 1px solid rgba(220, 38, 38, 0.35);
-    border-radius: 8px;
-    color: #FCA5A5;
+    background: #FEF2F2;
+    border: 1px solid #FCA5A5;
+    border-radius: 10px;
+    color: #B91C1C;
     font-size: 12.5px;
     line-height: 1.45;
     display: flex;
@@ -634,91 +570,125 @@ body {
 }
 .em-error i {
     font-size: 16px;
-    color: #F87171;
+    color: #DC2626;
     flex-shrink: 0;
 }
 
-.em-form-group {
-    margin-bottom: 22px;
+/* ============================================================
+   INPUTS — bordură subtilă, icon stânga
+   ============================================================ */
+.em-input {
+    position: relative;
+    margin-bottom: 12px;
 }
 
-.em-form-label {
-    display: block;
-    font-size: 10.5px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.48);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    margin-bottom: 8px;
+.em-input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: var(--em-muted);
+    pointer-events: none;
+    line-height: 1;
 }
 
-.em-label-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 8px;
-}
-.em-label-row .em-form-label { margin-bottom: 0; }
-.em-label-row a {
-    font-size: 11px;
-    color: var(--em-coral-mid);
-    text-decoration: none;
-    font-weight: 500;
-    letter-spacing: 0;
-}
-.em-label-row a:hover { color: var(--em-coral-start); }
-
-.em-input-wrap { position: relative; }
-
-.em-form-wrap input[type="email"],
-.em-form-wrap input[type="password"],
-.em-form-wrap input[type="text"] {
+.em-input input[type="email"],
+.em-input input[type="password"],
+.em-input input[type="text"] {
     width: 100%;
-    height: 40px;
-    padding: 0 32px 10px 0;
-    border: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 0;
-    font-size: 15px;
-    color: #FFFFFF;
-    background: transparent;
+    height: 46px;
+    padding: 0 14px 0 42px;
+    border: 1px solid var(--em-gray-200);
+    border-radius: 10px;
+    background: #FFFFFF;
+    color: var(--em-navy);
+    font-size: 14px;
     font-family: inherit;
     outline: none;
     -webkit-appearance: none;
     appearance: none;
-    transition: border-color 0.18s ease;
+    transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
-.em-form-wrap input::placeholder {
-    color: rgba(255, 255, 255, 0.32);
+.em-input input::placeholder {
+    color: #9DA1BD;
     font-weight: 400;
 }
-.em-form-wrap input:focus {
-    border-bottom-color: var(--em-coral-mid);
+.em-input input:hover {
+    border-color: #CFD2E0;
 }
-.em-form-wrap input:-webkit-autofill {
-    -webkit-text-fill-color: #FFFFFF;
-    -webkit-box-shadow: 0 0 0 1000px transparent inset;
+.em-input input:focus {
+    border-color: var(--em-coral-mid);
+    box-shadow: 0 0 0 3px rgba(255, 122, 61, .14);
+}
+.em-input input:-webkit-autofill {
+    -webkit-text-fill-color: var(--em-navy);
+    -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset;
     transition: background-color 999999s ease-in-out 0s;
-    caret-color: #FFFFFF;
+    caret-color: var(--em-navy);
 }
 
-.em-input-eye {
+.em-input-pwd input { padding-right: 42px; }
+
+.em-eye {
     position: absolute;
-    right: 0;
-    top: 8px;
-    font-size: 16px;
-    color: rgba(255, 255, 255, 0.4);
-    cursor: pointer;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
     background: transparent;
     border: 0;
-    padding: 4px;
+    padding: 6px;
+    color: var(--em-muted);
+    cursor: pointer;
     line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
-.em-input-eye:hover { color: rgba(255, 255, 255, 0.85); }
+.em-eye i { font-size: 16px; }
+.em-eye:hover { color: var(--em-navy); }
 
+/* ============================================================
+   META ROW — Ține-mă minte + Am uitat parola
+   ============================================================ */
+.em-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 14px 0 18px;
+    font-size: 12px;
+}
+
+.em-remember {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--em-muted);
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.em-remember input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: var(--em-coral-mid);
+    cursor: pointer;
+}
+
+.em-forgot {
+    color: var(--em-coral-start);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color .15s ease;
+}
+.em-forgot:hover { color: var(--em-coral-mid); }
+
+/* ============================================================
+   BUTON PRINCIPAL
+   ============================================================ */
 .em-submit {
     width: 100%;
-    margin-top: 8px;
     height: 48px;
     background: linear-gradient(135deg, var(--em-coral-start), var(--em-coral-mid));
     color: #FFFFFF;
@@ -733,25 +703,29 @@ body {
     justify-content: center;
     gap: 10px;
     letter-spacing: 0.02em;
-    transition: transform 0.12s ease, box-shadow 0.18s ease, filter 0.18s ease;
-    box-shadow: 0 10px 28px -12px rgba(255, 90, 95, 0.55);
+    box-shadow: 0 10px 24px -10px rgba(255, 90, 95, .55);
+    transition: transform .12s ease, box-shadow .18s ease, filter .18s ease;
 }
 .em-submit:hover {
-    filter: brightness(1.05);
-    box-shadow: 0 14px 32px -10px rgba(255, 90, 95, 0.65);
+    filter: brightness(1.06);
+    box-shadow: 0 14px 30px -10px rgba(255, 90, 95, .65);
 }
 .em-submit:active { transform: translateY(1px); }
 .em-submit i { font-size: 16px; }
 
-/* Footer */
+/* ============================================================
+   FOOTER PE NAVY (sub card)
+   ============================================================ */
 .em-foot {
-    position: relative;
+    position: absolute;
+    bottom: 18px;
+    left: 0;
+    right: 0;
     z-index: 2;
     text-align: center;
     font-size: 10.5px;
-    color: rgba(255, 255, 255, 0.32);
+    color: rgba(255, 255, 255, 0.4);
     letter-spacing: 0.12em;
-    padding: 20px 24px 24px;
     text-transform: uppercase;
 }
 .em-foot .em-foot-sec {
@@ -766,44 +740,44 @@ body {
 }
 
 /* ============================================================
-   RESPONSIVE — pe mobil stack vertical: logo+tagline DEASUPRA formularului
+   RESPONSIVE
    ============================================================ */
-@media (max-width: 860px) {
-    .em-wrap {
-        grid-template-columns: 1fr;
-        gap: 36px;
-        padding: 48px 32px;
-        max-width: 480px;
-    }
-    .em-divider { display: none; }
-    /* Pe mobil ascundem copy-ul descriptiv și mini-stats — doar logo + tagline + form */
-    .em-hero-copy { display: none; }
-    .em-stats { display: none; }
-    .em-form-wrap { max-width: 100%; }
-    .em-decor-3 { display: none; }
-}
-
 @media (max-width: 520px) {
-    .em-wrap {
-        gap: 32px;
-        padding: 40px 22px 32px;
+    .em-login {
+        padding: 24px 16px 80px;
+        align-items: flex-start;
+        padding-top: 8vh;
     }
-    .em-wordmark {
-        font-size: clamp(46px, 14vw, 60px);
+    .em-card {
+        padding: 32px 24px 28px;
+        border-radius: 14px;
+        box-shadow: 0 16px 40px -16px rgba(0, 0, 0, .5);
+    }
+    .em-brand-area { margin-bottom: 22px; }
+    .em-logo-img {
+        width: clamp(160px, 56vw, 220px);
     }
     .em-tagline {
-        font-size: 11px;
-        margin-top: 8px;
+        font-size: 10.5px;
+        margin-top: 7px;
     }
-    .em-form-wrap input { font-size: 16px; }
-    .em-submit { height: 46px; font-size: 14px; }
+    .em-card-title {
+        font-size: 13.5px;
+        margin: 0 0 18px;
+    }
+    .em-input input { font-size: 16px; height: 44px; }
+    .em-eye { right: 6px; }
+    .em-submit { height: 46px; }
+    .em-decor-1 { width: 280px; height: 280px; top: -100px; left: -80px; }
+    .em-decor-2 { width: 300px; height: 300px; bottom: -120px; right: -80px; }
+    .em-decor-3 { display: none; }
     .em-foot {
+        position: static;
+        margin-top: 28px;
+        padding: 16px 18px 0;
         font-size: 9.5px;
-        padding: 16px 18px 22px;
     }
     .em-foot .em-foot-sec { margin: 0 8px; }
-    .em-decor-1 { width: 320px; height: 320px; top: -120px; right: -100px; }
-    .em-decor-2 { width: 280px; height: 280px; bottom: -120px; left: -80px; }
 }
 </style>
 </head>
@@ -815,11 +789,10 @@ body {
     <div class="em-decor em-decor-1" aria-hidden="true"></div>
     <div class="em-decor em-decor-2" aria-hidden="true"></div>
     <div class="em-decor em-decor-3" aria-hidden="true"></div>
-    <div class="em-divider" aria-hidden="true"></div>
 
-    <div class="em-wrap">
+    <main class="em-card">
 
-        <div class="em-brand">
+        <div class="em-brand-area">
             <div class="em-brand-mark">
                 <?php if ($loginLogoUrl): ?>
                     <img class="em-logo-img" src="<?= login_h($loginLogoUrl) ?>" alt="emma.ro" draggable="false">
@@ -834,116 +807,65 @@ body {
                     <span>control.</span>
                 </div>
             </div>
+        </div>
 
-            <p class="em-hero-copy">Operațiunile firmei tale, dintr-un singur ecran. Bun venit înapoi.</p>
+        <h1 class="em-card-title">Intră în contul tău</h1>
 
-            <div class="em-stats" aria-hidden="true">
-                <svg width="0" height="0" style="position:absolute;">
-                    <defs>
-                        <linearGradient id="emSparkGradient" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0" stop-color="#FF5A5F"/>
-                            <stop offset="1" stop-color="#FF9A3D"/>
-                        </linearGradient>
-                        <linearGradient id="emSparkArea" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0" stop-color="#FF7A3D" stop-opacity=".22"/>
-                            <stop offset="1" stop-color="#FF7A3D" stop-opacity="0"/>
-                        </linearGradient>
-                    </defs>
-                </svg>
-
-                <div class="em-stat">
-                    <svg class="em-spark" viewBox="0 0 62 26" preserveAspectRatio="none">
-                        <path class="area" d="M0,22 L10,20 L20,17 L30,13 L42,8 L52,5 L62,2 L62,26 L0,26 Z"/>
-                        <path class="line" d="M0,22 L10,20 L20,17 L30,13 L42,8 L52,5 L62,2"/>
-                        <circle class="dot" cx="62" cy="2" r="2"/>
-                    </svg>
-                    <div class="em-stat-text">
-                        <span class="em-stat-num"><span class="arrow">▲</span>+24%</span>
-                        <span class="em-stat-lbl">facturare luna asta</span>
-                    </div>
-                </div>
-
-                <div class="em-stat">
-                    <svg class="em-spark" viewBox="0 0 62 26" preserveAspectRatio="none">
-                        <path class="area" d="M0,21 L8,19 L16,18 L24,15 L32,12 L40,9 L50,6 L62,4 L62,26 L0,26 Z"/>
-                        <path class="line" d="M0,21 L8,19 L16,18 L24,15 L32,12 L40,9 L50,6 L62,4"/>
-                        <circle class="dot" cx="62" cy="4" r="2"/>
-                    </svg>
-                    <div class="em-stat-text">
-                        <span class="em-stat-num"><span class="arrow">▲</span>+312</span>
-                        <span class="em-stat-lbl">lucrări finalizate</span>
-                    </div>
-                </div>
-
-                <div class="em-stat">
-                    <svg class="em-spark" viewBox="0 0 62 26" preserveAspectRatio="none">
-                        <path class="area" d="M0,23 L12,21 L22,19 L32,16 L40,11 L48,7 L56,4 L62,3 L62,26 L0,26 Z"/>
-                        <path class="line" d="M0,23 L12,21 L22,19 L32,16 L40,11 L48,7 L56,4 L62,3"/>
-                        <circle class="dot" cx="62" cy="3" r="2"/>
-                    </svg>
-                    <div class="em-stat-text">
-                        <span class="em-stat-num"><span class="arrow">▲</span>98%</span>
-                        <span class="em-stat-lbl">timp economisit la facturare</span>
-                    </div>
-                </div>
+        <?php if ($error): ?>
+            <div class="em-error">
+                <i class="ti ti-alert-circle" aria-hidden="true"></i>
+                <span><?= login_h($error) ?></span>
             </div>
-        </div>
+        <?php endif; ?>
 
-        <div class="em-form-wrap">
+        <form method="post" autocomplete="on" novalidate>
+            <?= csrf_field() ?>
 
-            <?php if ($error): ?>
-                <div class="em-error">
-                    <i class="ti ti-alert-circle" aria-hidden="true"></i>
-                    <span><?= login_h($error) ?></span>
-                </div>
-            <?php endif; ?>
+            <div class="em-input">
+                <i class="ti ti-mail em-input-icon" aria-hidden="true"></i>
+                <input
+                    id="email"
+                    type="email"
+                    name="email"
+                    placeholder="Email"
+                    autocomplete="username"
+                    aria-label="Email"
+                    required
+                    value="<?= login_h($_POST['email'] ?? '') ?>"
+                >
+            </div>
 
-            <form method="post" autocomplete="on" novalidate>
-                <?= csrf_field() ?>
-
-                <div class="em-form-group">
-                    <label class="em-form-label" for="email">Email</label>
-                    <div class="em-input-wrap">
-                        <input
-                            id="email"
-                            type="email"
-                            name="email"
-                            placeholder="nume@firma.ro"
-                            autocomplete="username"
-                            required
-                            value="<?= login_h($_POST['email'] ?? '') ?>"
-                        >
-                    </div>
-                </div>
-
-                <div class="em-form-group">
-                    <div class="em-label-row">
-                        <label class="em-form-label" for="password">Parolă</label>
-                        <a href="forgot_password.php">Am uitat parola</a>
-                    </div>
-                    <div class="em-input-wrap">
-                        <input
-                            id="password"
-                            type="password"
-                            name="password"
-                            placeholder="••••••••••"
-                            autocomplete="current-password"
-                            required
-                        >
-                        <button type="button" class="em-input-eye" id="pzPwdToggle" aria-label="Arată/ascunde parola">
-                            <i class="ti ti-eye" id="pzPwdEyeIcon" aria-hidden="true"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <button class="em-submit" type="submit">
-                    Autentificare
-                    <i class="ti ti-arrow-right" aria-hidden="true"></i>
+            <div class="em-input em-input-pwd">
+                <i class="ti ti-lock em-input-icon" aria-hidden="true"></i>
+                <input
+                    id="password"
+                    type="password"
+                    name="password"
+                    placeholder="Parolă"
+                    autocomplete="current-password"
+                    aria-label="Parolă"
+                    required
+                >
+                <button type="button" class="em-eye" id="pzPwdToggle" aria-label="Arată/ascunde parola">
+                    <i class="ti ti-eye" id="pzPwdEyeIcon" aria-hidden="true"></i>
                 </button>
-            </form>
-        </div>
+            </div>
 
-    </div>
+            <div class="em-meta">
+                <label class="em-remember">
+                    <input type="checkbox" name="remember" value="1">
+                    <span>Ține-mă minte</span>
+                </label>
+                <a class="em-forgot" href="forgot_password.php">Am uitat parola</a>
+            </div>
+
+            <button class="em-submit" type="submit">
+                Autentificare
+                <i class="ti ti-arrow-right" aria-hidden="true"></i>
+            </button>
+        </form>
+
+    </main>
 
     <div class="em-foot">
         <span class="em-foot-sec">
