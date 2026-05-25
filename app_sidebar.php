@@ -505,10 +505,12 @@ if (!function_exists('render_sidebar')) {
     .sidebar-brand {
         background: var(--em-navy) !important;
         border-bottom: 1px solid var(--em-navy-soft) !important;
-        padding: 16px 16px !important;
+        padding: 22px 14px 20px !important;
     }
     /* Logo pe culorile lui naturale (fără filtre sau recolorare) */
     .brand-logo, .brand-logo-link { color: var(--pz-brand) !important; }
+    .sidebar .brand-logo-link { min-height: 120px !important; }
+    .sidebar .brand-logo { width: 190px !important; max-height: 110px !important; }
 
     .sidebar-nav {
         gap: 2px !important;

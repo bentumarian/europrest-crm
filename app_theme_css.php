@@ -159,8 +159,11 @@ if (!function_exists('app_theme_css')) {
             --type-muted: #6B7280;
 
             /* === Layout === */
-            --sidebar-width: 210px;
+            --sidebar-width: 220px;
             --topbar-height: 60px;
+            /* Floating card layout (gap în jurul sidebar + topbar) */
+            --shell-gap: 12px;
+            --shell-radius: 14px;
         }
 
         * {
@@ -250,7 +253,7 @@ if (!function_exists('app_theme_css')) {
             flex: 1 1 auto;
             min-width: 0;
             max-width: 100%;
-            margin-left: var(--sidebar-width);
+            margin-left: calc(var(--sidebar-width) + var(--shell-gap) * 2);
             min-height: 100vh;
         }
 
@@ -360,24 +363,26 @@ if (!function_exists('app_theme_css')) {
 
         .sidebar {
             width: var(--sidebar-width);
-            height: 100vh;
-            height: 100dvh;
-            max-height: 100dvh;
+            height: calc(100vh - var(--shell-gap) * 2);
+            height: calc(100dvh - var(--shell-gap) * 2);
+            max-height: calc(100dvh - var(--shell-gap) * 2);
             overflow: hidden;
             position: fixed;
-            left: 0;
-            top: 0;
+            left: var(--shell-gap);
+            top: var(--shell-gap);
+            bottom: var(--shell-gap);
             z-index: 100;
             background: var(--accent-deep);
             color: #fff;
             display: flex;
             flex-direction: column;
-            border-right: 1px solid rgba(255, 255, 255, .06);
-            box-shadow: 4px 0 12px rgba(15, 23, 42, .06);
+            border-right: none;
+            border-radius: var(--shell-radius);
+            box-shadow: 0 8px 24px -16px rgba(6, 17, 66, .35);
         }
 
         .sidebar-brand {
-            padding: 18px 8px 16px;
+            padding: 22px 14px 20px;
             border-bottom: 1px solid rgba(255, 255, 255, .10);
             flex: 0 0 auto;
         }
@@ -386,24 +391,23 @@ if (!function_exists('app_theme_css')) {
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 94px;
+            min-height: 120px;
             text-decoration: none;
         }
 
         .brand-logo {
-            width: 144px;
-            height: 84px;
-            max-width: 144px;
-            max-height: 84px;
+            width: 190px;
+            height: 110px;
+            max-width: 100%;
+            max-height: 110px;
             display: block;
             object-fit: contain;
         }
         /* Variant masked — folosit când logo-ul e randerat ca <span> cu CSS mask
-           (recolorare 100% precisă prin background-color). Folosit în sidebar pentru
-           a afișa logo-ul în verdele PestZone (--pz-gr) indiferent de culoarea PNG-ului. */
+           (recolorare 100% precisă prin background-color). */
         .brand-logo.brand-logo-masked {
-            width: 160px;
-            height: 160px;
+            width: 180px;
+            height: 180px;
         }
 
         .brand-fallback {
