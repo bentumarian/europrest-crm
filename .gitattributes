@@ -1,2 +1,20 @@
 # Auto-detect text files; convertește toate fișierele text la CRLF la checkout.
-# Proi
+# Proiectul este dezvoltat pe Windows; cPanel/Linux rulează PHP indiferent de line-ending.
+# Acest rule oprește warning-urile Git de tip „LF will be replaced by CRLF".
+* text=auto eol=crlf
+
+# Excepție: calendar.php nu se normalizează (fișier mare/special, păstrat ca binar).
+calendar.php -text
+
+# Fișiere binare comune (no normalization)
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.woff  binary
+*.woff2 binary
+*.ttf  binary
+*.otf  binary

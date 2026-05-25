@@ -585,4 +585,51 @@ $modeUrl = function(string $m) {
                                     $hasFieldConflict = count($vals) > 1;
                                     ?>
                                     <?php foreach ($miss as $id): ?>
-                                        <input type="hidden" name="targets_<?= cd_h($f) ?
+                                        <input type="hidden" name="targets_<?= cd_h($f) ?>[]" value="<?= (int)$id ?>">
+                                    <?php endforeach; ?>
+                                    <?php if ($hasFieldConflict && !empty($miss)): ?>
+                                        <div class="cd-conflict-choice">
+                                            <strong><?= cd_h(ucfirst(cd_field_label($f))) ?> - alege valoarea de copiat:</strong>
+                                            <label><input type="radio" name="group_<?= cd_h($f) ?>" value=""> Skip (nu copia <?= cd_h(cd_field_label($f)) ?>)</label>
+                                            <?php foreach ($vals as $val): ?>
+                                                <label><input type="radio" name="group_<?= cd_h($f) ?>" value="<?= cd_h($val) ?>"> <?= cd_h($val) ?></label>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <input type="hidden" name="group_<?= cd_h($f) ?>" value="<?= cd_h(count($vals) === 1 ? $vals[0] : '') ?>">
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                                <div class="cd-group-actions">
+                                    <button class="btn accent" type="submit">✓ Aplică pentru acest grup</button>
+                                </div>
+                            </form>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+
+            <?php else: /* complete */ ?>
+                <?php if (empty($proposalsComplete)): ?>
+                    <div class="cd-empty-state">Niciun grup complet încă.</div>
+                <?php else: ?>
+                    <?php foreach ($proposalsComplete as $key => $clients):
+                        $titleVal = (string)($clients[0][$modeCfg['key_field']] ?? '');
+                    ?>
+                        <div class="cd-group" style="opacity:.85">
+                            <h3>✓ <?= cd_h($titleVal) ?></h3>
+                            <div class="meta"><?= count($clients) ?> firme · toate au datele necesare</div>
+                            <table class="cd-group-tbl">
+                                <?php $renderTblHead(); ?>
+                                <tbody>
+                                <?php foreach ($clients as $c) { $renderTblRow($c); } ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            <?php endif; ?>
+
+        </div>
+    </main>
+</div>
+</body>
+</html>
