@@ -666,7 +666,7 @@ if (!function_exists('render_sidebar')) {
     <aside class="sidebar" id="appSidebar" aria-label="Meniu principal">
         <div class="sidebar-brand">
             <a class="brand-logo-link" href="dashboard.php" aria-label="Dashboard">
-                <?= app_brand_logo('brand-logo') ?>
+                <?= app_brand_logo('brand-logo', 'white') ?>
             </a>
         </div>
 

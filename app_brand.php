@@ -27,6 +27,8 @@ if (!function_exists('app_brand_logo')) {
         // Emma SaaS: prioritate explicită pe brand-emma-*; păstrăm și fallback-urile
         // istorice (brand-icon, brand-monogram, logo) pentru retrocompatibilitate.
         $logoCandidates = $isWhite ? [
+            'assets/brand-emma-white-orange.svg',
+            'assets/brand-emma-white-orange.png',
             'assets/brand-emma-white.svg',
             'assets/brand-emma-white.png',
             'assets/brand-icon-white.png',
