@@ -32,6 +32,7 @@ if (!function_exists('app_theme_css')) {
             --em-coral-end:      #FF9A3D;
             --em-coral-bg:       #FFF1EC;
             --em-coral-border:   #FFD1C2;
+            --em-peach:          #FFF7F2;
             --em-coral-gradient: linear-gradient(135deg, #FF5A5F, #FF7A3D);
             --em-coral-gradient-h: linear-gradient(90deg, #FF5A5F, #FF7A3D);
             --em-muted:          #3E4C8F;
