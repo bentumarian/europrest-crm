@@ -263,6 +263,13 @@ if (!function_exists('pz_page_header_css')) {
             border-top: 1px solid var(--pz-lines);
             min-height: 32px;
         }
+        /* Variant inline — toolbar pe același rând cu actions (eliminat separator) */
+        .pz-ph-toolbar-inline {
+            padding-top: 0;
+            margin-top: 0;
+            border-top: 0;
+            min-height: 0;
+        }
         .pz-ph-toolbar input[type="date"],
         .pz-ph-toolbar input[type="text"],
         .pz-ph-toolbar input[type="search"],
@@ -1385,6 +1392,12 @@ if (!function_exists('pz_page_header')) {
                         </div>
                     <?php endif; ?>
 
+                    <?php if ($toolbar !== ''): ?>
+                        <div class="pz-ph-toolbar pz-ph-toolbar-inline">
+                            <?= $toolbar ?>
+                        </div>
+                    <?php endif; ?>
+
                     <?php foreach ($actions as $action):
                         $label   = (string)($action['label'] ?? '');
                         if ($label === '') continue;
@@ -1430,11 +1443,7 @@ if (!function_exists('pz_page_header')) {
                 </div>
             </div>
 
-            <?php if ($toolbar !== ''): ?>
-                <div class="pz-ph-toolbar">
-                    <?= $toolbar ?>
-                </div>
-            <?php endif; ?>
+            <?php /* Toolbar e acum randat inline cu actions (vezi .pz-ph-toolbar-inline) */ ?>
 
             <?php if (!empty($kpis)): ?>
                 <div class="pz-ph-kpis">
