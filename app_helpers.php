@@ -104,3 +104,107 @@ if (!function_exists('pz_time')) {
         return date('H:i', $t);
     }
 }
+
+/*
+|--------------------------------------------------------------------------
+| Identitate aplicație — nume, domeniu, email suport
+|--------------------------------------------------------------------------
+| Helper-ele de mai jos centralizează numele aplicației și domeniul.
+| Pe SaaS Emma vor citi din `platform_settings` (tabela introdusă în
+| saas_emma_01_platform_tables.sql). Până la migrare, returnează default-uri
+| sigure ('Emma', 'emma.ro', 'office@emma.ro'), cu posibilitate de override
+| din `config.local.php` (cheile `app_name`, `app_domain`, `app_support_email`).
+|
+| Folosire în paginile noi (signup, onboarding, admin platformă):
+|   echo h(pz_app_name());           // "Emma"
+|   echo h(pz_app_domain());         // "emma.ro"
+|   echo h(pz_app_support_email());  // "office@emma.ro"
+|
+| Paginile vechi continuă să folosească string-urile lor existente.
+| Migrarea string-urilor vizibile se face progresiv, pagină cu pagină,
+| conform PLAN_SAAS_EMMA.md §4.
+|--------------------------------------------------------------------------
+*/
+
+if (!function_exists('pz_platform_setting_local')) {
+    /**
+     * Helper intern: încearcă citirea unei setări platformă din DB,
+     * apoi din $dbConfig (config.local.php), apoi default.
+     * Cache static pentru request.
+     */
+    function pz_platform_setting_local(string $key, string $localKey, ?string $default = null): ?string
+    {
+        static $cache = [];
+        if (array_key_exists($key, $cache)) {
+            return $cache[$key];
+        }
+
+        // 1) DB platform_settings (dacă tabela există și PDO disponibil)
+        global $pdo, $dbConfig;
+        if (isset($pdo) && $pdo instanceof PDO) {
+            try {
+                $stmt = $pdo->prepare("SELECT setting_value FROM platform_settings WHERE setting_key = ? LIMIT 1");
+                $stmt->execute([$key]);
+                $val = $stmt->fetchColumn();
+                if ($val !== false && $val !== null && $val !== '') {
+                    $cache[$key] = (string)$val;
+                    return $cache[$key];
+                }
+            } catch (Throwable $e) {
+                // tabela încă nu există — continuă spre fallback
+            }
+        }
+
+        // 2) config.local.php
+        if (isset($dbConfig) && is_array($dbConfig) && !empty($dbConfig[$localKey])) {
+            $cache[$key] = (string)$dbConfig[$localKey];
+            return $cache[$key];
+        }
+
+        // 3) Default
+        $cache[$key] = $default;
+        return $default;
+    }
+}
+
+if (!function_exists('pz_app_name')) {
+    /**
+     * Numele aplicației afișat în UI (title, header, footer, email-uri).
+     * Default: 'Emma'.
+     */
+    function pz_app_name(): string
+    {
+        return (string)(pz_platform_setting_local('app.name', 'app_name', 'Emma'));
+    }
+}
+
+if (!function_exists('pz_app_domain')) {
+    /**
+     * Domeniul principal al aplicației. Default: 'emma.ro'.
+     */
+    function pz_app_domain(): string
+    {
+        return (string)(pz_platform_setting_local('app.domain', 'app_domain', 'emma.ro'));
+    }
+}
+
+if (!function_exists('pz_app_origin')) {
+    /**
+     * Origin-ul aplicației (folosit pentru CORS, OAuth callbacks).
+     * Default: 'https://app.emma.ro'.
+     */
+    function pz_app_origin(): string
+    {
+        return (string)(pz_platform_setting_local('app.app_origin', 'app_origin', 'https://app.emma.ro'));
+    }
+}
+
+if (!function_exists('pz_app_support_email')) {
+    /**
+     * Email de contact afișat în UI. Default: 'office@emma.ro'.
+     */
+    function pz_app_support_email(): string
+    {
+        return (string)(pz_platform_setting_local('app.support_email', 'app_support_email', 'office@emma.ro'));
+    }
+}
