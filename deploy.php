@@ -129,6 +129,12 @@ $cmds = [
     // /lib/ contine helperele require-uite din root (notification_lib, smartbill_lib, etc).
     // Trebuie copiat recursiv ca sa fie disponibil dupa deploy.
     "cd $repoQ && [ -d lib ] && cp -fR ./lib $deployQ/ 2>&1 || true",
+    // /assets/ contine logo-urile (brand-emma-*) si iconurile statice.
+    // Versionate in git incepand cu rebrandingul Emma — vezi PLAN_SAAS_EMMA.md §4.3.
+    "cd $repoQ && [ -d assets ] && cp -fR ./assets $deployQ/ 2>&1 || true",
+    // /migrations/ contine scripturile SQL versionate. Util ca admin sa le poata
+    // rula direct de pe server, fara sa descarce manual din GitHub.
+    "cd $repoQ && [ -d migrations ] && cp -fR ./migrations $deployQ/ 2>&1 || true",
     // .htaccess este versionat in repo; il copiem doar daca exista
     "cd $repoQ && [ -f .htaccess ] && cp -f .htaccess $deployQ/ 2>&1 || true",
 ];

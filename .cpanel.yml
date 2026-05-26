@@ -9,6 +9,16 @@ deployment:
     # Copiem toate fisierele PHP din repo in doc root (overwrite).
     - /bin/cp -fR *.php $DEPLOYPATH
 
+    # /lib/ — biblioteci require-uite din root.
+    - /bin/cp -fR lib $DEPLOYPATH 2>/dev/null || true
+
+    # /assets/ — logo-uri si iconuri statice (brand-emma-*, etc.).
+    # Versionate in git incepand cu rebrandingul Emma (mai 2026).
+    - /bin/cp -fR assets $DEPLOYPATH 2>/dev/null || true
+
+    # /migrations/ — scripturi SQL versionate, pentru rulare manuala din SSH/phpMyAdmin.
+    - /bin/cp -fR migrations $DEPLOYPATH 2>/dev/null || true
+
     # .htaccess este versionat in repo - deploy si el (silentios daca lipseste).
     - /bin/cp -f .htaccess $DEPLOYPATH 2>/dev/null || true
 

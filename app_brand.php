@@ -24,12 +24,18 @@ if (!function_exists('app_brand_logo')) {
         $isWhite = ($variant === 'white' || $variant === 'light');
 
         // 1) Mai întâi cautăm numele canonice — comod pentru control explicit
+        // Emma SaaS: prioritate explicită pe brand-emma-*; păstrăm și fallback-urile
+        // istorice (brand-icon, brand-monogram, logo) pentru retrocompatibilitate.
         $logoCandidates = $isWhite ? [
+            'assets/brand-emma-white.svg',
+            'assets/brand-emma-white.png',
             'assets/brand-icon-white.png',
             'assets/brand-icon-white.svg',
             'assets/brand-monogram-white.png',
             'assets/logo-white.png',
         ] : [
+            'assets/brand-emma.svg',
+            'assets/brand-emma.png',
             'assets/brand-icon.png',
             'assets/brand-icon.svg',
             'assets/brand-monogram.png',
