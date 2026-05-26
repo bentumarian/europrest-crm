@@ -308,15 +308,42 @@ if (!function_exists('app_topbar')) {
         /* ============================================================
            emma.ro Topbar — floating card
            Override final cu tokens --pz-* / --em-*
-           TEST: background coral start
            ============================================================ */
         .app-topbar {
-            background: var(--em-coral-start) !important;
-            border: 1px solid var(--em-coral-start) !important;
+            background: var(--pz-surf) !important;
+            border: 1px solid var(--pz-line) !important;
             border-radius: var(--shell-radius) !important;
-            box-shadow: 0 8px 24px -14px rgba(255, 90, 95, .45) !important;
+            box-shadow: 0 8px 24px -18px rgba(6, 17, 66, .18) !important;
             backdrop-filter: none !important;
             -webkit-backdrop-filter: none !important;
+        }
+
+        /* Buton "+" Adaugă — accent coral pe topbar alb */
+        .app-topbar .tb-menu[data-tb-menu="add"] .tb-iconbtn {
+            background: linear-gradient(135deg, var(--em-coral-start), var(--em-coral-mid)) !important;
+            border: 1px solid transparent !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 6px 14px -6px rgba(255, 90, 95, .55) !important;
+            transition: filter .15s ease, box-shadow .15s ease, transform .1s ease !important;
+        }
+        .app-topbar .tb-menu[data-tb-menu="add"] .tb-iconbtn:hover {
+            filter: brightness(1.07);
+            box-shadow: 0 8px 18px -6px rgba(255, 90, 95, .65) !important;
+            border-color: transparent !important;
+            color: #FFFFFF !important;
+        }
+        .app-topbar .tb-menu[data-tb-menu="add"] .tb-iconbtn:active {
+            transform: translateY(1px);
+        }
+        .app-topbar .tb-menu[data-tb-menu="add"] .tb-iconbtn .nav-icon,
+        .app-topbar .tb-menu[data-tb-menu="add"] .tb-iconbtn svg {
+            color: #FFFFFF !important;
+            stroke: #FFFFFF !important;
+        }
+        .app-topbar .tb-menu[data-tb-menu="add"].is-open .tb-iconbtn {
+            background: linear-gradient(135deg, var(--em-coral-mid), var(--em-coral-end)) !important;
+            border-color: transparent !important;
+            color: #FFFFFF !important;
         }
 
         .app-topbar .tb-breadcrumb {
