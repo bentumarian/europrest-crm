@@ -308,12 +308,13 @@ if (!function_exists('app_topbar')) {
         /* ============================================================
            emma.ro Topbar — floating card
            Override final cu tokens --pz-* / --em-*
+           TEST: background coral start
            ============================================================ */
         .app-topbar {
-            background: var(--pz-surf) !important;
-            border: 1px solid var(--pz-line) !important;
+            background: var(--em-coral-start) !important;
+            border: 1px solid var(--em-coral-start) !important;
             border-radius: var(--shell-radius) !important;
-            box-shadow: 0 8px 24px -18px rgba(6, 17, 66, .18) !important;
+            box-shadow: 0 8px 24px -14px rgba(255, 90, 95, .45) !important;
             backdrop-filter: none !important;
             -webkit-backdrop-filter: none !important;
         }
