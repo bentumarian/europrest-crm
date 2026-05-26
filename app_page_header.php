@@ -68,10 +68,9 @@ if (!function_exists('pz_page_header_css')) {
         $rendered = true;
         ?>
         <style>
-        /* PZ Page Header — design unificat conform style guide
-           Background: peach Whisper (5% tint coral) pentru identitate caldă */
+        /* PZ Page Header — design unificat conform style guide */
         .pz-ph {
-            background: var(--em-peach, #FFF7F2);
+            background: var(--pz-surf);
             border: 1px solid var(--pz-line);
             border-radius: var(--pz-r);
             padding: 16px 20px;

@@ -18,6 +18,7 @@ if (!function_exists('app_theme_css')) {
         ?>
         <style>
         @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap&subset=latin-ext");
+        @import url("https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap");
 
         :root {
             /* ============================================================
@@ -140,8 +141,9 @@ if (!function_exists('app_theme_css')) {
             /* === Focus ring (matched la coral accent emma.ro) === */
             --focus-ring: 0 0 0 4px rgba(255, 122, 61, .22);
 
-            /* === Tipografie === */
-            --font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            /* === Tipografie ===
+               Satoshi e fontul principal (Fontshare), Inter fallback dacă CDN-ul nu răspunde. */
+            --font: "Satoshi", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             --mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
             /* === Sistem tipografic CRM === */
