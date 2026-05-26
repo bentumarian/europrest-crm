@@ -148,7 +148,7 @@ if (!function_exists('pz_settings_gate')) {
 <?php if (function_exists('app_theme_css')) app_theme_css(); ?>
 <style>
 .gate-bg {
-    font-family: 'Satoshi', 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: var(--pz-bg);
     min-height: 100vh;
     display: flex; align-items: center; justify-content: center;

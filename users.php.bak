@@ -8,7 +8,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){ csrf_require(); $action=$_POST['action'
 $users=$pdo->query("SELECT id,name,email,role,active,created_at FROM users ORDER BY active DESC,name ASC,email ASC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><title>Utilizatori - PestZone</title><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"><link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap" rel="stylesheet"><?php app_theme_css(); ?><style>* { font-family:'Satoshi', 'Inter',system-ui,sans-serif !important; }
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap" rel="stylesheet"><?php app_theme_css(); ?><style>* { font-family:'Inter',system-ui,sans-serif !important; }
 .top{padding:12px 20px}.wrap{max-width:1160px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
 .grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px}
 .card{background:var(--pz-surf);border:1px solid var(--pz-line);border-radius:var(--pz-r);box-shadow:none;padding:16px}

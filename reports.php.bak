@@ -543,7 +543,7 @@ function reports_short_service_label(string $name): string {
 .report-table th { font-weight: 700 !important; font-size: 11px !important; }
 .reports-choice-toggle { font-weight: 600 !important; border-radius: var(--pz-rs) !important; }
 .reports-choice-option { font-weight: 600 !important; border-radius: var(--pz-rs) !important; }
-* { font-family: 'Satoshi', 'Inter', system-ui, -apple-system, sans-serif !important; }
+* { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
 .reports-toolbar { width: 100%; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; position: relative; z-index: 81; overflow: visible; }
 .reports-filters { width: 100%; min-width: 0; display: grid; grid-template-columns: 140px 140px minmax(130px, 1fr) minmax(150px, 1fr) minmax(130px, 1fr) auto; gap: 8px; align-items: center; position: relative; z-index: 82; overflow: visible; }
 .reports-filters input, .reports-filters select { height: 42px; min-width: 0; font-weight: 800; }

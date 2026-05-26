@@ -32,7 +32,7 @@ $pz_topbar_opts      = ['placeholder' => 'Caută în ghid...'];
     padding: 16px;
     display: grid;
     gap: 16px;
-    font-family: var(--font, 'Satoshi', 'Inter', system-ui, sans-serif);
+    font-family: var(--font, 'Inter', system-ui, sans-serif);
     font-size: 13px;
     color: var(--pz-text);
     line-height: 1.5;

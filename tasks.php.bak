@@ -1649,7 +1649,7 @@ foreach ($tasks as $task) {
     }
 }
 /* ══ Design System v2.4 fixes ══ */
-* { font-family: 'Satoshi', 'Inter', system-ui, -apple-system, sans-serif !important; }
+* { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
 
 /* Hero: fără gradient, fără shadow, simplu și clar */
 .tasks-hero {

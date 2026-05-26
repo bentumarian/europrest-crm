@@ -1418,7 +1418,7 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
 }
 
 /* ══ Design System v2.4 fixes ══ */
-* { font-family: 'Satoshi', 'Inter', system-ui, -apple-system, sans-serif !important; }
+* { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
 
 /* Radius — max 8px conform DS */
 .info-box, .location-item, .history-item,

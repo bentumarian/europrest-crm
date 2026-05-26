@@ -872,7 +872,7 @@ if (!function_exists('pz_date_picker_assets')) {
         <style>
         /* PZ Date Picker — vanillajs-datepicker tematizat cu tokens PestZone */
         .datepicker {
-            font-family: 'Satoshi', 'Inter', system-ui, -apple-system, sans-serif !important;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
             font-size: 13px;
             z-index: 250;
         }

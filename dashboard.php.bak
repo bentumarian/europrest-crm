@@ -874,7 +874,7 @@ if ($dashUserId > 0) {
    ============================================================ */
 
 .pz-dash {
-    font-family: 'Satoshi', 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     color: var(--pz-text);
     background: var(--pz-bg);
     padding: 18px 20px;

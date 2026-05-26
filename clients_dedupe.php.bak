@@ -356,7 +356,7 @@ $modeUrl = function(string $m) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <?php app_theme_css(); ?>
 <style>
-* { font-family: 'Satoshi', 'Inter', system-ui, -apple-system, sans-serif !important; }
+* { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
 
 .cd-page { max-width: 1200px; margin: 0 auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
 .cd-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }

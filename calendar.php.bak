@@ -1534,7 +1534,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 @media(max-width:860px){.week-schedule-grid{width:max(100%,calc(38px + (var(--week-columns) * 26px)));min-width:max(100%,calc(38px + (var(--week-columns) * 26px)));grid-template-columns:38px repeat(var(--week-columns),minmax(26px,1fr));grid-template-rows:30px 34px repeat(36,24px)}.week-team-head{top:30px}.week-time-cell{padding:0 2px;font-size:7px;justify-content:center}.week-day-head{font-size:8px}.week-team-dot{width:16px;height:16px;font-size:7px}.week-event{margin:2px 1px;border-radius:6px}}
 
 /* DS v2.4 fixes */
-* { font-family:'Satoshi', 'Inter',system-ui,-apple-system,sans-serif !important; }
+* { font-family:'Inter',system-ui,-apple-system,sans-serif !important; }
 .calendar-date-line .nav-today-btn {
     background: var(--pz-re-acc) !important;
     box-shadow: none !important;

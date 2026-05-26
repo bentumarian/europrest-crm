@@ -1168,8 +1168,8 @@ body, .layout, .main, .content { background: var(--pz-bg); }
             </div>
             <div class="ds-card-body">
                 <div class="ds-demo" style="margin-bottom:14px">
-                    <div style="font-family:'Satoshi',Inter,system-ui,sans-serif;font-size:24px;font-weight:700;color:#0F172A;line-height:1.2">PestZone CRM — Interfață operațională</div>
-                    <div style="font-family:'Satoshi',Inter,system-ui,sans-serif;font-size:13px;font-weight:500;color:#64748B;margin-top:6px">Clienți · Lucrări · Facturare · Stocuri · Rapoarte</div>
+                    <div style="font-family:Inter,system-ui,sans-serif;font-size:24px;font-weight:700;color:#0F172A;line-height:1.2">PestZone CRM — Interfață operațională</div>
+                    <div style="font-family:Inter,system-ui,sans-serif;font-size:13px;font-weight:500;color:#64748B;margin-top:6px">Clienți · Lucrări · Facturare · Stocuri · Rapoarte</div>
                 </div>
                 <div class="ds-demo-label">Scara tipografică</div>
                 <div class="ds-type-row">

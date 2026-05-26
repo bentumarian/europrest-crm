@@ -220,7 +220,7 @@ function cs_textarea($name, $label, $settings) {
         .notice { border-radius: var(--pz-rs) !important; font-weight: 600 !important; }
         .notice.ok  { background: var(--pz-grs) !important; color: var(--pz-gr) !important; }
         .notice.err { background: var(--pz-res) !important; color: var(--pz-re) !important; }
-        * { font-family: 'Satoshi', 'Inter', system-ui, sans-serif !important; }
+        * { font-family: 'Inter', system-ui, sans-serif !important; }
         .notice.ok{
             background:var(--success-soft);
             color:var(--success);

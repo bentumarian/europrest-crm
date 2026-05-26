@@ -369,7 +369,7 @@ if ($editId > 0) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <?php app_theme_css(); ?>
 <style>
-* { font-family: 'Satoshi', 'Inter', system-ui, -apple-system, sans-serif !important; }
+* { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
 
 .rem-page { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; padding: 16px 20px; }
 
@@ -395,7 +395,7 @@ if ($editId > 0) {
 .rem-row.is-notice:hover { background: #FEF3C7; }
 
 .rem-date { font-family: var(--mono, ui-monospace, monospace); font-size: 12.5px; color: var(--pz-text); font-weight: 700; }
-.rem-date .pill { display: inline-block; margin-top: 4px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px; font-family: 'Satoshi', 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .03em; }
+.rem-date .pill { display: inline-block; margin-top: 4px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px; font-family: 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .03em; }
 .rem-date .pill.due-soon { background: #FFEDD5; color: #9A3412; }
 .rem-date .pill.due-today { background: var(--pz-bls); color: var(--pz-bld); }
 .rem-date .pill.due-overdue { background: var(--pz-res); color: var(--pz-re); }
