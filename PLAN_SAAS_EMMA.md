@@ -630,13 +630,26 @@ MAILTO=bentumarian@gmail.com
 
 Let's Encrypt cere DNS-01 challenge pentru wildcard. Asta înseamnă că Certbot trebuie să poată crea TXT record-uri pe DNS-ul `emma.ro`.
 
-**Provider DNS recomandat:** Cloudflare (gratuit, are API stabil).
-1. Transferi DNS-ul `emma.ro` la Cloudflare (sau folosești Cloudflare doar pentru DNS, nu proxy).
-2. Configurezi wildcard A record: `* → IP_VPS`.
-3. Generezi API token Cloudflare cu permisiune DNS edit pe zona emma.ro.
-4. Pe VPS: `certbot certonly --dns-cloudflare -d emma.ro -d '*.emma.ro'`.
-5. Certbot creează automat TXT record, validează, primește certificat.
-6. Renew automat via systemd timer.
+**Provider DNS decis:** Cloudflare (gratuit, API stabil). Domeniul rămâne înregistrat la **RoTLD** (registrar), doar nameserver-ele se schimbă.
+
+**Pașii concreți (de făcut înainte de deploy):**
+1. Creezi cont gratuit pe `cloudflare.com`.
+2. "Add a Site" → introduci `emma.ro` → planul Free.
+3. Cloudflare scanează DNS-ul curent (poate fi gol dacă domeniul e nou). Confirmă.
+4. Cloudflare îți afișează 2 nameservere personale (ex: `xena.ns.cloudflare.com`, `alex.ns.cloudflare.com`). Notează-le.
+5. Te loghezi în panoul **RoTLD** (rotld.ro) → secțiunea ta de domenii → `emma.ro` → "Modifică DNS" sau "Servere de nume".
+6. Înlocuiești nameserverele curente cu cele de la Cloudflare. Salvezi.
+7. Aștepți propagarea (4-24 ore — RoTLD propagă mai lent decât registrar-ii internaționali).
+8. Verifică propagare: `dig NS emma.ro +short` trebuie să returneze cele 2 nameservere Cloudflare.
+9. Înapoi în Cloudflare → adaugi A records:
+   - `@` (sau `emma.ro`) → IP_VPS
+   - `*` (wildcard) → IP_VPS
+   - `www` → IP_VPS (CNAME spre @ sau A separat)
+10. Generezi API token Cloudflare cu permisiune **DNS Edit** pe zona `emma.ro` (Account → API Tokens → Create Token → template "Edit zone DNS"). Salvezi token-ul pe VPS în `/etc/letsencrypt/cloudflare.ini` cu chmod 600.
+11. Pe VPS: instalezi `python3-certbot-dns-cloudflare`, apoi:
+    `certbot certonly --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini -d emma.ro -d '*.emma.ro'`
+12. Certbot creează automat TXT record `_acme-challenge.emma.ro`, validează, primește certificat wildcard.
+13. Renew automat via systemd timer `certbot.timer` (deja activat la install). Zero intervenție manuală.
 
 ### 7.8 Variabile de configurat la deploy
 
@@ -734,7 +747,7 @@ return [
 1. **Logo Emma** — ai design? Sau îl proiectăm împreună (wordmark vs. monogramă)?
 2. **Slogan landing emma.ro** — ai unul? Sugestie: "CRM-ul echipei tale de teren. Programări, intervenții, facturare — într-un singur loc."
 3. **Email tranzactional Emma** — păstrăm SendGrid (deja integrat)? Alt provider?
-4. **DNS provider pentru emma.ro** — unde l-ai înregistrat? Mutăm la Cloudflare pentru wildcard SSL?
+4. ~~**DNS provider pentru emma.ro**~~ — **DECIS 26 mai 2026:** domeniul rămâne înregistrat la RoTLD (registrar), dar nameserver-ele se mută la Cloudflare pentru gestionarea DNS (API stabil, SSL wildcard automat via DNS-01 challenge). Pașii în §7.7.
 5. **Stripe vs. plăți alternative** — Stripe pentru abonamente RON funcționează ok din RO; alternative: Mobilpay/Netopia. Decidem când ajungem la Faza 5.
 6. **Roluri suplimentare per tenant** — în plus față de `admin` și `team`, vrei și `viewer` (read-only, ex. contabilul firmei)?
 7. **White-label v2** — vrei ca tenants să-și pună propriul logo + culoare pe app-ul lor (gen `firma1.emma.ro` să arate ca brandul firma1)? Coloanele `tenants.logo_path` și `tenants.primary_color` sunt deja pregătite în schemă, dar nu folosite în v1.
