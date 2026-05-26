@@ -1850,9 +1850,9 @@ foreach ($tasks as $task) {
                     ]],
                     'tabs'     => $tasksTabs,
                     'kpis'     => [
-                        ['label' => 'Active',     'value' => (int)$activeTasks,  'tone' => 'info'],
-                        ['label' => 'Întârziate', 'value' => (int)$overdueTasks, 'tone' => 'danger'],
-                        ['label' => 'Azi',        'value' => (int)$todayTasks,   'tone' => 'success'],
+                        ['label' => 'Active',     'value' => (int)$activeTasks,  'tone' => 'info',    'icon' => 'ti-list-check',     'sublabel' => 'sarcini deschise'],
+                        ['label' => 'Întârziate', 'value' => (int)$overdueTasks, 'tone' => 'danger',  'icon' => 'ti-alert-triangle', 'sublabel' => 'de rezolvat acum'],
+                        ['label' => 'Azi',        'value' => (int)$todayTasks,   'tone' => 'warning', 'icon' => 'ti-calendar-event', 'sublabel' => 'programate azi'],
                     ],
                     'toolbar'  => $tasksToolbarHtml,
                 ]);

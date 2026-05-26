@@ -73,7 +73,7 @@ if (!function_exists('pz_page_header_css')) {
             background: var(--pz-surf);
             border: 1px solid var(--pz-line);
             border-radius: var(--pz-r);
-            padding: 16px 20px;
+            padding: 12px 18px;
             margin-bottom: 14px;
         }
         .pz-ph-top {
@@ -641,44 +641,95 @@ if (!function_exists('pz_page_header_css')) {
         .pz-ph-meta .meta-item i { font-size: 13px; color: var(--pz-mu); }
         .pz-ph-meta .meta-item strong { font-weight: 500; color: var(--pz-text); }
 
-        /* KPI inline */
+        /* KPI inline — emma.ro upgrade: accent-bar 3px + icon-tile + sublabel */
         .pz-ph-kpis {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 8px;
-            margin-top: 14px;
-            padding-top: 14px;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+            padding-top: 12px;
             border-top: 1px solid var(--pz-lines);
         }
         .pz-ph-kpi {
-            background: var(--pz-soft);
-            border-radius: 6px;
-            padding: 9px 12px;
+            position: relative;
+            overflow: hidden;
+            background: var(--pz-surf);
+            border: 1px solid var(--pz-line);
+            border-radius: 8px;
+            padding: 12px 14px;
         }
+        /* Accent-bar 3px stânga, colorat după tone */
+        .pz-ph-kpi::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; bottom: 0;
+            width: 3px;
+            background: var(--em-muted, #3E4C8F);
+        }
+        .pz-ph-kpi.info::before    { background: var(--em-navy, #061142); }
+        .pz-ph-kpi.danger::before  { background: var(--pz-re, #DC2626); }
+        .pz-ph-kpi.success::before { background: var(--pz-gr-acc, #22C55E); }
+        .pz-ph-kpi.warning::before { background: var(--em-coral-mid, #FF7A3D); }
+
+        /* Head row: icon-tile + label uppercase */
+        .pz-ph-kpi .kpi-head {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin-bottom: 8px;
+        }
+        .pz-ph-kpi .kpi-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 7px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--pz-soft);
+            color: var(--pz-mu);
+            flex-shrink: 0;
+        }
+        .pz-ph-kpi .kpi-icon i { font-size: 15px; }
+        .pz-ph-kpi.info    .kpi-icon { background: #EEF0FB; color: var(--em-navy, #061142); }
+        .pz-ph-kpi.danger  .kpi-icon { background: var(--pz-res); color: var(--pz-re); }
+        .pz-ph-kpi.success .kpi-icon { background: var(--pz-grs); color: var(--pz-gr-acc); }
+        .pz-ph-kpi.warning .kpi-icon { background: var(--em-coral-bg, #FFF1EC); color: var(--em-coral-mid, #FF7A3D); }
+
         .pz-ph-kpi .label {
             font-size: 10.5px;
             color: var(--pz-mu);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            font-weight: 500;
             margin: 0;
-            font-weight: 400;
         }
         .pz-ph-kpi .value {
-            font-size: 18px;
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            flex-wrap: wrap;
+            font-size: 24px;
             font-weight: 500;
             color: var(--pz-title);
-            margin: 2px 0 0;
-            line-height: 1.2;
+            margin: 0;
+            line-height: 1;
             font-variant-numeric: tabular-nums;
+        }
+        .pz-ph-kpi .value .sublabel {
+            font-size: 11px;
+            color: var(--pz-mu);
+            font-weight: 400;
+            line-height: 1.2;
         }
         .pz-ph-kpi .value .meta {
             font-size: 11px;
             color: var(--pz-fa);
             font-weight: 400;
-            margin-left: 4px;
         }
-        .pz-ph-kpi.success .value { color: var(--pz-gr); }
-        .pz-ph-kpi.warning .value { color: var(--pz-or); }
+        .pz-ph-kpi.success .value { color: var(--pz-gr-acc); }
+        .pz-ph-kpi.warning .value { color: var(--em-coral-mid, #FF7A3D); }
         .pz-ph-kpi.danger  .value { color: var(--pz-re); }
-        .pz-ph-kpi.info    .value { color: var(--pz-bld); }
+        .pz-ph-kpi.info    .value { color: var(--em-navy, #061142); }
 
         /* Responsive */
         @media (max-width: 768px) {
@@ -1388,14 +1439,27 @@ if (!function_exists('pz_page_header')) {
             <?php if (!empty($kpis)): ?>
                 <div class="pz-ph-kpis">
                     <?php foreach ($kpis as $kpi):
-                        $kLabel = (string)($kpi['label'] ?? '');
-                        $kValue = (string)($kpi['value'] ?? '');
-                        $kMeta  = (string)($kpi['meta']  ?? '');
-                        $kTone  = (string)($kpi['tone']  ?? '');
+                        $kLabel    = (string)($kpi['label']    ?? '');
+                        $kValue    = (string)($kpi['value']    ?? '');
+                        $kMeta     = (string)($kpi['meta']     ?? '');
+                        $kTone     = (string)($kpi['tone']     ?? '');
+                        $kIcon     = (string)($kpi['icon']     ?? '');
+                        $kSublabel = (string)($kpi['sublabel'] ?? '');
                     ?>
                         <div class="pz-ph-kpi <?= pz_ph_h($kTone) ?>">
-                            <p class="label"><?= pz_ph_h($kLabel) ?></p>
-                            <p class="value"><?= pz_ph_h($kValue) ?><?php if ($kMeta !== ''): ?><span class="meta"><?= pz_ph_h($kMeta) ?></span><?php endif; ?></p>
+                            <?php if ($kIcon !== ''): ?>
+                                <div class="kpi-head">
+                                    <span class="kpi-icon"><i class="ti <?= pz_ph_h($kIcon) ?>" aria-hidden="true"></i></span>
+                                    <span class="label"><?= pz_ph_h($kLabel) ?></span>
+                                </div>
+                            <?php else: ?>
+                                <p class="label"><?= pz_ph_h($kLabel) ?></p>
+                            <?php endif; ?>
+                            <p class="value">
+                                <?= pz_ph_h($kValue) ?>
+                                <?php if ($kSublabel !== ''): ?><span class="sublabel"><?= pz_ph_h($kSublabel) ?></span><?php endif; ?>
+                                <?php if ($kMeta !== ''): ?><span class="meta"><?= pz_ph_h($kMeta) ?></span><?php endif; ?>
+                            </p>
                         </div>
                     <?php endforeach; ?>
                 </div>
