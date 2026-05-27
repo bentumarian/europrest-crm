@@ -943,6 +943,38 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
     .pv-aria-suprafata-grid { grid-template-columns: 1fr; }
 }
 
+/* === Auto-save banner: vizibil la încărcare dacă există date locale neterminate === */
+.pv-autosave-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    background: var(--pz-bls, #EFF6FF);
+    border: 1px solid var(--pz-blb, #BFDBFE);
+    border-left: 3px solid var(--pz-bld, #1E40AF);
+    border-radius: 12px;
+    color: var(--pz-bld, #1E40AF);
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+.pv-autosave-banner .pv-as-text { flex: 1; min-width: 200px; line-height: 1.4; }
+.pv-autosave-banner .pv-as-actions { display: inline-flex; gap: 6px; flex-shrink: 0; }
+.pv-autosave-banner button {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 0;
+    font-weight: 800;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background .14s ease, color .14s ease;
+}
+.pv-autosave-banner .pv-as-restore { background: var(--pz-bld, #1E40AF); color: #fff; }
+.pv-autosave-banner .pv-as-restore:hover { background: #1E3A8A; }
+.pv-autosave-banner .pv-as-dismiss { background: #fff; color: var(--pz-bld, #1E40AF); border: 1px solid var(--pz-blb, #BFDBFE); }
+.pv-autosave-banner .pv-as-dismiss:hover { background: #F8FAFC; }
+
 /* === Tip proces verbal compact: sumar inline pe un singur rând (cu step number) === */
 .pv-template-inline-summary {
     background: transparent !important;
@@ -1043,6 +1075,14 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                         <a class="pv-close-btn" href="<?= $isTeamUser ? 'calendar.php' : 'service-reports' ?>" title="Inchide formularul" aria-label="Inchide formularul">&times;</a>
                     </div>
                     <div class="panel-body">
+                        <!-- Auto-save: banner recuperare completare locală neterminată -->
+                        <div class="pv-autosave-banner" id="pvAutosaveBanner" style="display:none;" role="alert">
+                            <span class="pv-as-text" id="pvAutosaveText">Ai o completare salvată local. Vrei să o recuperezi?</span>
+                            <div class="pv-as-actions">
+                                <button type="button" class="pv-as-restore" id="pvAutosaveRestoreBtn">Recuperează</button>
+                                <button type="button" class="pv-as-dismiss" id="pvAutosaveDismissBtn">Renunță</button>
+                            </div>
+                        </div>
                         <form method="post" id="pvForm" novalidate>
                             <?= csrf_field() ?>
                             <input type="hidden" name="document_id" value="<?= (int)($formDocument['id'] ?? 0) ?>">
@@ -2227,13 +2267,20 @@ function pzFirstMissingTarget() {
 function pzValidateBeforeSubmit(event) {
     const submitter = event && event.submitter ? event.submitter : null;
     const action = submitter && submitter.name === 'action' ? submitter.value : '';
-    if (action && action !== 'issue') return true;
+    if (action && action !== 'issue') {
+        // „Salvează draft" — datele se persistă server-side, putem curăța auto-save-ul
+        if (typeof pvAutosaveClear === 'function') pvAutosaveClear();
+        return true;
+    }
 
     pzValidateForm();
     const target = pzFirstMissingTarget();
     if (!target) {
         const message = submitter ? submitter.getAttribute('data-confirm-issue') : '';
-        return message ? confirm(message) : true;
+        if (message && !confirm(message)) return false;
+        // Validare reușită + confirmare — curățăm auto-save-ul înainte de submit.
+        if (typeof pvAutosaveClear === 'function') pvAutosaveClear();
+        return true;
     }
     if (event) {
         event.preventDefault();
@@ -2884,6 +2931,266 @@ function selectPvServiceFromText(text) {
     }
 }
 
+/*
+|--------------------------------------------------------------------------
+| Auto-save formular PV în localStorage (Pas 4.F)
+|--------------------------------------------------------------------------
+| Salvăm starea curentă a formularului la fiecare modificare (debounced).
+| Cheia e unică per context (appointment / draft / new) ca să nu se amestece.
+| La încărcare, dacă există date salvate ≤7 zile, propunem recuperare.
+| La submit cu validare reușită, ștergem datele.
+|
+| Acoperim:
+|  - Toate câmpurile text/select din form (via FormData)
+|  - Tipul fiecărui rând de materiale (cu stoc / fără stoc)
+|  - Servicii pille (`pv_services[]`)
+|  - Metoda pille (din hidden input)
+|
+| Nu salvăm: csrf_token (regenerat la fiecare load), document_id (e fix pe context).
+*/
+function pvAutosaveKey() {
+    const appt = document.getElementById('appointmentSelect');
+    const apptId = appt ? Number(appt.value || 0) : 0;
+    const docInput = document.querySelector('input[name="document_id"]');
+    const docId = docInput ? Number(docInput.value || 0) : 0;
+    if (docId > 0) return 'pv_autosave_doc_' + docId;
+    if (apptId > 0) return 'pv_autosave_appt_' + apptId;
+    return 'pv_autosave_new';
+}
+
+function pvAutosaveSerialize() {
+    const form = document.getElementById('pvForm');
+    if (!form) return null;
+    const data = { fields: {}, materialTypes: [] };
+    // FormData captures all named inputs (visible + hidden), inclusiv multi-value (servicii pille)
+    const fd = new FormData(form);
+    for (const [k, v] of fd.entries()) {
+        if (k === 'csrf_token') continue; // CSRF nu se restaureaza
+        if (data.fields.hasOwnProperty(k)) {
+            if (!Array.isArray(data.fields[k])) data.fields[k] = [data.fields[k]];
+            data.fields[k].push(v);
+        } else {
+            data.fields[k] = v;
+        }
+    }
+    // Tipurile rândurilor de materiale (pentru rebuild corect la restore)
+    document.querySelectorAll('#materialsBody .material-row').forEach(row => {
+        data.materialTypes.push(row.classList.contains('pv-manual-material-row') ? 'manual' : 'regular');
+    });
+    return data;
+}
+
+function pvAutosaveSave() {
+    try {
+        const key = pvAutosaveKey();
+        const data = pvAutosaveSerialize();
+        if (!data) return;
+        const payload = { saved_at: Date.now(), data: data };
+        localStorage.setItem(key, JSON.stringify(payload));
+    } catch (e) {
+        console.warn('Autosave failed:', e);
+    }
+}
+
+function pvAutosaveLoad() {
+    try {
+        const key = pvAutosaveKey();
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const payload = JSON.parse(raw);
+        if (!payload || !payload.data) return null;
+        // Expirare automată după 7 zile
+        const age = Date.now() - (payload.saved_at || 0);
+        if (age > 7 * 24 * 60 * 60 * 1000) {
+            localStorage.removeItem(key);
+            return null;
+        }
+        return payload;
+    } catch (e) { return null; }
+}
+
+function pvAutosaveClear() {
+    try {
+        localStorage.removeItem(pvAutosaveKey());
+    } catch (e) {}
+}
+
+function pvAutosaveFormatTime(timestamp) {
+    const d = new Date(timestamp);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    const pad = n => String(n).padStart(2, '0');
+    if (sameDay) return 'azi ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function pvAutosaveRestore(payload) {
+    if (!payload || !payload.data) return;
+    const data = payload.data;
+    const types = Array.isArray(data.materialTypes) ? data.materialTypes : [];
+
+    // 1. Rebuild materialele (curățăm + adăugăm rânduri în ordinea salvată)
+    const body = document.getElementById('materialsBody');
+    if (body && types.length > 0) {
+        body.querySelectorAll('select').forEach(s => {
+            if (s.tomselect) { try { s.tomselect.destroy(); } catch(e) {} }
+        });
+        body.innerHTML = '';
+        types.forEach(t => {
+            if (t === 'manual') addManualMaterialRow();
+            else addMaterialRow();
+        });
+    }
+
+    // 2. Restaurăm toate valorile câmpurilor (text, hidden, select, etc.)
+    const fields = data.fields || {};
+    Object.keys(fields).forEach(name => {
+        if (name === 'csrf_token') return;
+        const value = fields[name];
+        // querySelectorAll cu name escaped — folosim getElementsByName pentru robustețe
+        const elements = document.getElementsByName(name);
+        if (!elements || !elements.length) return;
+        const valArr = Array.isArray(value) ? value : [value];
+        if (elements[0].type === 'checkbox' || elements[0].type === 'radio') {
+            // Multiple inputs cu același name (checkbox/radio) — selectăm pe cele care match
+            Array.from(elements).forEach(el => {
+                el.checked = valArr.includes(el.value);
+            });
+        } else {
+            // Pentru inputuri normale: un singur input → o singură valoare; mai multe → mapăm pe poziție
+            Array.from(elements).forEach((el, i) => {
+                if (i < valArr.length) el.value = valArr[i];
+            });
+        }
+    });
+
+    // 3. Sincronizăm client autocomplete (afișează chip-ul cu numele)
+    const clientId = fields.client_id || '';
+    if (clientId && typeof clientsData !== 'undefined') {
+        const c = clientsData.find(x => Number(x.id) === Number(clientId));
+        if (c && typeof pzClientSetSelected === 'function') {
+            pzClientSetSelected(c);
+        }
+    }
+
+    // 4. Locație + În baza
+    if (typeof populateLocationsSmart === 'function') populateLocationsSmart();
+    if (typeof populateBasisContracts === 'function') populateBasisContracts(false);
+
+    // 5. Servicii pille (sincronizam vizual din pv_services[])
+    const services = Array.isArray(fields['pv_services[]']) ? fields['pv_services[]'] : (fields['pv_services[]'] ? [fields['pv_services[]']] : []);
+    document.querySelectorAll('#servicesPills .pz-pill').forEach(pill => {
+        const isActive = services.indexOf(pill.dataset.key) >= 0;
+        pill.classList.toggle('is-active', isActive);
+        pill.setAttribute('aria-checked', isActive ? 'true' : 'false');
+    });
+    if (typeof pzSyncServicesHidden === 'function') pzSyncServicesHidden();
+
+    // 6. Tip PV summary update (dacă există)
+    if (typeof pvCollapseTemplate === 'function') {
+        const tId = fields.template_id || '';
+        if (tId) {
+            const radio = document.querySelector('.pv-template-picker input[value="' + String(tId).replace(/"/g, '\\"') + '"]');
+            if (radio) {
+                radio.checked = true;
+                const label = radio.closest('.pv-template-card');
+                const nameEl = label ? label.querySelector('.pv-template-name') : null;
+                const tName = nameEl ? nameEl.textContent.trim() : '';
+                if (tName) pvCollapseTemplate(tName);
+            }
+        }
+    }
+
+    // 7. Pentru fiecare rând de material cu produs setat, re-sincronizăm TomSelect și syncProductRow
+    document.querySelectorAll('#materialsBody .material-row').forEach(row => {
+        const productSelect = row.querySelector('.product-select');
+        if (productSelect && productSelect.value) {
+            if (productSelect.tomselect) {
+                productSelect.tomselect.setValue(productSelect.value, true);
+            }
+            syncProductRow(productSelect);
+        }
+        const receiptSelect = row.querySelector('.receipt-select');
+        if (receiptSelect && receiptSelect.value && receiptSelect.tomselect) {
+            receiptSelect.tomselect.setValue(receiptSelect.value, true);
+        }
+        // Pille metodă: activăm pe baza valorii din hidden input
+        const methodInput = row.querySelector('input.application-method') || row.querySelector('input[name$="[manual_application_method]"]');
+        if (methodInput && methodInput.value) {
+            row.querySelectorAll('.pz-method-pill').forEach(p => {
+                p.classList.toggle('is-active', p.dataset.value === methodInput.value);
+            });
+        }
+    });
+
+    // 8. Re-aplicăm valorile salvate PESTE syncProductRow (care poate suprascrie diluție / cantitate)
+    Object.keys(fields).forEach(name => {
+        if (!name.startsWith('materials[')) return;
+        const value = fields[name];
+        const valArr = Array.isArray(value) ? value : [value];
+        const elements = document.getElementsByName(name);
+        if (elements && elements.length) {
+            const el = elements[0];
+            if (el.type !== 'checkbox' && el.type !== 'radio') {
+                el.value = valArr[0] || '';
+            }
+        }
+    });
+
+    if (typeof pzValidateForm === 'function') pzValidateForm();
+}
+
+function pvAutosaveShowBanner(payload) {
+    const banner = document.getElementById('pvAutosaveBanner');
+    const text = document.getElementById('pvAutosaveText');
+    if (!banner || !text) return;
+    text.textContent = 'Ai o completare neterminată din ' + pvAutosaveFormatTime(payload.saved_at) + '. Vrei să o recuperezi?';
+    banner.style.display = 'flex';
+}
+
+function pvAutosaveHideBanner() {
+    const banner = document.getElementById('pvAutosaveBanner');
+    if (banner) banner.style.display = 'none';
+}
+
+function pvAutosaveInit() {
+    // 1. La încărcare: verificăm dacă există date salvate și propunem recuperare.
+    const saved = pvAutosaveLoad();
+    if (saved && saved.data) {
+        pvAutosaveShowBanner(saved);
+        const restoreBtn = document.getElementById('pvAutosaveRestoreBtn');
+        const dismissBtn = document.getElementById('pvAutosaveDismissBtn');
+        if (restoreBtn) {
+            restoreBtn.addEventListener('click', function() {
+                pvAutosaveRestore(saved);
+                pvAutosaveHideBanner();
+            });
+        }
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', function() {
+                pvAutosaveClear();
+                pvAutosaveHideBanner();
+            });
+        }
+    }
+
+    // 2. La fiecare modificare: salvăm (debounced)
+    const form = document.getElementById('pvForm');
+    if (form) {
+        let saveTimer = null;
+        const trigger = () => {
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(pvAutosaveSave, 800);
+        };
+        form.addEventListener('input', trigger);
+        form.addEventListener('change', trigger);
+        // Pille servicii / metodă / template radio nu trigger input/change pe form
+        // în toate cazurile (depind de event delegation) — hookuri suplimentare:
+        document.querySelectorAll('#servicesPills .pz-pill').forEach(p => p.addEventListener('click', trigger));
+        document.querySelectorAll('.pz-method-pill').forEach(p => p.addEventListener('click', trigger));
+    }
+}
+
 function syncAppointment(select) {
     const appointmentId = Number(select ? select.value : 0);
     const appt = appointmentsData.find(item => Number(item.id) === appointmentId);
@@ -2976,6 +3283,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Sync initial pentru servicii pills + valideaza form
     pzSyncServicesHidden();
     pzValidateForm();
+
+    // Auto-save: hook pe modificări + check pentru date locale neterminate
+    pvAutosaveInit();
 });
 </script>
 
