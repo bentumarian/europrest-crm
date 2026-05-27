@@ -2341,11 +2341,10 @@ function closeModal(id) { document.getElementById(id)?.classList.remove('open');
 function setField(id, value) {
     const field = document.getElementById(id);
     if (!field) return;
-    // Dacă inputul are Flatpickr atașat, folosim API-ul Flatpickr ca să se sincronizeze
-    // și altInput-ul vizibil (cel care arată utilizatorului data formatată). Setarea directă
-    // a .value pe inputul original (hidden de Flatpickr) lasă altInput-ul gol.
-    if (field._flatpickr) {
-        field._flatpickr.setDate(value || '', false);
+    // Dacă inputul e controlat de AirDatepicker, folosim helper-ul global pentru
+    // a sincroniza și starea internă a picker-ului (data selectată) cu valoarea afișată.
+    if (field._airdp && typeof window.pvSetDateInputValue === 'function') {
+        window.pvSetDateInputValue(field, value || '');
         return;
     }
     field.value = value || '';
@@ -2770,12 +2769,10 @@ function pvCalSetDateTime(dateInputId, timeInputId, dateValue, timeValue) {
         const isValidIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(v) && !v.startsWith('0000');
         const finalDate = isValidIsoDate ? v : '';
 
-        // IMPORTANT: dacă Flatpickr e atașat, trebuie folosit API-ul lui (.setDate)
-        // ca să se sincronizeze AMBELE inputuri — cel ORIGINAL (hidden, cu .value)
-        // și cel ALT (vizibil, cu textul formatat). Setarea directă a .value pe
-        // inputul original NU actualizează altInput, deci utilizatorul vede gol.
-        if (dateEl._flatpickr) {
-            dateEl._flatpickr.setDate(finalDate, true);
+        // Dacă inputul e controlat de AirDatepicker, folosim helper-ul global ca să
+        // sincronizăm starea picker-ului cu valoarea afișată în input.
+        if (dateEl._airdp && typeof window.pvSetDateInputValue === 'function') {
+            window.pvSetDateInputValue(dateEl, finalDate);
         } else {
             dateEl.value = finalDate;
             if (finalDate) {

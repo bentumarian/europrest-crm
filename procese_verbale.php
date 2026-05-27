@@ -2822,6 +2822,8 @@ function addMaterialRow() {
     body.appendChild(row);
     populateProductSelects();
     bindMethodPills(row);
+    // Inițializăm AirDatepicker pe orice <input type="date"> nou (ex: expiry_date din tabel)
+    if (typeof window.pvInitAirDatepicker === 'function') window.pvInitAirDatepicker(row);
     pzValidateForm();
 }
 function addManualMaterialRow() {
@@ -3211,12 +3213,15 @@ function syncAppointment(select) {
     const surfaceInput = document.getElementById('surfaceText');
     const workersInput = document.getElementById('workersNames');
 
-    // Helper local: dacă inputul are Flatpickr atașat, folosim API-ul lui pentru
-    // a sincroniza altInput-ul (cel vizibil utilizatorului).
+    // Helper local: dacă inputul e controlat de AirDatepicker, folosim helper-ul
+    // global pentru a sincroniza picker-ul cu valoarea afișată.
     const setDateSafe = (el, val) => {
         if (!el || !val) return;
-        if (el._flatpickr) el._flatpickr.setDate(val, false);
-        else el.value = val;
+        if (typeof window.pvSetDateInputValue === 'function' && el._airdp) {
+            window.pvSetDateInputValue(el, val);
+        } else {
+            el.value = val;
+        }
     };
     setDateSafe(dateInput, appt.appointment_date);
     if (timeInput && appt.start_time) timeInput.value = appt.start_time;

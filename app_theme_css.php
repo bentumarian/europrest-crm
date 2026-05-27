@@ -3764,43 +3764,142 @@ if (!function_exists('app_theme_css')) {
         .status-pill.tone-neutral::before { background: var(--pz-mu); }
         .status-pill.tone-info::before    { background: var(--pz-bl); }
         </style>
-        <!-- Flatpickr — datepicker custom RO (locale ro, format dd.mm.YYYY) -->
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.css">
+        <!-- AirDatepicker — date picker cu navigare clară pe an (click pe an în header → grid ani) -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/air-datepicker@3.5.3/air-datepicker.min.css">
         <style>
-        /* Aliniem Flatpickr la paleta Emma */
-        .flatpickr-calendar { font-family: var(--font); border: 1px solid var(--pz-line); box-shadow: 0 4px 12px rgba(15, 23, 42, .08); border-radius: 8px; }
-        .flatpickr-day.selected, .flatpickr-day.selected:hover { background: var(--pz-bl); border-color: var(--pz-bl); }
-        .flatpickr-day.today { border-color: var(--pz-bl); }
-        .flatpickr-day.today:hover { background: var(--pz-bls); color: var(--pz-bld); }
-        .flatpickr-day:hover { background: var(--pz-soft); }
-        .flatpickr-current-month .cur-year { font-weight: 600; color: var(--pz-title); }
-        .flatpickr-current-month .cur-month { font-weight: 600; color: var(--pz-title); }
-        .flatpickr-weekday { color: var(--pz-mu); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+        /* Aliniem AirDatepicker la paleta Emma */
+        .air-datepicker { font-family: var(--font); --adp-border-color: var(--pz-line, #E2E8F0); --adp-color: var(--pz-title, #0F172A); --adp-color-secondary: var(--pz-mu, #64748B); --adp-color-current-date: var(--pz-bl, #2563EB); --adp-accent-color: var(--pz-bl, #2563EB); --adp-background-color-hover: var(--pz-soft, #F1F5F9); --adp-background-color-active: var(--pz-bls, #EFF6FF); --adp-background-color-selected-other-month-focused: var(--pz-bls, #EFF6FF); --adp-background-color-selected-other-month: var(--pz-bls, #EFF6FF); --adp-cell-background-color-selected: var(--pz-bl, #2563EB); --adp-cell-background-color-selected-hover: var(--pz-bld, #1E40AF); --adp-day-name-color: var(--pz-mu, #64748B); --adp-day-name-color-hover: var(--pz-title, #0F172A); --adp-font-family: inherit; --adp-font-size: 13px; --adp-padding: 6px; --adp-cell-padding: 6px; --adp-cell-border-radius: 8px; }
+        .air-datepicker-nav--title { font-weight: 700 !important; cursor: pointer; }
+        .air-datepicker-nav--title:hover { color: var(--pz-bld, #1E40AF) !important; background: var(--pz-bls, #EFF6FF); border-radius: 6px; }
+        .air-datepicker-cell.-current- { color: var(--pz-bl, #2563EB); font-weight: 700; }
+        .air-datepicker-cell.-selected- { background: var(--pz-bl, #2563EB) !important; color: #fff !important; }
+        .air-datepicker-buttons { gap: 6px; }
+        .air-datepicker-button { background: var(--pz-soft, #F1F5F9); border-radius: 8px; }
+        .air-datepicker-button:hover { background: var(--pz-bls, #EFF6FF); color: var(--pz-bld, #1E40AF); }
         </style>
-        <script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/l10n/ro.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/air-datepicker@3.5.3/air-datepicker.min.js"></script>
         <script>
         (function() {
-            function initFlatpickr() {
-                if (typeof flatpickr === 'undefined') return;
-                try { flatpickr.localize(flatpickr.l10ns.ro); } catch(e) {}
-                document.querySelectorAll('input[type="date"]:not([data-no-flatpickr])').forEach(function(input) {
-                    if (input._flatpickr) return;
-                    flatpickr(input, {
-                        locale: 'ro',
-                        dateFormat: 'Y-m-d',
-                        altInput: true,
-                        altFormat: 'd.m.Y',
-                        allowInput: true,
-                        disableMobile: false
-                    });
+            // Locale RO inline (AirDatepicker nu are CDN separat pentru RO în versiunea 3.5.x)
+            window.AirDatepickerLocaleRo = {
+                days: ['Duminică','Luni','Marți','Miercuri','Joi','Vineri','Sâmbătă'],
+                daysShort: ['Dum','Lun','Mar','Mie','Joi','Vin','Sâm'],
+                daysMin: ['D','L','M','M','J','V','S'],
+                months: ['Ianuarie','Februarie','Martie','Aprilie','Mai','Iunie','Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie'],
+                monthsShort: ['Ian','Feb','Mar','Apr','Mai','Iun','Iul','Aug','Sep','Oct','Noi','Dec'],
+                today: 'Astăzi',
+                clear: 'Șterge',
+                dateFormat: 'dd.MM.yyyy',
+                timeFormat: 'HH:mm',
+                firstDay: 1
+            };
+
+            function pvParseIsoDate(s) {
+                if (!s) return null;
+                const m = String(s).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (!m) return null;
+                const y = +m[1], mo = +m[2], d = +m[3];
+                if (y < 1900) return null;
+                const date = new Date(y, mo - 1, d);
+                if (isNaN(date.getTime())) return null;
+                return date;
+            }
+
+            function pvFormatIso(date) {
+                if (!(date instanceof Date) || isNaN(date.getTime())) return '';
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                return yyyy + '-' + mm + '-' + dd;
+            }
+
+            // API global pentru a seta valoarea unui input controlat de AirDatepicker
+            window.pvSetDateInputValue = function(input, isoValue) {
+                if (!input) return;
+                if (input._airdp) {
+                    const d = pvParseIsoDate(isoValue);
+                    if (d) {
+                        input._airdp.selectDate(d, { silent: true, updateTime: false });
+                    } else {
+                        input._airdp.clear({ silent: true });
+                    }
+                    input.dataset.iso = d ? pvFormatIso(d) : '';
+                    return;
+                }
+                input.value = isoValue || '';
+            };
+
+            function initOneInput(input) {
+                if (input._airdp) return;
+                if (typeof AirDatepicker === 'undefined') return;
+
+                const initialIso = input.value || input.getAttribute('value') || '';
+                const originalName = input.getAttribute('name') || '';
+
+                // Convertim type=date la text — astfel browserul nu mai oferă propriul
+                // date picker care intra în conflict cu AirDatepicker.
+                input.type = 'text';
+                input.setAttribute('autocomplete', 'off');
+                if (!input.getAttribute('placeholder')) input.setAttribute('placeholder', 'zz.ll.aaaa');
+                input.setAttribute('data-airdp-managed', '1');
+
+                const dp = new AirDatepicker(input, {
+                    locale: window.AirDatepickerLocaleRo,
+                    dateFormat: 'dd.MM.yyyy',
+                    autoClose: true,
+                    isMobile: false,
+                    buttons: ['today', 'clear'],
+                    navTitles: {
+                        days: '<strong>MMMM</strong> yyyy',
+                        months: 'yyyy',
+                        years: 'yyyy1 - yyyy2'
+                    },
+                    onSelect: function(payload) {
+                        const date = payload.date;
+                        input.dataset.iso = date ? pvFormatIso(date) : '';
+                    }
                 });
+                input._airdp = dp;
+
+                // Restaurăm valoarea inițială
+                const initDate = pvParseIsoDate(initialIso);
+                if (initDate) {
+                    dp.selectDate(initDate, { silent: true, updateTime: false });
+                    input.dataset.iso = pvFormatIso(initDate);
+                }
             }
+
+            function initAllInputs(root) {
+                root = root || document;
+                root.querySelectorAll('input[type="date"]:not([data-no-datepicker])').forEach(initOneInput);
+            }
+
+            // Interceptăm submit-ul tuturor formularelor pentru a converti
+            // valoarea vizibilă (dd.MM.yyyy) în format ISO (yyyy-MM-dd) pe care îl așteaptă serverul.
+            // Folosim capture phase ca să rulăm înainte de handler-ele custom ale paginii.
+            document.addEventListener('submit', function(e) {
+                const form = e.target;
+                if (!form || form.nodeName !== 'FORM') return;
+                form.querySelectorAll('input[data-airdp-managed]').forEach(function(input) {
+                    const dp = input._airdp;
+                    if (!dp) return;
+                    const dates = dp.selectedDates || [];
+                    if (dates.length > 0) {
+                        input.value = pvFormatIso(dates[0]);
+                    } else {
+                        // Inputul a fost golit — trimitem string vid (server tratează corect).
+                        input.value = '';
+                    }
+                });
+            }, true);
+
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initFlatpickr);
+                document.addEventListener('DOMContentLoaded', function() { initAllInputs(); });
             } else {
-                initFlatpickr();
+                initAllInputs();
             }
+            // Expunem global pentru a putea iniția pe inputuri adăugate dinamic (ex: addMaterialRow).
+            window.pvInitAirDatepicker = initAllInputs;
         })();
         </script>
         <?php
