@@ -1098,7 +1098,17 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                             <?php if ($templateCount <= 1): ?>
                                 <input type="hidden" name="template_id" value="<?= (int)$autoTemplateId ?>">
                             <?php else: ?>
-                                <!-- Selector șablon PV - vizibil în ambele moduri (normal + quick) -->
+                                <?php
+                                    // Numele template-ului curent selectat, pentru sumarul colapsat.
+                                    $autoTemplateName = '';
+                                    foreach ($templates as $t) {
+                                        if ((int)$t['id'] === (int)$autoTemplateId) {
+                                            $autoTemplateName = (string)($t['name'] ?? 'Șablon');
+                                            break;
+                                        }
+                                    }
+                                ?>
+                                <!-- Selector șablon PV - default colapsat (ca „Tehnician"), expandabil pe „Modifică" -->
                                 <div class="panel" style="box-shadow:none; margin-top:14px;">
                                     <div class="panel-head">
                                         <div>
@@ -1107,7 +1117,14 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                         </div>
                                     </div>
                                     <div class="panel-body">
-                                        <div class="pv-template-picker">
+                                        <!-- Sumar colapsat: arată tipul curent + buton Modifică -->
+                                        <div class="pv-collapsible-summary" id="templateSummary" style="display:flex;">
+                                            <span class="pcs-label">Tip PV:</span>
+                                            <span class="pcs-value" id="templateSummaryValue"><?= pz_pv_h($autoTemplateName) ?></span>
+                                            <button type="button" class="pcs-edit" onclick="pvExpandTemplate()">Modifică</button>
+                                        </div>
+                                        <!-- Picker cu cardurile radio - vizibil doar după click pe Modifică sau forțat -->
+                                        <div class="pv-template-picker" id="templatePickerWrap" style="display:none;">
                                             <?php foreach ($templates as $template):
                                                 $tId = (int)$template['id'];
                                                 $tName = (string)($template['name'] ?? 'Șablon');
@@ -2596,6 +2613,30 @@ function pvExpandWorkers() {
     }
 }
 
+/*
+|--------------------------------------------------------------------------
+| Expand / colaps pentru selectorul „Tip proces verbal" (Pas 4.A.4)
+|--------------------------------------------------------------------------
+| Default state: sumar „Tip PV: [Nume] · Modifică". Click pe Modifică
+| afișează cardurile radio. La selectarea unui card, se colapsează automat
+| cu numele template-ului nou — flow rapid pentru rareori folosit.
+*/
+function pvExpandTemplate() {
+    const summary = document.getElementById('templateSummary');
+    const picker = document.getElementById('templatePickerWrap');
+    if (summary) summary.style.display = 'none';
+    if (picker) picker.style.display = 'flex';
+}
+
+function pvCollapseTemplate(templateName) {
+    const summary = document.getElementById('templateSummary');
+    const value = document.getElementById('templateSummaryValue');
+    const picker = document.getElementById('templatePickerWrap');
+    if (templateName && value) value.textContent = templateName;
+    if (summary) summary.style.display = 'flex';
+    if (picker) picker.style.display = 'none';
+}
+
 /* Activeaza pille corespunzator unei valori (folosit de syncProductRow). */
 function syncMethodPillsVisual(row, methodValue) {
     if (!row) return;
@@ -2830,11 +2871,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Sincronizare clasa .is-selected pe pv-template-card (fallback pentru browser-e fara :has())
+    // si auto-colaps al sumarului „Tip PV" cu numele template-ului selectat.
     document.querySelectorAll('.pv-template-picker input[name="template_id"]').forEach(function(r) {
         r.addEventListener('change', function() {
             document.querySelectorAll('.pv-template-card').forEach(function(c) {
                 c.classList.toggle('is-selected', !!c.querySelector('input:checked'));
             });
+            // Citim numele template-ului selectat si colapsam sumarul.
+            const label = this.closest('.pv-template-card');
+            const nameEl = label ? label.querySelector('.pv-template-name') : null;
+            const tName = nameEl ? nameEl.textContent.trim() : '';
+            if (tName) pvCollapseTemplate(tName);
         });
     });
 
