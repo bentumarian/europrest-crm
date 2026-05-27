@@ -943,6 +943,30 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
     .pv-aria-suprafata-grid { grid-template-columns: 1fr; }
 }
 
+/* === Tip proces verbal compact: sumar inline pe un singur rând (cu step number) === */
+.pv-template-inline-summary {
+    background: transparent !important;
+    border: 0 !important;
+    padding: 0 !important;
+    align-items: center;
+}
+.pv-template-inline-summary .contract-step-num {
+    flex-shrink: 0;
+}
+.pv-template-inline-summary .pcs-label {
+    color: var(--text) !important;
+    font-weight: 700;
+    font-size: 14px;
+}
+.pv-template-inline-summary .pcs-value {
+    font-size: 14px;
+    font-weight: 850;
+    color: var(--accent-deep, #1E40AF);
+}
+.pv-template-compact-panel .pv-template-picker {
+    margin-top: 12px;
+}
+
 /* === Sumar colapsabil pentru câmp prefilled (ex: Tehnician) === */
 .pv-collapsible-summary {
     align-items: center;
@@ -1128,18 +1152,13 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                         }
                                     }
                                 ?>
-                                <!-- Selector șablon PV - default colapsat (ca „Tehnician"), expandabil pe „Modifică" -->
-                                <div class="panel" style="box-shadow:none; margin-top:14px;">
-                                    <div class="panel-head">
-                                        <div>
-                                            <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num">2</span><span>Tip proces verbal</span></div>
-                                            <div class="panel-subtitle">Conținutul tabelului și textele documentului se schimbă în funcție de șablon.</div>
-                                        </div>
-                                    </div>
-                                    <div class="panel-body">
-                                        <!-- Sumar colapsat: arată tipul curent + buton Modifică -->
-                                        <div class="pv-collapsible-summary" id="templateSummary" style="display:flex;">
-                                            <span class="pcs-label">Tip PV:</span>
+                                <!-- Selector șablon PV - compact, inline cu step number, expandabil pe „Modifică" -->
+                                <div class="panel pv-template-compact-panel" style="box-shadow:none; margin-top:14px;">
+                                    <div class="panel-body" style="padding:12px 14px;">
+                                        <!-- Sumar inline pe un singur rând (step + titlu + valoare + Modifică) -->
+                                        <div class="pv-collapsible-summary pv-template-inline-summary" id="templateSummary" style="display:flex;">
+                                            <span class="contract-step-num">2</span>
+                                            <span class="pcs-label">Tip proces verbal:</span>
                                             <span class="pcs-value" id="templateSummaryValue"><?= pz_pv_h($autoTemplateName) ?></span>
                                             <button type="button" class="pcs-edit" onclick="pvExpandTemplate()">Modifică</button>
                                         </div>
@@ -1303,7 +1322,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                         </div>
                                                         <div>
                                                             <label>Diluție</label>
-                                                            <input type="text" name="materials[<?= (int)$index ?>][manual_work_concentration]" value="<?= pz_pv_h($material['manual_work_concentration'] ?? ($material['work_concentration'] ?? '')) ?>" placeholder="ex: 1%">
+                                                            <input type="text" inputmode="decimal" name="materials[<?= (int)$index ?>][manual_work_concentration]" value="<?= pz_pv_h($material['manual_work_concentration'] ?? ($material['work_concentration'] ?? '')) ?>" placeholder="ex: 1%">
                                                         </div>
                                                     </div>
                                                     <div class="pv-material-mini-grid">
@@ -1367,7 +1386,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                     <div class="pv-material-mini-grid">
                                                         <div class="pv-material-conc-wrap">
                                                             <label>Dilutie</label>
-                                                            <input type="text" name="materials[<?= (int)$index ?>][work_concentration]" class="work-concentration" value="<?= pz_pv_h(!empty($material['stock_product_id']) ? ($material['work_concentration'] ?? '') : '') ?>" placeholder="ex: 1%">
+                                                            <input type="text" inputmode="decimal" name="materials[<?= (int)$index ?>][work_concentration]" class="work-concentration" value="<?= pz_pv_h(!empty($material['stock_product_id']) ? ($material['work_concentration'] ?? '') : '') ?>" placeholder="ex: 1%">
                                                         </div>
                                                         <div>
                                                             <label>Cantitate</label>
@@ -1428,7 +1447,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                                     <input type="text" name="materials[<?= (int)$index ?>][manual_lot_number]" class="manual-lot-number" value="<?= pz_pv_h($material['manual_lot_number'] ?? ($material['lot_number'] ?? '')) ?>" placeholder="opțional">
                                                                 </td>
                                                                 <td><input type="text" name="materials[<?= (int)$index ?>][manual_expiry_date]" value="<?= pz_pv_h($material['manual_expiry_date'] ?? ($material['expiry_date'] ?? '')) ?>" placeholder="ex: 31.12.2027"></td>
-                                                                <td><input type="text" name="materials[<?= (int)$index ?>][manual_work_concentration]" value="<?= pz_pv_h($material['manual_work_concentration'] ?? ($material['work_concentration'] ?? '')) ?>" placeholder="ex: 1%"></td>
+                                                                <td><input type="text" inputmode="decimal" name="materials[<?= (int)$index ?>][manual_work_concentration]" value="<?= pz_pv_h($material['manual_work_concentration'] ?? ($material['work_concentration'] ?? '')) ?>" placeholder="ex: 1%"></td>
                                                                 <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[<?= (int)$index ?>][manual_quantity]" value="<?= pz_pv_h($material['manual_quantity'] ?? ($material['quantity'] ?? '')) ?>" placeholder="cant."></td>
                                                                 <td>
                                                                     <select name="materials[<?= (int)$index ?>][manual_unit]" class="manual-unit">
@@ -1462,7 +1481,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                                 <td><input type="text" name="materials[<?= (int)$index ?>][aviz_no]" class="aviz-no" value="<?= pz_pv_h($material['aviz_no'] ?? '') ?>"></td>
                                                                 <td><select name="materials[<?= (int)$index ?>][stock_receipt_id]" class="receipt-select" data-selected="<?= (int)($material['stock_receipt_id'] ?? 0) ?>" onchange="syncLotRow(this)"></select></td>
                                                                 <td><input type="date" name="materials[<?= (int)$index ?>][expiry_date]" class="expiry-date" value="<?= pz_pv_h($material['expiry_date'] ?? '') ?>"></td>
-                                                                <td><input type="text" name="materials[<?= (int)$index ?>][work_concentration]" class="work-concentration" value="<?= pz_pv_h($material['work_concentration'] ?? '') ?>" placeholder="ex: 1%"></td>
+                                                                <td><input type="text" inputmode="decimal" name="materials[<?= (int)$index ?>][work_concentration]" class="work-concentration" value="<?= pz_pv_h($material['work_concentration'] ?? '') ?>" placeholder="ex: 1%"></td>
                                                                 <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[<?= (int)$index ?>][quantity]" value="<?= pz_pv_h($material['quantity'] ?? '') ?>" placeholder="cant."></td>
                                                                 <td><input type="text" name="materials[<?= (int)$index ?>][unit]" class="material-unit" value="<?= pz_pv_h($material['unit'] ?? '') ?>" readonly placeholder="-"></td>
                                                                 <td>
@@ -2499,7 +2518,9 @@ function initReceiptTomSelect(select) {
 }
 
 function makeProductOptions() {
-    const options = [{value: '', text: 'Alege produs'}];
+    // Fără opțiune goală — placeholder-ul TomSelect arată „Caută produs..." când nimic nu e selectat.
+    // Elimină rândul „Alege produs" care apărea în dropdown.
+    const options = [];
     productsData.forEach(product => options.push({value: String(product.id), text: String(product.name || '')}));
     return options;
 }
@@ -2522,7 +2543,8 @@ function populateReceiptSelect(row) {
     const selected = selectedSelectValue(receiptSelect);
 
     // Construim optiunile (FIFO — receiptsData e deja sortat dupa expires_at).
-    const options = [{value: '', text: 'Alege lot'}];
+    // Fără opțiune goală — placeholder-ul TomSelect arată „Alege lot..." când nimic nu e selectat.
+    const options = [];
     if (productId) {
         receiptsData.filter(r => Number(r.product_id) === productId).forEach(r => {
             const lotLabel = r.lot ? String(r.lot) : 'Fără lot';
@@ -2541,8 +2563,9 @@ function populateReceiptSelect(row) {
     }
 
     // FIFO sugerat: dacă nu există o selecție anterioară, ia primul lot disponibil.
-    if (!receiptSelect.value && options.length > 1) {
-        const firstId = options[1].value;
+    // (options[0] e primul lot real — nu mai există opțiune goală la index 0.)
+    if (!receiptSelect.value && options.length > 0) {
+        const firstId = options[0].value;
         if (receiptSelect.tomselect) {
             receiptSelect.tomselect.setValue(firstId, true);
         } else {
@@ -2710,7 +2733,7 @@ function addMaterialRow() {
                 <div class="pv-material-lot-wrap"><label>Lot / stoc</label><select name="materials[${i}][stock_receipt_id]" class="receipt-select" data-selected="0" onchange="syncLotRow(this)"></select><div class="pv-stock-hint">Datele din stoc se preiau automat: aviz, lot, valabilitate si UM.</div></div>
             </div>
             <div class="pv-material-mini-grid">
-                <div class="pv-material-conc-wrap"><label>Dilutie</label><input type="text" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></div>
+                <div class="pv-material-conc-wrap"><label>Dilutie</label><input type="text" inputmode="decimal" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></div>
                 <div><label>Cantitate</label><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][quantity]" placeholder="cant."></div>
                 <!-- UM nu este afișat: vine din nomenclator (product.unit_consumption), populat de syncProductRow. -->
                 <input type="hidden" name="materials[${i}][unit]" class="material-unit" value="">
@@ -2733,7 +2756,7 @@ function addMaterialRow() {
             <td><input type="text" name="materials[${i}][aviz_no]" class="aviz-no"></td>
             <td><select name="materials[${i}][stock_receipt_id]" class="receipt-select" data-selected="0" onchange="syncLotRow(this)"></select></td>
             <td><input type="date" name="materials[${i}][expiry_date]" class="expiry-date"></td>
-            <td><input type="text" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></td>
+            <td><input type="text" inputmode="decimal" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></td>
             <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][quantity]" placeholder="cant."></td>
             <td><input type="text" name="materials[${i}][unit]" class="material-unit" readonly placeholder="-"></td>
             <td><select name="materials[${i}][application_method]" class="application-method"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directa</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option><option value="momeala">Momeală</option></select></td>
@@ -2763,7 +2786,7 @@ function addManualMaterialRow() {
             <div class="pv-material-mini-grid">
                 <div><label>Lot</label><input type="text" name="materials[${i}][manual_lot_number]" class="manual-lot-number" placeholder="opțional"></div>
                 <div><label>Valabilitate opțională</label><input type="text" name="materials[${i}][manual_expiry_date]" placeholder="ex: 31.12.2027"></div>
-                <div><label>Diluție</label><input type="text" name="materials[${i}][manual_work_concentration]" placeholder="ex: 1%"></div>
+                <div><label>Diluție</label><input type="text" inputmode="decimal" name="materials[${i}][manual_work_concentration]" placeholder="ex: 1%"></div>
             </div>
             <div class="pv-material-mini-grid">
                 <div><label>Cantitate</label><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][manual_quantity]" placeholder="cant."></div>
@@ -2787,7 +2810,7 @@ function addManualMaterialRow() {
             <td><input type="text" name="materials[${i}][manual_aviz_no]" placeholder="opțional"></td>
             <td><input type="hidden" name="materials[${i}][stock_receipt_id]" value=""><input type="text" name="materials[${i}][manual_lot_number]" class="manual-lot-number" placeholder="opțional"></td>
             <td><input type="text" name="materials[${i}][manual_expiry_date]" placeholder="ex: 31.12.2027"></td>
-            <td><input type="text" name="materials[${i}][manual_work_concentration]" placeholder="ex: 1%"></td>
+            <td><input type="text" inputmode="decimal" name="materials[${i}][manual_work_concentration]" placeholder="ex: 1%"></td>
             <td><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][manual_quantity]" placeholder="cant."></td>
             <td><select name="materials[${i}][manual_unit]" class="manual-unit"><option value="">Alege</option><option value="ml">ml</option><option value="l">l</option><option value="g">g</option><option value="kg">kg</option><option value="buc">buc</option><option value="plic">plic</option><option value="capcana">capcana</option><option value="doza">doza</option><option value="set">set</option></select></td>
             <td><select name="materials[${i}][manual_application_method]"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directă</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option><option value="momeala">Momeală</option></select></td>

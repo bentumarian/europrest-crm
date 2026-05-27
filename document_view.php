@@ -486,7 +486,15 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
 .field-compact .signature-title h2 { font-size: 15px; }
 .field-compact .signature-title p,
 .field-compact .signature-help { display: none; }
-.field-compact .signature-pad-wrap { width: 100%; max-width: 390px; margin: 0 auto; border-radius: 14px; }
+.field-compact .signature-pad-wrap {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    border-radius: 14px;
+    /* Compact: mai lat decât înalt — semnătura e naturală orizontal */
+    aspect-ratio: 16 / 9;
+    max-height: 220px;
+}
 .field-compact .signature-existing img { max-width: 120px; max-height: 120px; width: 38mm; height: 38mm; object-fit: contain; }
 .field-compact .signature-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .field-compact .signature-actions .btn { width: 100%; justify-content: center; }
@@ -740,10 +748,9 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                             <div class="signature-pad-wrap">
                                 <canvas id="clientSignaturePad" class="signature-pad" tabindex="0" aria-label="Semnătura client"></canvas>
                             </div>
-                            <div class="signature-actions">
+                            <div class="signature-actions signature-actions-row">
                                 <button class="btn signature-action-btn" type="button" id="clearClientSignature">Șterge</button>
                                 <button class="btn accent signature-action-btn" type="button" id="saveClientSignature">Salvează semnătura</button>
-                                <a class="btn signature-action-btn signature-calendar-btn" href="calendar.php">Calendar</a>
                             </div>
                         </div>
 
