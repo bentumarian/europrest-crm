@@ -465,7 +465,14 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
 .signature-existing img { display: block; max-width: 260px; max-height: 110px; background: #fff; border: 1px solid var(--border2); border-radius: 14px; padding: 8px; }
 .signature-help { font-size: 12px; color: var(--muted); }
 .signature-pad-section, .signature-saved-section { display: grid; gap: 10px; }
-.primary-email-cta { width: 100%; min-height: 48px; font-size: 14px; font-weight: 900; box-shadow: 0 4px 12px rgba(37, 99, 235, .22); }
+.signature-actions { display: grid; gap: 8px; }
+.signature-actions-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* Toate butoanele din cardul de semnătură au aceeași înălțime, full width pe row-ul lor. */
+.signature-action-btn { min-height: 48px !important; font-size: 14px; font-weight: 800; width: 100%; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.primary-email-cta { box-shadow: 0 4px 12px rgba(37, 99, 235, .22); }
+/* Buton „Calendar" — albastru distinct, link spre pagina de calendar. */
+.signature-calendar-btn { background: #2563EB !important; border-color: #2563EB !important; color: #FFF !important; }
+.signature-calendar-btn:hover { background: #1D4ED8 !important; border-color: #1D4ED8 !important; color: #FFF !important; }
 .signature-feedback { padding: 10px 12px; border-radius: 12px; font-size: 13px; font-weight: 700; margin-top: 4px; display: flex; align-items: center; gap: 8px; }
 .signature-feedback.success { background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; }
 .signature-feedback.error { background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; }
@@ -521,22 +528,25 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
     <main class="main">
         <div class="topbar document-topbar">
             <?php if ($fieldPvCompact): ?>
-                <div class="document-toolbar">
-                    <a class="btn" href="<?= dview_h($backUrl) ?>">Înapoi la lista</a>
-                </div>
-                <?php if ($document): ?>
+                <?php if ($canClientSign): ?>
+                    <!-- Topbar gol pe team mode când există cardul de semnătură: toate acțiunile sunt în card jos. -->
+                <?php else: ?>
+                    <!-- Fallback când nu există cardul de semnătură (ex: PV emis de birou, sau tehnicianul nu poate semna). -->
                     <div class="document-toolbar">
-                        <a class="btn accent" target="_blank" href="document_pdf.php?id=<?= (int)$document['id'] ?>&mode=download">Descarcă PDF</a>
-                        <?php // Pe team mode, butonul „Trimite email" e mutat în cardul de semnătură (apare după save).
-                              // Topbarul îl păstrăm doar pentru cazul în care nu există cardul de semnătură (ex: PV emis de birou, fără sign din teren).
-                              if ($isIssued && !$canClientSign && ($hasClientSignature || $pvIssuedByOffice)): ?>
-                            <?php if ($hasClientEmail): ?>
-                                <button class="btn accent" type="button" onclick="sendQuickDocumentEmail(<?= (int)$document['id'] ?>, this, '<?= dview_h($clientEmail) ?>')">Trimite email</button>
-                            <?php else: ?>
-                                <span class="btn disabled">Email lipsa</span>
-                            <?php endif; ?>
-                        <?php endif; ?>
+                        <a class="btn" href="<?= dview_h($backUrl) ?>">Înapoi la lista</a>
                     </div>
+                    <?php if ($document): ?>
+                        <div class="document-toolbar">
+                            <a class="btn accent" target="_blank" href="document_pdf.php?id=<?= (int)$document['id'] ?>&mode=download">Descarcă PDF</a>
+                            <?php if ($isIssued && ($hasClientSignature || $pvIssuedByOffice)): ?>
+                                <?php if ($hasClientEmail): ?>
+                                    <button class="btn accent" type="button" onclick="sendQuickDocumentEmail(<?= (int)$document['id'] ?>, this, '<?= dview_h($clientEmail) ?>')">Trimite email</button>
+                                <?php else: ?>
+                                    <span class="btn disabled">Email lipsa</span>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                 <?php endif; ?>
             <?php else: ?>
                 <div class="document-toolbar">
@@ -731,8 +741,9 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                                 <canvas id="clientSignaturePad" class="signature-pad" tabindex="0" aria-label="Semnătura client"></canvas>
                             </div>
                             <div class="signature-actions">
-                                <button class="btn" type="button" id="clearClientSignature">Șterge</button>
-                                <button class="btn accent" type="button" id="saveClientSignature">Salvează semnătura</button>
+                                <button class="btn signature-action-btn" type="button" id="clearClientSignature">Șterge</button>
+                                <button class="btn accent signature-action-btn" type="button" id="saveClientSignature">Salvează semnătura</button>
+                                <a class="btn signature-action-btn signature-calendar-btn" href="calendar.php">Calendar</a>
                             </div>
                         </div>
 
@@ -742,10 +753,16 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                                 <img id="signatureSavedImage" src="<?= $hasClientSignature ? dview_h($signaturePath) . '?v=' . time() : '' ?>" alt="Semnătura beneficiar"<?= !$hasClientSignature ? ' style="display:none;"' : '' ?>>
                             </div>
                             <div class="signature-actions">
-                                <button class="btn" type="button" id="redoSignatureBtn">Refă semnătura</button>
-                                <?php if ($fieldPvCompact && $emailFromCardEnabled): ?>
-                                    <button class="btn accent primary-email-cta" type="button" id="sendEmailFromSignatureCard" data-recipient="<?= dview_h($clientEmail) ?>">Trimite PV pe email</button>
-                                <?php endif; ?>
+                                <button class="btn signature-action-btn" type="button" id="redoSignatureBtn">Refă semnătura</button>
+                                <div class="signature-actions-row">
+                                    <a class="btn accent signature-action-btn" target="_blank" href="document_pdf.php?id=<?= (int)$document['id'] ?>&mode=download">Descarcă PDF</a>
+                                    <?php if ($emailFromCardEnabled): ?>
+                                        <button class="btn accent signature-action-btn primary-email-cta" type="button" id="sendEmailFromSignatureCard" data-recipient="<?= dview_h($clientEmail) ?>">Trimite PV pe email</button>
+                                    <?php else: ?>
+                                        <span class="btn disabled signature-action-btn">Email lipsă</span>
+                                    <?php endif; ?>
+                                </div>
+                                <a class="btn signature-action-btn signature-calendar-btn" href="calendar.php">Calendar</a>
                             </div>
                             <div class="signature-feedback" id="signatureFeedback" style="display:none;"></div>
                         </div>

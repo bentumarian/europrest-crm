@@ -5,6 +5,11 @@ require_once __DIR__ . '/app_ui.php';
 require_once __DIR__ . '/document_core.php';
 require_once __DIR__ . '/document_tokens.php';
 require_once __DIR__ . '/document_access.php';
+// Necesar pentru stock_is_biocide_group (folosit la detectarea categoriei produsului
+// si la validari la build_materials_from_post).
+if (file_exists(__DIR__ . '/lib/stock_lib.php')) {
+    require_once __DIR__ . '/lib/stock_lib.php';
+}
 
 if (!headers_sent()) {
     header('Content-Type: text/html; charset=utf-8');
@@ -492,10 +497,13 @@ foreach ($contracts as $contract) {
 
 $productsForJson = [];
 foreach ($products as $product) {
+    $productGroup = (string)($product['product_group'] ?? '');
+    $isBiocideProduct = function_exists('stock_is_biocide_group') ? stock_is_biocide_group($productGroup) : false;
     $productsForJson[] = [
         'id' => (int)$product['id'],
         'name' => (string)($product['name'] ?? ''),
-        'product_group' => (string)($product['product_group'] ?? ''),
+        'product_group' => $productGroup,
+        'is_biocide' => $isBiocideProduct,
         'unit' => (string)($product['unit_consumption'] ?? ''),
         'aviz_no' => (string)($product['aviz_no'] ?? ''),
         'default_application_method' => (string)($product['default_application_method'] ?? ''),
@@ -890,6 +898,18 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 /* === Card „Produs cu stoc": UM ascuns, mini-grid 2 coloane pentru Dilutie + Cantitate === */
 .pv-material-card:not(.pv-manual-material-row) .pv-material-mini-grid {
     grid-template-columns: 1fr 1fr;
+}
+
+/* === Card produs non-biocid (material, consumabil): ascund Lot + Diluție === */
+.pv-material-card.is-non-biocide .pv-material-lot-wrap,
+.pv-material-card.is-non-biocide .pv-material-conc-wrap {
+    display: none !important;
+}
+.pv-material-card.is-non-biocide .pv-material-grid {
+    grid-template-columns: 1fr;
+}
+.pv-material-card.is-non-biocide .pv-material-mini-grid {
+    grid-template-columns: 1fr;
 }
 
 /* === Mini-grid 2 coloane pentru „Zone tratate" + „Suprafața" === */
@@ -1315,7 +1335,15 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                     <input type="hidden" name="materials[<?= (int)$index ?>][notes]" value="">
                                                 </div>
                                                 <?php else: ?>
-                                                <div class="material-row pv-material-card">
+                                                <?php
+                                                    // Detectăm dacă produsul curent (la editare draft) este biocid.
+                                                    // Pentru rândul nou (fără produs), default biocid (afișăm toate câmpurile).
+                                                    $rowProductGroup = (string)($material['product_group'] ?? '');
+                                                    $rowIsNonBiocide = !empty($material['stock_product_id']) && $rowProductGroup !== ''
+                                                        && function_exists('stock_is_biocide_group')
+                                                        && !stock_is_biocide_group($rowProductGroup);
+                                                ?>
+                                                <div class="material-row pv-material-card<?= $rowIsNonBiocide ? ' is-non-biocide' : '' ?>">
                                                     <div class="pv-material-card-head">
                                                         <div class="pv-material-card-title">Produs utilizat #<?= (int)$index + 1 ?></div>
                                                         <button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button>
@@ -1330,14 +1358,14 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                             <input type="hidden" name="materials[<?= (int)$index ?>][aviz_no]" class="aviz-no" value="<?= pz_pv_h($material['aviz_no'] ?? '') ?>">
                                                             <input type="hidden" name="materials[<?= (int)$index ?>][expiry_date]" class="expiry-date" value="<?= pz_pv_h($material['expiry_date'] ?? '') ?>">
                                                         </div>
-                                                        <div>
+                                                        <div class="pv-material-lot-wrap">
                                                             <label>Lot / stoc</label>
                                                             <select name="materials[<?= (int)$index ?>][stock_receipt_id]" class="receipt-select" data-selected="<?= (int)($material['stock_receipt_id'] ?? 0) ?>" onchange="syncLotRow(this)"></select>
                                                             <div class="pv-stock-hint">Datele din stoc se preiau automat: aviz, lot, valabilitate si UM.</div>
                                                         </div>
                                                     </div>
                                                     <div class="pv-material-mini-grid">
-                                                        <div>
+                                                        <div class="pv-material-conc-wrap">
                                                             <label>Dilutie</label>
                                                             <input type="text" name="materials[<?= (int)$index ?>][work_concentration]" class="work-concentration" value="<?= pz_pv_h(!empty($material['stock_product_id']) ? ($material['work_concentration'] ?? '') : '') ?>" placeholder="ex: 1%">
                                                         </div>
@@ -2545,6 +2573,10 @@ function syncProductRow(select) {
             method.value = methodValue;
             syncMethodPillsVisual(row, methodValue);
         }
+        // Toggle vizibilitate Lot + Diluție în funcție de categoria produsului.
+        // Biocidele (dezinsecție / dezinfecție / deratizare) au lot și concentrație
+        // de lucru. Materialele / consumabile (capcane, momeli, etc.) nu au.
+        row.classList.toggle('is-non-biocide', !product.is_biocide);
     } else {
         ['.material-unit', '.product-group', '.aviz-no', '.safety-measures', '.work-concentration', '.expiry-date'].forEach(selector => {
             const input = row.querySelector(selector);
@@ -2554,6 +2586,8 @@ function syncProductRow(select) {
         const method = row.querySelector('.application-method');
         if (method) method.value = '';
         syncMethodPillsVisual(row, '');
+        // Resetam și starea biocid (default: afișăm toate câmpurile)
+        row.classList.remove('is-non-biocide');
     }
     const receiptSelect = row.querySelector('.receipt-select');
     if (receiptSelect) receiptSelect.dataset.selected = '0';
@@ -2673,10 +2707,10 @@ function addMaterialRow() {
             <div class="pv-material-card-head"><div class="pv-material-card-title">Produs utilizat #${i + 1}</div><button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button></div>
             <div class="pv-material-grid">
                 <div><label>Produs / material</label><select name="materials[${i}][stock_product_id]" class="product-select" data-selected="0" onchange="syncProductRow(this)"></select><input type="hidden" name="materials[${i}][product_group]" class="product-group"><input type="hidden" name="materials[${i}][safety_measures]" class="safety-measures"><input type="hidden" class="material-unit-cache"><input type="hidden" name="materials[${i}][aviz_no]" class="aviz-no"><input type="hidden" name="materials[${i}][expiry_date]" class="expiry-date"></div>
-                <div><label>Lot / stoc</label><select name="materials[${i}][stock_receipt_id]" class="receipt-select" data-selected="0" onchange="syncLotRow(this)"></select><div class="pv-stock-hint">Datele din stoc se preiau automat: aviz, lot, valabilitate si UM.</div></div>
+                <div class="pv-material-lot-wrap"><label>Lot / stoc</label><select name="materials[${i}][stock_receipt_id]" class="receipt-select" data-selected="0" onchange="syncLotRow(this)"></select><div class="pv-stock-hint">Datele din stoc se preiau automat: aviz, lot, valabilitate si UM.</div></div>
             </div>
             <div class="pv-material-mini-grid">
-                <div><label>Dilutie</label><input type="text" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></div>
+                <div class="pv-material-conc-wrap"><label>Dilutie</label><input type="text" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></div>
                 <div><label>Cantitate</label><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][quantity]" placeholder="cant."></div>
                 <!-- UM nu este afișat: vine din nomenclator (product.unit_consumption), populat de syncProductRow. -->
                 <input type="hidden" name="materials[${i}][unit]" class="material-unit" value="">
