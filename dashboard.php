@@ -1561,16 +1561,16 @@ if ($dashUserId > 0) {
                     <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-card-head">
                         <div>
-                            <p class="pz-card-title-sm">Vânzări și încasări</p>
+                            <p class="pz-card-title-sm">Venituri și încasări</p>
                             <p class="pz-card-title"><?= dash_h($finLabel) ?></p>
                         </div>
                         <div class="pz-legend">
-                            <span><span class="dot" style="background: var(--pz-gr);"></span>Vânzări (venituri)</span>
+                            <span><span class="dot" style="background: var(--pz-gr);"></span>Venituri</span>
                             <span><span class="dot" style="background: var(--pz-or);"></span>Încasări</span>
                         </div>
                     </div>
                     <div class="pz-chart-wrap">
-                        <canvas id="pzRevenueChart" role="img" aria-label="Trend vânzări și încasări"></canvas>
+                        <canvas id="pzRevenueChart" role="img" aria-label="Trend venituri și încasări"></canvas>
                     </div>
                 </div>
                 <?php $bigCards['card-revchart'] = ob_get_clean();
