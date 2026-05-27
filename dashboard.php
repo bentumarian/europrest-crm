@@ -423,6 +423,8 @@ $teamListMax = max(1, max(array_column($teamList ?: [['jobs_total'=>1]], 'jobs_t
    AGENDA AZI
    ──────────────────────────────────────────────────────────────────────── */
 
+$todayCountTotal = $hasAppointments ? (int)dash_value($pdo, "SELECT COUNT(*) FROM appointments WHERE appointment_date=? AND status!='anulata'", [$today]) : 0;
+$todayDoneCountTotal = $hasAppointments ? (int)dash_value($pdo, "SELECT COUNT(*) FROM appointments WHERE appointment_date=? AND status='finalizata'", [$today]) : 0;
 $todayAppointments = $hasAppointments ? dash_rows($pdo,
     "SELECT a.id, a.start_time, a.service_type, a.status, c.name AS client_name, tm.name AS team_name
      FROM appointments a
@@ -611,6 +613,7 @@ if ($hasSmartbillInvoices) {
         FROM smartbill_invoices i
         LEFT JOIN clients c ON c.id = i.client_id
         WHERE i.invoice_date BETWEEN ? AND ?
+          AND i.source_type <> 'receipt'
           AND TRIM(COALESCE(i.smartbill_number, '')) <> ''
         GROUP BY COALESCE(NULLIF(TRIM(i.client_name), ''), c.name, '-')
         ORDER BY amount DESC
@@ -1350,6 +1353,22 @@ if ($dashUserId > 0) {
     .pz-chart-wrap.donut { height: 130px; }
 }
 </style>
+<script>
+(function() {
+    /* Persistență perioadă financiar — citește din localStorage la load dacă URL e gol */
+    try {
+        var params = new URLSearchParams(window.location.search);
+        if (!params.has("period_fin")) {
+            var saved = localStorage.getItem("pz_dash_period_fin");
+            if (saved && ["today","week","month","last_month","3months","6months","year"].indexOf(saved) >= 0) {
+                params.set("period_fin", saved);
+                window.location.replace("dashboard.php?" + params.toString());
+                return;
+            }
+        }
+    } catch (e) { /* fallback silent */ }
+})();
+</script>
 </head>
 <body>
 <div class="layout">
@@ -1368,7 +1387,7 @@ if ($dashUserId > 0) {
                 <div class="pz-head-actions">
                     <div class="pz-period" role="group" aria-label="Perioadă">
                         <?php foreach (dash_period_options() as $key => $label): ?>
-                            <a href="<?= dash_h(dash_period_url('period_fin', $key)) ?>"
+                            <a href="<?= dash_h(dash_period_url('period_fin', $key)) ?>" data-period-key="period_fin" data-period-value="<?= dash_h($key) ?>"
                                class="<?= $periodFin === $key ? 'current' : '' ?>"
                                title="<?= dash_h($label) ?>">
                                <?= dash_h($label) ?>
@@ -1386,11 +1405,8 @@ if ($dashUserId > 0) {
                 $kpiRestPctSum  = $finIssued > 0 ? min(100, round(($restanteAmount / $finIssued) * 100)) : 0;
                 $kpiPendingPct  = max(0, 100 - $kpiPaidPct - $kpiRestPctSum);
 
-                $todayCount = is_array($todayAppointments) ? count($todayAppointments) : 0;
-                $todayDoneCount = 0;
-                foreach (($todayAppointments ?: []) as $apt) {
-                    if (($apt['status'] ?? '') === 'finalizata') $todayDoneCount++;
-                }
+                $todayCount = $todayCountTotal;
+                $todayDoneCount = $todayDoneCountTotal;
                 $todayPct = $todayCount > 0 ? round(($todayDoneCount / $todayCount) * 100) : 0;
 
                 $kpiCards = [];
@@ -1977,6 +1993,20 @@ if ($dashUserId > 0) {
     } else {
         init();
     }
+})();
+</script>
+<script>
+/* Persistență perioadă financiar — salvează în localStorage la click pe selector */
+(function() {
+    document.querySelectorAll("a[data-period-key]").forEach(function(a) {
+        a.addEventListener("click", function() {
+            try {
+                var key = a.getAttribute("data-period-key");
+                var val = a.getAttribute("data-period-value");
+                if (key && val) localStorage.setItem("pz_dash_" + key, val);
+            } catch (e) { /* silent */ }
+        });
+    });
 })();
 </script>
 </body>
