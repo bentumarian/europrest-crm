@@ -68,7 +68,7 @@ pz_page_header([
     'actions'  => [
         ['label' => 'Export Excel', 'href' => 'stock_export.php?type=stock_current', 'variant' => 'ghost',   'icon' => 'ti-download'],
         ['label' => 'Intrare stoc', 'href' => 'stock_receipts.php',                  'variant' => 'ghost',   'icon' => 'ti-package-import'],
-        ['label' => 'Produs nou',   'href' => 'stock_products.php',                  'variant' => 'primary', 'icon' => 'ti-plus'],
+        ['label' => 'Produs nou', 'href' => 'stock_products.php', 'variant' => 'primary', 'icon' => 'ti-plus', 'iconOnly' => true],
     ],
     'tabs'     => $stockTabs,
     'kpis'     => [

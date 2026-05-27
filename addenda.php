@@ -779,6 +779,7 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
                         'label'   => 'Act adițional nou',
                         'href'    => 'addenda.php?new=1',
                         'variant' => 'primary',
+                        'iconOnly' => true,
                         'icon'    => 'ti-plus',
                     ]],
                     'tabs'     => $addendaTabs,

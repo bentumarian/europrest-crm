@@ -454,6 +454,7 @@ if ($editId > 0) {
                     [
                         'label'   => 'Reminder nou',
                         'variant' => 'primary',
+                        'iconOnly' => true,
                         'icon'    => 'ti-plus',
                         'type'    => 'button',
                         'onclick' => 'remOpenCreate()',

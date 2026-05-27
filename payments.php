@@ -332,6 +332,7 @@ $statusLabels = [
                         'label'   => 'Încasare nouă',
                         'href'    => 'payment.php',
                         'variant' => 'primary',
+                        'iconOnly' => true,
                         'icon'    => 'ti-plus',
                     ]],
                     'tabs'     => $paymentsTabs,

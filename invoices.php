@@ -380,6 +380,7 @@ $statusLabels = [
                         'label'   => 'Emite factură',
                         'href'    => 'invoice.php',
                         'variant' => 'primary',
+                        'iconOnly' => true,
                         'icon'    => 'ti-plus',
                     ]],
                     'tabs'     => $invoicesTabs,
