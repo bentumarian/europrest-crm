@@ -744,10 +744,10 @@ foreach ($services as $service) {
 .items-table td:last-child { border-right:1px solid var(--border2); border-radius:0 12px 12px 0; }
 .items-table input, .items-table select { width:100%; border:1px solid var(--border); border-radius:10px; padding:8px 9px; background:#fff; font-size:12px; }
 .items-table textarea { width:100%; min-height:39px; border:1px solid var(--border); border-radius:10px; padding:8px 9px; background:#fff; font-size:12px; resize:vertical; }
-.manual-items-panel { margin-top:12px; border-style:dashed !important; background:#fff; }
 .manual-item-name { margin-bottom:6px; }
 .manual-item-description { min-height:42px !important; }
-.manual-items-table { min-width:900px; }
+.manual-item-row td { background:#fffaf7; }
+.manual-item-row .manual-unit-wrap { display:grid; grid-template-columns:minmax(0, 1fr) 62px; gap:6px; }
 .row-total { font-weight:900; color:var(--text); text-align:right; padding-top:8px; white-space:nowrap; }
 .form-actions { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
 .form-actions .right { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
