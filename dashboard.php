@@ -626,48 +626,79 @@ if ($hasSmartbillInvoices) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────
-   TREND 6 LUNI FINANCIAR (venituri + încasări pentru chart-ul principal)
+   TREND VENITURI + INCASARI — respecta perioada selectata (period_fin)
+   Agregare adaptiva: pe zi / pe saptamana / pe luna in functie de range.
    ──────────────────────────────────────────────────────────────────────── */
-
-$revTrend = []; // [['label' => 'Mai', 'issued' => 47230, 'paid' => 42100], ...]
+$revTrend = []; // [['label' => '01.05', 'issued' => 47230, 'paid' => 42100], ...]
 if ($hasSmartbillInvoices) {
-    $sixMonthsStart = date('Y-m-01', strtotime('-5 months'));
-    $sixMonthsEnd   = date('Y-m-t');
-    $rowsIssued = dash_rows($pdo, "
-        SELECT DATE_FORMAT(invoice_date, '%Y-%m') AS m, COALESCE(SUM(gross_amount), 0) AS s
-        FROM smartbill_invoices
-        WHERE invoice_date BETWEEN ? AND ?
-          AND TRIM(COALESCE(smartbill_number, '')) <> ''
-        GROUP BY m
-        ORDER BY m ASC
-    ", [$sixMonthsStart, $sixMonthsEnd]);
-    $byMonthIssued = [];
-    foreach ($rowsIssued as $r) { $byMonthIssued[(string)$r['m']] = (float)$r['s']; }
+    $rangeDays = max(1, ((int)(strtotime($finEnd) - strtotime($finStart)) / 86400) + 1);
+    $monthShort = ['01'=>'Ian','02'=>'Feb','03'=>'Mar','04'=>'Apr','05'=>'Mai','06'=>'Iun','07'=>'Iul','08'=>'Aug','09'=>'Sep','10'=>'Oct','11'=>'Nov','12'=>'Dec'];
 
-    $byMonthPaid = [];
-    if ($hasSmartbillPayments) {
-        $rowsPaid = dash_rows($pdo, "
-            SELECT DATE_FORMAT(p.payment_date, '%Y-%m') AS m, COALESCE(SUM(p.amount), 0) AS s
-            FROM smartbill_invoice_payments p
-            WHERE p.payment_date BETWEEN ? AND ?
-              AND (p.smartbill_status IS NULL OR p.smartbill_status NOT IN ('error', 'deleted'))
-            GROUP BY m
-            ORDER BY m ASC
-        ", [$sixMonthsStart, $sixMonthsEnd]);
-        foreach ($rowsPaid as $r) { $byMonthPaid[(string)$r['m']] = (float)$r['s']; }
+    /* Issued: agregare adaptiva pe zi / saptamana / luna */
+    $byKeyIssued = [];
+    if ($rangeDays <= 31) {
+        $rowsIssued = dash_rows($pdo, "SELECT DATE(invoice_date) AS k, COALESCE(SUM(gross_amount),0) AS s FROM smartbill_invoices WHERE invoice_date BETWEEN ? AND ? AND TRIM(COALESCE(smartbill_number,'')) <> '' GROUP BY DATE(invoice_date)", [$finStart, $finEnd]);
+        foreach ($rowsIssued as $r) { $byKeyIssued[(string)$r['k']] = (float)$r['s']; }
+    } elseif ($rangeDays <= 100) {
+        $rowsIssued = dash_rows($pdo, "SELECT YEARWEEK(invoice_date, 3) AS w, MIN(invoice_date) AS first_d, COALESCE(SUM(gross_amount),0) AS s FROM smartbill_invoices WHERE invoice_date BETWEEN ? AND ? AND TRIM(COALESCE(smartbill_number,'')) <> '' GROUP BY w ORDER BY w ASC", [$finStart, $finEnd]);
+        foreach ($rowsIssued as $r) { $byKeyIssued[(string)$r['first_d']] = (float)$r['s']; }
+    } else {
+        $rowsIssued = dash_rows($pdo, "SELECT DATE_FORMAT(invoice_date,'%Y-%m') AS m, COALESCE(SUM(gross_amount),0) AS s FROM smartbill_invoices WHERE invoice_date BETWEEN ? AND ? AND TRIM(COALESCE(smartbill_number,'')) <> '' GROUP BY m ORDER BY m ASC", [$finStart, $finEnd]);
+        foreach ($rowsIssued as $r) { $byKeyIssued[(string)$r['m']] = (float)$r['s']; }
     }
 
-    $cursor = strtotime($sixMonthsStart);
-    $monthShort = ['01'=>'Ian','02'=>'Feb','03'=>'Mar','04'=>'Apr','05'=>'Mai','06'=>'Iun','07'=>'Iul','08'=>'Aug','09'=>'Sep','10'=>'Oct','11'=>'Nov','12'=>'Dec'];
-    while ($cursor <= strtotime(date('Y-m-01'))) {
-        $k = date('Y-m', $cursor);
-        $mm = date('m', $cursor);
-        $revTrend[] = [
-            'label'  => $monthShort[$mm] ?? date('M', $cursor),
-            'issued' => round((float)($byMonthIssued[$k] ?? 0), 2),
-            'paid'   => round((float)($byMonthPaid[$k] ?? 0), 2),
-        ];
-        $cursor = strtotime('+1 month', $cursor);
+    /* Paid: aceeasi agregare */
+    $byKeyPaid = [];
+    if ($hasSmartbillPayments) {
+        if ($rangeDays <= 31) {
+            $rowsPaid = dash_rows($pdo, "SELECT DATE(payment_date) AS k, COALESCE(SUM(amount),0) AS s FROM smartbill_invoice_payments WHERE payment_date BETWEEN ? AND ? AND COALESCE(smartbill_status,'') NOT IN ('error','deleted') GROUP BY DATE(payment_date)", [$finStart, $finEnd]);
+            foreach ($rowsPaid as $r) { $byKeyPaid[(string)$r['k']] = (float)$r['s']; }
+        } elseif ($rangeDays <= 100) {
+            $rowsPaid = dash_rows($pdo, "SELECT YEARWEEK(payment_date, 3) AS w, MIN(payment_date) AS first_d, COALESCE(SUM(amount),0) AS s FROM smartbill_invoice_payments WHERE payment_date BETWEEN ? AND ? AND COALESCE(smartbill_status,'') NOT IN ('error','deleted') GROUP BY w ORDER BY w ASC", [$finStart, $finEnd]);
+            foreach ($rowsPaid as $r) { $byKeyPaid[(string)$r['first_d']] = (float)$r['s']; }
+        } else {
+            $rowsPaid = dash_rows($pdo, "SELECT DATE_FORMAT(payment_date,'%Y-%m') AS m, COALESCE(SUM(amount),0) AS s FROM smartbill_invoice_payments WHERE payment_date BETWEEN ? AND ? AND COALESCE(smartbill_status,'') NOT IN ('error','deleted') GROUP BY m ORDER BY m ASC", [$finStart, $finEnd]);
+            foreach ($rowsPaid as $r) { $byKeyPaid[(string)$r['m']] = (float)$r['s']; }
+        }
+    }
+
+    /* Construire serie completa cu zerouri */
+    if ($rangeDays <= 31) {
+        $cursor = strtotime($finStart);
+        $endTs = strtotime($finEnd);
+        while ($cursor <= $endTs) {
+            $key = date('Y-m-d', $cursor);
+            $revTrend[] = [
+                'label'  => date('d.m', $cursor),
+                'issued' => round((float)($byKeyIssued[$key] ?? 0), 2),
+                'paid'   => round((float)($byKeyPaid[$key] ?? 0), 2),
+            ];
+            $cursor += 86400;
+        }
+    } elseif ($rangeDays <= 100) {
+        /* Pe saptamani: iterez prin keys-urile combinate (issued + paid) */
+        $allKeys = array_unique(array_merge(array_keys($byKeyIssued), array_keys($byKeyPaid)));
+        sort($allKeys);
+        foreach ($allKeys as $k) {
+            $revTrend[] = [
+                'label'  => date('d.m', strtotime($k)),
+                'issued' => round((float)($byKeyIssued[$k] ?? 0), 2),
+                'paid'   => round((float)($byKeyPaid[$k] ?? 0), 2),
+            ];
+        }
+    } else {
+        $monthCursor = strtotime(date('Y-m-01', strtotime($finStart)));
+        $endMonthTs  = strtotime(date('Y-m-01', strtotime($finEnd)));
+        while ($monthCursor <= $endMonthTs) {
+            $mk = date('Y-m', $monthCursor);
+            $mm = date('m', $monthCursor);
+            $revTrend[] = [
+                'label'  => $monthShort[$mm] ?? date('M', $monthCursor),
+                'issued' => round((float)($byKeyIssued[$mk] ?? 0), 2),
+                'paid'   => round((float)($byKeyPaid[$mk] ?? 0), 2),
+            ];
+            $monthCursor = strtotime('+1 month', $monthCursor);
+        }
     }
 }
 
@@ -1530,16 +1561,16 @@ if ($dashUserId > 0) {
                     <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-card-head">
                         <div>
-                            <p class="pz-card-title-sm">Venituri și încasări</p>
-                            <p class="pz-card-title">Ultimele 6 luni</p>
+                            <p class="pz-card-title-sm">Vânzări și încasări</p>
+                            <p class="pz-card-title"><?= dash_h($finLabel) ?></p>
                         </div>
                         <div class="pz-legend">
-                            <span><span class="dot" style="background: var(--pz-bl);"></span>Venituri</span>
-                            <span><span class="dot" style="background: var(--pz-gr);"></span>Încasări</span>
+                            <span><span class="dot" style="background: var(--pz-gr);"></span>Vânzări (venituri)</span>
+                            <span><span class="dot" style="background: var(--pz-or);"></span>Încasări</span>
                         </div>
                     </div>
                     <div class="pz-chart-wrap">
-                        <canvas id="pzRevenueChart" role="img" aria-label="Trend venituri și încasări ultimele 6 luni"></canvas>
+                        <canvas id="pzRevenueChart" role="img" aria-label="Trend vânzări și încasări"></canvas>
                     </div>
                 </div>
                 <?php $bigCards['card-revchart'] = ob_get_clean();
@@ -1823,11 +1854,11 @@ if ($dashUserId > 0) {
                     {
                         label: 'Venituri',
                         data: issued,
-                        borderColor: '#061142',
-                        backgroundColor: 'rgba(6, 17, 66, 0.10)',
+                        borderColor: '#16A34A',
+                        backgroundColor: 'rgba(22, 163, 74, 0.12)',
                         tension: 0.35, fill: true, borderWidth: 2,
                         pointRadius: 3, pointHoverRadius: 5,
-                        pointBackgroundColor: '#061142'
+                        pointBackgroundColor: '#16A34A'
                     },
                     {
                         label: 'Încasări',
