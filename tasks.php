@@ -381,6 +381,10 @@ $overdueTasks = 0;
 $todayTasks = 0;
 $skippedTasks = 0;
 $activeTasks = 0;
+$urgentTasks = 0;     // sub 7 zile + overdue
+$aproapeTasks = 0;    // 7-13 zile
+$inTermenTasks = 0;   // 14-30 zile
+$viitoareTasks = 0;   // > 30 zile
 
 foreach ($tasks as $task) {
     if (($task['status'] ?? '') === 'skipped') {
@@ -390,12 +394,21 @@ foreach ($tasks as $task) {
 
     $activeTasks++;
 
-    if ($task['due_date'] < date('Y-m-d')) {
-        $overdueTasks++;
-    }
+    $todayStr = date("Y-m-d");
+    $daysToDue = !empty($task["due_date"]) ? (int)floor((strtotime((string)$task["due_date"]) - strtotime($todayStr)) / 86400) : null;
 
-    if ($task['due_date'] === date('Y-m-d')) {
-        $todayTasks++;
+    if ($task["due_date"] < $todayStr) { $overdueTasks++; }
+    if ($task["due_date"] === $todayStr) { $todayTasks++; }
+
+    /* Stadii urgenta */
+    if (($daysToDue !== null && $daysToDue < 7) || $task["due_date"] < $todayStr) {
+        $urgentTasks++;
+    } elseif ($daysToDue !== null && $daysToDue < 14) {
+        $aproapeTasks++;
+    } elseif ($daysToDue !== null && $daysToDue >= 14 && $daysToDue <= 30) {
+        $inTermenTasks++;
+    } elseif ($daysToDue !== null && $daysToDue > 30) {
+        $viitoareTasks++;
     }
 }
 
@@ -1856,9 +1869,10 @@ foreach ($tasks as $task) {
                     ]],
                     'tabs'     => $tasksTabs,
                     'kpis'     => [
-                        ['label' => 'Active',     'value' => (int)$activeTasks,  'tone' => 'info',    'icon' => 'ti-list-check',     'sublabel' => 'sarcini deschise'],
-                        ['label' => 'Întârziate', 'value' => (int)$overdueTasks, 'tone' => 'danger',  'icon' => 'ti-alert-triangle', 'sublabel' => 'de rezolvat acum'],
-                        ['label' => 'Azi',        'value' => (int)$todayTasks,   'tone' => 'warning', 'icon' => 'ti-calendar-event', 'sublabel' => 'programate azi'],
+                        ['label' => 'Urgent',    'value' => (int)$urgentTasks,   'tone' => 'danger',  'icon' => 'ti-alert-triangle', 'sublabel' => 'sub 7 zile + overdue'],
+                        ['label' => 'Aproape',   'value' => (int)$aproapeTasks,  'tone' => 'warning', 'icon' => 'ti-clock',           'sublabel' => 'între 7 și 13 zile'],
+                        ['label' => 'În termen', 'value' => (int)$inTermenTasks, 'tone' => 'success', 'icon' => 'ti-circle-check',    'sublabel' => '14-30 zile până la termen'],
+                        ['label' => 'Viitoare', 'value' => (int)$viitoareTasks, 'tone' => 'info', 'icon' => 'ti-calendar-due', 'sublabel' => 'peste 30 zile'],
                     ],
                     'toolbar'  => $tasksToolbarHtml,
                 ]);
