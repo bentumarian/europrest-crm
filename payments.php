@@ -470,4 +470,4 @@ try {
         if (!window.pzSearchPreview) { setTimeout(go, 30); return; }
         window.pzSearchPreview.attach('paymentsSearchInput',
             <?= json_encode($previewPaymentsList, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>,
-            { mi                                  
+            { mi
