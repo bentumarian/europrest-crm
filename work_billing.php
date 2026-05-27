@@ -444,7 +444,7 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
             <?php
                 /*
                 |------------------------------------------------------------
-                | Header unificat PestZone — înlocuiește topbar + module_nav
+                | Header unificat Emma — înlocuiește topbar + module_nav
                 | + ib-hero + quick-range + pz-kpi-grid vechi.
                 | Tabs = 3 module financiar (Facturi, Încasări, Lista lucrări).
                 | Period pills = Azi / Luna curentă / Luna trecută.
@@ -1136,3 +1136,4 @@ try {
     }
 })();
 </script>
+                                  

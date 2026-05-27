@@ -576,11 +576,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $smsRedirectParam = '&sms_skipped=1';
                         } else {
                             $smsRedirectParam = '&sms_error=1';
-                            error_log('PestZone SMS programare esuat: ' . ($smsResult['error'] ?? 'eroare necunoscuta'));
+                            error_log('Emma SMS programare esuat: ' . ($smsResult['error'] ?? 'eroare necunoscuta'));
                         }
                     } catch (Throwable $e) {
                         $smsRedirectParam = '&sms_error=1';
-                        error_log('PestZone SMS programare exception: ' . $e->getMessage());
+                        error_log('Emma SMS programare exception: ' . $e->getMessage());
                     }
                 }
 

@@ -1374,7 +1374,7 @@ $fields = [
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Import date - PestZone</title>
+<title>Import date - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <?php app_theme_css(); ?>
 <style>

@@ -1674,7 +1674,7 @@ if (!function_exists('app_theme_css')) {
             font-size: 13.5px;
             font-weight: 600;
         }
-        /* === PestZone UI standard: compact, plat, fără texte grele === */
+        /* === Emma UI standard: compact, plat, fără texte grele === */
         body {
             background: var(--bg);
             color: var(--text-body);
@@ -3143,7 +3143,7 @@ if (!function_exists('app_theme_css')) {
             }
         }
 
-        /* === PestZone typography system: Inter, aerisit, fara greutati agresive === */
+        /* === Emma typography system: Inter, aerisit, fara greutati agresive === */
         :where(html, body, button, input, select, textarea) {
             font-family: var(--font) !important;
         }
@@ -3294,7 +3294,7 @@ if (!function_exists('app_theme_css')) {
         }
 
                 /* ═══════════════════════════════════════════════════════════════
-           PestZone — componente UI standardizate (linia vizuală finală)
+           Emma — componente UI standardizate (linia vizuală finală)
            Vezi DESIGN_LINE.md pentru reguli complete.
            Prefix .pz-* — pot fi adăugate progresiv pe pagini existente.
            ═══════════════════════════════════════════════════════════════ */
@@ -3767,7 +3767,7 @@ if (!function_exists('app_theme_css')) {
         <!-- Flatpickr — datepicker custom RO (locale ro, format dd.mm.YYYY) -->
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.css">
         <style>
-        /* Aliniem Flatpickr la paleta PestZone */
+        /* Aliniem Flatpickr la paleta Emma */
         .flatpickr-calendar { font-family: var(--font); border: 1px solid var(--pz-line); box-shadow: 0 4px 12px rgba(15, 23, 42, .08); border-radius: 8px; }
         .flatpickr-day.selected, .flatpickr-day.selected:hover { background: var(--pz-bl); border-color: var(--pz-bl); }
         .flatpickr-day.today { border-color: var(--pz-bl); }

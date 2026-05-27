@@ -74,11 +74,11 @@ Aceste fișiere nu au fost migrate în Faza inițială:
 
 | Fișier | Ce citește din `appointments.billing_*` | Risc |
 |---|---|---|
-| `dashboard.php` | KPI-uri financiare (linia 256: `SUM(billing_amount) WHERE billing_status='de_facturat'`) | După reset financiar, dashboard-ul afișează cifre vechi rămase pe appointments — neactualizate de fluxul nou. Comentariul din cod (linia 250) recunoaște explicit: „Preferăm billing_items… Fallback la appointments.billing_status pentru instalări vechi". |
+| `dashboard.php` | ✅ **REZOLVAT** — codul are deja `if ($hasBillingItems) {...} elseif ($hasBillingColumns) {...}` (linii 156, 251-258). Citeste din `billing_items WHERE status='to_invoice'` cand tabela exista; fallback la `appointments.billing_*` doar pentru instalari foarte vechi. | Niciun risc activ. Fallback-ul ramane pentru backward compat. |
 | `tasks.php` | Citește `tasks.billing_amount` (linia 137 + UI 514, 2472) — coloană separată de `appointments.billing_*`. Nu intră în fluxul de facturare nou. | Mic — taskurile nu produc poziții de facturat în fluxul actual. Coloana e folosită ca câmp informativ pe task, nu ca sursă financiară. |
 | `task_recurrence.php` | Probabil propagă `billing_amount` la generarea task-urilor recurente. | De verificat — dacă rămâne câmp informativ pe task, OK. |
 
-**Recomandare:** migrare `dashboard.php` la `billing_items` într-un sprint mic separat. Patch punctual pe blocul de KPI „Financiar" — înlocuire `SUM(appointments.billing_amount)` cu `SUM(billing_items.total_net)`. Restul (tasks, task_recurrence) — nu sunt în fluxul de facturare, deci nu blochează.
+**Status 27 mai 2026:** dashboard.php migrare confirmata in cod (commit istoric). Restul (tasks, task_recurrence) — nu sunt in fluxul de facturare, deci nu blocheaza. **Pas urmator:** confirmare pe productie cu query `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'billing_items'` — daca returneaza 1, fluxul nou e activ.
 
 ### 3.2 Coloanele „moarte" pe `appointments`
 

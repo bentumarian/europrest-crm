@@ -27,7 +27,7 @@ try {
         pz_notify_init();
     }
 } catch (Throwable $e) {
-    error_log('PestZone document email init error: ' . $e->getMessage());
+    error_log('Emma document email init error: ' . $e->getMessage());
 }
 
 function pzdoc_email_h($value): string
@@ -90,7 +90,7 @@ function pzdoc_email_sendgrid_status(): array
 {
     $apiKey = pzdoc_email_setting('sendgrid_api_key', '');
     $fromEmail = pzdoc_email_setting('email_from_address', '');
-    $fromName = pzdoc_email_setting('email_from_name', 'PestZone');
+    $fromName = pzdoc_email_setting('email_from_name', 'Emma');
 
     if ($apiKey === '' || $apiKey === '********') {
         $apiKey = defined('SENDGRID_API_KEY') ? trim((string)SENDGRID_API_KEY) : trim((string)(getenv('SENDGRID_API_KEY') ?: ''));
@@ -103,7 +103,7 @@ function pzdoc_email_sendgrid_status(): array
         'ready' => ($apiKey !== '' && pzdoc_email_is_valid($fromEmail) && function_exists('curl_init') && function_exists('pz_sendgrid_send_email')),
         'has_key' => $apiKey !== '',
         'from_email' => $fromEmail,
-        'from_name' => $fromName ?: 'PestZone',
+        'from_name' => $fromName ?: 'Emma',
         'curl' => function_exists('curl_init'),
         'lib' => function_exists('pz_sendgrid_send_email'),
     ];
@@ -217,7 +217,7 @@ function pzdoc_email_log(PDO $pdo, int $documentId, string $recipient, string $c
             function_exists('current_user_id') ? current_user_id() : null,
         ]);
     } catch (Throwable $e) {
-        error_log('PestZone document email log error: ' . $e->getMessage());
+        error_log('Emma document email log error: ' . $e->getMessage());
     }
 }
 
@@ -438,7 +438,7 @@ $bodyValue = $_POST['body'] ?? $defaultBodyRendered;
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Trimite document email - PestZone</title>
+<title>Trimite document email - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <?php app_theme_css(); ?>
 <style>

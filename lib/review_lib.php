@@ -1,7 +1,7 @@
 <?php
 /*
 |--------------------------------------------------------------------------
-| PestZone CRM - Review & Satisfactie
+| Emma CRM - Review & Satisfactie
 |--------------------------------------------------------------------------
 | Modul separat pentru solicitare feedback după intervenții finalizate.
 | Regula: prima intervenție trimite SMS si poate afișa Google Review la 5 stele.
@@ -67,7 +67,7 @@ if (!function_exists('pz_review_ensure_column')) {
                 $pdo->exec("ALTER TABLE `$table` ADD COLUMN `$column` $definition");
             }
         } catch (Throwable $e) {
-            error_log('PestZone review migration warning: ' . $e->getMessage());
+            error_log('Emma review migration warning: ' . $e->getMessage());
         }
     }
 }
@@ -461,7 +461,7 @@ if (!function_exists('pz_review_create_and_send')) {
         $requestId = (int)$pdo->lastInsertId();
 
         $feedbackLink = pz_review_feedback_url($token);
-        $brand = pz_review_setting_get('sms_brand_name', 'PestZone');
+        $brand = pz_review_setting_get('sms_brand_name', 'Emma');
         $clientName = pz_review_client_name($client);
 
         if ($deliveryChannel === 'sms') {

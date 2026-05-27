@@ -19,7 +19,7 @@ try {
     $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
     pzdoc_require_schema($pdo);
 } catch (Throwable $e) {
-    error_log('PestZone oferte init error: ' . $e->getMessage());
+    error_log('Emma oferte init error: ' . $e->getMessage());
 }
 
 /*
@@ -341,7 +341,7 @@ function pz_offer_ensure_default_template(PDO $pdo): void {
             }
         }
     } catch (Throwable $e) {
-        error_log('PestZone offer stamp template update error: ' . $e->getMessage());
+        error_log('Emma offer stamp template update error: ' . $e->getMessage());
     }
 }
 
@@ -358,7 +358,7 @@ function pz_offer_redirect_with_error(string $message, int $editId = 0): void {
 try {
     pz_offer_ensure_default_template($pdo);
 } catch (Throwable $e) {
-    error_log('PestZone offer template ensure error: ' . $e->getMessage());
+    error_log('Emma offer template ensure error: ' . $e->getMessage());
 }
 
 $clients = pz_offer_fetch_clients($pdo);
@@ -428,7 +428,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: document_view.php?id=' . (int)$documentId . '&saved=1');
             exit;
         } catch (Throwable $e) {
-            error_log('PestZone oferta save error: ' . $e->getMessage());
+            error_log('Emma oferta save error: ' . $e->getMessage());
             pz_offer_redirect_with_error('Oferta nu a putut fi salvata: ' . $e->getMessage(), $documentId);
         }
     }
@@ -563,7 +563,7 @@ foreach ($services as $service) {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Oferte - PestZone</title>
+<title>Oferte - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <?php app_theme_css(); ?>
 <style>
@@ -947,7 +947,7 @@ foreach ($services as $service) {
             <?php
                 /*
                 |------------------------------------------------------------
-                | Header unificat PestZone — înlocuiește panel-head + filter
+                | Header unificat Emma — înlocuiește panel-head + filter
                 | form vechi pentru lista oferte.
                 | Tabs principale = 5 sub-pagini Documente.
                 | Toolbar = search + popover (Status + Rânduri/pagină).

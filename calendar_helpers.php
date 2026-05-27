@@ -563,7 +563,7 @@ function calendar_find_contract_service(PDO $pdo, int $clientId, ?int $clientLoc
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
     } catch (Throwable $e) {
-        error_log('PestZone contract service lookup error: ' . $e->getMessage());
+        error_log('Emma contract service lookup error: ' . $e->getMessage());
         return null;
     }
 }
@@ -621,7 +621,7 @@ function calendar_fetch_pv_for_appointment(PDO $pdo, int $appointmentId): ?array
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
     } catch (Throwable $e) {
-        error_log('PestZone calendar PV lookup error: ' . $e->getMessage());
+        error_log('Emma calendar PV lookup error: ' . $e->getMessage());
         return null;
     }
 }

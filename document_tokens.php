@@ -8,7 +8,7 @@ if (file_exists(__DIR__ . '/lib/settings_lib.php')) {
 
 /*
 |--------------------------------------------------------------------------
-| PestZone - document tokens
+| Emma - document tokens
 |--------------------------------------------------------------------------
 | Transforma datele unui document in variabile pentru șabloane:
 | {{document_number}}, {{client_name}}, {{items_table}}, {{materials_table}}
@@ -275,7 +275,7 @@ if (!function_exists('pzdoc_location_surface_text')) {
                     }
                 }
             } catch (Throwable $e) {
-                error_log('PestZone location surface token error: ' . $e->getMessage());
+                error_log('Emma location surface token error: ' . $e->getMessage());
             }
         }
 
@@ -354,7 +354,7 @@ if (!function_exists('pzdoc_appointment_tokens')) {
                 'appointment_location_surface' => pzdoc_token_text($locSurface, ''),
             ];
         } catch (Throwable $e) {
-            error_log('PestZone appointment token error: ' . $e->getMessage());
+            error_log('Emma appointment token error: ' . $e->getMessage());
             return $empty;
         }
     }
@@ -942,7 +942,7 @@ if (!function_exists('pzdoc_contract_number_text')) {
                     return $number;
                 }
             } catch (Throwable $e) {
-                error_log('PestZone contract number token error: ' . $e->getMessage());
+                error_log('Emma contract number token error: ' . $e->getMessage());
             }
         }
 
@@ -1000,7 +1000,7 @@ if (!function_exists('pzdoc_client_representative_role_text')) {
             $stmt->execute([$clientId]);
             return trim((string)($stmt->fetchColumn() ?: ''));
         } catch (Throwable $e) {
-            error_log('PestZone client representative role token error: ' . $e->getMessage());
+            error_log('Emma client representative role token error: ' . $e->getMessage());
             return '';
         }
     }

@@ -3,7 +3,7 @@
 |--------------------------------------------------------------------------
 | app_page_header.php
 |--------------------------------------------------------------------------
-| Componenta UI reutilizabilă pentru header-ul de pagină în CRM PestZone.
+| Componenta UI reutilizabilă pentru header-ul de pagină în CRM Emma.
 | Conform regulilor de design unificat:
 |   - Kicker (mic, gri, uppercase) - zona modulului
 |   - Titlu h2 (20px, weight 500) - numele paginii
@@ -919,7 +919,7 @@ if (!function_exists('pz_table_cards_css')) {
 if (!function_exists('pz_date_picker_assets')) {
     /**
      * Injectează asset-urile vanillajs-datepicker (CSS + JS + locale ro) o singură dată per pagină
-     * plus stilurile PestZone customizate cu tokens pz-*.
+     * plus stilurile Emma customizate cu tokens pz-*.
      *
      * Calendarul are vizualizare clară pe an: click pe titlul "mai 2026" deschide picker-ul
      * de luni, click pe an "2026" deschide picker-ul de ani, click pe interval "2020-2029"
@@ -940,7 +940,7 @@ if (!function_exists('pz_date_picker_assets')) {
         ?>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vanillajs-datepicker@1.3.4/dist/css/datepicker.min.css">
         <style>
-        /* PZ Date Picker — vanillajs-datepicker tematizat cu tokens PestZone */
+        /* PZ Date Picker — vanillajs-datepicker tematizat cu tokens Emma */
         .datepicker {
             font-family: 'Satoshi', 'Inter', system-ui, -apple-system, sans-serif !important;
             font-size: 13px;
@@ -1249,7 +1249,7 @@ if (!function_exists('pz_date_range_init')) {
 
 if (!function_exists('pz_date_single_init')) {
     /**
-     * Variantă single-date a date picker-ului PestZone — pentru cazuri în care
+     * Variantă single-date a date picker-ului Emma — pentru cazuri în care
      * pagina lucrează cu o singură dată (ex. calendar pe zi/săptămână/lună).
      *
      * HTML necesar:

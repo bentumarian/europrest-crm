@@ -216,7 +216,7 @@ try {
           AND a.team_member_id > 0
     ");
 } catch (Throwable $e) {
-    error_log('PestZone appointment teams backfill error: ' . $e->getMessage());
+    error_log('Emma appointment teams backfill error: ' . $e->getMessage());
 }
 
 $pdo->exec("
@@ -494,7 +494,7 @@ if (calendar_table_exists($pdo, 'contract_services') && calendar_table_exists($p
             ];
         }
     } catch (Throwable $e) {
-        error_log('PestZone contract services JS data error: ' . $e->getMessage());
+        error_log('Emma contract services JS data error: ' . $e->getMessage());
     }
 }
 
@@ -976,7 +976,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Calendar tehnicieni - PestZone</title>
+<title>Calendar tehnicieni - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1641,7 +1641,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
         <?php
             /*
             |----------------------------------------------------------------
-            | Header unificat PestZone: pz_page_header + filter bar pz-fb.
+            | Header unificat Emma: pz_page_header + filter bar pz-fb.
             | Înlocuiește vechea zonă topbar + calendar-toolbar.
             | Tab-urile Zi/Săpt/Lună sunt link-uri normale (păstrează contextul
             | date + team prin URL). Filtrul de tehnicieni rămâne form GET cu
@@ -3461,3 +3461,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+                 

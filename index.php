@@ -128,7 +128,7 @@ function ro_short_date_dashboard(string $date): string {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Dashboard · PestZone</title>
+<title>Dashboard · <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -336,7 +336,7 @@ function ro_short_date_dashboard(string $date): string {
             <section class="dashboard-hero">
                 <div>
                     <div class="pz-page-eyebrow">Operațional</div>
-                    <h1>Bun venit în PestZone</h1>
+                    <h1>Bun venit în Emma</h1>
                     <p>
                         Ai o privire rapidă asupra lucrărilor de astăzi, sarcinilor de birou,
                         tehnicienilor activi și clienților.

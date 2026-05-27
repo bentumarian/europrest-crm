@@ -1,6 +1,6 @@
 <?php
 /**
- * PestZone CRM - notification_lib.php
+ * Emma CRM - notification_lib.php
  * Safe v2: SendGrid + SMSLink + SMS Templates + client opt-out.
  */
 
@@ -53,7 +53,7 @@ function pz_add_column_if_missing(string $table, string $column, string $definit
             pz_db()->exec("ALTER TABLE `$table` ADD COLUMN `$column` $definition");
         }
     } catch (Throwable $e) {
-        error_log('PestZone migration warning: '.$e->getMessage());
+        error_log('Emma migration warning: '.$e->getMessage());
     }
 }
 
@@ -145,10 +145,10 @@ function pz_notify_init(): void
             '{brand}: Programarea pentru {service} a fost efectuata pentru data de {date}, interval {time}, la locatia {location}.'],
         ['task_expiring_7_sms', 'sms', 'SMS scadență sarcina in 7 zile', null,
             '{brand}: Bună ziua, va reamintim ca valabilitatea procesului verbal expira in 7 zile. Vă rugăm sa ne contactati pentru programarea urmatoarei intervenții.'],
-        ['password_reset_email', 'email', 'Email resetare parola', 'Resetare parola PestZone',
-            '<p>Bună ziua,</p><p>Ati solicitat resetarea parolei pentru PestZone.</p><p><a href="{reset_link}">Resetare parola</a></p><p>Linkul este valabil 60 de minute.</p>'],
+        ['password_reset_email', 'email', 'Email resetare parola', 'Resetare parola Emma',
+            '<p>Bună ziua,</p><p>Ati solicitat resetarea parolei pentru Emma.</p><p><a href="{reset_link}">Resetare parola</a></p><p>Linkul este valabil 60 de minute.</p>'],
         ['contract_send_email', 'email', 'Email trimitere contract', 'Contract {contract_number}',
-            '<p>Bună ziua,</p><p>Va transmitem contractul {contract_number}.</p><p>Cu stima,<br>PestZone</p>'],
+            '<p>Bună ziua,</p><p>Va transmitem contractul {contract_number}.</p><p>Cu stima,<br>Emma</p>'],
     ];
 
     $stmt = $pdo->prepare("
@@ -161,7 +161,7 @@ function pz_notify_init(): void
     }
 
     if (pz_setting_get_raw('sms_brand_name', '') === '') {
-        pz_setting_set_raw('sms_brand_name', 'PestZone');
+        pz_setting_set_raw('sms_brand_name', 'Emma');
     }
     if (pz_setting_get_raw('smslink_enabled', '') === '') {
         pz_setting_set_raw('smslink_enabled', '1');
@@ -204,13 +204,13 @@ function pz_notify_log(
         ");
         $stmt->execute([$channel, $provider, $recipient, $subject, $message, $status, $httpCode, $response, $relatedType, $relatedId]);
     } catch (Throwable $e) {
-        error_log('PestZone notification log warning: '.$e->getMessage());
+        error_log('Emma notification log warning: '.$e->getMessage());
     }
 }
 
 function pz_render_template(string $template, array $vars): string
 {
-    $vars['brand'] = $vars['brand'] ?? pz_setting_get('sms_brand_name', 'PestZone');
+    $vars['brand'] = $vars['brand'] ?? pz_setting_get('sms_brand_name', 'Emma');
     foreach ($vars as $key => $value) {
         $template = str_replace('{'.$key.'}', (string)$value, $template);
     }
@@ -265,7 +265,7 @@ function pz_sendgrid_send_email(
     $apiKey = trim((string)pz_setting_get('sendgrid_api_key', ''));
     $region = trim((string)pz_setting_get('sendgrid_region', 'global'));
     $fromEmail = trim((string)pz_setting_get('email_from_address', ''));
-    $fromName = trim((string)pz_setting_get('email_from_name', 'PestZone'));
+    $fromName = trim((string)pz_setting_get('email_from_name', 'Emma'));
     $replyTo = trim((string)pz_setting_get('email_reply_to', ''));
 
     if ($apiKey === '' || $fromEmail === '') {
@@ -278,7 +278,7 @@ function pz_sendgrid_send_email(
 
     $payload = [
         'personalizations' => [[ 'to' => [[ 'email' => $toEmail ]] ]],
-        'from' => ['email' => $fromEmail, 'name' => $fromName ?: 'PestZone'],
+        'from' => ['email' => $fromEmail, 'name' => $fromName ?: 'Emma'],
         'subject' => $subject,
         'content' => [['type' => 'text/html', 'value' => $html]]
     ];
@@ -450,7 +450,7 @@ function pz_send_appointment_confirmation_sms(int $appointmentId): array
     }
 
     /*
-     * Ordinea corectă pentru PestZone:
+     * Ordinea corectă pentru Emma:
      * 1. appointments.contact_phone — snapshotul salvat efectiv în programare
      * 2. client_locations.phone — telefonul locației
      * 3. clients.phone — telefonul general al clientului
@@ -597,7 +597,7 @@ function pz_send_appointment_confirmation_sms(int $appointmentId): array
         'time' => implode('-', $timeParts),
         'location' => $location,
         'address' => $address,
-        'brand' => pz_setting_get('sms_brand_name', 'PestZone'),
+        'brand' => pz_setting_get('sms_brand_name', 'Emma'),
         'company_phone' => pz_setting_get('company_phone', '')
     ]);
 
@@ -670,7 +670,7 @@ function pz_send_task_expiring_7_sms(int $taskId): array
         'service'=>$service,
         'date'=>$due,
         'location'=>$location,
-        'brand'=>pz_setting_get('sms_brand_name','PestZone'),
+        'brand'=>pz_setting_get('sms_brand_name','Emma'),
         'company_phone'=>pz_setting_get('company_phone','')
     ]);
 
@@ -692,5 +692,5 @@ function pz_send_task_expiring_7_sms(int $taskId): array
 try {
     pz_notify_init();
 } catch (Throwable $e) {
-    error_log('PestZone notification init error: '.$e->getMessage());
+    error_log('Emma notification init error: '.$e->getMessage());
 }

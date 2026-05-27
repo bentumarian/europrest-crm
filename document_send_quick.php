@@ -91,7 +91,7 @@ function pzquick_log_email(PDO $pdo, int $documentId, string $recipient, string 
             $sentBy,
         ]);
     } catch (Throwable $e) {
-        error_log('PestZone quick document email log error: ' . $e->getMessage());
+        error_log('Emma quick document email log error: ' . $e->getMessage());
     }
 }
 
@@ -288,6 +288,6 @@ try {
         'document_id' => $documentId,
     ]);
 } catch (Throwable $e) {
-    error_log('PestZone quick document email error: ' . $e->getMessage());
+    error_log('Emma quick document email error: ' . $e->getMessage());
     pzquick_json(['ok' => false, 'error' => $e->getMessage()], 500);
 }

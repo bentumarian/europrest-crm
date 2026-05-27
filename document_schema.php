@@ -3,7 +3,7 @@ require_once 'config.php';
 
 /*
 |--------------------------------------------------------------------------
-| PestZone - document schema
+| Emma - document schema
 |--------------------------------------------------------------------------
 | Fisier central pentru noul motor de documente:
 | - oferte
@@ -85,7 +85,7 @@ if (!function_exists('pzdoc_add_column_if_missing')) {
         try {
             $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}");
         } catch (Throwable $e) {
-            error_log('PestZone document schema column error: ' . $table . '.' . $column . ' - ' . $e->getMessage());
+            error_log('Emma document schema column error: ' . $table . '.' . $column . ' - ' . $e->getMessage());
         }
     }
 }
@@ -108,7 +108,7 @@ if (!function_exists('pzdoc_add_index_if_missing')) {
         try {
             $pdo->exec($sql);
         } catch (Throwable $e) {
-            error_log('PestZone document schema index error: ' . $table . '.' . $index . ' - ' . $e->getMessage());
+            error_log('Emma document schema index error: ' . $table . '.' . $index . ' - ' . $e->getMessage());
         }
     }
 }
@@ -253,7 +253,7 @@ if (!function_exists('pzdoc_ensure_document_schema')) {
             try {
                 $pdo->exec("UPDATE document_templates SET is_active = active WHERE is_active IS NULL");
             } catch (Throwable $e) {
-                error_log('PestZone document template active sync error: ' . $e->getMessage());
+                error_log('Emma document template active sync error: ' . $e->getMessage());
             }
         }
 
@@ -543,7 +543,7 @@ if (basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === basename(__FILE__)) {
         pzdoc_install_document_schema($pdo);
         echo 'Schema documente verificata cu succes.';
     } catch (Throwable $e) {
-        error_log('PestZone document schema install error: ' . $e->getMessage());
+        error_log('Emma document schema install error: ' . $e->getMessage());
         http_response_code(500);
         echo 'Eroare la verificarea schemei de documente.';
     }

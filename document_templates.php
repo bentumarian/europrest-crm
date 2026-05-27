@@ -11,7 +11,7 @@ if (!is_admin()) {
 
 /*
 |--------------------------------------------------------------------------
-| PestZone - șabloane documente
+| Emma - șabloane documente
 |--------------------------------------------------------------------------
 | Pagina noua pentru administrarea șabloanelor folosite de motorul unic:
 | - oferta
@@ -274,7 +274,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             dtpl_redirect(['ok' => 'deleted']);
         }
     } catch (Throwable $e) {
-        error_log('PestZone document templates action error: ' . $e->getMessage());
+        error_log('Emma document templates action error: ' . $e->getMessage());
         $error = $e->getMessage();
     }
 }
@@ -353,7 +353,7 @@ $isAdmin = is_admin();
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Șabloane documente - PestZone</title>
+<title>Șabloane documente - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -841,4 +841,4 @@ a.btn.small {
     </main>
 </div>
 </body>
-</html>
+</html>                                                  

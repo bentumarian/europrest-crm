@@ -58,7 +58,7 @@ function st_setting_icon(string $name): string
 try {
     pz_settings_ensure_schema($pdo);
 } catch (Throwable $e) {
-    error_log('PestZone settings schema error: ' . $e->getMessage());
+    error_log('Emma settings schema error: ' . $e->getMessage());
 }
 
 $company = pz_company_settings($pdo);
@@ -167,7 +167,7 @@ $superAdminCards = [
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Setări - PestZone</title>
+<title>Setări - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <?php app_theme_css(); ?>
 <style>
@@ -249,7 +249,7 @@ $superAdminCards = [
             <?php
                 /*
                 |------------------------------------------------------------
-                | Header unificat PestZone — înlocuiește settings-head vechi.
+                | Header unificat Emma — înlocuiește settings-head vechi.
                 | Subtitle dinamic în funcție de numărul de opțiuni vizibile.
                 |------------------------------------------------------------
                 */

@@ -191,11 +191,11 @@ function dview_resolve_client_email(PDO $pdo, array $document): string
             $upd = $pdo->prepare("UPDATE documents SET client_email_snapshot = ? WHERE id = ?");
             $upd->execute([$live, (int)($document['id'] ?? 0)]);
         } catch (Throwable $e) {
-            error_log('PestZone document_view email snapshot update error: ' . $e->getMessage());
+            error_log('Emma document_view email snapshot update error: ' . $e->getMessage());
         }
         return $live;
     } catch (Throwable $e) {
-        error_log('PestZone document_view resolve client email error: ' . $e->getMessage());
+        error_log('Emma document_view resolve client email error: ' . $e->getMessage());
         return '';
     }
 }
@@ -362,7 +362,7 @@ try {
         try {
             pz_flow_sync_issued_contract($pdo, $documentId);
         } catch (Throwable $flowErr) {
-            error_log('PestZone contract flow sync on view error: ' . $flowErr->getMessage());
+            error_log('Emma contract flow sync on view error: ' . $flowErr->getMessage());
         }
     }
     $template = $preview['template'];
@@ -409,7 +409,7 @@ $fieldPvCompact = (!$isAdmin && $isTeamUser && $type === 'proces_verbal');
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Vizualizare document - PestZone</title>
+<title>Vizualizare document - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <?php app_theme_css(); ?>
 <style>

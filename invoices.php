@@ -299,7 +299,7 @@ $statusLabels = [
             <?php
                 /*
                 |------------------------------------------------------------
-                | Header unificat PestZone — înlocuiește hero + module_nav
+                | Header unificat Emma — înlocuiește hero + module_nav
                 | + filters + pz-kpi-grid + status tabs vechi.
                 | Tabs principale = 3 module financiar (Facturi activ).
                 | KPIs inline = Facturat / Încasat / Sold / Termen depășit.
@@ -584,4 +584,4 @@ try {
 })();
 </script>
 </body>
-</html>
+</html>                                  

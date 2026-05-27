@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $settings = pz_settings_get_all($pdo, $defaults);
             $success = true;
         } catch (Throwable $e) {
-            error_log('PestZone company settings: ' . $e->getMessage());
+            error_log('Emma company settings: ' . $e->getMessage());
             $error = 'Setările nu au putut fi salvate.';
         }
     }
@@ -81,7 +81,7 @@ function cs_textarea($name, $label, $settings) {
 <html lang="ro">
 <head>
     <meta charset="UTF-8">
-    <title>Date companie - PestZone</title>
+    <title>Date companie - <?= h(pz_app_name()) ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap" rel="stylesheet">

@@ -906,7 +906,7 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Clienți - PestZone</title>
+<title>Clienți - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1517,7 +1517,7 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
             <?php
                 /*
                 |------------------------------------------------------------
-                | Header unificat PestZone + filter bar pz-fb.
+                | Header unificat Emma + filter bar pz-fb.
                 | Înlocuiește vechea zonă topbar + clients-page-title.
                 | Search-ul rămâne cu pz-search-wrap (păstrează live preview).
                 | Filtrele extinse (per_page, status, type) intră în popover.

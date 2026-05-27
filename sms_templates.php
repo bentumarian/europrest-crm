@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
 
         if ($action === 'save_sms_settings') {
-            pz_setting_set('sms_brand_name', trim($_POST['sms_brand_name'] ?? 'PestZone') ?: 'PestZone');
+            pz_setting_set('sms_brand_name', trim($_POST['sms_brand_name'] ?? 'Emma') ?: 'Emma');
             // smslink_enabled NU mai e gestionat aici - se face in Comunicare / Integrări
             // (era duplicat in 2 locuri si crea confuzie)
             $success[] = 'Setările SMS au fost salvate.';
@@ -108,7 +108,7 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
 <html lang="ro">
 <head>
     <meta charset="utf-8">
-    <title>Șabloane SMS - PestZone</title>
+    <title>Șabloane SMS - <?= h(pz_app_name()) ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <?php app_theme_css(); ?>
     <style>
@@ -168,7 +168,7 @@ h1,h2 { font-weight:700 !important; }
             <h2>Setări generale SMS</h2>
 
             <label>Brand / prefix mesaj</label>
-            <input type="text" name="sms_brand_name" maxlength="30" value="<?= sms_h(pz_setting_get('sms_brand_name', 'PestZone')) ?>">
+            <input type="text" name="sms_brand_name" maxlength="30" value="<?= sms_h(pz_setting_get('sms_brand_name', 'Emma')) ?>">
 
             <p class="muted">Expeditorul afișat in telefon se seteaza in SMSLink ca Sender ID. Aici controlam textul mesajului.</p>
             <p class="muted"><strong>Status trimitere SMS</strong> (activat / dezactivat global) se gestioneaza in <a href="communication_settings.php">Setări -> Comunicare / Integrări</a>.</p>
@@ -238,7 +238,7 @@ h1,h2 { font-weight:700 !important; }
 <script>
 (function(){
     const example = {
-        brand: document.querySelector('[name="sms_brand_name"]')?.value || 'PestZone',
+        brand: document.querySelector('[name="sms_brand_name"]')?.value || 'Emma',
         client: 'Client Demo SRL',
         service: 'Deratizare',
         date: '15.05.2026',

@@ -1,6 +1,6 @@
 <?php
 /**
- * Proxy ANAF — PestZone
+ * Proxy ANAF — Emma
  * Plasează în public_html și accesează via URL-ul exact (fără redirecturi).
  */
 
@@ -41,7 +41,7 @@ function pz_proxy_http_get_json(string $url, int $timeout = 20): array
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS => 3,
-            CURLOPT_USERAGENT => 'PestZone-ANAF-Proxy/1.0',
+            CURLOPT_USERAGENT => 'Emma-ANAF-Proxy/1.0',
         ]);
         $raw = curl_exec($ch);
         $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -54,7 +54,7 @@ function pz_proxy_http_get_json(string $url, int $timeout = 20): array
                 'method' => 'GET',
                 'timeout' => $timeout,
                 'ignore_errors' => true,
-                'header' => "Accept: application/json\r\nUser-Agent: PestZone-ANAF-Proxy/1.0\r\n",
+                'header' => "Accept: application/json\r\nUser-Agent: Emma-ANAF-Proxy/1.0\r\n",
             ],
         ]);
         $raw = @file_get_contents($url, false, $context);
@@ -194,7 +194,7 @@ function pz_onrc_csv_search(string $url, string $needle, array $columns, int $li
             'method' => 'GET',
             'timeout' => 90,
             'ignore_errors' => true,
-            'header' => "User-Agent: PestZone-ANAF-Proxy/1.0\r\n",
+            'header' => "User-Agent: Emma-ANAF-Proxy/1.0\r\n",
         ],
     ]);
     $handle = @fopen($url, 'r', false, $context);
@@ -416,7 +416,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['act
         CURLOPT_TIMEOUT        => 15,
         CURLOPT_CONNECTTIMEOUT => 10,
         CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_USERAGENT      => 'PestZone-ANAF-Proxy/1.0',
+        CURLOPT_USERAGENT      => 'Emma-ANAF-Proxy/1.0',
     ]);
     $resp     = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -517,7 +517,7 @@ curl_setopt_array($ch, [
     CURLOPT_TIMEOUT        => 30,
     CURLOPT_CONNECTTIMEOUT => 10,
     CURLOPT_SSL_VERIFYPEER => true,
-    CURLOPT_USERAGENT      => 'PestZone-ANAF-Proxy/1.0',
+    CURLOPT_USERAGENT      => 'Emma-ANAF-Proxy/1.0',
 ]);
 
 $response = curl_exec($ch);

@@ -523,7 +523,7 @@ function reports_short_service_label(string $name): string {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Rapoarte - PestZone</title>
+<title>Rapoarte - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1340,7 +1340,7 @@ document.addEventListener('click', (event) => {
 <?php
     /*
     |--------------------------------------------------------------------------
-    | Date range picker — vanillajs-datepicker via helper unificat PestZone.
+    | Date range picker — vanillajs-datepicker via helper unificat Emma.
     | Inputurile vizibile (reportsDateFrom/reportsDateTo) sunt deja render-ate
     | ca text readonly cu format dd.mm.yyyy. Hidden inputs (date_from/date_to)
     | conțin valorile ISO trimise la backend. Helper-ul atașează DateRangePicker
@@ -1354,3 +1354,4 @@ document.addEventListener('click', (event) => {
 ?>
 </body>
 </html>
+                                  

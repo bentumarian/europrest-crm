@@ -1,6 +1,6 @@
 <?php
 /**
- * PestZone CRM - document_design.php
+ * Emma CRM - document_design.php
  * Setări globale A4 — o singura dimensiune pentru TOATE documentele (PV, oferte, contracte).
  * Fara footer (dezactivat global). Defaults: NARROW (13 mm).
  */
@@ -164,7 +164,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $settings = pz_document_design_settings($pdo);
             $success = true;
         } catch (Throwable $e) {
-            error_log('PestZone document_design save error: ' . $e->getMessage());
+            error_log('Emma document_design save error: ' . $e->getMessage());
             $error = 'Setările nu au putut fi salvate.';
         }
     }
@@ -192,7 +192,7 @@ $companyName  = trim((string)($company['company.display_name'] ?? $company['comp
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Design documente - PestZone</title>
+<title>Design documente - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <?php app_theme_css(); ?>
 <style>

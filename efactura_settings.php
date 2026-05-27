@@ -217,7 +217,7 @@ $redirectUri = anaf_efactura_redirect_uri();
                             <div>
                                 <strong>Înregistrează o aplicație OAuth nouă</strong>
                                 <p>În portal: <em>Servicii online → Înregistrare utilizatori → Oauth → Înregistrare aplicații</em>. Completezi:<br>
-                                – <strong>Nume aplicație:</strong> PestZone CRM<br>
+                                – <strong>Nume aplicație:</strong> Emma CRM<br>
                                 – <strong>Callback URL:</strong> <code><?= efs_h($redirectUri) ?></code><br>
                                 – <strong>Servicii bifate:</strong> RO e-Factura</p>
                             </div>

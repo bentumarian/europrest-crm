@@ -1,6 +1,6 @@
 <?php
 /**
- * PestZone CRM - cron_reminder_emails.php
+ * Emma CRM - cron_reminder_emails.php
  * Trimite email cu o zi inainte pentru remindere pending.
  *
  * Folosire:
@@ -132,7 +132,7 @@ $categories = [
 ];
 
 $baseUrl = rtrim((string)pz_setting_get('app_base_url', ''), '/');
-$brand = (string)pz_setting_get('sms_brand_name', 'PestZone');
+$brand = (string)pz_setting_get('sms_brand_name', 'Emma');
 
 $sentCount = 0;
 $failedCount = 0;
@@ -242,4 +242,4 @@ if ($isCli) {
 } else {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($summary, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-}
+}                 

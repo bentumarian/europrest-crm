@@ -1764,7 +1764,7 @@ foreach ($tasks as $task) {
             <?php
                 /*
                 |------------------------------------------------------------
-                | Header unificat PestZone + filter bar pz-fb.
+                | Header unificat Emma + filter bar pz-fb.
                 | Înlocuiește vechea zonă topbar + tasks-hero.
                 | Tabs = Lună trecută / curentă / următoare (păstrează filtrele).
                 | KPI inline = active / întârziate / azi.

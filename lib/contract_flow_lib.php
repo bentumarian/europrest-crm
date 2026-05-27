@@ -44,7 +44,7 @@ if (!function_exists('pz_flow_add_column')) {
         try {
             $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
         } catch (Throwable $e) {
-            error_log('PestZone flow add column error: ' . $table . '.' . $column . ' - ' . $e->getMessage());
+            error_log('Emma flow add column error: ' . $table . '.' . $column . ' - ' . $e->getMessage());
         }
     }
 }
@@ -58,7 +58,7 @@ if (!function_exists('pz_flow_add_index')) {
         try {
             $pdo->exec($sql);
         } catch (Throwable $e) {
-            error_log('PestZone flow add index error: ' . $table . '.' . $index . ' - ' . $e->getMessage());
+            error_log('Emma flow add index error: ' . $table . '.' . $index . ' - ' . $e->getMessage());
         }
     }
 }
@@ -517,13 +517,13 @@ if (!function_exists('pz_flow_sync_issued_contract')) {
             $updDoc = $pdo->prepare('UPDATE documents SET contract_id = ? WHERE id = ?');
             $updDoc->execute([$contractId, $documentId]);
         } catch (Throwable $e) {
-            error_log('PestZone flow document contract link error: ' . $e->getMessage());
+            error_log('Emma flow document contract link error: ' . $e->getMessage());
         }
 
         return $contractId;
         } catch (Throwable $e) {
             $GLOBALS['pz_flow_last_sync']['error'] = $e->getMessage();
-            error_log('PestZone contract flow sync error: document ' . $documentId . ' - ' . $e->getMessage());
+            error_log('Emma contract flow sync error: document ' . $documentId . ' - ' . $e->getMessage());
             if ($throwErrors) {
                 throw $e;
             }
@@ -834,13 +834,13 @@ if (!function_exists('pz_flow_sync_issued_addendum')) {
                 $linkUpd = $pdo->prepare('UPDATE documents SET contract_id = ? WHERE id = ?');
                 $linkUpd->execute([$contractId, $documentId]);
             } catch (Throwable $e) {
-                error_log('PestZone addendum document link error: ' . $e->getMessage());
+                error_log('Emma addendum document link error: ' . $e->getMessage());
             }
 
             return $contractId;
         } catch (Throwable $e) {
             $GLOBALS['pz_flow_last_addendum_sync']['error'] = $e->getMessage();
-            error_log('PestZone addendum sync error: document ' . $documentId . ' - ' . $e->getMessage());
+            error_log('Emma addendum sync error: document ' . $documentId . ' - ' . $e->getMessage());
             if ($throwErrors) {
                 throw $e;
             }

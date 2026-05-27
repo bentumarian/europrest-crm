@@ -346,7 +346,7 @@ $durationOptions = [
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Servicii - PestZone</title>
+<title>Servicii - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">

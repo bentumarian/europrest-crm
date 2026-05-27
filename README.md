@@ -1,4 +1,6 @@
-# EuroPrest CRM (PestZone)
+# Emma CRM
+
+(fost EuroPrest / PestZone — în tranziție către SaaS Emma)
 
 Aplicatie CRM pentru firma de servicii (clienti, contracte, programari, billing,
 e-Factura ANAF, stoc, sarcini, procese verbale). Backend PHP pe shared hosting

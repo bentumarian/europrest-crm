@@ -365,7 +365,7 @@ if ($editId > 0) {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Reminders - PestZone</title>
+<title>Reminders - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <?php app_theme_css(); ?>
 <style>
@@ -763,3 +763,4 @@ document.addEventListener('keydown', function(e) {
 </script>
 </body>
 </html>
+                                  

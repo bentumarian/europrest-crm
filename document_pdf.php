@@ -1,6 +1,6 @@
 <?php
 /**
- * PestZone CRM — document_pdf.php
+ * Emma CRM — document_pdf.php
  * Genereaza PDF prin mPDF (via document_engine.php).
  * URL params: id (obligatoriu), mode (inline | download).
  */
@@ -27,7 +27,7 @@ try {
 
     pzdoc_engine_output_pdf($pdo, $documentId, $mode);
 } catch (Throwable $e) {
-    error_log('PestZone document_pdf error: ' . $e->getMessage());
+    error_log('Emma document_pdf error: ' . $e->getMessage());
     http_response_code(500);
     header('Content-Type: text/html; charset=utf-8');
     echo '<!doctype html><html><body style="font-family:Arial;padding:24px;">';

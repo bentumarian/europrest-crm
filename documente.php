@@ -18,12 +18,12 @@ try {
     $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
     pzdoc_require_schema($pdo);
 } catch (Throwable $e) {
-    error_log('PestZone documente init error: ' . $e->getMessage());
+    error_log('Emma documente init error: ' . $e->getMessage());
 }
 
 /*
 |--------------------------------------------------------------------------
-| PestZone - Documente centralizat
+| Emma - Documente centralizat
 |--------------------------------------------------------------------------
 | Pagina centrala pentru toate documentele emise prin motorul nou:
 | - oferte
@@ -288,7 +288,7 @@ try {
 } catch (Throwable $e) {
     $errorMessage = 'Nu am putut incarca lista de documente.';
     $totalPages = 1;
-    error_log('PestZone documente list error: ' . $e->getMessage());
+    error_log('Emma documente list error: ' . $e->getMessage());
 }
 
 $totalAll = 0;
@@ -307,7 +307,7 @@ foreach ($stats as $stat) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>Documente - PestZone</title>
+<title>Documente - <?= h(pz_app_name()) ?></title>
 <?php app_theme_css(); ?>
 <?php render_search_preview_assets(); ?>
 </head>
@@ -326,7 +326,7 @@ foreach ($stats as $stat) {
             <?php
                 /*
                 |------------------------------------------------------------
-                | Header unificat PestZone — înlocuiește topbar + stats-grid
+                | Header unificat Emma — înlocuiește topbar + stats-grid
                 | + panel filtrare vechi. Quick-grid (carduri "Document nou"
                 | pentru fiecare tip) rămâne separat sub header.
                 | Tabs principale = 5 sub-pagini Documente.

@@ -2,7 +2,7 @@
 
 /*
 |--------------------------------------------------------------------------
-| Task Recurrence Engine - PestZone
+| Task Recurrence Engine - Emma
 |--------------------------------------------------------------------------
 | Motor centralizat pentru sarcini recurente.
 | Compatibil cu MariaDB / cPanel.

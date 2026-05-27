@@ -1,7 +1,7 @@
 <?php
 /*
 |--------------------------------------------------------------------------
-| PestZone - acces documente pentru admin si angajati teren
+| Emma - acces documente pentru admin si angajati teren
 |--------------------------------------------------------------------------
 | Adminul poate accesa orice document.
 | Angajatul poate accesa doar procesele verbale legate de programările
@@ -40,7 +40,7 @@ if (!function_exists('pzdoc_user_can_access_appointment_for_pv')) {
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             return (int)($row['total'] ?? 0) > 0;
         } catch (Throwable $e) {
-            error_log('PestZone document access appointment error: ' . $e->getMessage());
+            error_log('Emma document access appointment error: ' . $e->getMessage());
             return false;
         }
     }

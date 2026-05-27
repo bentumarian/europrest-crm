@@ -36,7 +36,7 @@ if ($isDemoLow) {
 }
 
 $googleUrl = trim(pz_review_setting_get('review_google_url', ''));
-$brand = pz_review_setting_get('sms_brand_name', 'PestZone');
+$brand = pz_review_setting_get('sms_brand_name', 'Emma');
 $step = 'rating';
 $error = '';
 

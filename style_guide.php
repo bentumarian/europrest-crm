@@ -16,7 +16,7 @@ $pz_topbar_opts      = ['placeholder' => 'Caută în ghid...'];
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Ghid de stil · PestZone</title>
+<title>Ghid de stil · <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <?php app_theme_css(); ?>
 <style>
@@ -203,7 +203,7 @@ $pz_topbar_opts      = ['placeholder' => 'Caută în ghid...'];
         <div class="content">
         <?php pz_page_header([
             'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-            'kicker'   => 'PestZone CRM · Identitate vizuală',
+            'kicker'   => 'Emma CRM · Identitate vizuală',
             'title'    => 'Ghid de stil',
             'subtitle' => 'Tokens de culoare, tipografie, sidebar & topbar, header-uri de pagină, tabele, formulare, stări. Doar ce e adevărat și esențial pentru o pagină nouă — fără demo-uri inutile.',
             'meta'     => [

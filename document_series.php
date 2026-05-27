@@ -78,7 +78,7 @@ function ds_ensure_column(PDO $pdo, string $table, string $column, string $defin
         try {
             $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}");
         } catch (Throwable $e) {
-            error_log('PestZone series column error: ' . $table . '.' . $column . ' - ' . $e->getMessage());
+            error_log('Emma series column error: ' . $table . '.' . $column . ' - ' . $e->getMessage());
         }
     }
 }
@@ -96,7 +96,7 @@ function ds_ensure_index(PDO $pdo, string $table, string $index, string $sql): v
     try {
         $pdo->exec($sql);
     } catch (Throwable $e) {
-        error_log('PestZone series index error: ' . $table . '.' . $index . ' - ' . $e->getMessage());
+        error_log('Emma series index error: ' . $table . '.' . $index . ' - ' . $e->getMessage());
     }
 }
 
@@ -356,7 +356,7 @@ function ds_set_default(PDO $pdo, int $seriesId): bool
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        error_log('PestZone set default series error: ' . $e->getMessage());
+        error_log('Emma set default series error: ' . $e->getMessage());
         return false;
     }
 }
@@ -488,7 +488,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            error_log('PestZone save series error: ' . $e->getMessage());
+            error_log('Emma save series error: ' . $e->getMessage());
             header('Location: document_series.php?error=series');
             exit;
         }
@@ -535,7 +535,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: document_series.php?deleted=1');
             exit;
         } catch (Throwable $e) {
-            error_log('PestZone delete series error: ' . $e->getMessage());
+            error_log('Emma delete series error: ' . $e->getMessage());
             header('Location: document_series.php?error=delete');
             exit;
         }
@@ -596,7 +596,7 @@ $preview = ds_format_number($formSeries, (int)($formSeries['next_number'] ?? 1),
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Serii documente - PestZone</title>
+<title>Serii documente - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <?php app_theme_css(); ?>
 <style>

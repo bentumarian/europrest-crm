@@ -7,7 +7,7 @@ if (file_exists(__DIR__ . '/lib/stock_lib.php')) {
 
 /*
 |--------------------------------------------------------------------------
-| PestZone - document core
+| Emma - document core
 |--------------------------------------------------------------------------
 | Motor comun pentru documente:
 | - oferte
@@ -1014,7 +1014,7 @@ if (!function_exists('pzdoc_issue_document')) {
                         $document = pzdoc_get_document($pdo, $documentId, true) ?: $document;
                     }
                 } catch (Throwable $flowErr) {
-                    error_log('PestZone contract flow sync from document_core issue hook error: ' . $flowErr->getMessage());
+                    error_log('Emma contract flow sync from document_core issue hook error: ' . $flowErr->getMessage());
                 }
             }
 
@@ -1174,7 +1174,7 @@ if (basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === basename(__FILE__)) {
         pzdoc_require_schema($pdo);
         echo 'Motor documente incarcat corect.';
     } catch (Throwable $e) {
-        error_log('PestZone document core error: ' . $e->getMessage());
+        error_log('Emma document core error: ' . $e->getMessage());
         http_response_code(500);
         echo 'Eroare la incarcarea motorului de documente.';
     }

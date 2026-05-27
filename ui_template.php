@@ -16,7 +16,7 @@ $pz_topbar_opts      = ['placeholder' => 'Caută în design system...'];
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Design System · PestZone</title>
+<title>Design System · <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -968,7 +968,7 @@ body, .layout, .main, .content { background: var(--pz-bg); }
         ══════════════════════════════════════════════════════ -->
         <header class="ds-header">
             <div>
-                <div class="ds-header-kicker">PestZone CRM · Design System</div>
+                <div class="ds-header-kicker">Emma CRM · Design System</div>
                 <h1>Ghid vizual al platformei</h1>
                 <p>Sursa unică de adevăr pentru culori, tipografie, componente și reguli de interfață. Orice pagină nouă din platformă trebuie să respecte acest ghid. Documentul este actualizat continuu.</p>
             </div>
@@ -1168,7 +1168,7 @@ body, .layout, .main, .content { background: var(--pz-bg); }
             </div>
             <div class="ds-card-body">
                 <div class="ds-demo" style="margin-bottom:14px">
-                    <div style="font-family:'Satoshi',Inter,system-ui,sans-serif;font-size:24px;font-weight:700;color:#0F172A;line-height:1.2">PestZone CRM — Interfață operațională</div>
+                    <div style="font-family:'Satoshi',Inter,system-ui,sans-serif;font-size:24px;font-weight:700;color:#0F172A;line-height:1.2">Emma CRM — Interfață operațională</div>
                     <div style="font-family:'Satoshi',Inter,system-ui,sans-serif;font-size:13px;font-weight:500;color:#64748B;margin-top:6px">Clienți · Lucrări · Facturare · Stocuri · Rapoarte</div>
                 </div>
                 <div class="ds-demo-label">Scara tipografică</div>

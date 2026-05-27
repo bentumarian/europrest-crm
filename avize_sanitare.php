@@ -107,7 +107,7 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Avize sanitare produse - PestZone</title>
+<title>Avize sanitare produse - <?= h(pz_app_name()) ?></title>
 <style>
     :root { color-scheme: light; --accent:#1160b7; --text:#102033; --muted:#64748b; --border:#dbe4ef; --soft:#f6f9fc; }
     * { box-sizing:border-box; }

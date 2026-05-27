@@ -20,7 +20,7 @@ try {
     $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
     pzdoc_require_schema($pdo);
 } catch (Throwable $e) {
-    error_log('PestZone addenda init error: ' . $e->getMessage());
+    error_log('Emma addenda init error: ' . $e->getMessage());
 }
 
 /*
@@ -363,7 +363,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: document_view.php?id=' . (int)$documentId . '&saved=1');
             exit;
         } catch (Throwable $e) {
-            error_log('PestZone addendum save error: ' . $e->getMessage());
+            error_log('Emma addendum save error: ' . $e->getMessage());
             pz_addendum_redirect_with_error('Actul adițional nu a putut fi salvat: ' . $e->getMessage(), $documentId, $parentDocumentId);
         }
     }
@@ -471,7 +471,7 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Acte adiționale - PestZone</title>
+<title>Acte adiționale - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <?php app_theme_css(); ?>
 <style>
@@ -698,7 +698,7 @@ $needsParentSelection = $showForm && !$parentDocument && !$editingDocument;
             <?php
                 /*
                 |------------------------------------------------------------
-                | Header unificat PestZone — înlocuiește panel-head + filter
+                | Header unificat Emma — înlocuiește panel-head + filter
                 | form vechi pentru lista acte adiționale.
                 | Tabs principale = 5 sub-pagini Documente.
                 | Toolbar = search + popover (Status + Rânduri/pagină).
@@ -920,4 +920,4 @@ try {
     };
     go();
 })();
-</script>
+</script>                    

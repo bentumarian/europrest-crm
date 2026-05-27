@@ -13,7 +13,7 @@ if (!is_admin()) {
 
 /*
 |--------------------------------------------------------------------------
-| PestZone - editor șablon document
+| Emma - editor șablon document
 |--------------------------------------------------------------------------
 | Editor unic pentru șabloane folosite de motorul nou:
 | - oferta
@@ -357,7 +357,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        error_log('PestZone template edit error: ' . $e->getMessage());
+        error_log('Emma template edit error: ' . $e->getMessage());
         $error = $e->getMessage();
     }
 }
@@ -375,7 +375,7 @@ $isNew = (int)$form['id'] <= 0;
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title><?= $isNew ? 'Șablon nou' : 'Editare șablon' ?> - PestZone</title>
+<title><?= $isNew ? 'Șablon nou' : 'Editare șablon' ?> - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -286,6 +286,6 @@ try {
         'sms_error' => $smsError,
     ]);
 } catch (Throwable $e) {
-    error_log('PestZone appointment_drag_update error: ' . $e->getMessage());
+    error_log('Emma appointment_drag_update error: ' . $e->getMessage());
     pz_drag_json(['ok' => false, 'error' => 'Eroare server la mutarea programării.'], 500);
 }

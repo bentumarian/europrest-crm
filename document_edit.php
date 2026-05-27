@@ -6,7 +6,7 @@ require_login();
 
 /*
 |--------------------------------------------------------------------------
-| PestZone - document edit router
+| Emma - document edit router
 |--------------------------------------------------------------------------
 | Acest fișier nu editeaza direct documentul.
 | El citeste tipul documentului si trimite utilizatorul catre pagina corecta:

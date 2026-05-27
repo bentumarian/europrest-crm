@@ -1,4 +1,4 @@
-# Linia vizuală PestZone CRM — versiune finală
+# Linia vizuală Emma CRM — versiune finală
 
 **Data:** 22 mai 2026
 **Status:** decisă cu Bentu, sursa de adevăr pentru toate paginile.

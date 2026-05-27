@@ -44,7 +44,7 @@ app_theme_css();
 <?php
 /*
 |----------------------------------------------------------------------
-| Header unificat PestZone — înlocuiește stock-hero + module_nav vechi.
+| Header unificat Emma — înlocuiește stock-hero + module_nav vechi.
 | Tabs = sub-modulele gestiunii (Dashboard activ).
 | KPI inline = 7 metrice cu tone-uri info/warning/danger.
 |----------------------------------------------------------------------
@@ -149,3 +149,4 @@ pz_page_header([
     </div>
 </div>
 </div></main></div></body></html>
+    

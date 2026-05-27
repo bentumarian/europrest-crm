@@ -1,7 +1,7 @@
 <?php
 /*
 |--------------------------------------------------------------------------
-| Config general PestZone
+| Config general Emma
 |--------------------------------------------------------------------------
 | Salvează fișierul ca UTF-8.
 | Nu pune spatii sau text înainte de <?php.
@@ -32,14 +32,14 @@ date_default_timezone_set('Europe/Bucharest');
 $localConfigPath = __DIR__ . '/config.local.php';
 
 if (!file_exists($localConfigPath)) {
-    error_log('PestZone: lipseste config.local.php');
+    error_log('Emma: lipseste config.local.php');
     die('Eroare configurare server. Contacteaza administratorul.');
 }
 
 $dbConfig = require $localConfigPath;
 
 if (!is_array($dbConfig)) {
-    error_log('PestZone: config.local.php este invalid');
+    error_log('Emma: config.local.php este invalid');
     die('Eroare configurare server. Contacteaza administratorul.');
 }
 
@@ -115,7 +115,7 @@ if (!headers_sent()) {
 | Exemplu config.local.php:
 |   'sendgrid_api_key' => 'SG_xxxxxxxxx',
 |   'sendgrid_from_email' => 'office@pestzone.ro',
-|   'sendgrid_from_name' => 'PestZone',
+|   'sendgrid_from_name' => 'Emma',
 |
 | Alternativ, se pot folosi variabile de mediu cu aceleasi nume:
 | SENDGRID_API_KEY, SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME
@@ -124,7 +124,7 @@ if (!headers_sent()) {
 if (is_array($dbConfig)) {
     $sgApiKey = (string)($dbConfig['sendgrid_api_key'] ?? getenv('SENDGRID_API_KEY') ?: '');
     $sgFromEmail = (string)($dbConfig['sendgrid_from_email'] ?? getenv('SENDGRID_FROM_EMAIL') ?: 'office@pestzone.ro');
-    $sgFromName = (string)($dbConfig['sendgrid_from_name'] ?? getenv('SENDGRID_FROM_NAME') ?: 'PestZone');
+    $sgFromName = (string)($dbConfig['sendgrid_from_name'] ?? getenv('SENDGRID_FROM_NAME') ?: 'Emma');
 
     if ($sgApiKey !== '' && !defined('SENDGRID_API_KEY')) {
         define('SENDGRID_API_KEY', $sgApiKey);
@@ -140,7 +140,7 @@ if (is_array($dbConfig)) {
 }
 
 if (empty($dbConfig['db_host']) || empty($dbConfig['db_name'])) {
-    error_log('PestZone: config.local.php este invalid');
+    error_log('Emma: config.local.php este invalid');
     die('Eroare configurare server. Contacteaza administratorul.');
 }
 
@@ -171,7 +171,7 @@ try {
     $pdo->exec("SET CHARACTER SET utf8mb4");
 
 } catch (PDOException $e) {
-    error_log('PestZone DB connection error: ' . $e->getMessage());
+    error_log('Emma DB connection error: ' . $e->getMessage());
     die('Eroare conexiune baza de date.');
 }
 

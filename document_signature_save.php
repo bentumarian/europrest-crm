@@ -157,6 +157,6 @@ try {
         'signature_path' => $relativePath,
     ]);
 } catch (Throwable $e) {
-    error_log('PestZone document signature error: ' . $e->getMessage());
+    error_log('Emma document signature error: ' . $e->getMessage());
     pzsig_json(['ok' => false, 'error' => $e->getMessage()], 500);
 }

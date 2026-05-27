@@ -356,7 +356,7 @@ if (!function_exists('render_sidebar')) {
         border-color: rgba(177,214,240,.34);
     }
 
-    /* PestZone sidebar standard */
+    /* Emma sidebar standard */
     .sidebar {
         background: var(--accent-deep) !important;
         border-right: 1px solid #0E2A49 !important;

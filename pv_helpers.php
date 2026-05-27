@@ -213,7 +213,7 @@ function pz_pv_fetch_contracts(PDO $pdo): array {
 
         return $contracts;
     } catch (Throwable $e) {
-        error_log('PestZone PV contracts fetch error: ' . $e->getMessage());
+        error_log('Emma PV contracts fetch error: ' . $e->getMessage());
         return [];
     }
 }
@@ -361,7 +361,7 @@ function pz_pv_fetch_appointment(PDO $pdo, int $appointmentId): ?array {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
     } catch (Throwable $e) {
-        error_log('PestZone PV appointment fetch error: ' . $e->getMessage());
+        error_log('Emma PV appointment fetch error: ' . $e->getMessage());
         return null;
     }
 }
@@ -383,7 +383,7 @@ function pz_pv_fetch_appointments(PDO $pdo, ?int $teamMemberId = null): array {
         $stmt->execute($params);
         return $stmt ? ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []) : [];
     } catch (Throwable $e) {
-        error_log('PestZone PV appointments list error: ' . $e->getMessage());
+        error_log('Emma PV appointments list error: ' . $e->getMessage());
         return [];
     }
 }

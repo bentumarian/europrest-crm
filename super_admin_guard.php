@@ -1,6 +1,6 @@
 <?php
 /**
- * Super Admin guard pentru PestZone / EuroPrest CRM.
+ * Super Admin guard pentru Emma / EuroPrest CRM.
  *
  * Scop:
  * - admin normal: poate lucra in platforma conform drepturilor existente;

@@ -27,43 +27,43 @@ function et_seed_email_templates_ascii(PDO $pdo): void
             'contract_send_email',
             'email',
             'Trimitere contract',
-            'Contract {contract_number} - PestZone',
-            '<p>Bună ziua,</p><p>Va transmitem contractul <strong>{contract_number}</strong>.</p><p>Vă rugăm sa verificati documentul si sa ne transmiteti eventualele observatii.</p><p>Cu stima,<br>PestZone</p>'
+            'Contract {contract_number} - Emma',
+            '<p>Bună ziua,</p><p>Va transmitem contractul <strong>{contract_number}</strong>.</p><p>Vă rugăm sa verificati documentul si sa ne transmiteti eventualele observatii.</p><p>Cu stima,<br>Emma</p>'
         ],
         [
             'password_reset_email',
             'email',
             'Resetare parola',
-            'Resetare parola PestZone',
-            '<p>Bună ziua,</p><p>Ati solicitat resetarea parolei pentru PestZone.</p><p><a href="{reset_link}">Apasa aici pentru resetarea parolei</a></p><p>Linkul este valabil 60 de minute.</p>'
+            'Resetare parola Emma',
+            '<p>Bună ziua,</p><p>Ati solicitat resetarea parolei pentru Emma.</p><p><a href="{reset_link}">Apasa aici pentru resetarea parolei</a></p><p>Linkul este valabil 60 de minute.</p>'
         ],
         [
             'appointment_email',
             'email',
             'Notificare programare',
-            'Programare {date} - PestZone',
-            '<p>Bună ziua,</p><p>Programarea pentru <strong>{service}</strong> a fost stabilita pentru data de <strong>{date}</strong>, interval <strong>{time}</strong>, la locatia <strong>{location}</strong>.</p><p>Cu stima,<br>PestZone</p>'
+            'Programare {date} - Emma',
+            '<p>Bună ziua,</p><p>Programarea pentru <strong>{service}</strong> a fost stabilita pentru data de <strong>{date}</strong>, interval <strong>{time}</strong>, la locatia <strong>{location}</strong>.</p><p>Cu stima,<br>Emma</p>'
         ],
         [
             'process_verbal_email',
             'email',
             'Trimitere proces-verbal',
-            'Proces-verbal {document_number} - PestZone',
-            '<p>Bună ziua,</p><p>Va transmitem procesul-verbal <strong>{document_number}</strong> aferent lucrării efectuate in data de <strong>{date}</strong>.</p><p>Cu stima,<br>PestZone</p>'
+            'Proces-verbal {document_number} - Emma',
+            '<p>Bună ziua,</p><p>Va transmitem procesul-verbal <strong>{document_number}</strong> aferent lucrării efectuate in data de <strong>{date}</strong>.</p><p>Cu stima,<br>Emma</p>'
         ],
         [
             'invoice_email',
             'email',
             'Trimitere factura / link factura',
-            'Factura {invoice_number} - PestZone',
-            '<p>Bună ziua,</p><p>Va transmitem factura <strong>{invoice_number}</strong>.</p><p>{invoice_link}</p><p>Cu stima,<br>PestZone</p>'
+            'Factura {invoice_number} - Emma',
+            '<p>Bună ziua,</p><p>Va transmitem factura <strong>{invoice_number}</strong>.</p><p>{invoice_link}</p><p>Cu stima,<br>Emma</p>'
         ],
         [
             'task_expiring_email',
             'email',
             'Reminder scadență',
-            'Reminder scadență - PestZone',
-            '<p>Bună ziua,</p><p>Va reamintim ca valabilitatea documentului / procesului-verbal expira in curand. Vă rugăm sa ne contactati pentru programarea urmatoarei intervenții.</p><p>Cu stima,<br>PestZone</p>'
+            'Reminder scadență - Emma',
+            '<p>Bună ziua,</p><p>Va reamintim ca valabilitatea documentului / procesului-verbal expira in curand. Vă rugăm sa ne contactati pentru programarea urmatoarei intervenții.</p><p>Cu stima,<br>Emma</p>'
         ],
     ];
 
@@ -157,7 +157,7 @@ try {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Șabloane email - PestZone</title>
+<title>Șabloane email - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <?php app_theme_css(); ?>
 <style>

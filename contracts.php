@@ -20,7 +20,7 @@ try {
     $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
     pzdoc_require_schema($pdo);
 } catch (Throwable $e) {
-    error_log('PestZone contracts init error: ' . $e->getMessage());
+    error_log('Emma contracts init error: ' . $e->getMessage());
 }
 
 /*
@@ -363,7 +363,7 @@ function pz_contract_fetch_expiring(PDO $pdo, int $days = 30): array
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (Throwable $e) {
-        error_log('PestZone contracts expiring fetch error: ' . $e->getMessage());
+        error_log('Emma contracts expiring fetch error: ' . $e->getMessage());
         return [];
     }
 }
@@ -464,7 +464,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: document_view.php?id=' . (int)$documentId . '&saved=1');
             exit;
         } catch (Throwable $e) {
-            error_log('PestZone contract save error: ' . $e->getMessage());
+            error_log('Emma contract save error: ' . $e->getMessage());
             pz_contract_redirect_with_error('Contractul nu a putut fi salvat: ' . $e->getMessage(), $documentId);
         }
     }
@@ -611,7 +611,7 @@ foreach ($services as $service) {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Contracte - PestZone</title>
+<title>Contracte - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <?php app_theme_css(); ?>
 <style>
@@ -1110,7 +1110,7 @@ foreach ($services as $service) {
             <?php
                 /*
                 |------------------------------------------------------------
-                | Header unificat PestZone — înlocuiește panel-head + filter
+                | Header unificat Emma — înlocuiește panel-head + filter
                 | form vechi pentru lista contracte.
                 | Tabs principale = 5 sub-pagini Documente.
                 | Toolbar = search + popover (Status + Rânduri/pagină).

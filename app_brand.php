@@ -150,7 +150,7 @@ if (!function_exists('_app_brand_logo_masked_html')) {
                  . "-webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; "
                  . "-webkit-mask-position: center; mask-position: center; "
                  . "display: inline-block;";
-        return '<span class="' . $cls . ' ' . $cls . '-masked" style="' . $style . '" aria-label="PestZone" role="img"></span>';
+        return '<span class="' . $cls . ' ' . $cls . '-masked" style="' . $style . '" aria-label="Emma" role="img"></span>';
     }
 }
 

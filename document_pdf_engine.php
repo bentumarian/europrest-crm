@@ -8,7 +8,7 @@ if (file_exists(__DIR__ . '/lib/settings_lib.php')) {
 
 /*
 |--------------------------------------------------------------------------
-| PestZone - document PDF engine
+| Emma - document PDF engine
 |--------------------------------------------------------------------------
 | Motor unic PDF pentru:
 | - oferta
@@ -350,7 +350,7 @@ if (!function_exists('pzdoc_pdf_no_cache_headers')) {
         header('Cache-Control: post-check=0, pre-check=0', false);
         header('Pragma: no-cache');
         header('Expires: 0');
-        header('X-PestZone-Document-Render: live');
+        header('X-Emma-Document-Render: live');
     }
 }
 
@@ -609,7 +609,7 @@ if (!function_exists('pzdoc_pdf_create_mpdf')) {
         $mpdf->autoScriptToLang = true;
         $mpdf->autoLangToFont = true;
         $mpdf->SetTitle(pzdoc_document_type_label((string)($document['document_type'] ?? 'document')));
-        $mpdf->SetAuthor('PestZone CRM');
+        $mpdf->SetAuthor('Emma CRM');
 
         if ($headerHtml !== '') {
             $mpdf->SetHTMLHeader($headerHtml);

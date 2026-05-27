@@ -317,7 +317,7 @@ if (!function_exists('stock_ensure_schema')) {
             stock_add_column_if_missing($pdo, 'stock_movements', 'pv_no', "VARCHAR(120) NULL");
             stock_add_column_if_missing($pdo, 'stock_movements', 'workers_names', "VARCHAR(255) NULL");
         } catch (Throwable $e) {
-            error_log('PestZone stock schema ensure error: ' . $e->getMessage());
+            error_log('Emma stock schema ensure error: ' . $e->getMessage());
         }
     }
 }

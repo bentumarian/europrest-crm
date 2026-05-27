@@ -23,7 +23,7 @@ try {
     $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
     pzdoc_require_schema($pdo);
 } catch (Throwable $e) {
-    error_log('PestZone PV init error: ' . $e->getMessage());
+    error_log('Emma PV init error: ' . $e->getMessage());
 }
 
 /*
@@ -75,7 +75,7 @@ if (isset($_GET['last_pv_for_client'])) {
             'services' => $services,
         ], JSON_UNESCAPED_UNICODE);
     } catch (Throwable $e) {
-        error_log('PestZone PV last_pv autofill error: ' . $e->getMessage());
+        error_log('Emma PV last_pv autofill error: ' . $e->getMessage());
         echo json_encode(['found' => false]);
     }
     exit;
@@ -278,7 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: document_view.php?id=' . (int)$documentId . '&saved=1' . (($action === 'issue' && $appointmentId > 0) ? '#clientSignatureCard' : ''));
             exit;
         } catch (Throwable $e) {
-            error_log('PestZone PV save error: ' . $e->getMessage());
+            error_log('Emma PV save error: ' . $e->getMessage());
             pz_pv_redirect_with_error($e->getMessage(), $documentId);
         }
     }
@@ -551,7 +551,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Procese verbale - PestZone</title>
+<title>Procese verbale - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <?php app_theme_css(); ?>
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.css" rel="stylesheet">
@@ -1393,7 +1393,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
             <?php
                 /*
                 |------------------------------------------------------------
-                | Header unificat PestZone — înlocuiește panel-head + filter
+                | Header unificat Emma — înlocuiește panel-head + filter
                 | form vechi pentru lista PV-uri.
                 | Tabs principale = 5 sub-pagini Documente.
                 | Toolbar = search + popover (Status + Rânduri / pagină).

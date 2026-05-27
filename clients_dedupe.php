@@ -352,7 +352,7 @@ $modeUrl = function(string $m) {
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<title>Corelare clienți - PestZone</title>
+<title>Corelare clienți - <?= h(pz_app_name()) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <?php app_theme_css(); ?>
 <style>

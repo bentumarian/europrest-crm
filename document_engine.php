@@ -1,6 +1,6 @@
 <?php
 /**
- * PestZone CRM — document_engine.php
+ * Emma CRM — document_engine.php
  * SURSA UNICA pentru randare documente: HTML pentru preview SI PDF.
  *
  * Public API:
