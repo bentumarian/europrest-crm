@@ -768,11 +768,16 @@ if (!function_exists('app_theme_css')) {
 
         .btn:focus-visible {
             outline: none;
-            box-shadow: none;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, .22);
         }
 
         .btn:active {
             transform: translateY(1px);
+        }
+
+        /* Tranziții uniforme 150ms — DESIGN_LINE.md §18 polish */
+        .btn, .pz-ph-btn, .pz-icon-btn, .pz-subtab, .status-pill, .badge {
+            transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
         }
 
         .btn.accent,
@@ -945,7 +950,7 @@ if (!function_exists('app_theme_css')) {
         select:focus,
         textarea:focus {
             border-color: var(--tone-info);
-            box-shadow: none;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, .22);
         }
 
         input[disabled],
@@ -3727,6 +3732,37 @@ if (!function_exists('app_theme_css')) {
         .status-pill.status-error::before { background: var(--pz-re-acc, #EF4444); }
 
         .status-pill.status-storno::before { background: var(--pz-mu); }
+
+        /* Extensii badge dot — DESIGN_LINE.md §10 (Sesiunea 4 reaplicată) */
+        :is(.badge.ok, .badge.off, .badge.good, .status-pill.inactive,
+            .status-pill.tone-success, .status-pill.tone-warning,
+            .status-pill.tone-danger, .status-pill.tone-info,
+            .status-pill.tone-neutral) {
+            position: relative;
+            padding-left: 18px !important;
+        }
+        :is(.badge.ok, .badge.off, .badge.good, .status-pill.inactive,
+            .status-pill.tone-success, .status-pill.tone-warning,
+            .status-pill.tone-danger, .status-pill.tone-info,
+            .status-pill.tone-neutral)::before {
+            content: "";
+            position: absolute;
+            left: 7px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+        .badge.ok::before,
+        .badge.good::before,
+        .status-pill.tone-success::before { background: var(--pz-gr-acc, #16A34A); }
+        .status-pill.tone-warning::before { background: var(--pz-or-acc, #9A3412); }
+        .status-pill.tone-danger::before  { background: var(--pz-re-acc, #DC2626); }
+        .badge.off::before,
+        .status-pill.inactive::before,
+        .status-pill.tone-neutral::before { background: var(--pz-mu); }
+        .status-pill.tone-info::before    { background: var(--pz-bl); }
         </style>
         <!-- Flatpickr — datepicker custom RO (locale ro, format dd.mm.YYYY) -->
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.css">
