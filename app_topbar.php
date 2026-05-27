@@ -525,6 +525,13 @@ if (!function_exists('app_topbar')) {
                                     <span class="tdi-sub">Emite contract nou</span>
                                 </span>
                             </a>
+                            <a class="tb-dropdown-item tone-info" role="menuitem" href="service-reports?new=1">
+                                <span class="tdi-icon"><?= app_icon_svg('processes') ?></span>
+                                <span>
+                                    <span class="tdi-label">Proces verbal</span>
+                                    <span class="tdi-sub">Emite PV nou</span>
+                                </span>
+                            </a>
                             <a class="tb-dropdown-item tone-success" role="menuitem" href="invoice.php">
                                 <span class="tdi-icon"><?= app_icon_svg('invoice') ?></span>
                                 <span>
@@ -633,4 +640,3 @@ if (!function_exists('app_topbar')) {
         <?php
     }
 }
-
