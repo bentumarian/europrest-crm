@@ -2748,14 +2748,49 @@ function configurePvButtons(data) {
         editEmailBtn.title = editEmailBtn.disabled && canEmail ? 'Clientul nu are email salvat.' : '';
     }
 }
-function finalizeAppointmentFromEdit() {
+async function finalizeAppointmentFromEdit() {
     if (!currentLoadedAppointment?.id) { alert('Programarea nu a fost identificata.'); return; }
     if ((currentLoadedAppointment.status || '') === 'finalizata') { return; }
     const form = document.getElementById('adminFinalizeForm');
     const idInput = document.getElementById('admin_finalize_appointment_id');
+    const btn = document.getElementById('edit_finalize_btn');
     if (!form || !idInput) { alert('Nu am putut pregati finalizarea.'); return; }
     idInput.value = currentLoadedAppointment.id;
-    form.submit();
+
+    // AJAX submit: handler răspunde JSON, modalul rămâne deschis, refacem
+    // datele programării in-place. La eroare de rețea cădem pe form.submit().
+    const originalText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Se finalizeaza...'; }
+    const formData = new FormData(form);
+    try {
+        const res = await fetch('calendar.php', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json().catch(() => null);
+        if (res.ok && data && data.ok) {
+            if (btn) btn.textContent = '✓ Finalizat';
+            markCalendarEventFinalized(idInput.value);
+            await loadAppointment(idInput.value);
+            if (btn) { btn.disabled = false; btn.textContent = originalText || 'Finalizează'; }
+            return;
+        }
+        const errorMsg = (data && data.error) ? data.error : 'Finalizarea a eșuat. Reîncearcă sau reîncarcă pagina.';
+        alert(errorMsg);
+    } catch (err) {
+        console.error('admin finalize ajax error:', err);
+        // Fallback la form.submit() normal (reload pagină)
+        if (btn) { btn.disabled = false; btn.textContent = originalText || 'Finalizează'; }
+        form.submit();
+        return;
+    } finally {
+        if (btn && btn.textContent.startsWith('Se finalizeaza')) {
+            btn.disabled = false;
+            btn.textContent = originalText || 'Finalizează';
+        }
+    }
 }
 function openPvFromEdit() {
     if (!currentLoadedAppointment?.id) { alert('Programarea nu a fost identificata.'); return; }

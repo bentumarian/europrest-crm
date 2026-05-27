@@ -112,6 +112,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $appointmentId = (int)($_POST['appointment_id'] ?? 0);
 
         if (!$isAdmin || $appointmentId <= 0) {
+            if ($isAjaxRequest) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(400);
+                echo json_encode(['ok' => false, 'error' => 'Programare invalida sau fără drepturi.'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
             header('Location: ' . $baseRedirect . '&error=1');
             exit;
         }
@@ -135,6 +141,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Creează / actualizează poziția de facturat (la finalizare din birou).
         if (function_exists('pz_billing_ensure_item_for_appointment')) {
             pz_billing_ensure_item_for_appointment($pdo, $appointmentId);
+        }
+
+        if ($isAjaxRequest) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'ok' => true,
+                'appointment_id' => $appointmentId,
+                'status' => 'finalizata',
+                'message' => 'Lucrarea a fost finalizata.',
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
         }
 
         header('Location: ' . $baseRedirect . '&finished=1');

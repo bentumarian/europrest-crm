@@ -1223,7 +1223,13 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                 </div>
                             <?php endif; ?>
 
-                            <div class="panel <?= !empty($isQuickPvFromAppointment) ? 'pv-quick-hidden' : '' ?>" style="box-shadow:none; margin-top:14px;">
+                            <?php
+                                // Secțiunea „Document" (data + oră + În baza) e ascunsă în quick mode DOAR pentru
+                                // tehnician — admin trebuie să poată alege basis-ul (contract / nota / etc.) chiar
+                                // și când emite PV din calendar pe o programare.
+                                $hideDocumentSection = !empty($isQuickPvFromAppointment) && $isTeamUser;
+                            ?>
+                            <div class="panel <?= $hideDocumentSection ? 'pv-quick-hidden' : '' ?>" style="box-shadow:none; margin-top:14px;">
                                 <div class="panel-head">
                                     <div>
                                         <div class="panel-title" style="display:flex;align-items:center;gap:10px;"><span class="contract-step-num"><?= $templateCount > 1 ? '3' : '2' ?></span><span>Document</span></div>
