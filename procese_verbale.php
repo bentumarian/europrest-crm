@@ -887,6 +887,11 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
     color: #92400E;
 }
 
+/* === Card „Produs cu stoc": UM ascuns, mini-grid 2 coloane pentru Dilutie + Cantitate === */
+.pv-material-card:not(.pv-manual-material-row) .pv-material-mini-grid {
+    grid-template-columns: 1fr 1fr;
+}
+
 /* === Mini-grid 2 coloane pentru „Zone tratate" + „Suprafața" === */
 .pv-aria-suprafata-grid {
     display: grid;
@@ -1057,7 +1062,6 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                 $treatedAreasValue = 'Întreaga locație';
                                             }
                                             $workersValue = (string)($editingPayload['workers_names'] ?? '');
-                                            $workersInitialCollapsed = trim($workersValue) !== '';
                                         ?>
                                         <div class="field full">
                                             <div class="pv-aria-suprafata-grid">
@@ -1071,17 +1075,10 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="field full" id="workersNamesField">
-                                            <div class="pv-collapsible-summary" id="workersSummary" style="display:<?= $workersInitialCollapsed ? 'flex' : 'none' ?>;">
-                                                <span class="pcs-label">Tehnician:</span>
-                                                <span class="pcs-value" id="workersSummaryValue"><?= pz_pv_h($workersValue) ?></span>
-                                                <button type="button" class="pcs-edit" onclick="pvExpandWorkers()">Modifică</button>
-                                            </div>
-                                            <div class="pv-collapsible-input" id="workersInputWrap" style="display:<?= $workersInitialCollapsed ? 'none' : 'block' ?>;">
-                                                <label>Tehnician</label>
-                                                <input type="text" name="workers_names" id="workersNames" value="<?= pz_pv_h($workersValue) ?>" placeholder="Tehnicianul care a executat lucrarea">
-                                            </div>
-                                        </div>
+                                        <!-- Câmpul Tehnician este complet ascuns: valoarea vine din appointment.team_member_name
+                                             și nu este nevoie ca tehnicianul să-l editeze. Rămâne ca hidden input ca să fie
+                                             submis în payload (workers_names). -->
+                                        <input type="hidden" name="workers_names" id="workersNames" value="<?= pz_pv_h($workersValue) ?>">
                                     </div>
                                 </div>
                             </div>
@@ -1331,10 +1328,9 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                             <label>Cantitate</label>
                                                             <input type="text" inputmode="decimal" class="quantity-input" name="materials[<?= (int)$index ?>][quantity]" value="<?= pz_pv_h(!empty($material['stock_product_id']) ? ($material['quantity'] ?? '') : '') ?>" placeholder="cant.">
                                                         </div>
-                                                        <div>
-                                                            <label>UM</label>
-                                                            <input type="text" name="materials[<?= (int)$index ?>][unit]" class="material-unit" value="<?= pz_pv_h($material['unit'] ?? '') ?>" readonly placeholder="-">
-                                                        </div>
+                                                        <!-- UM nu mai este afișată pe card: vine din nomenclator (product.unit_consumption)
+                                                             și se setează automat de syncProductRow. Hidden input păstrează valoarea. -->
+                                                        <input type="hidden" name="materials[<?= (int)$index ?>][unit]" class="material-unit" value="<?= pz_pv_h($material['unit'] ?? '') ?>">
                                                         <?php $cardMethod = (!empty($material['stock_product_id']) ? (string)($material['application_method'] ?? '') : ''); ?>
                                                         <div style="grid-column: 1 / -1;">
                                                             <label>Metoda aplicare</label>
@@ -2641,7 +2637,8 @@ function addMaterialRow() {
             <div class="pv-material-mini-grid">
                 <div><label>Dilutie</label><input type="text" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></div>
                 <div><label>Cantitate</label><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][quantity]" placeholder="cant."></div>
-                <div><label>UM</label><input type="text" name="materials[${i}][unit]" class="material-unit" readonly placeholder="-"></div>
+                <!-- UM nu este afișat: vine din nomenclator (product.unit_consumption), populat de syncProductRow. -->
+                <input type="hidden" name="materials[${i}][unit]" class="material-unit" value="">
                 <div style="grid-column: 1 / -1;">
                     <label>Metoda aplicare</label>
                     <div class="pz-method-pills" role="radiogroup" aria-label="Metoda aplicare">
