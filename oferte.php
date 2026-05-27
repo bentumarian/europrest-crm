@@ -1038,6 +1038,7 @@ foreach ($services as $service) {
                         'href'    => $offerNewHref,
                         'variant' => 'primary',
                         'icon'    => 'ti-plus',
+                        'iconOnly' => true,
                     ]],
                     'tabs'     => $offersTabs,
                     'toolbar'  => $offersToolbarHtml,

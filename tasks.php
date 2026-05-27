@@ -1847,6 +1847,7 @@ foreach ($tasks as $task) {
                         'variant' => 'primary',
                         'type'    => 'button',
                         'onclick' => "openCreateTaskModal('" . h($currentDate) . "')",
+                        'iconOnly' => true,
                     ]],
                     'tabs'     => $tasksTabs,
                     'kpis'     => [

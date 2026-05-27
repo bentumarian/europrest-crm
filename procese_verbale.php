@@ -1484,6 +1484,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                         'href'    => 'service-reports?new=1' . ($filterClientId > 0 ? '&client_id=' . (int)$filterClientId : ''),
                         'variant' => 'primary',
                         'icon'    => 'ti-plus',
+                        'iconOnly' => true,
                     ]],
                     'tabs'     => $pvTabs,
                     'toolbar'  => $pvToolbarHtml,

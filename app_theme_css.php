@@ -766,13 +766,27 @@ if (!function_exists('app_theme_css')) {
             border-color: var(--accent-soft-2);
         }
 
+        /* Focus-visible accesibilitate (DESIGN_LINE.md §18 polish):
+           halo subțire în albastru-marca, fără să rupă layoutul. */
         .btn:focus-visible {
             outline: none;
-            box-shadow: none;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, .22);
         }
 
         .btn:active {
             transform: translateY(1px);
+        }
+        /* Tranziții uniforme pe interacțiuni — 150ms ease, conform DESIGN_LINE.md §18. */
+        .btn,
+        .pz-ph-btn,
+        .pz-icon-btn,
+        .pz-subtab,
+        .status-pill,
+        .badge {
+            transition: background-color .15s ease,
+                        color .15s ease,
+                        border-color .15s ease,
+                        box-shadow .15s ease;
         }
 
         .btn.accent,
@@ -3846,4 +3860,27 @@ if (!function_exists('app_professional_identity_css')) {
 -op: vezi app_theme_css().
     }
 }
+}
+         });
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initFlatpickr);
+            } else {
+                initFlatpickr();
+            }
+        })();
+        </script>
+        <?php
+    }
+}
+
+if (!function_exists('app_professional_identity_css')) {
+    /**
+     * @deprecated CSS-ul a fost fuzionat în app_theme_css(). Stub păstrat pentru
+     * compatibilitate cu eventuale apeluri vechi.
+     */
+    function app_professional_identity_css(): void
+    {
+        // no-op: vezi app_theme_css().
+    }
 }

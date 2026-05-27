@@ -1594,7 +1594,8 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
                         'title'   => 'Corelează telefonul și emailul între firme cu același reprezentant legal',
                     ],
                     [
-                        'label'   => 'Client nou',
+                        'label'   => 'Adaugă client',
+                        'iconOnly' => true,
                         'icon'    => 'ti-plus',
                         'variant' => 'primary',
                         'type'    => 'button',

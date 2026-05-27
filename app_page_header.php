@@ -155,6 +155,18 @@ if (!function_exists('pz_page_header_css')) {
             white-space: nowrap;
         }
         .pz-ph-btn i { font-size: 14px; }
+        /* Variant „icon-only" (DESIGN_LINE.md §7) — buton 32×32 doar cu icon
+           și tooltip prin atributul title=. Folosit pentru acțiunile „+" pe
+           paginile listă. */
+        .pz-ph-btn.icon-only {
+            width: 32px;
+            min-width: 32px;
+            height: 32px;
+            padding: 0;
+            gap: 0;
+            justify-content: center;
+        }
+        .pz-ph-btn.icon-only i { font-size: 16px; }
         .pz-ph-btn.primary {
             background: var(--pz-bl);
             color: #fff;
@@ -1411,32 +1423,40 @@ if (!function_exists('pz_page_header')) {
                         $formAttr = (string)($action['form'] ?? '');
                         $isButton = $actType === 'button';
                         $isSubmit = $actType === 'submit';
+                        // iconOnly: doar iconul + tooltip cu label-ul (DESIGN_LINE.md §7).
+                        // Folosit pentru acțiunea principală "+" pe paginile listă.
+                        $iconOnly = !empty($action['iconOnly']) && $icon !== '';
+                        $btnClass = 'pz-ph-btn ' . $variant . ($iconOnly ? ' icon-only' : '');
+                        $tooltipText = $iconOnly && $title_attr === '' ? $label : $title_attr;
                     ?>
                         <?php if ($isSubmit): ?>
                             <button type="submit"
-                                    class="pz-ph-btn <?= pz_ph_h($variant) ?>"
+                                    class="<?= pz_ph_h($btnClass) ?>"
                                     <?php if ($formAttr !== ''): ?>form="<?= pz_ph_h($formAttr) ?>"<?php endif; ?>
                                     <?php if ($onclick !== ''): ?>onclick="<?= pz_ph_h($onclick) ?>"<?php endif; ?>
-                                    <?php if ($title_attr !== ''): ?>title="<?= pz_ph_h($title_attr) ?>"<?php endif; ?>>
+                                    <?php if ($tooltipText !== ''): ?>title="<?= pz_ph_h($tooltipText) ?>"<?php endif; ?>
+                                    <?php if ($iconOnly): ?>aria-label="<?= pz_ph_h($label) ?>"<?php endif; ?>>
                                 <?php if ($icon !== ''): ?><i class="ti <?= pz_ph_h($icon) ?>" aria-hidden="true"></i><?php endif; ?>
-                                <?= pz_ph_h($label) ?>
+                                <?php if (!$iconOnly): ?><?= pz_ph_h($label) ?><?php endif; ?>
                             </button>
                         <?php elseif ($isButton): ?>
                             <button type="button"
-                                    class="pz-ph-btn <?= pz_ph_h($variant) ?>"
+                                    class="<?= pz_ph_h($btnClass) ?>"
                                     <?php if ($onclick !== ''): ?>onclick="<?= pz_ph_h($onclick) ?>"<?php endif; ?>
-                                    <?php if ($title_attr !== ''): ?>title="<?= pz_ph_h($title_attr) ?>"<?php endif; ?>>
+                                    <?php if ($tooltipText !== ''): ?>title="<?= pz_ph_h($tooltipText) ?>"<?php endif; ?>
+                                    <?php if ($iconOnly): ?>aria-label="<?= pz_ph_h($label) ?>"<?php endif; ?>>
                                 <?php if ($icon !== ''): ?><i class="ti <?= pz_ph_h($icon) ?>" aria-hidden="true"></i><?php endif; ?>
-                                <?= pz_ph_h($label) ?>
+                                <?php if (!$iconOnly): ?><?= pz_ph_h($label) ?><?php endif; ?>
                             </button>
                         <?php else: ?>
-                            <a class="pz-ph-btn <?= pz_ph_h($variant) ?>"
+                            <a class="<?= pz_ph_h($btnClass) ?>"
                                href="<?= pz_ph_h($href) ?>"
                                <?php if ($target !== ''): ?>target="<?= pz_ph_h($target) ?>"<?php endif; ?>
                                <?php if ($onclick !== ''): ?>onclick="<?= pz_ph_h($onclick) ?>"<?php endif; ?>
-                               <?php if ($title_attr !== ''): ?>title="<?= pz_ph_h($title_attr) ?>"<?php endif; ?>>
+                               <?php if ($tooltipText !== ''): ?>title="<?= pz_ph_h($tooltipText) ?>"<?php endif; ?>
+                               <?php if ($iconOnly): ?>aria-label="<?= pz_ph_h($label) ?>"<?php endif; ?>>
                                 <?php if ($icon !== ''): ?><i class="ti <?= pz_ph_h($icon) ?>" aria-hidden="true"></i><?php endif; ?>
-                                <?= pz_ph_h($label) ?>
+                                <?php if (!$iconOnly): ?><?= pz_ph_h($label) ?><?php endif; ?>
                             </a>
                         <?php endif; ?>
                     <?php endforeach; ?>

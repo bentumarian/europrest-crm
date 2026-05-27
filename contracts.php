@@ -1204,6 +1204,7 @@ foreach ($services as $service) {
                         'href'    => $contractNewHref,
                         'variant' => 'primary',
                         'icon'    => 'ti-plus',
+                        'iconOnly' => true,
                     ]],
                     'tabs'     => $contractsTabs,
                     'toolbar'  => $contractsToolbarHtml,
