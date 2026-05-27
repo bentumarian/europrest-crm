@@ -3686,22 +3686,31 @@ if (!function_exists('app_theme_css')) {
         }
 
         /* Auto-dot pe badge-urile existente cu clase semantice de status.
-           Aplicare automată pe markup-ul existent — nu necesită schimbări pe pagini. */
+           Aplicare automată pe markup-ul existent — nu necesită schimbări pe pagini.
+           Conform DESIGN_LINE.md §10: dot 6px solid stânga pentru status critic. */
         :is(.badge.draft, .badge.issued, .badge.cancelled,
+            .badge.ok, .badge.off, .badge.good,
             .status-pill.status-paid, .status-pill.status-partial,
             .status-pill.status-unpaid, .status-pill.status-draft,
             .status-pill.status-overdue, .status-pill.status-error,
-            .status-pill.status-storno,
-            .status-pill.efactura-sent, .status-pill.efactura-notsent) {
+            .status-pill.status-storno, .status-pill.inactive,
+            .status-pill.efactura-sent, .status-pill.efactura-notsent,
+            .status-pill.tone-success, .status-pill.tone-warning,
+            .status-pill.tone-danger, .status-pill.tone-info,
+            .status-pill.tone-neutral) {
             position: relative;
             padding-left: 18px !important;
         }
         :is(.badge.draft, .badge.issued, .badge.cancelled,
+            .badge.ok, .badge.off, .badge.good,
             .status-pill.status-paid, .status-pill.status-partial,
             .status-pill.status-unpaid, .status-pill.status-draft,
             .status-pill.status-overdue, .status-pill.status-error,
-            .status-pill.status-storno,
-            .status-pill.efactura-sent, .status-pill.efactura-notsent)::before {
+            .status-pill.status-storno, .status-pill.inactive,
+            .status-pill.efactura-sent, .status-pill.efactura-notsent,
+            .status-pill.tone-success, .status-pill.tone-warning,
+            .status-pill.tone-danger, .status-pill.tone-info,
+            .status-pill.tone-neutral)::before {
             content: "";
             position: absolute;
             left: 7px;
@@ -3711,22 +3720,37 @@ if (!function_exists('app_theme_css')) {
             height: 6px;
             border-radius: 50%;
         }
-        /* Maparea status → culoare dot. Solid, semantic. */
+        /* Maparea status → culoare dot. Solid, semantic.
+           Conform DESIGN_LINE.md §10:
+           - Activ / Plătit / Finalizat / Emis / Confirmată → verde (--pz-gr-acc)
+           - Draft / De verificat / Pending / Netrimisă     → portocaliu (--pz-or-acc)
+           - Întârziat / Restant / Anulat / Storno          → roșu (--pz-re-acc)
+           - Inactiv / N/A                                   → gri (--pz-mu) */
         .badge.draft::before,
         .status-pill.status-draft::before,
         .status-pill.efactura-notsent::before,
-        .status-pill.status-partial::before { background: var(--pz-or-acc, #F97316); }
+        .status-pill.status-partial::before,
+        .status-pill.tone-warning::before { background: var(--pz-or-acc, #F97316); }
 
         .badge.issued::before,
+        .badge.ok::before,
+        .badge.good::before,
         .status-pill.status-paid::before,
         .status-pill.status-unpaid::before,
-        .status-pill.efactura-sent::before { background: var(--pz-gr-acc, #22C55E); }
+        .status-pill.efactura-sent::before,
+        .status-pill.tone-success::before { background: var(--pz-gr-acc, #22C55E); }
 
         .badge.cancelled::before,
         .status-pill.status-overdue::before,
-        .status-pill.status-error::before { background: var(--pz-re-acc, #EF4444); }
+        .status-pill.status-error::before,
+        .status-pill.tone-danger::before { background: var(--pz-re-acc, #EF4444); }
 
-        .status-pill.status-storno::before { background: var(--pz-mu); }
+        .badge.off::before,
+        .status-pill.status-storno::before,
+        .status-pill.inactive::before,
+        .status-pill.tone-neutral::before { background: var(--pz-mu); }
+
+        .status-pill.tone-info::before { background: var(--pz-bl); }
         </style>
         <!-- Flatpickr — datepicker custom RO (locale ro, format dd.mm.YYYY) -->
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/flatpickr.min.css">
@@ -3780,4 +3804,46 @@ if (!function_exists('app_professional_identity_css')) {
     {
         // no-op: vezi app_theme_css().
     }
+}
+<script>
+        (function() {
+            function initFlatpickr() {
+                if (typeof flatpickr === 'undefined') return;
+                try { flatpickr.localize(flatpickr.l10ns.ro); } catch(e) {}
+                document.querySelectorAll('input[type="date"]:not([data-no-flatpickr])').forEach(function(input) {
+                    if (input._flatpickr) return;
+                    flatpickr(input, {
+                        locale: 'ro',
+                        dateFormat: 'Y-m-d',
+                        altInput: true,
+                        altFormat: 'd.m.Y',
+                        allowInput: true,
+                        disableMobile: false
+                    });
+                });
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initFlatpickr);
+            } else {
+                initFlatpickr();
+            }
+        })();
+        </script>
+        <?php
+    }
+}
+
+if (!function_exists('app_professional_identity_css')) {
+    /**
+     * @deprecated CSS-ul a fost fuzionat în app_theme_css(). Stub păstrat pentru
+     * compatibilitate cu eventuale apeluri vechi.
+     */
+    function app_professional_identity_css(): void
+    {
+        // no-op: vezi app_theme_css().
+    }
+}
+-op: vezi app_theme_css().
+    }
+}
 }
