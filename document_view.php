@@ -464,6 +464,12 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
 .signature-existing { display: grid; gap: 8px; }
 .signature-existing img { display: block; max-width: 260px; max-height: 110px; background: #fff; border: 1px solid var(--border2); border-radius: 14px; padding: 8px; }
 .signature-help { font-size: 12px; color: var(--muted); }
+.signature-pad-section, .signature-saved-section { display: grid; gap: 10px; }
+.primary-email-cta { width: 100%; min-height: 48px; font-size: 14px; font-weight: 900; box-shadow: 0 4px 12px rgba(37, 99, 235, .22); }
+.signature-feedback { padding: 10px 12px; border-radius: 12px; font-size: 13px; font-weight: 700; margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+.signature-feedback.success { background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; }
+.signature-feedback.error { background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; }
+.signature-feedback.info { background: var(--pz-bls, #EFF6FF); color: var(--pz-bld, #1E40AF); border: 1px solid var(--pz-blb, #BFDBFE); }
 
 .print-preview-frame { width: 100%; min-height: 820px; border: 0; border-radius: 18px; background: #eef2f7; display:block; }
 .field-compact .document-hero { padding: 16px; }
@@ -521,7 +527,9 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                 <?php if ($document): ?>
                     <div class="document-toolbar">
                         <a class="btn accent" target="_blank" href="document_pdf.php?id=<?= (int)$document['id'] ?>&mode=download">Descarcă PDF</a>
-                        <?php if ($isIssued && ($hasClientSignature || $pvIssuedByOffice)): ?>
+                        <?php // Pe team mode, butonul „Trimite email" e mutat în cardul de semnătură (apare după save).
+                              // Topbarul îl păstrăm doar pentru cazul în care nu există cardul de semnătură (ex: PV emis de birou, fără sign din teren).
+                              if ($isIssued && !$canClientSign && ($hasClientSignature || $pvIssuedByOffice)): ?>
                             <?php if ($hasClientEmail): ?>
                                 <button class="btn accent" type="button" onclick="sendQuickDocumentEmail(<?= (int)$document['id'] ?>, this, '<?= dview_h($clientEmail) ?>')">Trimite email</button>
                             <?php else: ?>
@@ -695,42 +703,51 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                 <?php endif; ?>
 
                 <?php if ($canClientSign): ?>
+                    <?php
+                        // Butonul „Trimite PV pe email" din card e disponibil dacă tehnicianul
+                        // are email valid pentru client. Vizibilitatea reală e controlată de
+                        // savedSection (vizibil doar după save semnătură).
+                        $emailFromCardEnabled = $hasClientEmail;
+                    ?>
                     <section class="document-card signature-card" id="clientSignatureCard">
                         <div class="signature-title">
                             <div>
                                 <h2>Semnătura beneficiar</h2>
-                                <p>Semnătura se salveaza doar din modul Angajat / Teren si intra automat in PDF.</p>
-                            </div>
-                            <?php if ($hasClientSignature): ?>
-                                <span class="badge issued">Semnătura salvata<?= $signatureSavedAt ? ' - ' . dview_h($signatureSavedAt) : '' ?></span>
-                            <?php else: ?>
-                                <span class="badge draft">Nesemnat</span>
-                            <?php endif; ?>
-                        </div>
-
-                        <?php if ($hasClientSignature): ?>
-                            <div class="signature-existing">
-                                <img src="<?= dview_h($signaturePath) ?>?v=<?= time() ?>" alt="Semnătura beneficiar">
                                 <?php if (!$fieldPvCompact): ?>
-                                    <div class="signature-help">Pentru refacere, clientul poate semna din nou mai jos si semnătura veche va fi inlocuita.</div>
+                                    <p>Semnătura se salveaza doar din modul Angajat / Teren si intra automat in PDF.</p>
                                 <?php endif; ?>
                             </div>
-                        <?php else: ?>
-                            <div class="signature-help">Clientul semneaza cu degetul in chenarul de mai jos.</div>
-                        <?php endif; ?>
+                            <span class="badge <?= $hasClientSignature ? 'issued' : 'draft' ?>" id="signatureStatusBadge">
+                                <?php if ($hasClientSignature): ?>Semnătura salvata<?= $signatureSavedAt ? ' - ' . dview_h($signatureSavedAt) : '' ?><?php else: ?>Nesemnat<?php endif; ?>
+                            </span>
+                        </div>
 
-                        <?php if (!$hasClientSignature): ?>
-                            <div class="signature-pad-wrap">
-                                <canvas id="clientSignaturePad" class="signature-pad" tabindex="0" autofocus aria-label="Semnătura client"></canvas>
-                            </div>
-                        <?php endif; ?>
-
-                        <div class="signature-actions">
-                            <?php if (!$hasClientSignature): ?>
-                                <button class="btn" type="button" id="clearClientSignature">Șterge semnătura</button>
-                                <button class="btn accent" type="button" id="saveClientSignature">Salvează semnătura</button>
+                        <!-- Pad de semnare: vizibil când nu există semnătură, sau dacă utilizatorul face „Refă" -->
+                        <div class="signature-pad-section" id="signaturePadSection" style="display:<?= $hasClientSignature ? 'none' : 'block' ?>;">
+                            <?php if (!$fieldPvCompact): ?>
+                                <div class="signature-help">Clientul semneaza cu degetul in chenarul de mai jos.</div>
                             <?php endif; ?>
-                            <?php /* După semnătura, actiunile principale raman doar in bara de sus: Înapoi, Descarcă PDF, Trimite email. */ ?>
+                            <div class="signature-pad-wrap">
+                                <canvas id="clientSignaturePad" class="signature-pad" tabindex="0" aria-label="Semnătura client"></canvas>
+                            </div>
+                            <div class="signature-actions">
+                                <button class="btn" type="button" id="clearClientSignature">Șterge</button>
+                                <button class="btn accent" type="button" id="saveClientSignature">Salvează semnătura</button>
+                            </div>
+                        </div>
+
+                        <!-- Vedere semnătură salvată: vizibilă după save (in-place, fără reload) -->
+                        <div class="signature-saved-section" id="signatureSavedSection" style="display:<?= $hasClientSignature ? 'block' : 'none' ?>;">
+                            <div class="signature-existing">
+                                <img id="signatureSavedImage" src="<?= $hasClientSignature ? dview_h($signaturePath) . '?v=' . time() : '' ?>" alt="Semnătura beneficiar"<?= !$hasClientSignature ? ' style="display:none;"' : '' ?>>
+                            </div>
+                            <div class="signature-actions">
+                                <button class="btn" type="button" id="redoSignatureBtn">Refă semnătura</button>
+                                <?php if ($fieldPvCompact && $emailFromCardEnabled): ?>
+                                    <button class="btn accent primary-email-cta" type="button" id="sendEmailFromSignatureCard" data-recipient="<?= dview_h($clientEmail) ?>">Trimite PV pe email</button>
+                                <?php endif; ?>
+                            </div>
+                            <div class="signature-feedback" id="signatureFeedback" style="display:none;"></div>
                         </div>
                     </section>
                 <?php endif; ?>
@@ -757,14 +774,71 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
 <script>
 const csrfToken = '<?= dview_h(csrf_token()) ?>';
 const currentDocumentId = <?= (int)($document['id'] ?? 0) ?>;
+/*
+|--------------------------------------------------------------------------
+| Semnătură client + email — fără alert/confirm/reload
+|--------------------------------------------------------------------------
+| Toate acțiunile se desfășoară în-place în cardul de semnătură:
+|  - Salvare semnătură: AJAX → update DOM (canvas → imagine + badge)
+|  - Refă semnătura: toggle pad ↔ saved
+|  - Trimite email: direct (fără confirm), feedback inline
+*/
+let pvSignatureHasDrawn = false;
+
+function pvSignatureFeedback(type, message) {
+    const feedback = document.getElementById('signatureFeedback');
+    if (!feedback) return;
+    const prefix = type === 'success' ? '✓ ' : (type === 'error' ? '✕ ' : '');
+    feedback.textContent = prefix + message;
+    feedback.className = 'signature-feedback ' + type;
+    feedback.style.display = 'flex';
+    if (type === 'success') {
+        // Auto-dismiss feedback de succes după 6s (timpul rămâne vizibil destul cât utilizatorul să-l vadă).
+        setTimeout(() => { if (feedback) feedback.style.display = 'none'; }, 6000);
+    }
+}
+
+function pvSignatureShowSaved(imageSrc, savedAtLabel) {
+    const padSection = document.getElementById('signaturePadSection');
+    const savedSection = document.getElementById('signatureSavedSection');
+    const savedImage = document.getElementById('signatureSavedImage');
+    const badge = document.getElementById('signatureStatusBadge');
+    if (padSection) padSection.style.display = 'none';
+    if (savedSection) savedSection.style.display = 'block';
+    if (savedImage && imageSrc) {
+        savedImage.src = imageSrc;
+        savedImage.style.display = 'block';
+    }
+    if (badge) {
+        badge.classList.remove('draft');
+        badge.classList.add('issued');
+        badge.textContent = 'Semnătura salvata' + (savedAtLabel ? ' - ' + savedAtLabel : '');
+    }
+}
+
+function pvSignatureShowPad() {
+    const padSection = document.getElementById('signaturePadSection');
+    const savedSection = document.getElementById('signatureSavedSection');
+    const canvas = document.getElementById('clientSignaturePad');
+    const feedback = document.getElementById('signatureFeedback');
+    if (savedSection) savedSection.style.display = 'none';
+    if (padSection) padSection.style.display = 'block';
+    if (feedback) feedback.style.display = 'none';
+    if (canvas && canvas.__pvClear) canvas.__pvClear();
+    if (canvas && canvas.__pvResize) {
+        // Canvas era hidden — redimensionăm acum că e vizibil.
+        setTimeout(canvas.__pvResize, 50);
+    }
+}
+
 (function initClientSignaturePad(){
     const canvas = document.getElementById('clientSignaturePad');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const clearBtn = document.getElementById('clearClientSignature');
     const saveBtn = document.getElementById('saveClientSignature');
+    const redoBtn = document.getElementById('redoSignatureBtn');
     let drawing = false;
-    let hasDrawn = false;
     let last = null;
 
     function resizeCanvas() {
@@ -779,7 +853,7 @@ const currentDocumentId = <?= (int)($document['id'] ?? 0) ?>;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.strokeStyle = '#1d4ed8';
-        if (hasDrawn && previous && previous.width > 1 && previous.height > 1) {
+        if (pvSignatureHasDrawn && previous && previous.width > 1 && previous.height > 1) {
             try { ctx.putImageData(previous, 0, 0); } catch(e) {}
         }
     }
@@ -793,7 +867,7 @@ const currentDocumentId = <?= (int)($document['id'] ?? 0) ?>;
     function startDraw(ev) {
         ev.preventDefault();
         drawing = true;
-        hasDrawn = true;
+        pvSignatureHasDrawn = true;
         last = pointFromEvent(ev);
     }
 
@@ -815,8 +889,19 @@ const currentDocumentId = <?= (int)($document['id'] ?? 0) ?>;
         last = null;
     }
 
+    // Expun pe canvas funcții utile pentru flow-ul Refă / save.
+    canvas.__pvResize = resizeCanvas;
+    canvas.__pvClear = function() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        pvSignatureHasDrawn = false;
+    };
+
     resizeCanvas();
-    setTimeout(function(){ try { canvas.focus({preventScroll:true}); } catch(e) { try { canvas.focus(); } catch(_e) {} } }, 80);
+    // Focus pe canvas doar dacă pad-ul e vizibil (nu blocăm cu autofocus dacă semnătura e deja salvată).
+    const padSection = document.getElementById('signaturePadSection');
+    if (padSection && padSection.style.display !== 'none') {
+        setTimeout(function(){ try { canvas.focus({preventScroll:true}); } catch(e) { try { canvas.focus(); } catch(_e) {} } }, 80);
+    }
     window.addEventListener('resize', resizeCanvas);
     canvas.addEventListener('pointerdown', startDraw);
     canvas.addEventListener('pointermove', moveDraw);
@@ -829,48 +914,73 @@ const currentDocumentId = <?= (int)($document['id'] ?? 0) ?>;
     if (clearBtn) {
         clearBtn.addEventListener('click', function(){
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            hasDrawn = false;
+            pvSignatureHasDrawn = false;
+        });
+    }
+
+    if (redoBtn) {
+        redoBtn.addEventListener('click', function() {
+            pvSignatureShowPad();
         });
     }
 
     if (saveBtn) {
         saveBtn.addEventListener('click', async function(){
-            if (!hasDrawn) {
-                alert('Clientul trebuie sa semneze in chenar.');
+            if (!pvSignatureHasDrawn) {
+                pvSignatureFeedback('info', 'Trasează semnătura în chenar înainte de salvare.');
                 return;
             }
             saveBtn.disabled = true;
             const oldText = saveBtn.textContent;
             saveBtn.textContent = 'Se salveaza...';
+            const dataURL = canvas.toDataURL('image/png');
             const formData = new FormData();
             formData.append('csrf_token', csrfToken);
             formData.append('document_id', currentDocumentId);
-            formData.append('signature_data', canvas.toDataURL('image/png'));
+            formData.append('signature_data', dataURL);
             try {
                 const res = await fetch('document_signature_save.php', { method:'POST', body:formData, credentials:'same-origin', headers:{'Accept':'application/json'} });
                 const data = await res.json().catch(() => null);
                 if (res.ok && data && data.ok) {
-                    alert('Semnătura a fost salvata.');
-                    window.location.href = 'document_view.php?id=' + currentDocumentId + '&ok=signature#clientSignatureCard';
+                    // Format ora curentă pentru badge (DD.MM.YYYY HH:mm)
+                    const now = new Date();
+                    const pad = n => String(n).padStart(2, '0');
+                    const savedAt = pad(now.getDate()) + '.' + pad(now.getMonth() + 1) + '.' + now.getFullYear() + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+                    pvSignatureShowSaved(dataURL, savedAt);
                 } else {
-                    alert((data && data.error) ? data.error : 'Semnătura nu a putut fi salvata.');
+                    pvSignatureFeedback('error', (data && data.error) ? data.error : 'Semnătura nu a putut fi salvata.');
                 }
             } catch (err) {
                 console.error('signature save error:', err);
-                alert('Eroare la salvarea semnaturii. Reincearca.');
+                pvSignatureFeedback('error', 'Eroare la salvarea semnaturii. Reincearca.');
             } finally {
                 saveBtn.disabled = false;
                 saveBtn.textContent = oldText || 'Salvează semnătura';
             }
         });
     }
+
+    // Buton „Trimite PV pe email" în cardul semnătură (apare după save sau dacă semnătura era deja salvată la load).
+    const cardEmailBtn = document.getElementById('sendEmailFromSignatureCard');
+    if (cardEmailBtn) {
+        cardEmailBtn.addEventListener('click', function() {
+            const recipient = cardEmailBtn.dataset.recipient || '';
+            sendQuickDocumentEmail(currentDocumentId, cardEmailBtn, recipient);
+        });
+    }
 })();
+
 async function sendQuickDocumentEmail(documentId, btn, recipientEmail) {
-    if (!documentId) { alert('Documentul nu a fost identificat.'); return; }
-    const confirmMsg = recipientEmail
-        ? 'Trimiti documentul pe email la: ' + recipientEmail + ' ?'
-        : 'Trimiti documentul pe email catre clientul curent?';
-    if (!confirm(confirmMsg)) return;
+    if (!documentId) {
+        if (document.getElementById('signatureFeedback')) {
+            pvSignatureFeedback('error', 'Documentul nu a fost identificat.');
+        } else {
+            alert('Documentul nu a fost identificat.');
+        }
+        return;
+    }
+    // Fără confirm — butonul cu textul „Trimite PV pe email" e explicit; click direct trimite.
+    const useInlineFeedback = !!document.getElementById('signatureFeedback');
     const originalText = btn ? btn.textContent : '';
     if (btn) { btn.disabled = true; btn.textContent = 'Se trimite...'; }
     const formData = new FormData();
@@ -879,12 +989,26 @@ async function sendQuickDocumentEmail(documentId, btn, recipientEmail) {
     try {
         const res = await fetch('document_send_quick.php', { method:'POST', body:formData, credentials:'same-origin', headers:{'Accept':'application/json'} });
         const data = await res.json().catch(() => null);
-        if (res.ok && data && data.ok) { alert('Email trimis cu succes.'); }
-        else { alert((data && data.error) ? data.error : 'Emailul nu a putut fi trimis.'); }
+        if (res.ok && data && data.ok) {
+            const successMsg = recipientEmail ? ('Email trimis la ' + recipientEmail) : 'Email trimis cu succes.';
+            if (useInlineFeedback) {
+                pvSignatureFeedback('success', successMsg);
+                if (btn) btn.style.display = 'none';
+            } else {
+                alert(successMsg);
+                if (btn) { btn.disabled = false; btn.textContent = originalText || 'Trimite email'; }
+            }
+        } else {
+            const errMsg = (data && data.error) ? data.error : 'Emailul nu a putut fi trimis.';
+            if (useInlineFeedback) pvSignatureFeedback('error', errMsg);
+            else alert(errMsg);
+            if (btn) { btn.disabled = false; btn.textContent = originalText || 'Trimite email'; }
+        }
     } catch (err) {
         console.error('quick document email error:', err);
-        alert('Eroare la trimiterea emailului. Reincearca.');
-    } finally {
+        const errMsg = 'Eroare la trimiterea emailului. Reincearca.';
+        if (useInlineFeedback) pvSignatureFeedback('error', errMsg);
+        else alert(errMsg);
         if (btn) { btn.disabled = false; btn.textContent = originalText || 'Trimite email'; }
     }
 }
