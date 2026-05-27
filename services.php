@@ -400,6 +400,7 @@ $durationOptions = [
                     'label'   => 'Serviciu nou',
                     'icon'    => 'ti-plus',
                     'variant' => 'primary',
+                    'iconOnly' => true,
                     'type'    => 'button',
                     'onclick' => 'openCreateServiceModal()',
                 ]],

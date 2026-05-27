@@ -446,6 +446,7 @@ foreach ($teams as $team) {
                     'label'   => 'Tehnician nou',
                     'icon'    => 'ti-plus',
                     'variant' => 'primary',
+                    'iconOnly' => true,
                     'type'    => 'button',
                     'onclick' => 'openCreateTeamModal()',
                 ]],
