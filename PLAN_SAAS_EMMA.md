@@ -483,28 +483,48 @@ $stmt->execute([CURRENT_TENANT_ID, $id]);
 
 ## 7. Deploy pe VPS
 
-### 7.1 Recomandare VPS (provider + specs)
+### 7.1 VPS — decizie finală: Romarg RMGP-4
 
-**Recomandare principală: Hetzner Cloud (Germania, Finlanda)**
-- **Specs minime (start, 5-10 tenants):** CX22 — 2 vCPU AMD, 4 GB RAM, 40 GB SSD NVMe, 20 TB trafic — **€4.51/lună** (~22 RON).
-- **Recomandat (10-50 tenants, comfort):** CPX21 — 3 vCPU AMD, 4 GB RAM, 80 GB SSD — **€7.55/lună** (~37 RON).
-- **Sweet spot (50-200 tenants):** CPX31 — 4 vCPU, 8 GB RAM, 160 GB SSD — **€13.10/lună** (~65 RON).
-- Backup automat: +20% pe lună. Snapshots: gratuit.
-- Datacenter: **Nuremberg** sau **Helsinki** (latency RO ~30-50ms — acceptabil).
+**DECIS 26 mai 2026:** comandăm **Romarg RMGP-4** (datacenter Brasov, Tier 3, 99.982% uptime).
 
-**Alternative:**
-| Provider | Echivalent | Preț/lună | Observații |
+**Specs:**
+- 4 vCore AMD Epyc 7713 (procesor enterprise, shared)
+- 8 GB RAM DDR4
+- 100 GB NVMe SSD în RAID 10
+- uplink 1 Gbps, trafic necontorizat
+- 1 IPv4 inclus
+- DDoS protection inclus (Layer 3-7, capacitate platforma 1780 Gbps)
+- **Preț: 20€/lună fără TVA (~100 RON cu TVA)**
+
+**Configurație de comandă:**
+- ✅ Fără administrare (full root) — vrem control total pe stack (Nginx, PHP-FPM, MariaDB, Certbot)
+- ❌ Administrare Standard (+55€/lună) — vine cu Cloudlinux+cPanel+Litespeed, nepotrivit pentru SaaS multi-tenant cu config custom
+- ❌ Administrare Performance (+105€/lună) — același motiv ca mai sus, plus Litespeed care nu îmbunătățește scenariul nostru
+
+**Motivare alegere Romarg vs. alternative:**
+
+| Aspect | Hetzner CPX21 (DE) | **Romarg RMGP-4 (RO)** | DigitalOcean |
 |---|---|---|---|
-| DigitalOcean | Premium AMD 2vCPU/4GB/80GB | $24 (~110 RON) | Mai scump, mai recunoscut internațional. |
-| Contabo | VPS S 4 vCPU / 8 GB / 200 GB SSD | €6.99 (~35 RON) | Cel mai ieftin, dar overcommit cunoscut. OK pentru start. |
-| Romarg | VPS-2 (2 vCPU / 4 GB / 80 GB) | ~50 RON | Sediu local, suport limba română, dar mai scump per spec. |
-| Hostico | VPS Linux 4 GB | ~40 RON | Provider RO, comparabil cu Romarg. |
+| Preț | €7.55/lună | **€20/lună** | $24/lună |
+| RAM | 4 GB | **8 GB** | 4 GB |
+| Storage | 80 GB SSD | **100 GB NVMe** | 80 GB |
+| Datacenter | Nuremberg | **Brasov** | Frankfurt |
+| Latency RO | 30-50ms | **<15ms** | 35-55ms |
+| Suport | EN, ticket | **RO, telefon+chat 24/7** | EN |
+| Facturare | EU | **RO cu TVA** | US |
+| Cont existent Bentu | nu | **da** | nu |
 
-**Recomandarea mea:** **Hetzner CPX21** (€7.55/lună). E cel mai bun raport preț/performanță și ai o margine sănătoasă pentru creștere. Configurat corect, duce 50+ tenants activi cu trafic normal CRM (sub 1000 request-uri/zi/tenant).
+Cost mai mare (~60 RON/lună diferență) compensat prin: latency mai bun pentru utilizatori români, suport limba română, facturare unitară cu celelalte servicii Romarg, cont existent.
+
+**Plan de scalare în timp:**
+- Lansare: RMGP-4 — 20€/lună (până la ~30 tenants activi)
+- Scalare medie: RMGP-9 (24 GB / 12 vCore / 300 GB) — 60€/lună (30-100 tenants)
+- Scalare mare: RMGM-3 (32 GB / 4 vCore DEDICAT 3.2GHz / 240 GB NVMe) — 80€/lună (100+ tenants, vCore dedicat)
+- Resize în sus pe Romarg = zero downtime, doar reboot scurt
 
 ### 7.2 OS + Stack
 
-- **OS:** Ubuntu 24.04 LTS (suport până 2029, totul recent).
+- **OS:** Ubuntu 22.04 LTS (suport Canonical până aprilie 2027). Romarg NU oferă 24.04 la comandă, 22.04 e cea mai recentă LTS disponibilă acolo. Diferențe minore pentru noi (Nginx, PHP 8.1+ via PPA, MariaDB 10.6 default).
 - **Web server:** Nginx 1.24+ (reverse proxy + serve static).
 - **PHP:** PHP 8.3 cu PHP-FPM (pool dedicat).
 - **Database:** MariaDB 11.x (drop-in MySQL, mai bun pe utf8mb4).
