@@ -148,7 +148,7 @@ function pz_notify_init(): void
         ['password_reset_email', 'email', 'Email resetare parola', 'Resetare parola Emma',
             '<p>Bună ziua,</p><p>Ati solicitat resetarea parolei pentru Emma.</p><p><a href="{reset_link}">Resetare parola</a></p><p>Linkul este valabil 60 de minute.</p>'],
         ['contract_send_email', 'email', 'Email trimitere contract', 'Contract {contract_number}',
-            '<p>Bună ziua,</p><p>Va transmitem contractul {contract_number}.</p><p>Cu stima,<br>Emma</p>'],
+            '<p>Bună ziua,</p><p>Va transmitem contractul {contract_number}.</p><p>Cu stima,<br>{{company_name}}</p>'],
     ];
 
     $stmt = $pdo->prepare("
@@ -161,7 +161,7 @@ function pz_notify_init(): void
     }
 
     if (pz_setting_get_raw('sms_brand_name', '') === '') {
-        pz_setting_set_raw('sms_brand_name', 'Emma');
+        pz_setting_set_raw('sms_brand_name', pz_company_name());
     }
     if (pz_setting_get_raw('smslink_enabled', '') === '') {
         pz_setting_set_raw('smslink_enabled', '1');
@@ -210,7 +210,7 @@ function pz_notify_log(
 
 function pz_render_template(string $template, array $vars): string
 {
-    $vars['brand'] = $vars['brand'] ?? pz_setting_get('sms_brand_name', 'Emma');
+    $vars['brand'] = $vars['brand'] ?? pz_setting_get('sms_brand_name', pz_company_name());
     foreach ($vars as $key => $value) {
         $template = str_replace('{'.$key.'}', (string)$value, $template);
     }
@@ -265,7 +265,7 @@ function pz_sendgrid_send_email(
     $apiKey = trim((string)pz_setting_get('sendgrid_api_key', ''));
     $region = trim((string)pz_setting_get('sendgrid_region', 'global'));
     $fromEmail = trim((string)pz_setting_get('email_from_address', ''));
-    $fromName = trim((string)pz_setting_get('email_from_name', 'Emma'));
+    $fromName = trim((string)pz_setting_get('email_from_name', pz_company_name()));
     $replyTo = trim((string)pz_setting_get('email_reply_to', ''));
 
     if ($apiKey === '' || $fromEmail === '') {
@@ -278,7 +278,7 @@ function pz_sendgrid_send_email(
 
     $payload = [
         'personalizations' => [[ 'to' => [[ 'email' => $toEmail ]] ]],
-        'from' => ['email' => $fromEmail, 'name' => $fromName ?: 'Emma'],
+        'from' => ['email' => $fromEmail, 'name' => $fromName ?: pz_company_name()],
         'subject' => $subject,
         'content' => [['type' => 'text/html', 'value' => $html]]
     ];
@@ -597,7 +597,7 @@ function pz_send_appointment_confirmation_sms(int $appointmentId): array
         'time' => implode('-', $timeParts),
         'location' => $location,
         'address' => $address,
-        'brand' => pz_setting_get('sms_brand_name', 'Emma'),
+        'brand' => pz_setting_get('sms_brand_name', pz_company_name()),
         'company_phone' => pz_setting_get('company_phone', '')
     ]);
 
@@ -670,7 +670,7 @@ function pz_send_task_expiring_7_sms(int $taskId): array
         'service'=>$service,
         'date'=>$due,
         'location'=>$location,
-        'brand'=>pz_setting_get('sms_brand_name','Emma'),
+        'brand'=>pz_setting_get('sms_brand_name', pz_company_name()),
         'company_phone'=>pz_setting_get('company_phone','')
     ]);
 

@@ -114,8 +114,8 @@ if (!headers_sent()) {
 | Recomandat: cheia SendGrid se tine in config.local.php, nu in acest fișier.
 | Exemplu config.local.php:
 |   'sendgrid_api_key' => 'SG_xxxxxxxxx',
-|   'sendgrid_from_email' => 'office@pestzone.ro',
-|   'sendgrid_from_name' => 'Emma',
+|   'sendgrid_from_email' => 'office@firma-ta.ro',
+|   'sendgrid_from_name' => 'Firma SRL',
 |
 | Alternativ, se pot folosi variabile de mediu cu aceleasi nume:
 | SENDGRID_API_KEY, SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME
@@ -123,8 +123,8 @@ if (!headers_sent()) {
 */
 if (is_array($dbConfig)) {
     $sgApiKey = (string)($dbConfig['sendgrid_api_key'] ?? getenv('SENDGRID_API_KEY') ?: '');
-    $sgFromEmail = (string)($dbConfig['sendgrid_from_email'] ?? getenv('SENDGRID_FROM_EMAIL') ?: 'office@pestzone.ro');
-    $sgFromName = (string)($dbConfig['sendgrid_from_name'] ?? getenv('SENDGRID_FROM_NAME') ?: 'Emma');
+    $sgFromEmail = (string)($dbConfig['sendgrid_from_email'] ?? getenv('SENDGRID_FROM_EMAIL') ?: '');
+    $sgFromName = (string)($dbConfig['sendgrid_from_name'] ?? getenv('SENDGRID_FROM_NAME') ?: '');
 
     if ($sgApiKey !== '' && !defined('SENDGRID_API_KEY')) {
         define('SENDGRID_API_KEY', $sgApiKey);

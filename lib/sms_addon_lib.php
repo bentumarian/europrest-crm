@@ -147,6 +147,6 @@ if (!function_exists('pz_sms_seed')) {
         );
         foreach ($rows as $row) $stmt->execute($row);
 
-        if (pz_sms_get('sms_brand_name', '') === '') pz_sms_set('sms_brand_name', 'Emma');
+        if (pz_sms_get('sms_brand_name', '') === '') pz_sms_set('sms_brand_name', pz_company_name());
     }
 }

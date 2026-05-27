@@ -461,7 +461,7 @@ if (!function_exists('pz_review_create_and_send')) {
         $requestId = (int)$pdo->lastInsertId();
 
         $feedbackLink = pz_review_feedback_url($token);
-        $brand = pz_review_setting_get('sms_brand_name', 'Emma');
+        $brand = pz_review_setting_get('sms_brand_name', pz_company_name());
         $clientName = pz_review_client_name($client);
 
         if ($deliveryChannel === 'sms') {

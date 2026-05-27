@@ -28,7 +28,7 @@ function et_seed_email_templates_ascii(PDO $pdo): void
             'email',
             'Trimitere contract',
             'Contract {contract_number} - Emma',
-            '<p>Bună ziua,</p><p>Va transmitem contractul <strong>{contract_number}</strong>.</p><p>Vă rugăm sa verificati documentul si sa ne transmiteti eventualele observatii.</p><p>Cu stima,<br>Emma</p>'
+            '<p>Bună ziua,</p><p>Va transmitem contractul <strong>{contract_number}</strong>.</p><p>Vă rugăm sa verificati documentul si sa ne transmiteti eventualele observatii.</p><p>Cu stima,<br>{{company_name}}</p>'
         ],
         [
             'password_reset_email',
@@ -42,28 +42,28 @@ function et_seed_email_templates_ascii(PDO $pdo): void
             'email',
             'Notificare programare',
             'Programare {date} - Emma',
-            '<p>Bună ziua,</p><p>Programarea pentru <strong>{service}</strong> a fost stabilita pentru data de <strong>{date}</strong>, interval <strong>{time}</strong>, la locatia <strong>{location}</strong>.</p><p>Cu stima,<br>Emma</p>'
+            '<p>Bună ziua,</p><p>Programarea pentru <strong>{service}</strong> a fost stabilita pentru data de <strong>{date}</strong>, interval <strong>{time}</strong>, la locatia <strong>{location}</strong>.</p><p>Cu stima,<br>{{company_name}}</p>'
         ],
         [
             'process_verbal_email',
             'email',
             'Trimitere proces-verbal',
             'Proces-verbal {document_number} - Emma',
-            '<p>Bună ziua,</p><p>Va transmitem procesul-verbal <strong>{document_number}</strong> aferent lucrării efectuate in data de <strong>{date}</strong>.</p><p>Cu stima,<br>Emma</p>'
+            '<p>Bună ziua,</p><p>Va transmitem procesul-verbal <strong>{document_number}</strong> aferent lucrării efectuate in data de <strong>{date}</strong>.</p><p>Cu stima,<br>{{company_name}}</p>'
         ],
         [
             'invoice_email',
             'email',
             'Trimitere factura / link factura',
             'Factura {invoice_number} - Emma',
-            '<p>Bună ziua,</p><p>Va transmitem factura <strong>{invoice_number}</strong>.</p><p>{invoice_link}</p><p>Cu stima,<br>Emma</p>'
+            '<p>Bună ziua,</p><p>Va transmitem factura <strong>{invoice_number}</strong>.</p><p>{invoice_link}</p><p>Cu stima,<br>{{company_name}}</p>'
         ],
         [
             'task_expiring_email',
             'email',
             'Reminder scadență',
             'Reminder scadență - Emma',
-            '<p>Bună ziua,</p><p>Va reamintim ca valabilitatea documentului / procesului-verbal expira in curand. Vă rugăm sa ne contactati pentru programarea urmatoarei intervenții.</p><p>Cu stima,<br>Emma</p>'
+            '<p>Bună ziua,</p><p>Va reamintim ca valabilitatea documentului / procesului-verbal expira in curand. Vă rugăm sa ne contactati pentru programarea urmatoarei intervenții.</p><p>Cu stima,<br>{{company_name}}</p>'
         ],
     ];
 

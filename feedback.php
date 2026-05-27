@@ -36,7 +36,7 @@ if ($isDemoLow) {
 }
 
 $googleUrl = trim(pz_review_setting_get('review_google_url', ''));
-$brand = pz_review_setting_get('sms_brand_name', 'Emma');
+$brand = pz_review_setting_get('sms_brand_name', pz_company_name());
 $step = 'rating';
 $error = '';
 

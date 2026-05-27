@@ -208,3 +208,43 @@ if (!function_exists('pz_app_support_email')) {
         return (string)(pz_platform_setting_local('app.support_email', 'app_support_email', 'office@emma.ro'));
     }
 }
+
+/*
+|--------------------------------------------------------------------------
+| Identitate firma tenant — folosit pentru emailuri/SMS catre clientii firmei
+|--------------------------------------------------------------------------
+| pz_company_name() returneaza numele firmei care opereaza CRM-ul (ex: EuroPrest),
+| NU numele platformei (Emma). Folosit ca semnatura in emailuri si SMS-uri
+| trimise catre clientii firmei.
+|
+| Logica: platforma = Emma; numele afisat clientilor = numele firmei tenant.
+|--------------------------------------------------------------------------
+*/
+if (!function_exists('pz_company_name')) {
+    /**
+     * Numele firmei tenant (afisat in emailuri/SMS catre clientii firmei).
+     * Citeste din app_settings.company.display_name -> company.legal_name -> ''.
+     * NU contine fallback hardcoded (nici 'PestZone', nici 'Emma').
+     */
+    function pz_company_name(): string
+    {
+        global $pdo;
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
+        $cache = '';
+        if (!isset($pdo) || !($pdo instanceof PDO)) {
+            return $cache;
+        }
+        try {
+            $stmt = $pdo->prepare("SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('company.display_name','company.legal_name')");
+            $stmt->execute();
+            $rows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            $cache = trim((string)($rows['company.display_name'] ?? '')) ?: trim((string)($rows['company.legal_name'] ?? ''));
+        } catch (Throwable $e) {
+            // tabela poate sa nu existe inca - cache ramane gol
+        }
+        return $cache;
+    }
+}

@@ -90,7 +90,7 @@ function pzdoc_email_sendgrid_status(): array
 {
     $apiKey = pzdoc_email_setting('sendgrid_api_key', '');
     $fromEmail = pzdoc_email_setting('email_from_address', '');
-    $fromName = pzdoc_email_setting('email_from_name', 'Emma');
+    $fromName = pzdoc_email_setting('email_from_name', pz_company_name());
 
     if ($apiKey === '' || $apiKey === '********') {
         $apiKey = defined('SENDGRID_API_KEY') ? trim((string)SENDGRID_API_KEY) : trim((string)(getenv('SENDGRID_API_KEY') ?: ''));
@@ -103,7 +103,7 @@ function pzdoc_email_sendgrid_status(): array
         'ready' => ($apiKey !== '' && pzdoc_email_is_valid($fromEmail) && function_exists('curl_init') && function_exists('pz_sendgrid_send_email')),
         'has_key' => $apiKey !== '',
         'from_email' => $fromEmail,
-        'from_name' => $fromName ?: 'Emma',
+        'from_name' => $fromName ?: pz_company_name(),
         'curl' => function_exists('curl_init'),
         'lib' => function_exists('pz_sendgrid_send_email'),
     ];
