@@ -887,6 +887,56 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
     color: #92400E;
 }
 
+/* === Submit sticky bottom pe mobil ===
+   Pe ecrane mici, butoanele „Renunță" si „Emite PV" raman fixed jos pentru
+   a nu fi nevoie de scroll-back dupa completarea materialelor. Pe desktop
+   raman ca acum (inline static).
+*/
+@media (max-width: 760px) {
+    .pv-form-compact .panel-body {
+        padding-bottom: 84px;
+    }
+    .pv-form-compact .form-actions {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        margin: 0;
+        padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+        background: #FFFFFF;
+        border-top: 1px solid var(--border, #E2E8F0);
+        box-shadow: 0 -6px 16px rgba(15, 23, 42, .08);
+        z-index: 90;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: nowrap;
+    }
+    .pv-form-compact .form-actions > a.btn,
+    .pv-form-compact .form-actions > .left .btn {
+        flex: 0 0 auto;
+        min-width: 96px;
+        min-height: 44px;
+    }
+    .pv-form-compact .form-actions .right {
+        flex: 1;
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+    }
+    .pv-form-compact .form-actions .right .btn {
+        flex: 1 1 0;
+        min-height: 44px;
+        font-size: 14px;
+        font-weight: 900;
+    }
+    /* Buton primary este dominant vizual: ocupa mai mult spatiu si are box-shadow */
+    .pv-form-compact .form-actions .right .btn.primary {
+        flex: 2 1 0;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, .28);
+    }
+}
+
 </style>
 <?php render_search_preview_assets(); ?>
 </head>
