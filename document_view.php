@@ -413,6 +413,7 @@ $fieldPvCompact = (!$isAdmin && $isTeamUser && $type === 'proces_verbal');
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <?php app_theme_css(); ?>
 <style>
+.pz-kicker-inline { font-size: 11px; font-weight: 600; color: var(--pz-mu); letter-spacing: .08em; text-transform: uppercase; margin: 0 0 8px; line-height: 1; }
 .document-page { display: grid; gap: 14px; }
 .document-topbar { width: 100% !important; padding: 8px 14px !important; display: flex !important; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .document-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -587,6 +588,7 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
             <?php endif; ?>
 
             <?php if (!$document): ?>
+                <p class="pz-kicker-inline">DOCUMENTE</p>
                 <section class="document-hero">
                     <div>
                         <h1>Document negasit</h1>
@@ -594,6 +596,7 @@ button.btn:disabled { opacity: .45; pointer-events: none; }
                     </div>
                 </section>
             <?php else: ?>
+                <p class="pz-kicker-inline">DOCUMENTE</p>
                 <section class="document-hero">
                     <div>
                         <h1><?= dview_h(pzdoc_document_type_label($type)) ?> <?= dview_h($document['document_number'] ?: 'Draft') ?></h1>

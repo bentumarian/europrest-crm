@@ -272,6 +272,7 @@ if ($client) {
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <?php app_theme_css(); ?>
 <style>
+.pz-kicker-inline { font-size: 11px; font-weight: 600; color: var(--pz-mu); letter-spacing: .08em; text-transform: uppercase; margin: 0 0 8px; line-height: 1; }
 .client-dossier { max-width: 1580px; margin: 0 auto; display: grid; gap: 14px; }
 .dossier-header { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }
 .dossier-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -355,6 +356,7 @@ if ($client) {
                     </div>
                 </section>
             <?php else: ?>
+                <p class="pz-kicker-inline">CLIENȚI</p>
                 <section class="dossier-header">
                     <div>
                         <div class="dossier-title-row">

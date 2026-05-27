@@ -334,6 +334,7 @@ if ($billingItemIdsFromGet && $invoiceIdFromRequest <= 0 && $_SERVER['REQUEST_ME
             <div class="bill-wrap">
                 <a class="btn" href="work_billing.php" style="margin-bottom:12px;display:inline-flex">← Înapoi la „De facturat"</a>
                 <div class="bill-card">
+                    <p style="font-size:11px;font-weight:600;color:var(--pz-mu);letter-spacing:.08em;text-transform:uppercase;margin:0 0 6px;line-height:1;">FINANCIAR</p>
                     <h1>Emite factură</h1>
                     <div class="bill-meta"><?= (int)count($previewItems) ?> poziție(i) selectate</div>
 

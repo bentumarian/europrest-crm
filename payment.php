@@ -436,6 +436,7 @@ $invoicesReportLink = 'invoices.php' . ($contextQuery ? ('?' . http_build_query(
         <div class="content pay-page">
             <section class="hero">
                 <div>
+                    <p style="font-size:11px;font-weight:600;color:var(--pz-mu);letter-spacing:.08em;text-transform:uppercase;margin:0 0 6px;line-height:1;">FINANCIAR</p>
                     <h1>Încasare</h1>
                     <p>Chitanțe, carduri, transferuri și încasări parțiale sincronizate cu SmartBill.</p>
                 </div>
