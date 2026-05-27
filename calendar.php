@@ -713,6 +713,33 @@ if (isset($_GET['appointment_id'])) {
     $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
     if ($row) {
+        // Normalizăm appointment_date și start_time la formatul exact așteptat de browser:
+        //   - appointment_date: YYYY-MM-DD (pentru <input type="date">)
+        //   - start_time: HH:MM (pentru <select> de ore)
+        // Tratăm '0000-00-00', date NULL, sau format DATETIME ca string gol.
+        $rawDate = (string)($row['appointment_date'] ?? '');
+        if ($rawDate !== '' && $rawDate !== '0000-00-00' && strpos($rawDate, '0000-00-00') === false) {
+            $ts = strtotime($rawDate);
+            $row['appointment_date'] = $ts ? date('Y-m-d', $ts) : '';
+        } else {
+            $row['appointment_date'] = '';
+        }
+        $rawTime = (string)($row['start_time'] ?? '');
+        if ($rawTime !== '') {
+            // start_time poate fi „HH:MM:SS" sau ISO; reducem la HH:MM
+            $tsTime = strtotime($rawTime);
+            if ($tsTime) {
+                $row['start_time'] = date('H:i', $tsTime);
+            } else {
+                $row['start_time'] = substr($rawTime, 0, 5);
+            }
+        }
+        $rawEnd = (string)($row['end_time'] ?? '');
+        if ($rawEnd !== '') {
+            $tsEnd = strtotime($rawEnd);
+            $row['end_time'] = $tsEnd ? date('H:i', $tsEnd) : substr($rawEnd, 0, 5);
+        }
+
         $row['client_address'] = trim((string)($row['client_registered_address'] ?? '')) ?: trim((string)($row['client_old_address'] ?? ''));
         $fallbackContact = (($row['client_type'] ?? 'company') === 'individual')
             ? trim((string)($row['client_name'] ?? ''))
@@ -2725,10 +2752,23 @@ function openCreateModal(date, time, teamId, client = null, taskId = '', service
 function pvCalSetDateTime(dateInputId, timeInputId, dateValue, timeValue) {
     const dateEl = document.getElementById(dateInputId);
     if (dateEl) {
-        const v = String(dateValue || '');
-        dateEl.value = v;
-        if (v) dateEl.setAttribute('value', v); else dateEl.removeAttribute('value');
+        // Acceptăm doar format strict YYYY-MM-DD (cu an >= 1900). Asta tratează cazurile
+        // problematice: '0000-00-00', format ISO datetime, șiruri goale, null.
+        let v = String(dateValue || '').trim();
+        // Dacă vine ca ISO datetime (2026-05-29T10:00:00...), luăm doar partea de dată
+        if (v.length > 10) v = v.substring(0, 10);
+        const isValidIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(v) && !v.startsWith('0000');
+        const finalDate = isValidIsoDate ? v : '';
+        dateEl.value = finalDate;
+        if (finalDate) {
+            dateEl.setAttribute('value', finalDate);
+        } else {
+            dateEl.removeAttribute('value');
+        }
         try { dateEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+        if (!isValidIsoDate && dateValue) {
+            console.warn('pvCalSetDateTime: invalid date value received:', dateValue, 'for', dateInputId);
+        }
     }
     const timeEl = document.getElementById(timeInputId);
     if (timeEl) {
