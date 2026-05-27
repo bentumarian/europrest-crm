@@ -902,14 +902,8 @@ if ($dashUserId > 0) {
     display: flex; align-items: flex-end; justify-content: space-between;
     flex-wrap: wrap; gap: 14px; margin-bottom: 2px;
 }
-/* Kicker conform DESIGN_LINE.md §2 — context modul deasupra titlului. */
-.pz-head .pz-kicker {
-    font-size: 11px; font-weight: 600; color: var(--pz-mu);
-    letter-spacing: .08em; text-transform: uppercase;
-    margin: 0 0 6px; line-height: 1;
-}
 .pz-head .pz-greet { font-size: 13px; color: var(--pz-mu); margin: 0 0 4px; }
-.pz-head .pz-title { font-size: 22px; font-weight: 700; color: var(--pz-title); margin: 0; letter-spacing: -.005em; }
+.pz-head .pz-title { font-size: 22px; font-weight: 500; color: var(--pz-title); margin: 0; letter-spacing: -.005em; }
 .pz-head .pz-date  { font-size: 12px; color: var(--pz-fa); margin: 4px 0 0; }
 
 .pz-head-actions { display: flex; gap: 8px; align-items: center; }
@@ -947,32 +941,13 @@ if ($dashUserId > 0) {
     gap: 10px;
 }
 .pz-kpi {
-    position: relative;
     background: var(--pz-surf);
     border: 1px solid var(--pz-line);
     border-radius: var(--pz-r);
     padding: 13px 15px;
-    overflow: hidden;
     transition: border-color .15s;
 }
 .pz-kpi:hover { border-color: var(--pz-blb); }
-/* Accent-bar 3px stânga conform DESIGN_LINE.md §3.
-   Modifier: .bl (info), .gr (succes), .or (atenție),
-   .re (pericol), .mu (neutru). Default = neutru. */
-.pz-kpi::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: var(--pz-fa, #94A3B8);
-}
-.pz-kpi.bl::before { background: var(--pz-bl); }
-.pz-kpi.gr::before { background: var(--pz-gr-acc, #16A34A); }
-.pz-kpi.or::before { background: var(--pz-or-acc, #9A3412); }
-.pz-kpi.re::before { background: var(--pz-re-acc, #DC2626); }
-.pz-kpi.mu::before { background: var(--pz-fa, #94A3B8); }
 .pz-kpi .pz-kpi-head {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 6px;
@@ -1375,9 +1350,8 @@ if ($dashUserId > 0) {
             <!-- Welcome / period header -->
             <div class="pz-head">
                 <div>
-                    <p class="pz-kicker">OPERAȚIONAL</p>
                     <p class="pz-greet">Bună, <?= dash_h($userName) ?></p>
-                    <h1 class="pz-title">Dashboard</h1>
+                    <h2 class="pz-title">Dashboard</h2>
                     <p class="pz-date"><?= dash_h($todayLabel) ?></p>
                 </div>
                 <div class="pz-head-actions">
@@ -1412,7 +1386,7 @@ if ($dashUserId > 0) {
 
                 // ---- KPI 1: Venituri perioada
                 ob_start(); ?>
-                <div class="pz-kpi bl" data-card-id="kpi-revenue">
+                <div class="pz-kpi" data-card-id="kpi-revenue">
                     <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-kpi-head">
                         <span class="pz-kpi-label">Venituri <?= dash_h(strtolower($finLabel)) ?></span>
@@ -1454,7 +1428,7 @@ if ($dashUserId > 0) {
 
                 // ---- KPI 2: Facturi emise
                 ob_start(); ?>
-                <div class="pz-kpi gr" data-card-id="kpi-invoices">
+                <div class="pz-kpi" data-card-id="kpi-invoices">
                     <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-kpi-head">
                         <span class="pz-kpi-label">Facturi emise</span>
@@ -1475,7 +1449,7 @@ if ($dashUserId > 0) {
 
                 // ---- KPI 3: Programări azi
                 ob_start(); ?>
-                <div class="pz-kpi bl" data-card-id="kpi-today">
+                <div class="pz-kpi" data-card-id="kpi-today">
                     <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-kpi-head">
                         <span class="pz-kpi-label">Programări azi</span>
@@ -1494,7 +1468,7 @@ if ($dashUserId > 0) {
 
                 // ---- KPI 4: De facturat
                 ob_start(); ?>
-                <div class="pz-kpi or" data-card-id="kpi-due">
+                <div class="pz-kpi" data-card-id="kpi-due">
                     <span class="pz-card-grip" aria-label="Mută card" title="Trage pentru a repoziționa"><i class="ti ti-grip-vertical" aria-hidden="true"></i></span>
                     <div class="pz-kpi-head">
                         <span class="pz-kpi-label">De facturat</span>
@@ -1996,39 +1970,3 @@ if ($dashUserId > 0) {
 </script>
 </body>
 </html>
-.add('is-sorting'); },
-            onEnd:   function () { el.classList.remove('is-sorting'); scheduleSave(); }
-        }, opts || {}));
-    }
-
-    function init() {
-        // Memorez snapshotul inițial ca să nu trimit save inutil pe load.
-        lastSent = JSON.stringify(snapshot());
-
-        initSortable('[data-pz-sortable="kpis"]', { group: 'pz-kpis' });
-        initSortable('[data-pz-sortable="big-cards"]', { group: 'pz-big-cards' });
-
-        // Previn navigarea când utilizatorul apasă pe grip-ul unui link/anchor
-        document.addEventListener('click', function (e) {
-            var grip = e.target.closest && e.target.closest('.pz-card-grip');
-            if (grip) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        }, true);
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
-})();
-</script>
-</body>
-</html>
-
-</script>
-</body>
-</html>
-l>
