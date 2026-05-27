@@ -2338,7 +2338,18 @@ window.pzAppointmentWasDragged = false;
 
 function openModal(id) { document.getElementById(id)?.classList.add('open'); }
 function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
-function setField(id, value) { const field = document.getElementById(id); if (field) field.value = value || ''; }
+function setField(id, value) {
+    const field = document.getElementById(id);
+    if (!field) return;
+    // Dacă inputul are Flatpickr atașat, folosim API-ul Flatpickr ca să se sincronizeze
+    // și altInput-ul vizibil (cel care arată utilizatorului data formatată). Setarea directă
+    // a .value pe inputul original (hidden de Flatpickr) lasă altInput-ul gol.
+    if (field._flatpickr) {
+        field._flatpickr.setDate(value || '', false);
+        return;
+    }
+    field.value = value || '';
+}
 function eventDateKey(eventData) {
     return String(eventData?.start || '').slice(0, 10);
 }
@@ -2755,17 +2766,25 @@ function pvCalSetDateTime(dateInputId, timeInputId, dateValue, timeValue) {
         // Acceptăm doar format strict YYYY-MM-DD (cu an >= 1900). Asta tratează cazurile
         // problematice: '0000-00-00', format ISO datetime, șiruri goale, null.
         let v = String(dateValue || '').trim();
-        // Dacă vine ca ISO datetime (2026-05-29T10:00:00...), luăm doar partea de dată
         if (v.length > 10) v = v.substring(0, 10);
         const isValidIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(v) && !v.startsWith('0000');
         const finalDate = isValidIsoDate ? v : '';
-        dateEl.value = finalDate;
-        if (finalDate) {
-            dateEl.setAttribute('value', finalDate);
+
+        // IMPORTANT: dacă Flatpickr e atașat, trebuie folosit API-ul lui (.setDate)
+        // ca să se sincronizeze AMBELE inputuri — cel ORIGINAL (hidden, cu .value)
+        // și cel ALT (vizibil, cu textul formatat). Setarea directă a .value pe
+        // inputul original NU actualizează altInput, deci utilizatorul vede gol.
+        if (dateEl._flatpickr) {
+            dateEl._flatpickr.setDate(finalDate, true);
         } else {
-            dateEl.removeAttribute('value');
+            dateEl.value = finalDate;
+            if (finalDate) {
+                dateEl.setAttribute('value', finalDate);
+            } else {
+                dateEl.removeAttribute('value');
+            }
+            try { dateEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
         }
-        try { dateEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
         if (!isValidIsoDate && dateValue) {
             console.warn('pvCalSetDateTime: invalid date value received:', dateValue, 'for', dateInputId);
         }

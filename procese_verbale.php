@@ -3211,7 +3211,14 @@ function syncAppointment(select) {
     const surfaceInput = document.getElementById('surfaceText');
     const workersInput = document.getElementById('workersNames');
 
-    if (dateInput && appt.appointment_date) dateInput.value = appt.appointment_date;
+    // Helper local: dacă inputul are Flatpickr atașat, folosim API-ul lui pentru
+    // a sincroniza altInput-ul (cel vizibil utilizatorului).
+    const setDateSafe = (el, val) => {
+        if (!el || !val) return;
+        if (el._flatpickr) el._flatpickr.setDate(val, false);
+        else el.value = val;
+    };
+    setDateSafe(dateInput, appt.appointment_date);
     if (timeInput && appt.start_time) timeInput.value = appt.start_time;
     if (startInput && appt.start_time) startInput.value = appt.start_time;
     if (endInput && appt.end_time) endInput.value = appt.end_time;
