@@ -1201,10 +1201,17 @@ if ($dashUserId > 0) {
 .pz-appt-status.overdue { color: var(--pz-re); background: var(--pz-res); }
 .pz-appt-status.today   { color: var(--pz-bld); background: var(--pz-bls); }
 .pz-appt-status.future  { color: var(--pz-mu); background: var(--pz-soft); }
+.pz-appt-status.in_termen { color: #15803D; background: #DCFCE7; }
+.pz-appt-status.aproape   { color: #9A3412; background: #FFEDD5; }
+.pz-appt-status.urgent    { color: var(--pz-re); background: var(--pz-res); }
 .pz-appt-row.is-overdue,
 .pz-appt-row.is-overdue:hover { background: var(--pz-res); }
 .pz-appt-row.is-today,
 .pz-appt-row.is-today:hover   { background: var(--pz-bls); }
+.pz-appt-row.is-urgent,
+.pz-appt-row.is-urgent:hover { background: var(--pz-res); }
+.pz-appt-row.is-aproape,
+.pz-appt-row.is-aproape:hover { background: #FFF7ED; }
 .pz-appt-row.is-overdue .pz-appt-time { color: var(--pz-re); }
 .pz-appt-row.is-today   .pz-appt-time { color: var(--pz-bld); }
 /* Înălțime egală garantată în rândurile cu 2 carduri */
@@ -1737,17 +1744,18 @@ if ($dashUserId > 0) {
                             <?php foreach ($tasksDash as $task):
                                 $due = (string)($task['due_date'] ?? '');
                                 $today = date('Y-m-d');
-                                if ($due === '') {
-                                    $statusCls = 'pending'; $statusLbl = '·'; $rowCls = ''; $dateBox = '--';
-                                } elseif ($due < $today) {
-                                    $statusCls = 'overdue'; $statusLbl = 'restant'; $rowCls = ' is-overdue';
-                                    $dateBox = date('d.m', strtotime($due));
-                                } elseif ($due === $today) {
-                                    $statusCls = 'today'; $statusLbl = 'azi'; $rowCls = ' is-today';
-                                    $dateBox = 'azi';
+                                if ($due === "") {
+                                    $statusCls = "pending"; $statusLbl = "·"; $rowCls = ""; $dateBox = "--";
                                 } else {
-                                    $statusCls = 'future'; $statusLbl = 'viitor'; $rowCls = '';
-                                    $dateBox = date('d.m', strtotime($due));
+                                    $daysToDue = (int)floor((strtotime((string)$due) - strtotime($today)) / 86400);
+                                    $dateBox = ($due === $today) ? "azi" : date("d.m", strtotime($due));
+                                    if ($daysToDue < 7) {
+                                        $statusCls = "urgent"; $statusLbl = "urgent"; $rowCls = " is-urgent";
+                                    } elseif ($daysToDue < 14) {
+                                        $statusCls = "aproape"; $statusLbl = "aproape"; $rowCls = " is-aproape";
+                                    } else {
+                                        $statusCls = "in_termen"; $statusLbl = "în termen"; $rowCls = "";
+                                    }
                                 }
                                 $taskName = trim((string)($task['client_name'] ?? '')) ?: 'Sarcină';
                                 $svc      = trim((string)($task['service_type'] ?? ''));

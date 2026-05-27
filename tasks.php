@@ -409,21 +409,26 @@ $tasksForJs = [];
 
 foreach ($tasks as $task) {
     $isSkipped = (($task['status'] ?? '') === 'skipped');
-    $isOverdue = !$isSkipped && $task['due_date'] < date('Y-m-d');
-    $isToday = !$isSkipped && $task['due_date'] === date('Y-m-d');
+    $todayDate = date('Y-m-d');
+    $daysToDue = !$isSkipped && !empty($task['due_date']) ? (int)floor((strtotime((string)$task['due_date']) - strtotime($todayDate)) / 86400) : null;
+    $isOverdue = !$isSkipped && $task['due_date'] < $todayDate;
+    $isToday = !$isSkipped && $task['due_date'] === $todayDate;
 
-    $color = '#163B63';
-    $statusGroup = 'future';
+    /* Stadii pe baza zilelor pana la termen (DESIGN_LINE.md):
+       >=14 => verde (in termen), 7-13 => portocaliu (aproape), <7 => rosu (urgent) */
+    $color = '#16A34A';  // verde, in termen
+    $statusGroup = 'in_termen';
 
-    if ($isOverdue) {
-        $color = '#D24726';
-        $statusGroup = 'overdue';
+    if ($daysToDue !== null && $daysToDue < 14 && $daysToDue >= 7) {
+        $color = '#FF7A3D';  // portocaliu, aproape de scadenta
+        $statusGroup = 'aproape';
     }
 
-    if ($isToday) {
-        $color = '#1160B7';
-        $statusGroup = 'today';
+    if (($daysToDue !== null && $daysToDue < 7) || $isOverdue) {
+        $color = '#DC2626';  // rosu, urgent (sub 7 zile sau overdue)
+        $statusGroup = 'urgent';
     }
+
 
     if ($isSkipped) {
         $color = '#9AA3AF';
@@ -1438,9 +1443,9 @@ foreach ($tasks as $task) {
     display: inline-block;
     box-shadow: inset 0 1px 0 rgba(255,255,255,.38);
 }
-.legend-dot.overdue { background: #D24726; }
-.legend-dot.today { background: #1160B7; }
-.legend-dot.future { background: #163B63; }
+.legend-dot.urgent { background: #DC2626; }
+.legend-dot.aproape { background: #FF7A3D; }
+.legend-dot.in_termen { background: #16A34A; }
 .legend-dot.skipped { background: #9AA3AF; }
 .fc .fc-daygrid-day-number {
     color: #002050;
@@ -1887,9 +1892,9 @@ foreach ($tasks as $task) {
 
             <section class="tasks-calendar-card">
                 <div class="tasks-status-legend" aria-label="Legenda sarcini">
-                    <span><i class="legend-dot overdue"></i>Întârziate</span>
-                    <span><i class="legend-dot today"></i>Azi</span>
-                    <span><i class="legend-dot future"></i>Viitoare</span>
+                    <span><i class="legend-dot urgent"></i>Urgent (<7 zile)</span>
+                    <span><i class="legend-dot aproape"></i>Aproape (7-13)</span>
+                    <span><i class="legend-dot in_termen"></i>În termen (≥14)</span>
                     <span><i class="legend-dot skipped"></i>Omise</span>
                 </div>
                 <div id="tasksCalendar"></div>
