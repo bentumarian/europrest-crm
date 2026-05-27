@@ -2264,8 +2264,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
                     <label>Mențiuni finalizare lucrare *</label>
                     <div class="completion-chips" id="teamCompletionChips" aria-label="Sugestii rapide pentru mențiuni">
                         <button type="button" class="completion-chip" data-text="Executat conform planificării.">Executat conform planificării</button>
-                        <button type="button" class="completion-chip" data-text="Cu observații — vezi PV.">Cu observații → vezi PV</button>
-                        <button type="button" class="completion-chip" data-text="Probleme la fața locului — vezi PV.">Probleme la fața locului</button>
+                        <button type="button" class="completion-chip" data-text="Necesită rapel.">Necesită rapel</button>
                     </div>
                     <textarea name="completion_notes" id="team_completion_notes" required placeholder="Apasă un chip rapid de mai sus sau scrie liber ce s-a executat..."></textarea>
                 </div>
@@ -3491,7 +3490,11 @@ function bindTeamFinalizeAjax() {
         const formData = new FormData(form);
         let ok = false;
         try {
-            const res = await fetch('calendar_post_handler.php', {
+            // calendar_post_handler.php nu este endpoint direct — se include in
+            // calendar.php prin require si depinde de $pdo / $isTeamUser definite
+            // in scope-ul paginii parinte. Postam pe calendar.php; handler-ul va
+            // detecta AJAX si va exit-a cu JSON inainte de randarea HTML-ului.
+            const res = await fetch('calendar.php', {
                 method: 'POST',
                 body: formData,
                 credentials: 'same-origin',
