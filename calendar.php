@@ -2692,18 +2692,50 @@ function openCreateModal(date, time, teamId, client = null, taskId = '', service
     populateLocations('create', '', '');
     setField('create_task_id', '');
     const fromTask = taskId !== '';
-    setField('create_date', fromTask ? '' : (date || currentDate));
-    setTimeField('create_time', fromTask ? '' : (time || '09:00'));
     const teamSelect = document.getElementById('create_team_member_id');
     if (teamSelect) teamSelect.value = fromTask ? '' : (teamId || '');
     if (client) fillCreateClient(client, addressOverride, locationId, contactPersonOverride, contactPhoneOverride);
     if (serviceType) { setSelectValueWithFallback('create_service_type', serviceType); applyServiceDuration('create_service_type', 'create_duration'); }
     if (taskId) setField('create_task_id', taskId);
+
+    // Data + ora se setează LA FINAL — după ce toate celelalte câmpuri și
+    // handler-ele au rulat — ca să nu poată fi resetate de niciun listener
+    // intermediar (form.reset / autocomplete / etc.).
+    const finalDate = fromTask ? '' : (date || currentDate);
+    const finalTime = fromTask ? '' : (time || '09:00');
+    pvCalSetDateTime('create_date', 'create_time', finalDate, finalTime);
+
     openModal('createModal');
     setTimeout(() => {
+        // Re-set defensiv după ce modal-ul s-a deschis (pentru orice race condition).
+        pvCalSetDateTime('create_date', 'create_time', finalDate, finalTime);
         const clientInput = document.getElementById('create_clientSearchInput');
         if (clientInput && !document.getElementById('create_existing_client_id')?.value) clientInput.focus();
     }, 80);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Helper unic pentru a seta data + ora în modal-urile de calendar
+|--------------------------------------------------------------------------
+| Setează direct .value pe input și pe atributul HTML, plus dispatchează
+| evenimente input/change pentru listener-ii eventuali. Garantează că
+| valoarea „prinde" indiferent de browser.
+*/
+function pvCalSetDateTime(dateInputId, timeInputId, dateValue, timeValue) {
+    const dateEl = document.getElementById(dateInputId);
+    if (dateEl) {
+        const v = String(dateValue || '');
+        dateEl.value = v;
+        if (v) dateEl.setAttribute('value', v); else dateEl.removeAttribute('value');
+        try { dateEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+    }
+    const timeEl = document.getElementById(timeInputId);
+    if (timeEl) {
+        const normalized = normalizeHalfHourTime(timeValue || '');
+        timeEl.value = normalized || '';
+        try { timeEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+    }
 }
 function pvFormUrlForAppointment(id) {
     return 'service-reports?new=1&appointment_id=' + encodeURIComponent(id);
@@ -2961,8 +2993,9 @@ async function loadAppointment(id) {
             setSelectValueWithFallback('edit_service_type', data.service_type || '');
             setField('edit_team_member_id', data.team_member_id || '');
             setSupportTeams('edit', data.support_team_ids || []);
-            setField('edit_appointment_date', data.appointment_date || '');
-            setTimeField('edit_start_time', data.start_time || '');
+            // Folosim helper-ul care setează atât .value cât și atributul HTML
+            // plus dispatch change, pentru ca data/ora să prindă în orice browser.
+            pvCalSetDateTime('edit_appointment_date', 'edit_start_time', data.appointment_date || '', data.start_time || '');
             setField('edit_notes', data.notes || '');
             setField('edit_billing_amount', Number(data.billing_amount || 0).toFixed(2));
             setField('edit_billing_vat_code', data.billing_vat_code || '<?= hcal($smartbillDefaultVatCode) ?>');
