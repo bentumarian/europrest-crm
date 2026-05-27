@@ -9,11 +9,17 @@ node_modules/
 
 # Logs and databases
 *.log
+error_log
 *.sql
 *.sqlite
 *.zip
 # … dar pastram scripturile de migratie sub control de versiune.
 !/migrations/*.sql
+
+# Backup files create by editors / deploy
+*.bak
+*.orig
+*.swp
 
 # Application storage
 /storage/
@@ -24,6 +30,10 @@ node_modules/
 /public/storage
 /backups/
 /uploads/
+
+# Runtime temp folders (PDF generation, file imports, mpdf cache)
+/tmp/
+/tmp_mpdf/
 
 # IDEs and editors
 /.idea/
