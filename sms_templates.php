@@ -153,7 +153,7 @@ h1,h2 { font-weight:700 !important; }
         <div class="content sms-page">
             <?php pz_page_header([
                 'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-                'kicker'   => 'Setări · Comunicare',
+                'kicker'   => 'ADMINISTRARE · COMUNICARE',
                 'title'    => 'Șabloane SMS',
                 'subtitle' => 'Personalizează mesajele trimise prin SMSLink. SMS-urile nu creează programări fără apel.',
             ]); ?>

@@ -58,7 +58,7 @@ $demoLowUrl = ($autoBase !== '') ? ($autoBase . '/feedback.php?demo=low') : 'fee
         <div class="content page">
             <?php pz_page_header([
                 'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-                'kicker'   => 'Setări',
+                'kicker'   => 'ADMINISTRARE',
                 'title'    => 'Review și satisfacție clienți',
                 'subtitle' => 'Prima intervenție finalizată trimite SMS. Intervențiile următoare trimit doar email. Google Review apare doar la prima intervenție, dacă nota este 5 stele.',
             ]); ?>

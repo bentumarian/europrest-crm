@@ -393,7 +393,7 @@ $durationOptions = [
 
             <?php pz_page_header([
                 'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-                'kicker'   => 'Setări · Operațional',
+                'kicker'   => 'ADMINISTRARE · OPERAȚIONAL',
                 'title'    => 'Servicii',
                 'subtitle' => 'Gestionează serviciile disponibile în programări și sarcini. Serviciile active apar automat în formulare.',
                 'actions'  => [[

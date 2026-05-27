@@ -64,8 +64,7 @@ app_theme_css();
 ?>
 <!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Registru evidență lucrări</title>
 </head><body><div class="layout"><?php render_sidebar('stock_work_registry', true); ?><main class="main"><div class="content">
-<div class="stock-hero"><div><h1>Registru evidență lucrări</h1><p>Raport legal compact, câte o lucrare/produs pe rând, cu toate coloanele obligatorii.</p></div></div>
-<?php render_stock_module_nav('registry'); ?>
+<?php render_stock_page_header('registry', 'Registru evidență lucrări', 'Raport legal compact, câte o lucrare/produs pe rând, cu toate coloanele obligatorii.'); ?>
 <?php if ($msg): ?><div class="notice notice-success"><?= stock_h($msg) ?></div><?php endif; ?>
 <?php if ($err): ?><div class="notice notice-danger"><?= stock_h($err) ?></div><?php endif; ?>
 <form class="stock-card" method="get">

@@ -519,7 +519,7 @@ foreach ($contactResetTables as $table) {
         <div class="content reset-page">
             <?php pz_page_header([
                 'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-                'kicker'   => 'Setări · Avansat',
+                'kicker'   => 'ADMINISTRARE · AVANSAT',
                 'title'    => 'Reset platformă',
                 'subtitle' => 'Șterge datele operaționale introduse și readuce platforma la o stare curată, păstrând configurarea de bază.',
             ]); ?>

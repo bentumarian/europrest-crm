@@ -140,7 +140,7 @@ try {
         <div class="content">
             <?php pz_page_header([
                 'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-                'kicker'   => 'Setări · Comunicare',
+                'kicker'   => 'ADMINISTRARE · COMUNICARE',
                 'title'    => 'Activitate SMS',
                 'subtitle' => 'Ultimele SMS-uri trimise, sărite (skipped) sau eșuate. Util pentru debugging.',
             ]); ?>

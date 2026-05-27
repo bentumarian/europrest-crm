@@ -133,7 +133,7 @@ $redirectUri = anaf_efactura_redirect_uri();
         <div class="content ef-set-page">
             <?php pz_page_header([
                 'back'     => ['href' => 'efactura.php', 'label' => 'Înapoi la e-Factura'],
-                'kicker'   => 'Setări · Integrări',
+                'kicker'   => 'ADMINISTRARE · INTEGRĂRI',
                 'title'    => 'Setări ANAF e-Factura',
                 'subtitle' => 'Configurarea conexiunii directe la SPV ANAF pentru descărcarea facturilor primite și sincronizarea celor trimise.',
             ]); ?>

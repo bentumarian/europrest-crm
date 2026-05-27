@@ -101,8 +101,8 @@ foreach ($receipts as $receipt) {
 app_theme_css();
 ?>
 <!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mișcări stoc</title>
-</head><body><div class="layout"><?php render_sidebar('stock_movements', true); ?><main class="main"><div class="content"><div class="stock-hero"><div><h1>Mișcări manuale de stoc</h1><p>Pierdere, expirat, ajustare minus pentru ieșiri / ajustare plus pentru intrări de corecție (ex: surplus inventar).</p></div></div>
-<?php render_stock_module_nav('movements'); ?>
+</head><body><div class="layout"><?php render_sidebar('stock_movements', true); ?><main class="main"><div class="content"><?php render_stock_page_header("movements", "Mișcări manuale de stoc", "Pierdere, expirat, ajustare minus pentru ieșiri / ajustare plus pentru intrări de corecție (ex: surplus inventar)."); ?>
+
 <?php if ($msg): ?><div class="notice notice-success"><?= stock_h($msg) ?></div><?php endif; ?>
 <?php if ($err): ?><div class="notice notice-danger"><?= stock_h($err) ?></div><?php endif; ?>
 <form class="stock-card" method="post" id="outForm">

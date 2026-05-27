@@ -273,7 +273,7 @@ function cs_textarea($name, $label, $settings) {
         <div class="content wrap">
             <?php pz_page_header([
                 'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-                'kicker'   => 'Setări · Companie',
+                'kicker'   => 'ADMINISTRARE · COMPANIE',
                 'title'    => 'Date companie',
                 'subtitle' => 'Date oficiale folosite automat în contracte, documente și identificarea prestatorului.',
                 'actions'  => [[

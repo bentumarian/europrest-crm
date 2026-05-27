@@ -64,20 +64,12 @@ app_theme_css();
 .inv-status-finalized { background: #ecfdf5; color: #15803d; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
 </style>
 </head><body><div class="layout"><?php render_sidebar('stock_inventory', true); ?><main class="main"><div class="content">
-<div class="stock-hero">
-    <div>
-        <h1>Inventar fizic</h1>
-        <p>Numără stocul real, sistemul calculează diferențele și generează automat ajustări plus/minus în istoric.</p>
-    </div>
-    <div class="stock-actions">
-        <?php if (!$activeInventory): ?>
-            <a class="btn" href="stock_movements.php">Vezi mișcările</a>
-        <?php else: ?>
-            <a class="btn" href="stock_inventory.php">Listă inventare</a>
-        <?php endif; ?>
-    </div>
-</div>
-<?php render_stock_module_nav('inventory'); ?>
+<?php
+$invActions = !$activeInventory
+    ? [["label" => "Vezi mișcările", "href" => "stock_movements.php", "variant" => "ghost"]]
+    : [["label" => "Listă inventare", "href" => "stock_inventory.php", "variant" => "ghost"]];
+render_stock_page_header("inventory", "Inventar fizic", "Numără stocul real, sistemul calculează diferențele și generează automat ajustări plus/minus în istoric.", $invActions);
+?>
 
 <?php if ($msg): ?><div class="notice notice-success"><?= stock_h($msg) ?></div><?php endif; ?>
 <?php if ($err): ?><div class="notice notice-danger"><?= stock_h($err) ?></div><?php endif; ?>

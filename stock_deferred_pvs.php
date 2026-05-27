@@ -64,18 +64,10 @@ app_theme_css();
 .dpv-qty-unit { color: var(--muted, #64748b); margin-left: 6px; font-size: 12px; }
 </style>
 </head><body><div class="layout"><?php render_sidebar('stock_deferred_pvs', true); ?><main class="main"><div class="content">
-<div class="stock-hero">
-    <div>
-        <h1>PV-uri fără consum (emise în alb)</h1>
-        <p>PV-uri emise de birou cu cantitățile completate ulterior pe hârtie de tehnician. Aici introduci cantitățile reale și sistemul scoate automat din stoc cu FIFO.</p>
-    </div>
-    <div class="stock-actions">
-        <?php if ($activeDocument): ?>
-            <a class="btn" href="stock_deferred_pvs.php">Înapoi la listă</a>
-        <?php endif; ?>
-    </div>
-</div>
-<?php render_stock_module_nav('deferred_pvs'); ?>
+<?php
+$dpvActions = $activeDocument ? [["label" => "Înapoi la listă", "href" => "stock_deferred_pvs.php", "variant" => "ghost"]] : [];
+render_stock_page_header("deferred_pvs", "PV-uri fără consum (emise în alb)", "PV-uri emise de birou cu cantitățile completate ulterior pe hârtie de tehnician. Aici introduci cantitățile reale și sistemul scoate automat din stoc cu FIFO.", $dpvActions);
+?>
 
 <?php if ($msg): ?><div class="notice notice-success"><?= stock_h($msg) ?></div><?php endif; ?>
 <?php if ($err): ?><div class="notice notice-danger"><?= stock_h($err) ?></div><?php endif; ?>

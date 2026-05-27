@@ -29,17 +29,10 @@ app_theme_css();
 .days-filter select { padding: 4px 8px; }
 </style>
 </head><body><div class="layout"><?php render_sidebar('stock_notifications', true); ?><main class="main"><div class="content">
-<div class="stock-hero">
-    <div>
-        <h1>Notificări gestiune</h1>
-        <p>Alerte automate pentru stoc minim, loturi pe cale să expire și loturi deja expirate cu stoc rămas.</p>
-    </div>
-    <div class="stock-actions">
-        <a class="btn" href="stock_products.php">Setează stoc minim</a>
-        <a class="btn accent" href="stock_receipts.php">Adaugă intrare</a>
-    </div>
-</div>
-<?php render_stock_module_nav('notifications'); ?>
+<?php render_stock_page_header("notifications", "Notificări gestiune", "Alerte automate pentru stoc minim, loturi pe cale să expire și loturi deja expirate cu stoc rămas.", [
+    ["label" => "Setează stoc minim", "href" => "stock_products.php", "variant" => "ghost"],
+    ["label" => "Adaugă intrare", "href" => "stock_receipts.php", "variant" => "primary"],
+]); ?>
 
 <?php if ($totalAlerts === 0): ?>
     <div class="notice notice-success">Nu există alerte active. Stocul este în parametri normali și nu sunt loturi expirate sau pe cale să expire.</div>

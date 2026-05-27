@@ -678,7 +678,7 @@ $preview = ds_format_number($formSeries, (int)($formSeries['next_number'] ?? 1),
         <div class="content series-page">
             <?php pz_page_header([
                 'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-                'kicker'   => 'Setări · Documente',
+                'kicker'   => 'ADMINISTRARE · DOCUMENTE',
                 'title'    => 'Serii documente',
                 'subtitle' => 'Setează numerotarea documentelor. Pentru contracte, format recomandat: {N}/{DD}.{MM}.{YYYY} — ex. ' . ds_h(date('j/d.m.Y')),
             ]); ?>

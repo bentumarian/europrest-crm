@@ -259,8 +259,8 @@ form.was-validated input:required:invalid + .qty-unit-suffix {
 }
 </style>
 </head><body><div class="layout"><?php render_sidebar('stock_receipts', true); ?><main class="main"><div class="content">
-<div class="stock-hero"><div><h1>Intrări stoc</h1><p>Adaugă marfa în stoc. Pentru biocide, lotul și data expirării sunt obligatorii.</p></div><div class="stock-actions"><?php if ($isEditing): ?><a class="btn" href="stock_receipts.php">Anulează editarea</a><?php endif; ?></div></div>
-<?php render_stock_module_nav('receipts'); ?>
+<?php render_stock_page_header("receipts", "Intrări stoc", "Adaugă marfa în stoc. Pentru biocide, lotul și data expirării sunt obligatorii.", $isEditing ? [["label" => "Anulează editarea", "href" => "stock_receipts.php", "variant" => "ghost"]] : []); ?>
+
 <?php if ($msg): ?><div class="notice notice-success"><?= stock_h($msg) ?></div><?php endif; ?>
 <?php if ($err): ?><div class="notice notice-danger"><?= stock_h($err) ?></div><?php endif; ?>
 

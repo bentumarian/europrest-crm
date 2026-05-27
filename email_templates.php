@@ -202,7 +202,7 @@ h1,h2 { font-weight:700 !important; }
         <div class="content email-template-page">
             <?php pz_page_header([
                 'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-                'kicker'   => 'Setări · Comunicare',
+                'kicker'   => 'ADMINISTRARE · COMUNICARE',
                 'title'    => 'Șabloane email',
                 'subtitle' => 'Texte editabile pentru emailurile trimise prin SendGrid.',
             ]); ?>

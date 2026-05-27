@@ -26,8 +26,7 @@ app_theme_css();
 ?>
 <!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Fișa magazie</title>
 </head><body><div class="layout"><?php render_sidebar('stock_card', true); ?><main class="main"><div class="content">
-<div class="stock-hero"><div><h1>Fișa magazie</h1><p>Raport cantitativ pentru contabilitate: stoc inițial + intrări - consum/ieșiri = stoc final.</p></div></div>
-<?php render_stock_module_nav('card'); ?>
+<?php render_stock_page_header('card', 'Fișa magazie', 'Raport cantitativ pentru contabilitate: stoc inițial + intrări - consum/ieșiri = stoc final.'); ?>
 <form class="stock-card" method="get">
     <h2 style="margin:0 0 14px;font-size:18px;">Filtre raport</h2>
     <div class="stock-grid-4">

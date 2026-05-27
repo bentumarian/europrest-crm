@@ -234,7 +234,7 @@ $companyName  = trim((string)($company['company.display_name'] ?? $company['comp
         <div class="content">
             <?php pz_page_header([
                 'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-                'kicker'   => 'Setări · Documente',
+                'kicker'   => 'ADMINISTRARE · DOCUMENTE',
                 'title'    => 'Design documente',
                 'subtitle' => 'O singură dimensiune pentru toate documentele (procese verbale, oferte, contracte). Fără footer.',
                 'actions'  => [[

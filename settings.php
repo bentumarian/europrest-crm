@@ -259,7 +259,7 @@ $superAdminCards = [
                     : 'Administrare operațională · ' . (int)$settingsTotalOptions . ' opțiuni disponibile';
 
                 pz_page_header([
-                    'kicker'   => 'Administrare',
+                    'kicker'   => 'ADMINISTRARE',
                     'title'    => 'Setări',
                     'subtitle' => $settingsSubtitle,
                 ]);

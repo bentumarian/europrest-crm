@@ -142,8 +142,8 @@ app_theme_css();
 ?>
 <!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Produse gestiune</title>
 </head><body><div class="layout"><?php render_sidebar('stock_products', true); ?><main class="main"><div class="content">
-<div class="stock-hero"><div><h1>Nomenclator produse</h1><p>Produse și materiale DDD, cu stoc minim și măsuri de siguranță pentru PV.</p></div><div class="stock-actions"><a class="btn" href="avize_sanitare.php" target="_blank" rel="noopener">Pagina publică avize</a><?php if ($edit): ?><a class="btn" href="stock_products.php">Anulează editarea</a><?php endif; ?></div></div>
-<?php render_stock_module_nav('products'); ?>
+<?php render_stock_page_header("products", "Nomenclator produse", "Produse și materiale DDD, cu stoc minim și măsuri de siguranță pentru PV.", $edit ? [["label" => "Anulează editarea", "href" => "stock_products.php", "variant" => "ghost"], ["label" => "Pagina publică avize", "href" => "avize_sanitare.php", "variant" => "ghost", "target" => "_blank"]] : [["label" => "Pagina publică avize", "href" => "avize_sanitare.php", "variant" => "ghost", "target" => "_blank"]]); ?>
+
 <?php if ($msg): ?><div class="notice notice-success"><?= stock_h($msg) ?></div><?php endif; ?>
 <?php if ($err): ?><div class="notice notice-danger"><?= stock_h($err) ?></div><?php endif; ?>
 <form class="stock-card" method="post" id="productForm" enctype="multipart/form-data">

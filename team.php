@@ -439,7 +439,7 @@ foreach ($teams as $team) {
 
             <?php pz_page_header([
                 'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-                'kicker'   => 'Setări · Operațional',
+                'kicker'   => 'ADMINISTRARE · OPERAȚIONAL',
                 'title'    => 'Tehnicieni',
                 'subtitle' => 'Gestionează tehnicienii, culorile din calendar și accesul operatorilor.',
                 'actions'  => [[

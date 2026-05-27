@@ -1409,7 +1409,7 @@ th { background:var(--surface-soft); color:var(--muted); font-size:11px; text-tr
         <div class="content import-page">
             <?php pz_page_header([
                 'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-                'kicker'   => 'Setări · Date',
+                'kicker'   => 'ADMINISTRARE · DATE',
                 'title'    => 'Import date',
                 'subtitle' => 'Import sigur pentru clienți și puncte de lucru din Excel. Datele sunt previzualizate înainte de import.',
                 'actions'  => [[

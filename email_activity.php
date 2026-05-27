@@ -172,7 +172,7 @@ try {
         <div class="content">
             <?php pz_page_header([
                 'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-                'kicker'   => 'Setări · Comunicare',
+                'kicker'   => 'ADMINISTRARE · COMUNICARE',
                 'title'    => 'Activitate Email',
                 'subtitle' => 'Ultimele emailuri trimise (sau eșuate). Combinăm log-urile din SendGrid + log-urile pe documente.',
             ]); ?>

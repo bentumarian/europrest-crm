@@ -112,7 +112,7 @@ $csrf = function_exists('csrf_field') ? csrf_field() : '';
         <div class="content settings-module-page">
             <?php pz_page_header([
                 'back'     => ['href' => 'settings.php', 'label' => 'Înapoi la setări'],
-                'kicker'   => 'Setări · Integrări',
+                'kicker'   => 'ADMINISTRARE · INTEGRĂRI',
                 'title'    => 'SmartBill',
                 'subtitle' => 'Configurare pentru facturare, cote TVA și verificare status e-Factura / SPV.',
             ]); ?>
