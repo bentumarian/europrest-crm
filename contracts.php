@@ -279,6 +279,57 @@ function pz_contract_build_items_from_post(array $postItems, array $locationsByI
     return $items;
 }
 
+function pz_contract_build_manual_items_from_post(array $postItems, float $vatPercent, string $currency, int $startSort = 0, ?string &$error = null): array {
+    $items = [];
+    $sort = $startSort;
+
+    foreach ($postItems as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+
+        $name = pz_contract_str($row['name'] ?? '', 220);
+        $description = pz_contract_str($row['description'] ?? '');
+        $quantityRaw = trim((string)($row['quantity'] ?? ''));
+        $unit = pz_contract_str($row['unit'] ?? '', 30);
+        $priceRaw = trim((string)($row['unit_price'] ?? ''));
+        $quantity = max(0, pz_contract_decimal($quantityRaw, 0));
+        $unitPrice = max(0, pz_contract_decimal($priceRaw, 0));
+        $hasAnyValue = ($name !== '' || $description !== '' || $quantityRaw !== '' || $unit !== '' || $priceRaw !== '');
+
+        if (!$hasAnyValue) {
+            continue;
+        }
+
+        if ($name === '') {
+            $error = 'Completează denumirea pentru fiecare poziție manuală sau șterge rândul gol.';
+            return [];
+        }
+
+        $items[] = [
+            'item_type' => 'contract_manual',
+            'service_id' => null,
+            'service_name' => $name,
+            'description' => $description,
+            'client_location_id' => null,
+            'location_name' => '',
+            'location_address' => '',
+            'quantity' => $quantity,
+            'unit' => $unit ?: 'buc',
+            'unit_price' => $unitPrice,
+            'vat_percent' => $vatPercent,
+            'total_price' => $unitPrice,
+            'currency' => $currency,
+            'frequency_text' => '',
+            'planned_date' => null,
+            'sort_order' => $sort,
+        ];
+        $sort++;
+    }
+
+    return $items;
+}
+
 function pz_contract_build_payload_from_post(array $post, string $currency): array {
     $contractValueRaw = pz_contract_decimal($post['contract_value'] ?? 0, 0);
     $autoRenewal = !empty($post['auto_renewal']);
@@ -387,6 +438,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $currency = pz_contract_str($_POST['currency'] ?? 'RON', 10) ?: 'RON';
         $contractType = (($_POST['contract_type'] ?? 'recurrent') === 'execution') ? 'execution' : 'recurrent';
         $items = pz_contract_build_items_from_post($_POST['items'] ?? [], $locationsById, $clientsById, $clientId, $vatPercent, $currency);
+        $manualItems = [];
 
         if ($clientId <= 0) {
             pz_contract_redirect_with_error('Selectează clientul pentru contract.', $documentId);
@@ -407,6 +459,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$locationId && !empty($items[0]['client_location_id'])) {
                 $locationId = (int)$items[0]['client_location_id'];
             }
+            $manualError = null;
+            $manualItems = pz_contract_build_manual_items_from_post($_POST['manual_items'] ?? [], $vatPercent, $currency, count($items), $manualError);
+            if ($manualError !== null) {
+                pz_contract_redirect_with_error($manualError, $documentId);
+            }
+            $items = array_merge($items, $manualItems);
         } else {
             // Contract de execuție: nu folosim tabel servicii.
             $items = [];
@@ -481,6 +539,7 @@ unset($_SESSION['pz_contract_error']);
 $editId = (int)($_GET['edit'] ?? 0);
 $editingDocument = null;
 $editingItems = [];
+$editingManualItems = [];
 $editingPayload = [];
 
 if ($editId > 0) {
@@ -492,7 +551,14 @@ if ($editId > 0) {
         header('Location: document_view.php?id=' . $editId);
         exit;
     } else {
-        $editingItems = $editingDocument['items'] ?? [];
+        $loadedItems = is_array($editingDocument['items'] ?? null) ? $editingDocument['items'] : [];
+        foreach ($loadedItems as $item) {
+            if (($item['item_type'] ?? '') === 'contract_manual') {
+                $editingManualItems[] = $item;
+            } else {
+                $editingItems[] = $item;
+            }
+        }
         $editingPayload = pzdoc_json_decode($editingDocument['payload_json'] ?? null);
     }
 }
@@ -678,6 +744,10 @@ foreach ($services as $service) {
 .items-table td:last-child { border-right:1px solid var(--border2); border-radius:0 12px 12px 0; }
 .items-table input, .items-table select { width:100%; border:1px solid var(--border); border-radius:10px; padding:8px 9px; background:#fff; font-size:12px; }
 .items-table textarea { width:100%; min-height:39px; border:1px solid var(--border); border-radius:10px; padding:8px 9px; background:#fff; font-size:12px; resize:vertical; }
+.manual-items-panel { margin-top:12px; border-style:dashed !important; background:#fff; }
+.manual-item-name { margin-bottom:6px; }
+.manual-item-description { min-height:42px !important; }
+.manual-items-table { min-width:900px; }
 .row-total { font-weight:900; color:var(--text); text-align:right; padding-top:8px; white-space:nowrap; }
 .form-actions { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
 .form-actions .right { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
@@ -1033,6 +1103,50 @@ foreach ($services as $service) {
                                         </table>
                                     </div>
                                     <div class="client-help">Prețurile sunt fără TVA. În contract, coloana de preț apare ca preț / intervenție.</div>
+                                </div>
+                            </div>
+                            <div class="panel manual-items-panel" style="box-shadow:none;">
+                                <div class="panel-head">
+                                    <div>
+                                        <div class="panel-title">Poziții manuale în contract</div>
+                                        <div class="panel-subtitle">Apar în contract și în total, dar nu generează sarcini sau recurențe.</div>
+                                    </div>
+                                    <button type="button" class="btn small" onclick="addManualItemRow()"><i style="display:inline-block;font-style:normal;margin-right:2px;">+</i> Adaugă poziție manuală</button>
+                                </div>
+                                <div class="panel-body">
+                                    <div class="items-wrap">
+                                        <table class="items-table manual-items-table">
+                                            <thead>
+                                            <tr>
+                                                <th style="width:46px;">Nr.</th>
+                                                <th>Denumire și descriere</th>
+                                                <th style="width:120px;">Cantitate</th>
+                                                <th style="width:90px;">U.M.</th>
+                                                <th style="width:150px;">Preț total</th>
+                                                <th style="width:80px;"></th>
+                                            </tr>
+                                            </thead>
+                                            <tbody id="manualItemsBody">
+                                            <?php foreach ($editingManualItems as $idx => $item): ?>
+                                                <tr class="manual-item-row">
+                                                    <td class="manual-row-index"><?= (int)$idx + 1 ?></td>
+                                                    <td>
+                                                        <input type="text" name="manual_items[<?= (int)$idx ?>][name]" class="manual-item-name" value="<?= pz_contract_h($item['service_name'] ?? '') ?>" placeholder="Denumire poziție manuală">
+                                                        <textarea name="manual_items[<?= (int)$idx ?>][description]" class="manual-item-description" rows="2" placeholder="Descriere opțională sub denumire"><?= pz_contract_h($item['description'] ?? '') ?></textarea>
+                                                    </td>
+                                                    <td><input type="number" step="0.01" min="0" name="manual_items[<?= (int)$idx ?>][quantity]" class="manual-qty" value="<?= pz_contract_h((string)($item['quantity'] ?? 0)) ?>" placeholder="cant." oninput="recalculateRows()"></td>
+                                                    <td><input type="text" name="manual_items[<?= (int)$idx ?>][unit]" value="<?= pz_contract_h($item['unit'] ?? 'buc') ?>" placeholder="UM"></td>
+                                                    <td>
+                                                        <input type="number" step="0.01" min="0" name="manual_items[<?= (int)$idx ?>][unit_price]" class="manual-price" value="<?= pz_contract_h((string)($item['unit_price'] ?? 0)) ?>" placeholder="lei fără TVA" oninput="recalculateRows()">
+                                                        <input type="hidden" name="manual_items[<?= (int)$idx ?>][total_price]" class="manual-line-total-input" value="<?= pz_contract_h((string)($item['total_price'] ?? ($item['unit_price'] ?? 0))) ?>">
+                                                    </td>
+                                                    <td><button type="button" class="btn small danger" onclick="removeManualItemRow(this)">Șterge</button></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="client-help">Ex: Otravă șobolani, descriere produs, 3 kg, 100 lei. Rândul este comercial, nu operațional.</div>
                                 </div>
                             </div>
                                 </div>
@@ -1575,6 +1689,39 @@ function addItemRow() {
     recalculateRows();
 }
 
+function nextManualItemIndex() {
+    if (typeof window.pzNextContractManualItemIndex === 'undefined') {
+        window.pzNextContractManualItemIndex = document.querySelectorAll('#manualItemsBody .manual-item-row').length;
+    }
+    return window.pzNextContractManualItemIndex++;
+}
+
+function addManualItemRow() {
+    const body = document.getElementById('manualItemsBody');
+    if (!body) return;
+    const i = nextManualItemIndex();
+    const tr = document.createElement('tr');
+    tr.className = 'manual-item-row';
+    tr.innerHTML = `
+        <td class="manual-row-index"></td>
+        <td>
+            <input type="text" name="manual_items[${i}][name]" class="manual-item-name" placeholder="Denumire poziție manuală">
+            <textarea name="manual_items[${i}][description]" class="manual-item-description" rows="2" placeholder="Descriere opțională sub denumire"></textarea>
+        </td>
+        <td><input type="number" step="0.01" min="0" name="manual_items[${i}][quantity]" class="manual-qty" value="0" placeholder="cant." oninput="recalculateRows()"></td>
+        <td><input type="text" name="manual_items[${i}][unit]" value="buc" placeholder="UM"></td>
+        <td>
+            <input type="number" step="0.01" min="0" name="manual_items[${i}][unit_price]" class="manual-price" value="0" placeholder="lei fără TVA" oninput="recalculateRows()">
+            <input type="hidden" name="manual_items[${i}][total_price]" class="manual-line-total-input" value="0">
+        </td>
+        <td><button type="button" class="btn small danger" onclick="removeManualItemRow(this)">Șterge</button></td>
+    `;
+    body.appendChild(tr);
+    updateManualRowNumbers();
+    const nameInput = tr.querySelector('.manual-item-name');
+    if (nameInput) nameInput.focus();
+}
+
 function removeItemRow(button) {
     const rows = document.querySelectorAll('#itemsBody .item-row');
     if (rows.length <= 1) {
@@ -1591,6 +1738,12 @@ function removeItemRow(button) {
         return;
     }
     button.closest('tr').remove();
+    recalculateRows();
+}
+
+function removeManualItemRow(button) {
+    const row = button.closest('tr');
+    if (row) row.remove();
     recalculateRows();
 }
 
@@ -1629,6 +1782,13 @@ function updateRowNumbers() {
     });
 }
 
+function updateManualRowNumbers() {
+    document.querySelectorAll('#manualItemsBody .manual-item-row').forEach((row, idx) => {
+        const cell = row.querySelector('.manual-row-index');
+        if (cell) cell.textContent = String(idx + 1);
+    });
+}
+
 function recalculateRows() {
     const currency = document.getElementById('currency') ? document.getElementById('currency').value : 'RON';
     let total = 0;
@@ -1639,12 +1799,20 @@ function recalculateRows() {
         const hidden = row.querySelector('.line-total-input');
         if (hidden) hidden.value = line.toFixed(2);
     });
+    document.querySelectorAll('#manualItemsBody .manual-item-row').forEach(row => {
+        const price = parseFloat((row.querySelector('.manual-price') || {}).value || '0') || 0;
+        const line = Math.round(price * 100) / 100;
+        total += line;
+        const hidden = row.querySelector('.manual-line-total-input');
+        if (hidden) hidden.value = line.toFixed(2);
+    });
     const grand = document.getElementById('grandTotal');
     if (grand) grand.textContent = total.toFixed(2) + ' ' + currency;
     const contractValue = document.getElementById('contractValue');
     if (contractValue) contractValue.value = total.toFixed(2);
     updatePaymentTermsHidden();
     updateRowNumbers();
+    updateManualRowNumbers();
     updateMainLocationId();
 }
 

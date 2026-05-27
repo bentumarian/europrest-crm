@@ -412,6 +412,9 @@ if (!function_exists('pz_flow_sync_issued_contract')) {
         }
         $GLOBALS['pz_flow_last_sync']['items'] = count($items);
         foreach ($items as $item) {
+            if (($item['item_type'] ?? '') !== 'contract_service') {
+                continue;
+            }
             $itemId = (int)($item['id'] ?? 0);
             $serviceName = pz_flow_str($item['service_name'] ?? '', 255);
             if ($serviceName === '') {

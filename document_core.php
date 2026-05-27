@@ -333,7 +333,7 @@ if (!function_exists('pzdoc_calculate_items_totals')) {
             $qty = pzdoc_decimal($item['quantity'] ?? 1, 1);
             $unitPrice = pzdoc_decimal($item['unit_price'] ?? 0, 0);
             $itemType = trim((string)($item['item_type'] ?? ''));
-            if ($itemType === 'contract_service') {
+            if (in_array($itemType, ['contract_service', 'contract_manual'], true)) {
                 // Contractele folosesc sume nete fixe: fără TVA si fara inmultire cu suprafata.
                 // quantity = suprafata informativa, unit_price = pret/intervenție.
                 $lineTotal = round($unitPrice, 2);
@@ -685,7 +685,7 @@ if (!function_exists('pzdoc_replace_document_items')) {
             $itemType = pzdoc_str($item['item_type'] ?? 'service', 40) ?: 'service';
             if ($documentTypeForItems === 'contract' || $itemType === 'contract_service') {
                 // In contract, pretul este suma neta fixa / intervenție. Nu folosim TVA si nu inmultim cu suprafata.
-                $itemType = 'contract_service';
+                $itemType = $itemType === 'contract_manual' ? 'contract_manual' : 'contract_service';
                 $totalPrice = $unitPrice;
                 $itemVatPercent = 0.0;
             } elseif ($documentTypeForItems === 'oferta' || $itemType === 'offer_service') {
@@ -789,7 +789,7 @@ if (!function_exists('pzdoc_recalculate_document_totals')) {
         $vatAmount = 0.0;
         foreach ($items as $item) {
             $itemType = trim((string)($item['item_type'] ?? ''));
-            if ($itemType === 'contract_service') {
+            if (in_array($itemType, ['contract_service', 'contract_manual'], true)) {
                 // Contractele sunt nete si fixe. total_price vechi poate contine valori calculate gresit;
                 // pentru contract luam mereu unit_price ca valoare reala / intervenție.
                 $line = round(pzdoc_decimal($item['unit_price'] ?? $item['total_price'] ?? 0, 0), 2);
