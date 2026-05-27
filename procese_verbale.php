@@ -887,54 +887,76 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
     color: #92400E;
 }
 
-/* === Submit sticky bottom pe mobil ===
-   Pe ecrane mici, butoanele „Renunță" si „Emite PV" raman fixed jos pentru
-   a nu fi nevoie de scroll-back dupa completarea materialelor. Pe desktop
-   raman ca acum (inline static).
-*/
-@media (max-width: 760px) {
-    .pv-form-compact .panel-body {
-        padding-bottom: 84px;
-    }
-    .pv-form-compact .form-actions {
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        margin: 0;
-        padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
-        background: #FFFFFF;
-        border-top: 1px solid var(--border, #E2E8F0);
-        box-shadow: 0 -6px 16px rgba(15, 23, 42, .08);
-        z-index: 90;
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        flex-wrap: nowrap;
-    }
-    .pv-form-compact .form-actions > a.btn,
-    .pv-form-compact .form-actions > .left .btn {
-        flex: 0 0 auto;
-        min-width: 96px;
-        min-height: 44px;
-    }
-    .pv-form-compact .form-actions .right {
-        flex: 1;
-        display: flex;
-        gap: 8px;
-        justify-content: flex-end;
-    }
-    .pv-form-compact .form-actions .right .btn {
-        flex: 1 1 0;
-        min-height: 44px;
-        font-size: 14px;
-        font-weight: 900;
-    }
-    /* Buton primary este dominant vizual: ocupa mai mult spatiu si are box-shadow */
-    .pv-form-compact .form-actions .right .btn.primary {
-        flex: 2 1 0;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, .28);
-    }
+/* === Mini-grid 2 coloane pentru „Zone tratate" + „Suprafața" === */
+.pv-aria-suprafata-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.pv-aria-suprafata-grid label {
+    display: block;
+    font-size: 12px;
+    font-weight: 850;
+    color: var(--muted);
+    margin-bottom: 5px;
+}
+.pv-aria-suprafata-grid input {
+    width: 100%;
+    border: 1px solid var(--accent-soft-2);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--text);
+    padding: 10px 11px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .14s ease, box-shadow .14s ease;
+}
+.pv-aria-suprafata-grid input:hover:not(:focus) { border-color: var(--accent); }
+.pv-aria-suprafata-grid input:focus { border-color: var(--accent); box-shadow: var(--focus-ring); }
+@media (max-width: 420px) {
+    /* Pe ecrane foarte mici, le punem din nou pe 1 coloana ca sa nu fie prea inghesuite. */
+    .pv-aria-suprafata-grid { grid-template-columns: 1fr; }
+}
+
+/* === Sumar colapsabil pentru câmp prefilled (ex: Tehnician) === */
+.pv-collapsible-summary {
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    background: var(--surface-soft, #F8FAFC);
+    border: 1px solid var(--border2, #E2E8F0);
+    border-radius: 12px;
+    font-size: 13px;
+    color: var(--text);
+}
+.pv-collapsible-summary .pcs-label {
+    color: var(--muted);
+    font-weight: 700;
+    font-size: 12px;
+}
+.pv-collapsible-summary .pcs-value {
+    font-weight: 850;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+.pv-collapsible-summary .pcs-edit {
+    margin-left: auto;
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--accent, #2563EB);
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+.pv-collapsible-summary .pcs-edit:hover {
+    background: var(--accent-soft, #EFF6FF);
+    border-color: var(--accent-soft-2);
 }
 
 </style>
@@ -1029,23 +1051,36 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                             </div>
                                             <div class="client-help" id="locationHelp">Selectează un client mai intai.</div>
                                         </div>
-                                        <div class="field span2">
-                                            <label>Zona/e tratate *</label>
-                                            <?php
-                                                $treatedAreasValue = (string)($editingPayload['treated_areas'] ?? '');
-                                                if ($treatedAreasValue === '' && !empty($isQuickPvFromAppointment)) {
-                                                    $treatedAreasValue = 'Întreaga locație';
-                                                }
-                                            ?>
-                                            <input type="text" name="treated_areas" id="treatedAreas" value="<?= pz_pv_h($treatedAreasValue) ?>" placeholder="ex: bucătărie, depozit, grupuri sanitare" required>
-                                        </div>
-                                        <div class="field span2">
-                                            <label>Suprafață *</label>
-                                            <input type="text" name="surface_text" id="surfaceText" value="<?= pz_pv_h($editingPayload['surface_text'] ?? '') ?>" placeholder="ex: 250 mp interior + exterior" required>
-                                        </div>
+                                        <?php
+                                            $treatedAreasValue = (string)($editingPayload['treated_areas'] ?? '');
+                                            if ($treatedAreasValue === '' && !empty($isQuickPvFromAppointment)) {
+                                                $treatedAreasValue = 'Întreaga locație';
+                                            }
+                                            $workersValue = (string)($editingPayload['workers_names'] ?? '');
+                                            $workersInitialCollapsed = trim($workersValue) !== '';
+                                        ?>
                                         <div class="field full">
-                                            <label>Tehnician</label>
-                                            <input type="text" name="workers_names" id="workersNames" value="<?= pz_pv_h($editingPayload['workers_names'] ?? '') ?>" placeholder="Tehnicianul care a executat lucrarea">
+                                            <div class="pv-aria-suprafata-grid">
+                                                <div>
+                                                    <label>Zona/e tratate *</label>
+                                                    <input type="text" name="treated_areas" id="treatedAreas" value="<?= pz_pv_h($treatedAreasValue) ?>" placeholder="ex: bucătărie, depozit, grupuri sanitare" required>
+                                                </div>
+                                                <div>
+                                                    <label>Suprafață *</label>
+                                                    <input type="text" name="surface_text" id="surfaceText" value="<?= pz_pv_h($editingPayload['surface_text'] ?? '') ?>" placeholder="ex: 250 mp interior + exterior" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="field full" id="workersNamesField">
+                                            <div class="pv-collapsible-summary" id="workersSummary" style="display:<?= $workersInitialCollapsed ? 'flex' : 'none' ?>;">
+                                                <span class="pcs-label">Tehnician:</span>
+                                                <span class="pcs-value" id="workersSummaryValue"><?= pz_pv_h($workersValue) ?></span>
+                                                <button type="button" class="pcs-edit" onclick="pvExpandWorkers()">Modifică</button>
+                                            </div>
+                                            <div class="pv-collapsible-input" id="workersInputWrap" style="display:<?= $workersInitialCollapsed ? 'none' : 'block' ?>;">
+                                                <label>Tehnician</label>
+                                                <input type="text" name="workers_names" id="workersNames" value="<?= pz_pv_h($workersValue) ?>" placeholder="Tehnicianul care a executat lucrarea">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -2544,6 +2579,25 @@ function bindMethodPills(container) {
             });
         });
     });
+}
+
+/*
+|--------------------------------------------------------------------------
+| Expand pentru câmp Tehnician colapsat (Pas 4.A.2)
+|--------------------------------------------------------------------------
+| Când câmpul „Tehnician" este prefilled, afișăm doar un sumar
+| „Tehnician: X" cu link „Modifică". La click pe link, afișăm inputul
+| și focusăm pe el. Sumarul rămâne ascuns până la următoarea încărcare.
+*/
+function pvExpandWorkers() {
+    const summary = document.getElementById('workersSummary');
+    const inputWrap = document.getElementById('workersInputWrap');
+    const input = document.getElementById('workersNames');
+    if (summary) summary.style.display = 'none';
+    if (inputWrap) inputWrap.style.display = 'block';
+    if (input) {
+        try { input.focus(); input.setSelectionRange(input.value.length, input.value.length); } catch (e) {}
+    }
 }
 
 /* Activeaza pille corespunzator unei valori (folosit de syncProductRow). */
