@@ -1092,6 +1092,13 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
 .readonly-box { background: var(--surface-soft, #F8FAFC); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; color: var(--text); font-size: 14px; line-height: 1.5; }
 .office-note-box { background: #F3F6FA; border: 1px solid var(--border2); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; color: var(--muted); font-size: 14px; line-height: 1.5; }
 .office-note-box strong { display:block; color: var(--text); margin-bottom: 4px; }
+/* Chip-uri sugestie pentru „Mențiuni finalizare" — un click umple textarea. */
+.completion-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.completion-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--border, #E2E8F0); background: #FFF; color: var(--text); font-size: 12.5px; font-weight: 600; cursor: pointer; transition: background .14s ease, border-color .14s ease, color .14s ease; user-select: none; }
+.completion-chip:hover { background: var(--accent-soft, #EFF6FF); border-color: var(--accent, #2563EB); color: var(--accent-deep, #1E40AF); }
+.completion-chip.is-active { background: var(--accent, #2563EB); border-color: var(--accent, #2563EB); color: #FFF; }
+.completion-chip.is-active::before { content: '✓'; font-weight: 900; }
+@media (max-width: 480px) { .completion-chip { padding: 6px 10px; font-size: 12px; } }
 .location-hint { margin-top: 5px; color: var(--muted); font-size: 12px; font-weight: 450; }
 .support-teams-box { margin-top: 0; }
 .support-teams-list { display: grid; gap: 7px; margin-bottom: 7px; }
@@ -2255,11 +2262,16 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
             <div class="form-grid">
                 <div class="form-group full">
                     <label>Mențiuni finalizare lucrare *</label>
-                    <textarea name="completion_notes" id="team_completion_notes" required placeholder="Scrie ce s-a constatat si ce s-a executat la lucrare..."></textarea>
+                    <div class="completion-chips" id="teamCompletionChips" aria-label="Sugestii rapide pentru mențiuni">
+                        <button type="button" class="completion-chip" data-text="Executat conform planificării.">Executat conform planificării</button>
+                        <button type="button" class="completion-chip" data-text="Cu observații — vezi PV.">Cu observații → vezi PV</button>
+                        <button type="button" class="completion-chip" data-text="Probleme la fața locului — vezi PV.">Probleme la fața locului</button>
+                    </div>
+                    <textarea name="completion_notes" id="team_completion_notes" required placeholder="Apasă un chip rapid de mai sus sau scrie liber ce s-a executat..."></textarea>
                 </div>
             </div>
 
-            <div class="actions-row"><div></div><div class="actions-right"><button class="btn" type="button" onclick="closeModal('editModal')">Renunță</button><button class="btn accent" type="submit">Finalizează lucrarea</button></div></div>
+            <div class="actions-row"><div></div><div class="actions-right"><button class="btn" type="button" onclick="closeModal('editModal')">Renunță</button><button class="btn accent" id="teamFinalizeSubmit" type="submit">Finalizează lucrarea</button></div></div>
         </form>
     </div>
 </div>
@@ -2805,16 +2817,27 @@ function renderTeamPvActions(data) {
     const pvLabel = hasPv ? ((data.pv_status === 'draft') ? 'Editează PV' : 'Vezi PV') : 'Emite PV';
     const emailEnabled = hasPv && data.pv_status === 'issued' && String(data.pv_client_email || '').trim() !== '';
     const emailDisabled = hasPv && data.pv_status === 'issued' && !emailEnabled;
+    // Pasul urmator pentru tehnician determina butonul „principal" (clasa accent).
+    // Daca nu exista PV sau e draft, „Emite PV" / „Editează PV" e actiunea principala.
+    // Daca PV-ul e emis, urmatorul pas e trimiterea pe email, deci butonul de PV
+    // ramane secundar (folosit doar pentru vizualizare).
+    const pvIsPrimary = !hasPv || (hasPv && data.pv_status === 'draft');
     const openPvButton = (!hasPv || data.pv_status !== 'issued')
-        ? `<button class="btn pv-aero-btn" type="button" onclick="openPvFromTeam()">${pvLabel}</button>`
-        : '';
+        ? `<button class="btn ${pvIsPrimary ? 'accent' : ''} pv-aero-btn" type="button" onclick="openPvFromTeam()">${pvLabel}</button>`
+        : `<button class="btn pv-aero-btn" type="button" onclick="openPvFromTeam()">${pvLabel}</button>`;
     const pdfButton = hasPv && data.pv_status === 'issued'
         ? `<a class="btn" target="_blank" href="${escHtml(pvPdfUrlFromData(data))}">PDF</a>`
         : '';
     const emailButton = hasPv && data.pv_status === 'issued'
         ? `<button class="btn accent" type="button" onclick="sendPvEmailFromTeam(this)" ${emailEnabled ? '' : 'disabled'}>${emailDisabled ? 'Email lipsa' : 'Trimite email'}</button>`
         : '';
+    // Mesaj de continuitate: cand programarea tocmai a fost finalizata si inca
+    // nu exista PV, dam un indiciu clar pentru pasul urmator.
+    const finalizedHeader = (!hasPv && data && data.status === 'finalizata')
+        ? '<div style="text-align:center; color:var(--success, #15803D); font-weight:700; font-size:13px; margin-bottom:10px;">✓ Lucrare finalizată — emite procesul verbal mai jos.</div>'
+        : '';
     box.innerHTML = `
+        ${finalizedHeader}
         <div style="display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;">
             ${openPvButton}
             ${pdfButton}
@@ -3387,7 +3410,148 @@ document.addEventListener('DOMContentLoaded', () => {
     pzInitAutocomplete('edit');
     bindAppointmentFormSubmit('create');
     bindAppointmentFormSubmit('edit');
+    if (!isAdmin) {
+        bindTeamCompletionChips();
+        bindTeamFinalizeAjax();
+    }
 });
+
+/*
+|--------------------------------------------------------------------------
+| Chip-uri sugestie pentru „Mențiuni finalizare lucrare" (tehnician)
+|--------------------------------------------------------------------------
+| Un click pe chip umple textarea cu textul preset; click din nou pe același
+| chip activ goleste textarea. Mențiunile rămân obligatorii — chip-urile
+| doar accelerează completarea.
+*/
+function bindTeamCompletionChips() {
+    const chipsBox = document.getElementById('teamCompletionChips');
+    const textarea = document.getElementById('team_completion_notes');
+    if (!chipsBox || !textarea) return;
+    if (chipsBox.dataset.bound === '1') return;
+    chipsBox.dataset.bound = '1';
+
+    function refreshActiveState() {
+        const current = (textarea.value || '').trim();
+        chipsBox.querySelectorAll('.completion-chip').forEach(chip => {
+            const text = (chip.dataset.text || '').trim();
+            chip.classList.toggle('is-active', text !== '' && text === current);
+        });
+    }
+
+    chipsBox.querySelectorAll('.completion-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const text = (chip.dataset.text || '').trim();
+            const current = (textarea.value || '').trim();
+            if (text === current) {
+                textarea.value = '';
+            } else {
+                textarea.value = text;
+            }
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            refreshActiveState();
+        });
+    });
+
+    textarea.addEventListener('input', refreshActiveState);
+    refreshActiveState();
+}
+
+/*
+|--------------------------------------------------------------------------
+| AJAX submit pentru „Finalizează lucrarea" (tehnician)
+|--------------------------------------------------------------------------
+| Intercepteaza submit-ul formularului teamUpdateForm. Trimite cererea
+| cu Accept: application/json. Daca handler-ul răspunde JSON cu ok=true,
+| reincarcam datele programarii in modal — fara reload de pagina, fara
+| pierderea contextului. Daca AJAX-ul esueaza din orice motiv, lasam
+| formularul sa submit-eze normal (fallback complet).
+*/
+function bindTeamFinalizeAjax() {
+    const form = document.getElementById('teamUpdateForm');
+    if (!form || form.dataset.ajaxBound === '1') return;
+    form.dataset.ajaxBound = '1';
+
+    form.addEventListener('submit', async (event) => {
+        const textarea = document.getElementById('team_completion_notes');
+        const submitBtn = document.getElementById('teamFinalizeSubmit');
+        const idInput = document.getElementById('team_appointment_id');
+        if (!textarea || !idInput) return;
+
+        if ((textarea.value || '').trim() === '') {
+            // Lasam validarea HTML5 sa preia (campul are required).
+            return;
+        }
+
+        event.preventDefault();
+
+        const originalText = submitBtn ? submitBtn.textContent : '';
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Se finalizeaza...'; }
+
+        const formData = new FormData(form);
+        let ok = false;
+        try {
+            const res = await fetch('calendar_post_handler.php', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await res.json().catch(() => null);
+            if (res.ok && data && data.ok) {
+                ok = true;
+                if (submitBtn) submitBtn.textContent = '✓ Finalizat';
+                // Marcam vizual evenimentul ca finalizat in calendarul de fundal
+                // (fara reload). Eveniment FullCalendar afectat — daca exista.
+                markCalendarEventFinalized(idInput.value);
+                // Reincarcam datele programarii in modal — modalul ramane deschis
+                // si afiseaza automat butoanele de PV (renderTeamPvActions).
+                await loadAppointment(idInput.value);
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalText || 'Finalizează lucrarea'; }
+                return;
+            }
+            // Eroare validare server (ex: appointment_id invalid). Afisam mesaj
+            // si lasam tehnicianul sa retrimita — nu mai facem fallback automat,
+            // mesajul nostru e mai util.
+            const errorMsg = (data && data.error) ? data.error : 'Finalizarea a esuat. Reincearca sau reincarca pagina.';
+            alert(errorMsg);
+        } catch (err) {
+            console.error('team finalize ajax error:', err);
+            // Fallback: lasam form-ul sa submit-eze normal (cu reload).
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalText || 'Finalizează lucrarea'; }
+            form.submit();
+            return;
+        } finally {
+            if (!ok && submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalText || 'Finalizează lucrarea'; }
+        }
+    });
+}
+
+/*
+|--------------------------------------------------------------------------
+| Marcheaza vizual un eveniment ca finalizat in calendarul FullCalendar
+|--------------------------------------------------------------------------
+| Apelat dupa AJAX finalize, ca utilizatorul sa vada starea actualizata
+| daca inchide modalul. Nu afecteaza alte fluxuri.
+*/
+function markCalendarEventFinalized(appointmentId) {
+    appointmentId = String(appointmentId || '');
+    if (!appointmentId) return;
+    try {
+        if (typeof FullCalendar === 'undefined') return;
+        const visualCalendar = document.getElementById('visualCalendar');
+        if (!visualCalendar) return;
+        const calendar = FullCalendar.getCalendarById ? FullCalendar.getCalendarById('visualCalendar') : null;
+        // Fallback: cautam in DOM evenimentul afisat si adaugam clasa.
+        document.querySelectorAll('.fc-event').forEach(el => {
+            if (el.getAttribute('data-appointment-id') === appointmentId) {
+                el.classList.add('fc-event-finalizata');
+            }
+        });
+    } catch (e) {
+        console.warn('markCalendarEventFinalized fallback failed:', e);
+    }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     populateLocations('create', '', '');

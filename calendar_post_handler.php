@@ -36,16 +36,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $baseRedirect .= '&team=' . urlencode($redirectTeam);
     }
 
+    // Detectare cerere AJAX: ne permite să răspundem JSON pentru fluxul în care
+    // modalul de calendar (tehnician) trebuie să rămână deschis după finalizare,
+    // fără reload complet de pagină. Dacă antetul nu indică JSON, păstrăm
+    // comportamentul vechi cu redirect (fallback complet).
+    $isAjaxRequest = (stripos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json') !== false)
+        || ((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest');
+
     if ($action === 'team_update') {
         $appointmentId = (int)($_POST['appointment_id'] ?? 0);
         $completionNotes = trim($_POST['completion_notes'] ?? '');
 
         if (!$isTeamUser || $appointmentId <= 0) {
+            if ($isAjaxRequest) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(400);
+                echo json_encode(['ok' => false, 'error' => 'Programare invalida sau fără drepturi.'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
             header('Location: ' . $baseRedirect . '&error=1');
             exit;
         }
 
         if ($completionNotes === '') {
+            if ($isAjaxRequest) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(400);
+                echo json_encode(['ok' => false, 'error' => 'Completează mențiunile de finalizare.'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
             header('Location: ' . $baseRedirect . '&finish_error=1');
             exit;
         }
@@ -72,6 +91,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Creează / actualizează poziția de facturat.
         if (function_exists('pz_billing_ensure_item_for_appointment')) {
             pz_billing_ensure_item_for_appointment($pdo, $appointmentId);
+        }
+
+        if ($isAjaxRequest) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'ok' => true,
+                'appointment_id' => $appointmentId,
+                'status' => 'finalizata',
+                'message' => 'Lucrarea a fost finalizata.',
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
         }
 
         header('Location: ' . $baseRedirect . '&finished=1');
