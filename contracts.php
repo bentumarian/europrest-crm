@@ -630,6 +630,65 @@ foreach ($services as $service) {
 .panel-title { font-size:16px; font-weight:900; color:var(--text); }
 .panel-subtitle { font-size:12px; color:var(--muted); margin-top:2px; }
 .panel-body { padding:14px 16px; }
+.contract-form-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1400;
+    margin: 0;
+    padding: 34px 24px;
+    border: 0;
+    border-radius: 0;
+    background: rgba(15, 23, 42, .58);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    box-shadow: none;
+    overflow: hidden;
+}
+.contract-form-modal > .panel-head,
+.contract-form-modal > .panel-body {
+    width: min(1180px, calc(100vw - 48px));
+    margin-left: auto;
+    margin-right: auto;
+    background: var(--pz-surf);
+}
+.contract-form-modal > .panel-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    border: 1px solid var(--pz-line);
+    border-bottom: 1px solid var(--border2);
+    border-radius: 18px 18px 0 0;
+    padding: 20px 24px;
+}
+.contract-form-modal > .panel-body {
+    max-height: calc(100vh - 142px);
+    overflow: auto;
+    border: 1px solid var(--pz-line);
+    border-top: 0;
+    border-radius: 0 0 18px 18px;
+    padding: 22px 24px 24px;
+}
+.contract-modal-close {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 0;
+    border-radius: 6px;
+    font-size: 18px;
+    line-height: 1;
+}
+.contract-form-modal .form-actions {
+    position: sticky;
+    bottom: -24px;
+    z-index: 2;
+    margin: 18px -24px -24px;
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, .96);
+    border-top: 1px solid var(--pz-line);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+body.contract-modal-open { overflow: hidden; }
 .alert { border-radius:var(--pz-rs); padding:10px 13px; margin-bottom:12px; font-weight:600; font-size:12.5px; }
 .alert.error   { background:var(--pz-res); color:var(--pz-re); border:1px solid var(--pz-reb); }
 .alert.success { background:var(--pz-grs); color:var(--pz-gr); border:1px solid var(--pz-grb); }
@@ -722,6 +781,16 @@ foreach ($services as $service) {
     .doc-row { grid-template-columns:1fr; }
     .doc-actions { justify-content:flex-start; }
     .contract-hero { padding:18px; }
+    .contract-form-modal { padding: 12px; }
+    .contract-form-modal > .panel-head,
+    .contract-form-modal > .panel-body { width: calc(100vw - 24px); }
+    .contract-form-modal > .panel-head { padding: 16px; border-radius: 14px 14px 0 0; }
+    .contract-form-modal > .panel-body { max-height: calc(100vh - 108px); padding: 16px; border-radius: 0 0 14px 14px; }
+    .contract-form-modal .form-actions { bottom: -16px; margin: 16px -16px -16px; padding: 12px 16px; }
+    .contract-form-modal .form-actions .right,
+    .contract-form-modal .form-actions .right .btn,
+    .contract-form-modal .form-actions > div,
+    .contract-form-modal .form-actions > div .btn { width: 100%; }
 }
 
 /* === Selector „Tip contract" === */
@@ -785,7 +854,7 @@ foreach ($services as $service) {
 </style>
 <?php render_search_preview_assets(); ?>
 </head>
-<body>
+<body<?= (!empty($_GET['new']) || $editingDocument) ? ' class="contract-modal-open"' : '' ?>>
 <div class="layout">
     <?php render_sidebar('contracts', $isAdmin); ?>
 
@@ -847,13 +916,13 @@ foreach ($services as $service) {
             <?php endif; ?>
 
             <?php if (!empty($_GET['new']) || $editingDocument): ?>
-                <section class="panel" id="contractFormPanel">
+                <section class="panel contract-form-modal" id="contractFormPanel" role="dialog" aria-modal="true" aria-labelledby="contractFormTitle">
                     <div class="panel-head">
                         <div>
-                            <div class="panel-title"><?= $editingDocument ? 'Editează contract draft' : 'Contract nou' ?></div>
+                            <div class="panel-title" id="contractFormTitle"><?= $editingDocument ? 'Editează contract draft' : 'Contract nou' ?></div>
                             <div class="panel-subtitle">Completează clientul, perioada, locațiile si serviciile contractate.</div>
                         </div>
-                        <a class="btn small" href="contracts.php">Inchide formularul</a>
+                        <a class="btn small contract-modal-close" href="contracts.php" aria-label="Închide formularul" title="Închide formularul">&times;</a>
                     </div>
                     <div class="panel-body">
                         <form method="post" id="contractForm">
@@ -1106,7 +1175,6 @@ foreach ($services as $service) {
                 </section>
             <?php endif; ?>
 
-            <?php if (empty($_GET['new']) && empty($editingDocument)): ?>
             <?php
                 /*
                 |------------------------------------------------------------
@@ -1294,7 +1362,6 @@ foreach ($services as $service) {
                     <?php endif; ?>
                 </div>
             </section>
-            <?php endif; ?>
         </div>
     </main>
 </div>
