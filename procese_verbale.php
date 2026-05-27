@@ -861,6 +861,32 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
     }
 }
 
+/* === Pille toggle pentru metoda aplicare (single-select) === */
+.pz-method-pills { display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }
+.pz-method-pill {
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:7px 13px; border-radius:999px;
+    border:1px solid var(--border, #E2E8F0); background:#FFF; color:var(--text);
+    font-size:12px; font-weight:600; cursor:pointer; user-select:none; white-space:nowrap;
+    transition: background .14s ease, border-color .14s ease, color .14s ease;
+}
+.pz-method-pill:hover { background: var(--accent-soft, #EFF6FF); border-color: var(--accent, #2563EB); color: var(--accent-deep, #1E40AF); }
+.pz-method-pill.is-active { background: var(--accent, #2563EB); border-color: var(--accent, #2563EB); color:#FFF; }
+.pz-method-pill.is-active::before { content: '✓'; margin-right:5px; font-weight:900; }
+@media (max-width: 480px) {
+    .pz-method-pill { padding:6px 11px; font-size:11.5px; }
+}
+
+/* === Diferentiere vizuala card „Produs fara stoc" (alternativa manuala) === */
+.pv-material-card.pv-manual-material-row {
+    background: #FFFBEB;
+    border-color: #FED7AA;
+    border-left: 3px solid #B45309;
+}
+.pv-material-card.pv-manual-material-row .pv-material-card-title {
+    color: #92400E;
+}
+
 </style>
 <?php render_search_preview_assets(); ?>
 </head>
@@ -1174,14 +1200,16 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                                 <?php endforeach; ?>
                                                             </select>
                                                         </div>
-                                                        <div>
-                                                            <label>Aplicare</label>
-                                                            <select name="materials[<?= (int)$index ?>][manual_application_method]">
-                                                                <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare', 'momeala' => 'Momeală'] as $value => $label): ?>
-                                                                    <option value="<?= pz_pv_h($value) ?>" <?= (($material['manual_application_method'] ?? ($material['application_method'] ?? '')) === $value) ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
-                                                                <?php endforeach; ?>
-                                                            </select>
+                                                    </div>
+                                                    <?php $manualMethod = (string)($material['manual_application_method'] ?? ($material['application_method'] ?? '')); ?>
+                                                    <div style="margin-top:10px;">
+                                                        <label style="display:block; font-size:11px; font-weight:900; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.035em;">Aplicare</label>
+                                                        <div class="pz-method-pills" role="radiogroup" aria-label="Metoda aplicare">
+                                                            <?php foreach (['pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directă', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare', 'momeala' => 'Momeala'] as $value => $label): ?>
+                                                                <button type="button" class="pz-method-pill <?= $manualMethod === $value ? 'is-active' : '' ?>" data-value="<?= pz_pv_h($value) ?>"><?= pz_pv_h($label) ?></button>
+                                                            <?php endforeach; ?>
                                                         </div>
+                                                        <input type="hidden" name="materials[<?= (int)$index ?>][manual_application_method]" value="<?= pz_pv_h($manualMethod) ?>">
                                                     </div>
                                                     <input type="hidden" name="materials[<?= (int)$index ?>][application_method_custom]" value="">
                                                     <input type="hidden" name="materials[<?= (int)$index ?>][application_area]" value="">
@@ -1222,13 +1250,15 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                                                             <label>UM</label>
                                                             <input type="text" name="materials[<?= (int)$index ?>][unit]" class="material-unit" value="<?= pz_pv_h($material['unit'] ?? '') ?>" readonly placeholder="-">
                                                         </div>
-                                                        <div>
+                                                        <?php $cardMethod = (!empty($material['stock_product_id']) ? (string)($material['application_method'] ?? '') : ''); ?>
+                                                        <div style="grid-column: 1 / -1;">
                                                             <label>Metoda aplicare</label>
-                                                            <select name="materials[<?= (int)$index ?>][application_method]" class="application-method">
-                                                                <?php foreach (['' => 'Alege', 'pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directa', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare', 'momeala' => 'Momeală'] as $value => $label): ?>
-                                                                    <option value="<?= pz_pv_h($value) ?>" <?= (!empty($material['stock_product_id']) && (($material['application_method'] ?? '') === $value)) ? 'selected' : '' ?>><?= pz_pv_h($label) ?></option>
+                                                            <div class="pz-method-pills" role="radiogroup" aria-label="Metoda aplicare">
+                                                                <?php foreach (['pulverizare' => 'Pulverizare', 'aplicare directa' => 'Aplicare directă', 'nebulizare' => 'Nebulizare', 'amplasare' => 'Amplasare', 'momeala' => 'Momeala'] as $value => $label): ?>
+                                                                    <button type="button" class="pz-method-pill <?= $cardMethod === $value ? 'is-active' : '' ?>" data-value="<?= pz_pv_h($value) ?>"><?= pz_pv_h($label) ?></button>
                                                                 <?php endforeach; ?>
-                                                            </select>
+                                                            </div>
+                                                            <input type="hidden" name="materials[<?= (int)$index ?>][application_method]" class="application-method" value="<?= pz_pv_h($cardMethod) ?>">
                                                         </div>
                                                     </div>
                                                     <input type="hidden" name="materials[<?= (int)$index ?>][application_method_custom]" value="">
@@ -2305,10 +2335,55 @@ function selectedSelectValue(select) {
     if (current > 0) return current;
     return Number(select.dataset.selected || 0);
 }
+
+/*
+|--------------------------------------------------------------------------
+| TomSelect helpers pentru autocomplete pe produs si lot
+|--------------------------------------------------------------------------
+| TomSelect e deja incarcat in pagina (CDN in <head>). Pentru fiecare
+| material card, activam autocomplete pe .product-select si .receipt-select
+| ca tehnicianul sa caute rapid produsul / lotul prin tipare, in loc sa
+| scroll-eze prin dropdown-uri lungi. Daca TomSelect nu e disponibil,
+| select-urile raman functionale ca dropdown-uri clasice.
+*/
+function initProductTomSelect(select) {
+    if (!select || select.tomselect || typeof TomSelect === 'undefined') return;
+    try {
+        new TomSelect(select, {
+            placeholder: 'Caută produs...',
+            searchField: ['text'],
+            maxOptions: 500,
+            allowEmptyOption: true
+            // Native `change` event este dispatched de TomSelect pe underlying select,
+            // deci `onchange="syncProductRow(this)"` din HTML continua sa fire normal.
+        });
+    } catch (e) { console.warn('TomSelect product init failed:', e); }
+}
+
+function initReceiptTomSelect(select) {
+    if (!select || select.tomselect || typeof TomSelect === 'undefined') return;
+    try {
+        new TomSelect(select, {
+            placeholder: 'Alege lot...',
+            searchField: ['text'],
+            maxOptions: 200,
+            allowEmptyOption: true
+        });
+    } catch (e) { console.warn('TomSelect receipt init failed:', e); }
+}
+
+function makeProductOptions() {
+    const options = [{value: '', text: 'Alege produs'}];
+    productsData.forEach(product => options.push({value: String(product.id), text: String(product.name || '')}));
+    return options;
+}
+
 function populateProductSelects() {
+    const options = makeProductOptions();
     document.querySelectorAll('.product-select').forEach(select => {
         const selected = selectedSelectValue(select);
-        select.innerHTML = productOptionsHtml(selected);
+        setSelectOptions(select, options, selected);
+        if (!select.tomselect) initProductTomSelect(select);
         populateReceiptSelect(select.closest('.material-row'));
     });
 }
@@ -2319,27 +2394,35 @@ function populateReceiptSelect(row) {
     if (!productSelect || !receiptSelect) return;
     const productId = Number(productSelect.value || 0);
     const selected = selectedSelectValue(receiptSelect);
-    receiptSelect.innerHTML = '<option value="">Alege lot</option>';
+
+    // Construim optiunile (FIFO — receiptsData e deja sortat dupa expires_at).
+    const options = [{value: '', text: 'Alege lot'}];
+    if (productId) {
+        receiptsData.filter(r => Number(r.product_id) === productId).forEach(r => {
+            const lotLabel = r.lot ? String(r.lot) : 'Fără lot';
+            const expLabel = r.expires_at ? ' · exp. ' + r.expires_at : '';
+            options.push({value: String(r.id), text: lotLabel + expLabel});
+        });
+    }
+
+    setSelectOptions(receiptSelect, options, selected);
+    if (!receiptSelect.tomselect) initReceiptTomSelect(receiptSelect);
+
     if (!productId) {
         receiptSelect.dataset.selected = '0';
         syncLotRow(receiptSelect);
         return;
     }
-    // Loturile sunt deja sortate ascendent după expires_at în receiptsData (FIFO).
-    // Prima opțiune este lotul cu expirare cea mai apropiată - se preselectează automat
-    // mai jos, dar tehnicianul poate alege alt lot din dropdown.
-    receiptsData.filter(r => Number(r.product_id) === productId).forEach(r => {
-        const option = document.createElement('option');
-        option.value = r.id;
-        const lotLabel = r.lot ? String(r.lot) : 'Fără lot';
-        const expLabel = r.expires_at ? ' · exp. ' + r.expires_at : '';
-        option.textContent = lotLabel + expLabel;
-        option.title = (r.lot ? 'Lot ' + r.lot : 'Lot fără nume') + (r.expires_at ? ' / exp. ' + r.expires_at : '') + (r.qty ? ' / cantitate totală ' + r.qty : '');
-        if (Number(r.id) === selected) option.selected = true;
-        receiptSelect.appendChild(option);
-    });
-    // FIFO sugerat: dacă nu există o selecție anterioară, ia primul lot (cel cu expirarea cea mai apropiată).
-    if (!receiptSelect.value && receiptSelect.options.length > 1) receiptSelect.selectedIndex = 1;
+
+    // FIFO sugerat: dacă nu există o selecție anterioară, ia primul lot disponibil.
+    if (!receiptSelect.value && options.length > 1) {
+        const firstId = options[1].value;
+        if (receiptSelect.tomselect) {
+            receiptSelect.tomselect.setValue(firstId, true);
+        } else {
+            receiptSelect.value = firstId;
+        }
+    }
     syncLotRow(receiptSelect);
 }
 function syncProductRow(select) {
@@ -2359,17 +2442,69 @@ function syncProductRow(select) {
         if (aviz) aviz.value = product.aviz_no || '';
         if (safety) safety.value = product.safety_measures || '';
         if (concentration) concentration.value = product.product_concentration || '';
-        if (method) method.value = methodLabelToValue(product.default_application_method || '');
+        const methodValue = methodLabelToValue(product.default_application_method || '');
+        if (method) {
+            method.value = methodValue;
+            syncMethodPillsVisual(row, methodValue);
+        }
     } else {
         ['.material-unit', '.product-group', '.aviz-no', '.safety-measures', '.work-concentration', '.expiry-date'].forEach(selector => {
             const input = row.querySelector(selector);
             if (input) input.value = '';
         });
+        // Curatam si pillele de metoda
+        const method = row.querySelector('.application-method');
+        if (method) method.value = '';
+        syncMethodPillsVisual(row, '');
     }
     const receiptSelect = row.querySelector('.receipt-select');
     if (receiptSelect) receiptSelect.dataset.selected = '0';
     populateReceiptSelect(row);
     pzValidateForm();
+}
+
+/*
+|--------------------------------------------------------------------------
+| Pille toggle pentru metoda aplicare
+|--------------------------------------------------------------------------
+| Inlocuiesc dropdown-ul cu butoane radio vizuale. Hidden input-ul retine
+| valoarea curenta si e trimis la submit cu acelasi name ca inainte
+| (application_method sau manual_application_method).
+*/
+function bindMethodPills(container) {
+    container = container || document;
+    container.querySelectorAll('.pz-method-pills').forEach(pillsBox => {
+        if (pillsBox.dataset.bound === '1') return;
+        pillsBox.dataset.bound = '1';
+        const hiddenInput = pillsBox.nextElementSibling;
+        if (!hiddenInput || hiddenInput.tagName !== 'INPUT') return;
+        pillsBox.querySelectorAll('.pz-method-pill').forEach(pill => {
+            pill.addEventListener('click', () => {
+                const value = pill.dataset.value || '';
+                const wasActive = pill.classList.contains('is-active');
+                pillsBox.querySelectorAll('.pz-method-pill').forEach(p => p.classList.remove('is-active'));
+                if (wasActive) {
+                    // Click pe pille deja activ = deselectie
+                    hiddenInput.value = '';
+                } else {
+                    pill.classList.add('is-active');
+                    hiddenInput.value = value;
+                }
+                pzValidateForm();
+            });
+        });
+    });
+}
+
+/* Activeaza pille corespunzator unei valori (folosit de syncProductRow). */
+function syncMethodPillsVisual(row, methodValue) {
+    if (!row) return;
+    const pillsBox = row.querySelector('.pz-method-pills');
+    if (!pillsBox) return;
+    const target = String(methodValue || '');
+    pillsBox.querySelectorAll('.pz-method-pill').forEach(p => {
+        p.classList.toggle('is-active', target !== '' && (p.dataset.value || '') === target);
+    });
 }
 function syncLotRow(select) {
     const row = select.closest('.material-row');
@@ -2403,7 +2538,17 @@ function addMaterialRow() {
                 <div><label>Dilutie</label><input type="text" name="materials[${i}][work_concentration]" class="work-concentration" placeholder="ex: 1%"></div>
                 <div><label>Cantitate</label><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][quantity]" placeholder="cant."></div>
                 <div><label>UM</label><input type="text" name="materials[${i}][unit]" class="material-unit" readonly placeholder="-"></div>
-                <div><label>Metoda aplicare</label><select name="materials[${i}][application_method]" class="application-method"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directa</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option><option value="momeala">Momeală</option></select></div>
+                <div style="grid-column: 1 / -1;">
+                    <label>Metoda aplicare</label>
+                    <div class="pz-method-pills" role="radiogroup" aria-label="Metoda aplicare">
+                        <button type="button" class="pz-method-pill" data-value="pulverizare">Pulverizare</button>
+                        <button type="button" class="pz-method-pill" data-value="aplicare directa">Aplicare directă</button>
+                        <button type="button" class="pz-method-pill" data-value="nebulizare">Nebulizare</button>
+                        <button type="button" class="pz-method-pill" data-value="amplasare">Amplasare</button>
+                        <button type="button" class="pz-method-pill" data-value="momeala">Momeala</button>
+                    </div>
+                    <input type="hidden" name="materials[${i}][application_method]" class="application-method" value="">
+                </div>
             </div>
             <input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value="">`;
     } else {
@@ -2420,6 +2565,7 @@ function addMaterialRow() {
     }
     body.appendChild(row);
     populateProductSelects();
+    bindMethodPills(row);
     pzValidateForm();
 }
 function addManualMaterialRow() {
@@ -2446,7 +2592,17 @@ function addManualMaterialRow() {
             <div class="pv-material-mini-grid">
                 <div><label>Cantitate</label><input type="text" inputmode="decimal" class="quantity-input" name="materials[${i}][manual_quantity]" placeholder="cant."></div>
                 <div><label>UM</label><select name="materials[${i}][manual_unit]" class="manual-unit"><option value="">Alege</option><option value="ml">ml</option><option value="l">l</option><option value="g">g</option><option value="kg">kg</option><option value="buc">buc</option><option value="plic">plic</option><option value="capcana">capcana</option><option value="doza">doza</option><option value="set">set</option></select></div>
-                <div><label>Aplicare</label><select name="materials[${i}][manual_application_method]"><option value="">Alege</option><option value="pulverizare">Pulverizare</option><option value="aplicare directa">Aplicare directă</option><option value="nebulizare">Nebulizare</option><option value="amplasare">Amplasare</option><option value="momeala">Momeală</option></select></div>
+            </div>
+            <div style="margin-top:10px;">
+                <label style="display:block; font-size:11px; font-weight:900; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.035em;">Aplicare</label>
+                <div class="pz-method-pills" role="radiogroup" aria-label="Metoda aplicare">
+                    <button type="button" class="pz-method-pill" data-value="pulverizare">Pulverizare</button>
+                    <button type="button" class="pz-method-pill" data-value="aplicare directa">Aplicare directă</button>
+                    <button type="button" class="pz-method-pill" data-value="nebulizare">Nebulizare</button>
+                    <button type="button" class="pz-method-pill" data-value="amplasare">Amplasare</button>
+                    <button type="button" class="pz-method-pill" data-value="momeala">Momeala</button>
+                </div>
+                <input type="hidden" name="materials[${i}][manual_application_method]" value="">
             </div>
             <input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value="">`;
     } else {
@@ -2462,6 +2618,7 @@ function addManualMaterialRow() {
             <td><input type="hidden" name="materials[${i}][application_method_custom]" value=""><input type="hidden" name="materials[${i}][application_area]" value=""><input type="hidden" name="materials[${i}][notes]" value=""><button type="button" class="btn small danger" onclick="removeMaterialRow(this)">Șterge</button></td>`;
     }
     body.appendChild(row);
+    bindMethodPills(row);
     pzValidateForm();
 }
 function removeMaterialRow(button) {
@@ -2470,13 +2627,27 @@ function removeMaterialRow(button) {
         const row = button.closest('.material-row');
         if (row) {
             row.querySelectorAll('input, textarea').forEach(input => input.value = '');
-            row.querySelectorAll('select').forEach(select => { select.value = ''; select.dataset.selected = '0'; });
+            row.querySelectorAll('select').forEach(select => {
+                if (select.tomselect) select.tomselect.clear(true);
+                else { select.value = ''; }
+                select.dataset.selected = '0';
+            });
+            // Reset vizual pille metoda
+            row.querySelectorAll('.pz-method-pill.is-active').forEach(p => p.classList.remove('is-active'));
         }
         pzValidateForm();
         return;
     }
     const row = button.closest('.material-row');
-    if (row) row.remove();
+    if (row) {
+        // Destroy TomSelect instances pentru a evita memory leaks
+        row.querySelectorAll('select').forEach(select => {
+            if (select.tomselect) {
+                try { select.tomselect.destroy(); } catch (e) {}
+            }
+        });
+        row.remove();
+    }
     pzValidateForm();
 }
 function toggleMaterialsPanel() {
@@ -2583,6 +2754,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (appointmentSelect && appointmentSelect.value) syncAppointment(appointmentSelect);
     populateProductSelects();
     toggleMaterialsPanel();
+
+    // Bind pille metoda aplicare pentru rândurile randate de PHP (atât card cât și table mode).
+    bindMethodPills();
 
     const materialsBody = document.getElementById('materialsBody');
     if (materialsBody) {
