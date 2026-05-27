@@ -634,20 +634,42 @@ function pz_pv_build_materials_from_post(array $postMaterials, array $productsBy
             throw new RuntimeException('Selectează lotul pentru produsul "' . $name . '".');
         }
 
+        // Helper local: ia valoarea din POST dacă e non-vidă, altfel cade pe valoarea din DB (produs).
+        // Folosim explicit comparație cu '' (nu doar `??`) pentru că PHP `??` returnează empty
+        // string dacă cheia există dar valoarea e '' — și inputurile hidden din formular
+        // trimit '' când JS nu apucă să le populeze.
+        $pickFromProductOrPost = function($postValue, $productValue, int $maxLen) {
+            $post = pz_pv_str($postValue ?? '', $maxLen);
+            if ($post !== '') return $post;
+            return pz_pv_str($productValue ?? '', $maxLen);
+        };
+
         $materials[] = [
             'stock_product_id' => $product ? $productId : null,
             'stock_receipt_id' => $receipt ? $receiptId : null,
             'material_name' => $name,
             'product_group' => pz_pv_str($row['product_group'] ?? ($product['product_group'] ?? ''), 50),
-            'aviz_no' => $product ? pz_pv_str($row['aviz_no'] ?? ($product['aviz_no'] ?? ''), 120) : ($manualAviz !== '' ? $manualAviz : pz_pv_str($row['aviz_no'] ?? '', 120)),
+            'aviz_no' => $product
+                ? $pickFromProductOrPost($row['aviz_no'] ?? '', $product['aviz_no'] ?? '', 120)
+                : ($manualAviz !== '' ? $manualAviz : pz_pv_str($row['aviz_no'] ?? '', 120)),
             'quantity' => $product ? $quantity : ($manualQuantityRaw !== '' ? $manualQuantity : (($row['quantity'] ?? '') !== '' ? $quantity : '')),
-            'unit' => $product ? pz_pv_str($row['unit'] ?? ($product['unit_consumption'] ?? ''), 30) : $manualUnit,
-            'lot_number' => $product ? pz_pv_str($row['lot_number'] ?? ($receipt['lot'] ?? ''), 120) : $manualLot,
-            'expiry_date' => $product ? pz_pv_str($row['expiry_date'] ?? ($receipt['expires_at'] ?? ''), 40) : ($manualExpiry !== '' ? $manualExpiry : pz_pv_str($row['expiry_date'] ?? '', 40)),
-            'application_method' => $product ? $applicationMethod : ($manualApplicationMethod !== '' ? $manualApplicationMethod : $applicationMethod),
+            'unit' => $product
+                ? $pickFromProductOrPost($row['unit'] ?? '', $product['unit_consumption'] ?? '', 30)
+                : $manualUnit,
+            'lot_number' => $product
+                ? $pickFromProductOrPost($row['lot_number'] ?? '', $receipt['lot'] ?? '', 120)
+                : $manualLot,
+            'expiry_date' => $product
+                ? $pickFromProductOrPost($row['expiry_date'] ?? '', $receipt['expires_at'] ?? '', 40)
+                : ($manualExpiry !== '' ? $manualExpiry : pz_pv_str($row['expiry_date'] ?? '', 40)),
+            'application_method' => $product
+                ? ($applicationMethod !== '' ? $applicationMethod : pz_pv_application_method_value((string)($product['default_application_method'] ?? '')))
+                : ($manualApplicationMethod !== '' ? $manualApplicationMethod : $applicationMethod),
             'application_method_custom' => $applicationMethodCustom,
             'application_area' => pz_pv_str($row['application_area'] ?? '', 160),
-            'work_concentration' => $product ? pz_pv_str($row['work_concentration'] ?? '', 120) : ($manualConcentration !== '' ? $manualConcentration : pz_pv_str($row['work_concentration'] ?? '', 120)),
+            'work_concentration' => $product
+                ? $pickFromProductOrPost($row['work_concentration'] ?? '', $product['product_concentration'] ?? '', 120)
+                : ($manualConcentration !== '' ? $manualConcentration : pz_pv_str($row['work_concentration'] ?? '', 120)),
             'safety_measures' => pz_pv_str($row['safety_measures'] ?? ($product['safety_measures'] ?? '')),
             'notes' => pz_pv_str($row['notes'] ?? ''),
             'sort_order' => $sort,

@@ -2498,9 +2498,11 @@ function initProductTomSelect(select) {
             placeholder: 'Caută produs...',
             searchField: ['text'],
             maxOptions: 500,
-            allowEmptyOption: true
-            // Native `change` event este dispatched de TomSelect pe underlying select,
-            // deci `onchange="syncProductRow(this)"` din HTML continua sa fire normal.
+            // Garantăm că syncProductRow fire la fiecare schimbare prin TomSelect
+            // (nu ne bazăm doar pe native change event care poate fi inconsecvent).
+            onChange: function() {
+                syncProductRow(select);
+            }
         });
     } catch (e) { console.warn('TomSelect product init failed:', e); }
 }
@@ -2512,7 +2514,9 @@ function initReceiptTomSelect(select) {
             placeholder: 'Alege lot...',
             searchField: ['text'],
             maxOptions: 200,
-            allowEmptyOption: true
+            onChange: function() {
+                syncLotRow(select);
+            }
         });
     } catch (e) { console.warn('TomSelect receipt init failed:', e); }
 }
