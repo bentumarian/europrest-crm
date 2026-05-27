@@ -62,7 +62,7 @@ $stockTabs = [
 ];
 
 pz_page_header([
-    'kicker'   => 'Operațional',
+    'kicker'   => 'GESTIUNE',
     'title'    => 'Gestiune stocuri DDD',
     'subtitle' => 'Nomenclator produse, intrări, ieșiri, inventar fizic, alerte expirare și stoc minim',
     'actions'  => [

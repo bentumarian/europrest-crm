@@ -1733,7 +1733,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
             // Fără butoane în header — programările se creează direct cu click pe
             // casetele din grid-ul calendarului (openCreateModal e legat acolo).
             pz_page_header([
-                'kicker'   => 'Operațional',
+                'kicker'   => 'OPERAȚIONAL',
                 'title'    => 'Calendar tehnicieni',
                 'subtitle' => $calSubtitle,
                 'tabs'     => $calTabs,

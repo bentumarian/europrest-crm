@@ -1476,7 +1476,7 @@ $stockConsumptionDeferred = (($editingPayload['stock_consumption_deferred'] ?? '
                 $pvToolbarHtml = ob_get_clean();
 
                 pz_page_header([
-                    'kicker'   => 'Documente',
+                    'kicker'   => 'DOCUMENTE',
                     'title'    => 'Procese verbale',
                     'subtitle' => $pvSubtitle,
                     'actions'  => [[

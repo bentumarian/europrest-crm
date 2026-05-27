@@ -1196,7 +1196,7 @@ foreach ($services as $service) {
                 $contractsToolbarHtml = ob_get_clean();
 
                 pz_page_header([
-                    'kicker'   => 'Documente',
+                    'kicker'   => 'DOCUMENTE',
                     'title'    => 'Contracte',
                     'subtitle' => $contractsSubtitle,
                     'actions'  => [[

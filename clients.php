@@ -1608,7 +1608,7 @@ $shouldOpenEditClientId = (isset($_GET['open_edit']) && $_GET['open_edit'] === '
                 }
 
                 pz_page_header([
-                    'kicker'   => 'Operațional',
+                    'kicker'   => 'CLIENȚI',
                     'title'    => 'Clienți',
                     'subtitle' => $clientsSubtitle,
                     'actions'  => $clientsActions,

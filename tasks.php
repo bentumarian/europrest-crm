@@ -1838,7 +1838,7 @@ foreach ($tasks as $task) {
                 $tasksToolbarHtml = ob_get_clean();
 
                 pz_page_header([
-                    'kicker'   => 'Operațional',
+                    'kicker'   => 'OPERAȚIONAL',
                     'title'    => 'Sarcini',
                     'subtitle' => 'Priorități de lucru pentru ' . h(mb_strtolower($monthButtons[$selectedMonthKey]['label'])),
                     'actions'  => [[

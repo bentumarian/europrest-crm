@@ -1030,7 +1030,7 @@ foreach ($services as $service) {
                 $offersToolbarHtml = ob_get_clean();
 
                 pz_page_header([
-                    'kicker'   => 'Documente',
+                    'kicker'   => 'DOCUMENTE',
                     'title'    => 'Oferte',
                     'subtitle' => $offersSubtitle,
                     'actions'  => [[

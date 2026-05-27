@@ -422,7 +422,7 @@ foreach ($stats as $stat) {
                 $arhToolbarHtml = ob_get_clean();
 
                 pz_page_header([
-                    'kicker'   => 'Documente',
+                    'kicker'   => 'DOCUMENTE',
                     'title'    => 'Arhivă documente',
                     'subtitle' => $arhSubtitle,
                     'tabs'     => $arhTabs,
