@@ -5,7 +5,7 @@
 |--------------------------------------------------------------------------
 | La fiecare git push pe main, GitHub apeleaza acest endpoint, care:
 |   1. Verifica semnatura HMAC-SHA256 (cu secret-ul partajat cu GitHub)
-|   2. Filtreaza evenimentul (doar push pe main)
+|   2. Filtrează evenimentul (doar push pe main)
 |   3. Ruleaza `git pull origin main` in repo-ul clonat de cPanel
 |   4. Copiaza *.php si .htaccess in document root
 |   5. Logheaza tot in deploy.log (in afara doc root)

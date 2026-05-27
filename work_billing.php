@@ -470,8 +470,8 @@ select.status-select:focus { outline:2px solid rgba(37,99,235,.35); outline-offs
                 if ($selectedService !== 'all')   $wbActiveFilters++;
 
                 // Format vizibil + valori inițiale
-                $dateFromDisplay = $dateFrom ? date('d.m.Y', strtotime($dateFrom)) : '';
-                $dateToDisplay   = $dateTo   ? date('d.m.Y', strtotime($dateTo))   : '';
+                $dateFromDisplay = $dateFrom ? pz_date($dateFrom) : '';
+                $dateToDisplay   = $dateTo   ? pz_date($dateTo)   : '';
 
                 ob_start();
                 ?>

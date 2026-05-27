@@ -64,11 +64,8 @@ function pz_addendum_money($value, string $currency = 'RON'): string
 
 function pz_addendum_date_ro(?string $date): string
 {
-    if (!$date) {
-        return '-';
-    }
-    $ts = strtotime($date);
-    return $ts ? date('d.m.Y', $ts) : '-';
+    // Wrapper subțire peste pz_date() (definit în app_helpers.php).
+    return pz_date($date);
 }
 
 function pz_addendum_status_label(string $status): string

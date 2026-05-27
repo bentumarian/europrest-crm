@@ -994,8 +994,8 @@ function reports_short_service_label(string $name): string {
             ?>
             <?php
                 // Format vizibil dd.mm.yyyy, valoarea originală ISO o trimitem prin hidden.
-                $dateFromDisplay = $dateFrom ? date('d.m.Y', strtotime($dateFrom)) : '';
-                $dateToDisplay   = $dateTo   ? date('d.m.Y', strtotime($dateTo))   : '';
+                $dateFromDisplay = $dateFrom ? pz_date($dateFrom) : '';
+                $dateToDisplay   = $dateTo   ? pz_date($dateTo)   : '';
             ?>
             <form method="get" id="reportsFilterForm" class="pz-fb">
                 <input type="hidden" name="date_from" value="<?= r_h($dateFrom) ?>">

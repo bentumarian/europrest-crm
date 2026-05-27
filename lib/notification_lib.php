@@ -10,6 +10,7 @@ if (defined('PZ_NOTIFICATION_LIB_LOADED')) {
 define('PZ_NOTIFICATION_LIB_LOADED', true);
 
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../app_helpers.php'; // pentru pz_date() folosit la formatarea datelor în template-uri
 
 function pz_db(): PDO
 {
@@ -567,7 +568,7 @@ function pz_send_appointment_confirmation_sms(int $appointmentId): array
 
     $date = (string)($a['appointment_date'] ?? $a['date'] ?? '');
     if ($date && preg_match('/^\d{4}-\d{2}-\d{2}/', $date)) {
-        $date = date('d.m.Y', strtotime($date));
+        $date = pz_date($date);
     }
 
     $timeParts = [];
@@ -661,7 +662,7 @@ function pz_send_task_expiring_7_sms(int $taskId): array
     }
 
     $due = (string)($t['due_date'] ?? '');
-    if ($due && preg_match('/^\d{4}-\d{2}-\d{2}/', $due)) $due = date('d.m.Y', strtotime($due));
+    if ($due && preg_match('/^\d{4}-\d{2}-\d{2}/', $due)) $due = pz_date($due);
 
     $body = pz_template_body('task_expiring_7_sms', '{brand}: Bună ziua, va reamintim ca valabilitatea procesului verbal expira in 7 zile. Vă rugăm sa ne contactati pentru programarea urmatoarei intervenții.');
     $msg = pz_render_template($body, [

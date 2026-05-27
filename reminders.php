@@ -269,7 +269,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $rem['notice_period_value'] ?? null, $rem['notice_period_unit'] ?? null,
                         $rem['email_to'] ?? null
                     ]);
-                    $flashSuccess = 'Marcat ca finalizat. Următoarea apariție programată pentru ' . date('d.m.Y', strtotime($nextDate)) . '.';
+                    $flashSuccess = 'Marcat ca finalizat. Următoarea apariție programată pentru ' . pz_date($nextDate) . '.';
                 } else {
                     $flashSuccess = 'Reminder finalizat. Recurența a ajuns la sfârșit.';
                 }
@@ -508,7 +508,7 @@ if ($editId > 0) {
                     ?>
                         <div class="rem-row <?= $rowClass ?>">
                             <div class="rem-date">
-                                <?= rem_h(date('d.m.Y', strtotime($remindDate))) ?>
+                                <?= rem_h(pz_date($remindDate)) ?>
                                 <?php if ($pillText !== ''): ?>
                                     <span class="pill <?= $pillClass ?>"><?= rem_h($pillText) ?></span>
                                 <?php endif; ?>

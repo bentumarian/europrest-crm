@@ -63,7 +63,7 @@ if (isset($_GET['last_pv_for_client'])) {
         }
 
         $dateStr = (string)($row['document_date'] ?? '');
-        $dateLabel = $dateStr ? date('d.m.Y', strtotime($dateStr)) : '';
+        $dateLabel = $dateStr ? pz_date($dateStr) : '';
 
         echo json_encode([
             'found' => true,

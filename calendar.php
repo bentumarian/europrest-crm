@@ -1659,7 +1659,7 @@ $smallMobileGridWidth = 40 + ($teamCount * $smallMobileMinTeamWidth);
             $todayHref = 'calendar.php?' . http_build_query(['date' => date('Y-m-d'), 'view' => $view, 'team' => $selectedTeam]);
             $prevHref  = 'calendar.php?' . http_build_query(['date' => $prevDate,   'view' => $view, 'team' => $selectedTeam]);
             $nextHref  = 'calendar.php?' . http_build_query(['date' => $nextDate,   'view' => $view, 'team' => $selectedTeam]);
-            $currentDateDisplay = $currentDate ? date('d.m.Y', strtotime($currentDate)) : '';
+            $currentDateDisplay = $currentDate ? pz_date($currentDate) : '';
 
             // Subtitle: data + (interval pentru week/month)
             $calSubtitle = $prettyDate;

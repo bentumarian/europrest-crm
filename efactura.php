@@ -339,7 +339,7 @@ try {
                         <div><label>De la</label><input type="date" name="received_from" value="<?= ef_h($receivedFrom) ?>"></div>
                         <div><label>Până la</label><input type="date" name="received_to" value="<?= ef_h($receivedTo) ?>"></div>
                         <div><label>Status</label><select name="received_status"><option value="all">Toate</option><?php foreach ($receivedStatuses as $key => $label): ?><option value="<?= ef_h($key) ?>" <?= $receivedStatus === $key ? 'selected' : '' ?>><?= ef_h($label) ?></option><?php endforeach; ?></select></div>
-                        <button class="btn accent" type="submit">Filtrează</button>
+                        <button class="btn accent" type="submit">Aplică</button>
                     </form>
                     <div class="table-wrap">
                         <table>
@@ -406,7 +406,7 @@ try {
                         <div><label>De la</label><input type="date" name="sent_from" value="<?= ef_h($sentFrom) ?>"></div>
                         <div><label>Până la</label><input type="date" name="sent_to" value="<?= ef_h($sentTo) ?>"></div>
                         <div><label>Status</label><select name="sent_status"><?php foreach ($sentStatuses as $key => $label): ?><option value="<?= ef_h($key) ?>" <?= $sentStatus === $key ? 'selected' : '' ?>><?= ef_h($label) ?></option><?php endforeach; ?></select></div>
-                        <button class="btn accent" type="submit">Filtrează</button>
+                        <button class="btn accent" type="submit">Aplică</button>
                     </form>
                     <div class="table-wrap">
                         <table>

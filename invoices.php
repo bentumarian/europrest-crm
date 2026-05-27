@@ -316,8 +316,8 @@ $statusLabels = [
                 $invoicesActiveFilters = 0;
                 if ($statusFilter !== 'all') $invoicesActiveFilters++;
 
-                $dateFromDisplay = $dateFrom ? date('d.m.Y', strtotime($dateFrom)) : '';
-                $dateToDisplay   = $dateTo   ? date('d.m.Y', strtotime($dateTo))   : '';
+                $dateFromDisplay = $dateFrom ? pz_date($dateFrom) : '';
+                $dateToDisplay   = $dateTo   ? pz_date($dateTo)   : '';
 
                 ob_start();
                 ?>

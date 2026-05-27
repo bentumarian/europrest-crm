@@ -59,11 +59,9 @@ function pz_contract_money($value, string $currency = 'RON'): string {
 }
 
 function pz_contract_date_ro(?string $date): string {
-    if (!$date) {
-        return '-';
-    }
-    $ts = strtotime($date);
-    return $ts ? date('d.m.Y', $ts) : '-';
+    // Wrapper subțire peste pz_date() (definit în app_helpers.php).
+    // Păstrat ca alias pentru a nu sparge apelurile existente din module.
+    return pz_date($date);
 }
 
 function pz_contract_status_label(string $status): string {
@@ -1434,7 +1432,7 @@ function pzHighlightActive() {
     if (target) { target.classList.add('is-active'); target.scrollIntoView({block: 'nearest'}); }
 }
 
-/* === LOCATII PE RANDURI === */
+/* === LOCAȚII PE RÂNDURI === */
 function populateLocationsSmart() {
     // Compatibilitate cu codul vechi. Locatia nu mai este camp separat in formular;
     // fiecare rand din tabel are propria locație.

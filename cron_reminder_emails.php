@@ -147,7 +147,7 @@ foreach ($rows as $rem) {
     }
 
     $catLabel = $categories[$rem['category']] ?? 'General';
-    $dateRo = date('d.m.Y', strtotime($rem['remind_date']));
+    $dateRo = pz_date($rem['remind_date']);
     $timeStr = $rem['remind_time'] ? substr($rem['remind_time'], 0, 5) : '';
     $title = (string)$rem['title'];
     $description = (string)($rem['description'] ?? '');

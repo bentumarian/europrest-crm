@@ -92,20 +92,16 @@ function pz_docs_status_class(?string $status): string
 
 function pz_docs_date_ro(?string $date): string
 {
-    if (!$date) {
-        return '-';
-    }
-    $ts = strtotime($date);
-    return $ts ? date('d.m.Y', $ts) : '-';
+    // Wrapper subțire peste pz_date() (definit în app_helpers.php).
+    return pz_date($date);
 }
 
 function pz_docs_datetime_ro(?string $date): string
 {
-    if (!$date) {
-        return '-';
-    }
-    $ts = strtotime($date);
-    return $ts ? date('d.m.Y H:i', $ts) : '-';
+    // Wrapper subțire peste pz_datetime() (definit în app_helpers.php).
+    // Notă: pz_datetime() folosește formatul „d.m.Y, H:i" (cu virgulă),
+    // în timp ce vechea implementare folosea „d.m.Y H:i" (fără virgulă).
+    return pz_datetime($date);
 }
 
 function pz_docs_money($value, string $currency = 'RON'): string
@@ -352,8 +348,8 @@ foreach ($stats as $stat) {
                 if ($status !== 'all') $arhActiveFilters++;
                 if (!in_array($perPage, [20], true) && $perPage !== ($perPageOptions[0] ?? 20)) $arhActiveFilters++;
 
-                $dateFromDisplay = $dateFrom ? date('d.m.Y', strtotime($dateFrom)) : '';
-                $dateToDisplay   = $dateTo   ? date('d.m.Y', strtotime($dateTo))   : '';
+                $dateFromDisplay = $dateFrom ? pz_date($dateFrom) : '';
+                $dateToDisplay   = $dateTo   ? pz_date($dateTo)   : '';
 
                 $arhSubtitle = (int)$totalAll . ' documente · ' . (int)$totalIssued . ' emise · ' . (int)$totalDraft . ' drafturi';
 

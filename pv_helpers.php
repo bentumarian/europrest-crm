@@ -54,11 +54,9 @@ function pz_pv_decimal($value, float $default = 0.0): float {
 }
 
 function pz_pv_date_ro(?string $date): string {
-    if (!$date) {
-        return '-';
-    }
-    $ts = strtotime($date);
-    return $ts ? date('d.m.Y', $ts) : '-';
+    // Wrapper subțire peste pz_date() (definit în app_helpers.php).
+    // Păstrat ca alias pentru a nu sparge apelurile existente din module.
+    return pz_date($date);
 }
 
 function pz_pv_date_for_storage($value): string {

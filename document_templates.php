@@ -794,9 +794,9 @@ a.btn.small {
                                 <span class="badge">ID <?= $templateId ?></span>
                                 <span class="badge"><?= $usedCount ?> documente</span>
                                 <?php if (!empty($template['updated_at'])): ?>
-                                    <span class="badge">Update <?= dtpl_h(date('d.m.Y', strtotime((string)$template['updated_at']))) ?></span>
+                                    <span class="badge">Update <?= dtpl_h(pz_date($template['updated_at'])) ?></span>
                                 <?php elseif (!empty($template['created_at'])): ?>
-                                    <span class="badge">Creat <?= dtpl_h(date('d.m.Y', strtotime((string)$template['created_at']))) ?></span>
+                                    <span class="badge">Creat <?= dtpl_h(pz_date($template['created_at'])) ?></span>
                                 <?php endif; ?>
                             </div>
 

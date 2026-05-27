@@ -259,8 +259,8 @@ $statusLabels = [
                 if ($typeFilter !== 'all')    $paymentsActiveFilters++;
                 if ($statusFilter !== 'all')  $paymentsActiveFilters++;
 
-                $dateFromDisplay = $dateFrom ? date('d.m.Y', strtotime($dateFrom)) : '';
-                $dateToDisplay   = $dateTo   ? date('d.m.Y', strtotime($dateTo))   : '';
+                $dateFromDisplay = $dateFrom ? pz_date($dateFrom) : '';
+                $dateToDisplay   = $dateTo   ? pz_date($dateTo)   : '';
 
                 ob_start();
                 ?>
