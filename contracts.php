@@ -295,6 +295,7 @@ function pz_contract_build_manual_items_from_post(array $postItems, float $vatPe
         $priceRaw = trim((string)($row['unit_price'] ?? ''));
         $quantity = max(0, pz_contract_decimal($quantityRaw, 0));
         $unitPrice = max(0, pz_contract_decimal($priceRaw, 0));
+        $totalPrice = round($quantity * $unitPrice, 2);
         $hasAnyValue = ($name !== '' || $description !== '' || $quantityRaw !== '' || $unit !== '' || $priceRaw !== '');
 
         if (!$hasAnyValue) {
@@ -318,7 +319,7 @@ function pz_contract_build_manual_items_from_post(array $postItems, float $vatPe
             'unit' => $unit ?: 'buc',
             'unit_price' => $unitPrice,
             'vat_percent' => $vatPercent,
-            'total_price' => $unitPrice,
+            'total_price' => $totalPrice,
             'currency' => $currency,
             'frequency_text' => '',
             'planned_date' => null,
@@ -749,6 +750,7 @@ foreach ($services as $service) {
 .manual-item-row td { background:#fffaf7; }
 .manual-item-row .manual-unit-wrap { display:grid; grid-template-columns:1fr; gap:6px; min-width:92px; }
 .manual-item-row .manual-qty { min-width:0; }
+.manual-total-preview { margin-top:5px; font-size:11.5px; font-weight:700; color:var(--muted); text-align:right; }
 .row-total { font-weight:900; color:var(--text); text-align:right; padding-top:8px; white-space:nowrap; }
 .form-actions { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
 .form-actions .right { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
@@ -1040,7 +1042,7 @@ foreach ($services as $service) {
                                         <span class="contract-section-hint">locație × serviciu × frecvență</span>
                                     </div>
                                     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-                                        <button type="button" class="btn small" onclick="addManualItemRow()"><i style="display:inline-block;font-style:normal;margin-right:2px;">+</i> Rând manual</button>
+                                        <button type="button" class="btn small" onclick="addManualItemRow()"><i style="display:inline-block;font-style:normal;margin-right:2px;">+</i> Suplimentar</button>
                                         <button type="button" class="btn small primary" onclick="addItemRow()"><i style="display:inline-block;font-style:normal;margin-right:2px;">+</i> Adaugă rând</button>
                                     </div>
                                 </div>
@@ -1110,7 +1112,7 @@ foreach ($services as $service) {
                                                         <span class="badge">Manual</span>
                                                     </td>
                                                     <td>
-                                                        <input type="text" name="manual_items[<?= (int)$idx ?>][name]" class="manual-item-name" value="<?= pz_contract_h($item['service_name'] ?? '') ?>" placeholder="Denumire poziție manuală">
+                                                        <input type="text" name="manual_items[<?= (int)$idx ?>][name]" class="manual-item-name" value="<?= pz_contract_h($item['service_name'] ?? '') ?>" placeholder="Produs / serviciu suplimentar">
                                                         <textarea name="manual_items[<?= (int)$idx ?>][description]" class="manual-item-description" rows="2" placeholder="Descriere opțională sub denumire"><?= pz_contract_h($item['description'] ?? '') ?></textarea>
                                                     </td>
                                                     <td>
@@ -1121,8 +1123,9 @@ foreach ($services as $service) {
                                                     </td>
                                                     <td><span class="badge">suplimentar unic</span></td>
                                                     <td>
-                                                        <input type="number" step="0.01" min="0" name="manual_items[<?= (int)$idx ?>][unit_price]" class="manual-price" value="<?= pz_contract_h((string)($item['unit_price'] ?? 0)) ?>" placeholder="lei fără TVA" oninput="recalculateRows()">
+                                                        <input type="number" step="0.01" min="0" name="manual_items[<?= (int)$idx ?>][unit_price]" class="manual-price" value="<?= pz_contract_h((string)($item['unit_price'] ?? 0)) ?>" placeholder="preț unitar" oninput="recalculateRows()">
                                                         <input type="hidden" name="manual_items[<?= (int)$idx ?>][total_price]" class="manual-line-total-input" value="<?= pz_contract_h((string)($item['total_price'] ?? ($item['unit_price'] ?? 0))) ?>">
+                                                        <div class="manual-total-preview">Total: <?= pz_contract_h(number_format((float)($item['total_price'] ?? 0), 2, '.', '')) ?></div>
                                                     </td>
                                                     <td><button type="button" class="btn small danger" onclick="removeManualItemRow(this)">Șterge</button></td>
                                                 </tr>
@@ -1130,7 +1133,7 @@ foreach ($services as $service) {
                                             </tbody>
                                         </table>
                                     </div>
-                                    <div class="client-help">Prețurile sunt fără TVA. Rândurile manuale apar doar în contract ca servicii suplimentare unice; nu intră în valoarea sarcinilor sau programărilor.</div>
+                                    <div class="client-help">Prețurile sunt fără TVA. Suplimentarele apar în document la „Servicii / materiale suplimentare” și nu intră în valoarea sarcinilor sau programărilor.</div>
                                 </div>
                             </div>
                                 </div>
@@ -1692,7 +1695,7 @@ function addManualItemRow() {
             <span class="badge">Manual</span>
         </td>
         <td>
-            <input type="text" name="manual_items[${i}][name]" class="manual-item-name" placeholder="Denumire poziție manuală">
+            <input type="text" name="manual_items[${i}][name]" class="manual-item-name" placeholder="Produs / serviciu suplimentar">
             <textarea name="manual_items[${i}][description]" class="manual-item-description" rows="2" placeholder="Descriere opțională sub denumire"></textarea>
         </td>
         <td>
@@ -1703,8 +1706,9 @@ function addManualItemRow() {
         </td>
         <td><span class="badge">suplimentar unic</span></td>
         <td>
-            <input type="number" step="0.01" min="0" name="manual_items[${i}][unit_price]" class="manual-price" value="0" placeholder="lei fără TVA" oninput="recalculateRows()">
+            <input type="number" step="0.01" min="0" name="manual_items[${i}][unit_price]" class="manual-price" value="0" placeholder="preț unitar" oninput="recalculateRows()">
             <input type="hidden" name="manual_items[${i}][total_price]" class="manual-line-total-input" value="0">
+            <div class="manual-total-preview">Total: 0.00</div>
         </td>
         <td><button type="button" class="btn small danger" onclick="removeManualItemRow(this)">Șterge</button></td>
     `;
@@ -1792,11 +1796,14 @@ function recalculateRows() {
         if (hidden) hidden.value = line.toFixed(2);
     });
     document.querySelectorAll('#itemsBody .manual-item-row').forEach(row => {
+        const qty = parseFloat((row.querySelector('.manual-qty') || {}).value || '0') || 0;
         const price = parseFloat((row.querySelector('.manual-price') || {}).value || '0') || 0;
-        const line = Math.round(price * 100) / 100;
+        const line = Math.round(qty * price * 100) / 100;
         total += line;
         const hidden = row.querySelector('.manual-line-total-input');
         if (hidden) hidden.value = line.toFixed(2);
+        const preview = row.querySelector('.manual-total-preview');
+        if (preview) preview.textContent = 'Total: ' + line.toFixed(2) + ' ' + currency;
     });
     const grand = document.getElementById('grandTotal');
     if (grand) grand.textContent = total.toFixed(2) + ' ' + currency;

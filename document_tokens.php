@@ -1093,73 +1093,96 @@ if (!function_exists('pzdoc_contract_services_table_html')) {
         }
 
         $currency = trim((string)($document['currency'] ?? 'RON')) ?: 'RON';
-        $html = '<table class="pzdoc-table pzdoc-contract-services-table" width="100%" cellspacing="0" cellpadding="0">';
-        $html .= '<thead><tr>';
-        $html .= '<th style="width:6%;">Nr.</th>';
-        $html .= '<th style="width:17%;">Locație</th>';
-        $html .= '<th style="width:23%;">Adresa</th>';
-        $html .= '<th style="width:20%;">Serviciu contractat</th>';
-        $html .= '<th style="width:9%;">m.p.</th>';
-        $html .= '<th style="width:13%;">Frecvență</th>';
-        $html .= '<th style="width:12%;">Preț / intervenție</th>';
-        $html .= '</tr></thead><tbody>';
+        $html = '';
 
         $i = 1;
-        foreach ($serviceItems as $item) {
-            $locationName = trim((string)($item['location_name'] ?? ''));
-            if ($locationName === '') {
-                $locationName = trim((string)($document['location_name_snapshot'] ?? ''));
-            }
-            $locationAddress = trim((string)($item['location_address'] ?? ''));
-            if ($locationAddress === '') {
-                $locationAddress = trim((string)($document['location_address_snapshot'] ?? ''));
-            }
-            $surface = pzdoc_contract_item_surface_text($item, trim((string)($document['location_surface'] ?? '')));
-            $price = pzdoc_format_number_display($item['unit_price'] ?? 0) . ' ' . $currency;
+        if ($serviceItems) {
+            $html .= '<table class="pzdoc-table pzdoc-contract-services-table" width="100%" cellspacing="0" cellpadding="0">';
+            $html .= '<thead><tr>';
+            $html .= '<th style="width:6%;">Nr.</th>';
+            $html .= '<th style="width:17%;">Locație</th>';
+            $html .= '<th style="width:23%;">Adresa</th>';
+            $html .= '<th style="width:20%;">Serviciu contractat</th>';
+            $html .= '<th style="width:9%;">m.p.</th>';
+            $html .= '<th style="width:13%;">Frecvență</th>';
+            $html .= '<th style="width:12%;">Preț / intervenție</th>';
+            $html .= '</tr></thead><tbody>';
 
-            $html .= '<tr>';
-            $html .= '<td class="center">' . (int)$i . '</td>';
-            $html .= '<td>' . pzdoc_token_text($locationName) . '</td>';
-            $html .= '<td>' . pzdoc_token_multiline($locationAddress) . '</td>';
-            $html .= '<td>' . pzdoc_token_text($item['service_name'] ?? '') . '</td>';
-            $html .= '<td class="right">' . pzdoc_token_text($surface) . '</td>';
-            $html .= '<td>' . pzdoc_token_text($item['frequency_text'] ?? '') . '</td>';
-            $html .= '<td class="right">' . pzdoc_h($price) . '</td>';
-            $html .= '</tr>';
+            foreach ($serviceItems as $item) {
+                $locationName = trim((string)($item['location_name'] ?? ''));
+                if ($locationName === '') {
+                    $locationName = trim((string)($document['location_name_snapshot'] ?? ''));
+                }
+                $locationAddress = trim((string)($item['location_address'] ?? ''));
+                if ($locationAddress === '') {
+                    $locationAddress = trim((string)($document['location_address_snapshot'] ?? ''));
+                }
+                $surface = pzdoc_contract_item_surface_text($item, trim((string)($document['location_surface'] ?? '')));
+                $price = pzdoc_format_number_display($item['unit_price'] ?? 0) . ' ' . $currency;
 
-            $description = trim((string)($item['description'] ?? ''));
-            if ($description !== '') {
                 $html .= '<tr>';
-                $html .= '<td></td><td colspan="6"><strong>Descriere:</strong> ' . pzdoc_token_multiline($description) . '</td>';
+                $html .= '<td class="center">' . (int)$i . '</td>';
+                $html .= '<td>' . pzdoc_token_text($locationName) . '</td>';
+                $html .= '<td>' . pzdoc_token_multiline($locationAddress) . '</td>';
+                $html .= '<td>' . pzdoc_token_text($item['service_name'] ?? '') . '</td>';
+                $html .= '<td class="right">' . pzdoc_token_text($surface) . '</td>';
+                $html .= '<td>' . pzdoc_token_text($item['frequency_text'] ?? '') . '</td>';
+                $html .= '<td class="right">' . pzdoc_h($price) . '</td>';
                 $html .= '</tr>';
+
+                $description = trim((string)($item['description'] ?? ''));
+                if ($description !== '') {
+                    $html .= '<tr>';
+                    $html .= '<td></td><td colspan="6"><strong>Descriere:</strong> ' . pzdoc_token_multiline($description) . '</td>';
+                    $html .= '</tr>';
+                }
+
+                $i++;
             }
 
-            $i++;
+            $html .= '</tbody></table>';
         }
 
-        foreach ($manualItems as $item) {
-            $qty = pzdoc_format_qty_display($item['quantity'] ?? 0);
-            $unit = trim((string)($item['unit'] ?? ''));
-            $price = pzdoc_format_number_display($item['unit_price'] ?? 0) . ' ' . $currency;
-            $description = trim((string)($item['description'] ?? ''));
-            $serviceHtml = '<strong>' . pzdoc_token_text($item['service_name'] ?? '') . '</strong>';
-            if ($description !== '') {
-                $serviceHtml .= '<br><span style="font-size:9.2pt;color:#374151;">' . pzdoc_token_multiline($description) . '</span>';
+        if ($manualItems) {
+            $html .= '<p style="margin:10px 0 5px 0;"><strong>Servicii / materiale suplimentare</strong></p>';
+            $html .= '<table class="pzdoc-table pzdoc-contract-services-table" width="100%" cellspacing="0" cellpadding="0">';
+            $html .= '<thead><tr>';
+            $html .= '<th style="width:6%;">Nr.</th>';
+            $html .= '<th style="width:34%;">Produs / serviciu</th>';
+            $html .= '<th style="width:10%;">U.M.</th>';
+            $html .= '<th style="width:12%;">Cantitate</th>';
+            $html .= '<th style="width:18%;">Preț unitar</th>';
+            $html .= '<th style="width:20%;">Valoare totală</th>';
+            $html .= '</tr></thead><tbody>';
+
+            $manualIndex = 1;
+            foreach ($manualItems as $item) {
+                $qtyRaw = pzdoc_decimal($item['quantity'] ?? 0, 0);
+                $qty = pzdoc_format_qty_display($qtyRaw);
+                $unit = trim((string)($item['unit'] ?? ''));
+                $unitPriceRaw = pzdoc_decimal($item['unit_price'] ?? 0, 0);
+                $unitPrice = pzdoc_format_number_display($unitPriceRaw) . ' ' . $currency;
+                $total = pzdoc_format_number_display($qtyRaw * $unitPriceRaw) . ' ' . $currency;
+                $description = trim((string)($item['description'] ?? ''));
+                $serviceHtml = '<strong>' . pzdoc_token_text($item['service_name'] ?? '') . '</strong>';
+                if ($description !== '') {
+                    $serviceHtml .= '<br><span style="font-size:9.2pt;color:#374151;">' . pzdoc_token_multiline($description) . '</span>';
+                }
+
+                $html .= '<tr>';
+                $html .= '<td class="center">S' . (int)$manualIndex . '</td>';
+                $html .= '<td>' . $serviceHtml . '</td>';
+                $html .= '<td class="center">' . pzdoc_h($unit !== '' ? $unit : '-') . '</td>';
+                $html .= '<td class="right">' . pzdoc_h($qty !== '' ? $qty : '-') . '</td>';
+                $html .= '<td class="right">' . pzdoc_h($unitPrice) . '</td>';
+                $html .= '<td class="right">' . pzdoc_h($total) . '</td>';
+                $html .= '</tr>';
+                $manualIndex++;
             }
 
-            $html .= '<tr>';
-            $html .= '<td class="center">M' . (int)($i - count($serviceItems)) . '</td>';
-            $html .= '<td>Manual</td>';
-            $html .= '<td>-</td>';
-            $html .= '<td>' . $serviceHtml . '</td>';
-            $html .= '<td class="right">' . pzdoc_h(trim($qty . ' ' . $unit) ?: '-') . '</td>';
-            $html .= '<td>Suplimentar unic</td>';
-            $html .= '<td class="right">' . pzdoc_h($price) . '</td>';
-            $html .= '</tr>';
-            $i++;
+            $html .= '</tbody></table>';
         }
 
-        $html .= '</tbody></table>';
         return $html;
     }
 }
