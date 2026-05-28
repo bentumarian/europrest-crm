@@ -1101,6 +1101,7 @@ if (!function_exists('pzdoc_contract_services_table_html')) {
 
         $i = 1;
         if ($serviceItems) {
+            $html .= '<p style="margin:10px 0 5px 0;"><strong>Servicii recurente</strong></p>';
             $html .= '<table class="pzdoc-table pzdoc-contract-services-table" width="100%" cellspacing="0" cellpadding="0">';
             $html .= '<thead><tr>';
             $html .= '<th style="width:5%;">Nr.</th>';
