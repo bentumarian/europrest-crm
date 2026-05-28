@@ -1108,10 +1108,7 @@ foreach ($services as $service) {
                                             <?php foreach ($editingManualItems as $idx => $item): ?>
                                                 <tr class="manual-item-row">
                                                     <td class="manual-row-index"></td>
-                                                    <td>
-                                                        <span class="badge">Manual</span>
-                                                    </td>
-                                                    <td>
+                                                    <td colspan="2">
                                                         <input type="text" name="manual_items[<?= (int)$idx ?>][name]" class="manual-item-name" value="<?= pz_contract_h($item['service_name'] ?? '') ?>" placeholder="Produs / serviciu suplimentar">
                                                         <textarea name="manual_items[<?= (int)$idx ?>][description]" class="manual-item-description" rows="2" placeholder="Descriere opțională sub denumire"><?= pz_contract_h($item['description'] ?? '') ?></textarea>
                                                     </td>
@@ -1691,10 +1688,7 @@ function addManualItemRow() {
     tr.className = 'manual-item-row';
     tr.innerHTML = `
         <td class="manual-row-index"></td>
-        <td>
-            <span class="badge">Manual</span>
-        </td>
-        <td>
+        <td colspan="2">
             <input type="text" name="manual_items[${i}][name]" class="manual-item-name" placeholder="Produs / serviciu suplimentar">
             <textarea name="manual_items[${i}][description]" class="manual-item-description" rows="2" placeholder="Descriere opțională sub denumire"></textarea>
         </td>
