@@ -1148,11 +1148,11 @@ if (!function_exists('pzdoc_contract_services_table_html')) {
             $html .= '<table class="pzdoc-table pzdoc-contract-services-table" width="100%" cellspacing="0" cellpadding="0">';
             $html .= '<thead><tr>';
             $html .= '<th style="width:6%;">Nr.</th>';
-            $html .= '<th style="width:34%;">Produs / serviciu</th>';
-            $html .= '<th style="width:10%;">U.M.</th>';
-            $html .= '<th style="width:12%;">Cantitate</th>';
-            $html .= '<th style="width:18%;">Preț unitar</th>';
-            $html .= '<th style="width:20%;">Valoare totală</th>';
+            $html .= '<th style="width:50%;">Produs / serviciu</th>';
+            $html .= '<th style="width:7%;">U.M.</th>';
+            $html .= '<th style="width:9%;">Cant.</th>';
+            $html .= '<th style="width:14%;">Preț unitar</th>';
+            $html .= '<th style="width:14%;">Valoare totală</th>';
             $html .= '</tr></thead><tbody>';
 
             $manualIndex = 1;
@@ -1171,11 +1171,11 @@ if (!function_exists('pzdoc_contract_services_table_html')) {
 
                 $html .= '<tr>';
                 $html .= '<td class="center">S' . (int)$manualIndex . '</td>';
-                $html .= '<td>' . $serviceHtml . '</td>';
+                $html .= '<td class="center">' . $serviceHtml . '</td>';
                 $html .= '<td class="center">' . pzdoc_h($unit !== '' ? $unit : '-') . '</td>';
-                $html .= '<td class="right">' . pzdoc_h($qty !== '' ? $qty : '-') . '</td>';
-                $html .= '<td class="right">' . pzdoc_h($unitPrice) . '</td>';
-                $html .= '<td class="right">' . pzdoc_h($total) . '</td>';
+                $html .= '<td class="center">' . pzdoc_h($qty !== '' ? $qty : '-') . '</td>';
+                $html .= '<td class="center">' . pzdoc_h($unitPrice) . '</td>';
+                $html .= '<td class="center">' . pzdoc_h($total) . '</td>';
                 $html .= '</tr>';
                 $manualIndex++;
             }
