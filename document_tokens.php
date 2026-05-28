@@ -74,7 +74,11 @@ if (!function_exists('pzdoc_format_number_display')) {
         if ($value === null || $value === '') {
             $value = 0;
         }
-        return number_format((float)$value, $decimals, ',', '.');
+        $number = (float)$value;
+        if ($decimals > 0 && abs($number - round($number)) < 0.00001) {
+            $decimals = 0;
+        }
+        return number_format($number, $decimals, ',', '.');
     }
 }
 
@@ -1121,13 +1125,13 @@ if (!function_exists('pzdoc_contract_services_table_html')) {
                 $price = pzdoc_format_number_display($item['unit_price'] ?? 0) . ' ' . $currency;
 
                 $html .= '<tr>';
-                $html .= '<td class="center">' . (int)$i . '</td>';
+                $html .= '<td class="center pzdoc-nowrap">' . (int)$i . '</td>';
                 $html .= '<td class="center">' . pzdoc_token_text($locationName) . '</td>';
                 $html .= '<td class="center">' . pzdoc_token_multiline($locationAddress) . '</td>';
                 $html .= '<td class="center">' . pzdoc_token_text($item['service_name'] ?? '') . '</td>';
-                $html .= '<td class="right">' . pzdoc_token_text($surface) . '</td>';
-                $html .= '<td class="center">' . pzdoc_token_text($item['frequency_text'] ?? '') . '</td>';
-                $html .= '<td class="center">' . pzdoc_h($price) . '</td>';
+                $html .= '<td class="center pzdoc-nowrap">' . pzdoc_token_text($surface) . '</td>';
+                $html .= '<td class="center pzdoc-nowrap">' . pzdoc_token_text($item['frequency_text'] ?? '') . '</td>';
+                $html .= '<td class="center pzdoc-nowrap">' . pzdoc_h($price) . '</td>';
                 $html .= '</tr>';
 
                 $description = trim((string)($item['description'] ?? ''));
@@ -1170,12 +1174,12 @@ if (!function_exists('pzdoc_contract_services_table_html')) {
                 }
 
                 $html .= '<tr>';
-                $html .= '<td class="center">S' . (int)$manualIndex . '</td>';
+                $html .= '<td class="center pzdoc-nowrap">S' . (int)$manualIndex . '</td>';
                 $html .= '<td class="center">' . $serviceHtml . '</td>';
-                $html .= '<td class="center">' . pzdoc_h($unit !== '' ? $unit : '-') . '</td>';
-                $html .= '<td class="center">' . pzdoc_h($qty !== '' ? $qty : '-') . '</td>';
-                $html .= '<td class="center">' . pzdoc_h($unitPrice) . '</td>';
-                $html .= '<td class="center">' . pzdoc_h($total) . '</td>';
+                $html .= '<td class="center pzdoc-nowrap">' . pzdoc_h($unit !== '' ? $unit : '-') . '</td>';
+                $html .= '<td class="center pzdoc-nowrap">' . pzdoc_h($qty !== '' ? $qty : '-') . '</td>';
+                $html .= '<td class="center pzdoc-nowrap">' . pzdoc_h($unitPrice) . '</td>';
+                $html .= '<td class="center pzdoc-nowrap">' . pzdoc_h($total) . '</td>';
                 $html .= '</tr>';
                 $manualIndex++;
             }
@@ -1832,9 +1836,10 @@ if (!function_exists('pzdoc_base_document_css')) {
             .muted{color:#6b7280;}
             .right{text-align:right;}
             .center{text-align:center;}
-            .pzdoc-table{border-collapse:collapse;width:100%;margin:6px 0 10px 0;font-size:9.2pt;}
-            .pzdoc-table th{background:#f3f4f6;border:1px solid #d1d5db;padding:5px 6px;text-align:left;font-weight:bold;}
-            .pzdoc-table td{border:1px solid #d1d5db;padding:5px 6px;vertical-align:top;}
+            .pzdoc-table{border-collapse:collapse;width:100%;margin:6px 0 10px 0;font-size:9.2pt;table-layout:auto;}
+            .pzdoc-table th{width:auto !important;background:#f3f4f6;border:1px solid #d1d5db;padding:5px 6px;text-align:left;font-weight:bold;white-space:normal;word-break:normal;overflow-wrap:break-word;}
+            .pzdoc-table td{width:auto !important;border:1px solid #d1d5db;padding:5px 6px;vertical-align:top;white-space:normal;word-break:normal;overflow-wrap:break-word;}
+            .pzdoc-table .pzdoc-nowrap{white-space:nowrap;}
             .pzdoc-contract-services-table{font-size:8.5pt;}
             .pzdoc-contract-services-table th,.pzdoc-contract-services-table td{padding:4px 5px;line-height:1.25;}
             .pzdoc-materials-table th,.pzdoc-materials-table td{text-align:center !important;vertical-align:middle !important;}

@@ -55,7 +55,9 @@ function pz_contract_decimal($value, float $default = 0.0): float {
 }
 
 function pz_contract_money($value, string $currency = 'RON'): string {
-    return number_format((float)$value, 2, ',', '.') . ' ' . $currency;
+    $number = (float)$value;
+    $decimals = abs($number - round($number)) < 0.00001 ? 0 : 2;
+    return number_format($number, $decimals, ',', '.') . ' ' . $currency;
 }
 
 function pz_contract_date_ro(?string $date): string {
@@ -1122,7 +1124,7 @@ foreach ($services as $service) {
                                                     <td>
                                                         <input type="number" step="0.01" min="0" name="manual_items[<?= (int)$idx ?>][unit_price]" class="manual-price" value="<?= pz_contract_h((string)($item['unit_price'] ?? 0)) ?>" placeholder="preț unitar" oninput="recalculateRows()">
                                                         <input type="hidden" name="manual_items[<?= (int)$idx ?>][total_price]" class="manual-line-total-input" value="<?= pz_contract_h((string)($item['total_price'] ?? ($item['unit_price'] ?? 0))) ?>">
-                                                        <div class="manual-total-preview">Total: <?= pz_contract_h(number_format((float)($item['total_price'] ?? 0), 2, '.', '')) ?></div>
+                                                        <div class="manual-total-preview">Total: <?= pz_contract_h(pz_contract_money($item['total_price'] ?? 0, $formDocument['currency'] ?? 'RON')) ?></div>
                                                     </td>
                                                     <td><button type="button" class="btn small danger" onclick="removeManualItemRow(this)">Șterge</button></td>
                                                 </tr>
@@ -1779,6 +1781,15 @@ function updateManualRowNumbers() {
     });
 }
 
+function formatSmartMoney(value, currency) {
+    const number = Math.round((Number(value) || 0) * 100) / 100;
+    const decimals = Math.abs(number - Math.round(number)) < 0.00001 ? 0 : 2;
+    return number.toLocaleString('ro-RO', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    }) + ' ' + currency;
+}
+
 function recalculateRows() {
     const currency = document.getElementById('currency') ? document.getElementById('currency').value : 'RON';
     let total = 0;
@@ -1797,10 +1808,10 @@ function recalculateRows() {
         const hidden = row.querySelector('.manual-line-total-input');
         if (hidden) hidden.value = line.toFixed(2);
         const preview = row.querySelector('.manual-total-preview');
-        if (preview) preview.textContent = 'Total: ' + line.toFixed(2) + ' ' + currency;
+        if (preview) preview.textContent = 'Total: ' + formatSmartMoney(line, currency);
     });
     const grand = document.getElementById('grandTotal');
-    if (grand) grand.textContent = total.toFixed(2) + ' ' + currency;
+    if (grand) grand.textContent = formatSmartMoney(total, currency);
     const contractValue = document.getElementById('contractValue');
     if (contractValue) contractValue.value = total.toFixed(2);
     updatePaymentTermsHidden();
