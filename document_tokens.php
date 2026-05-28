@@ -1099,12 +1099,12 @@ if (!function_exists('pzdoc_contract_services_table_html')) {
         if ($serviceItems) {
             $html .= '<table class="pzdoc-table pzdoc-contract-services-table" width="100%" cellspacing="0" cellpadding="0">';
             $html .= '<thead><tr>';
-            $html .= '<th style="width:6%;">Nr.</th>';
-            $html .= '<th style="width:17%;">Locație</th>';
-            $html .= '<th style="width:23%;">Adresa</th>';
-            $html .= '<th style="width:20%;">Serviciu contractat</th>';
-            $html .= '<th style="width:9%;">m.p.</th>';
-            $html .= '<th style="width:13%;">Frecvență</th>';
+            $html .= '<th style="width:5%;">Nr.</th>';
+            $html .= '<th style="width:14%;">Locație</th>';
+            $html .= '<th style="width:25%;">Adresa</th>';
+            $html .= '<th style="width:28%;">Serviciu contractat</th>';
+            $html .= '<th style="width:7%;">m.p.</th>';
+            $html .= '<th style="width:9%;">Frecvență</th>';
             $html .= '<th style="width:12%;">Preț / intervenție</th>';
             $html .= '</tr></thead><tbody>';
 
@@ -1122,12 +1122,12 @@ if (!function_exists('pzdoc_contract_services_table_html')) {
 
                 $html .= '<tr>';
                 $html .= '<td class="center">' . (int)$i . '</td>';
-                $html .= '<td>' . pzdoc_token_text($locationName) . '</td>';
-                $html .= '<td>' . pzdoc_token_multiline($locationAddress) . '</td>';
-                $html .= '<td>' . pzdoc_token_text($item['service_name'] ?? '') . '</td>';
+                $html .= '<td class="center">' . pzdoc_token_text($locationName) . '</td>';
+                $html .= '<td class="center">' . pzdoc_token_multiline($locationAddress) . '</td>';
+                $html .= '<td class="center">' . pzdoc_token_text($item['service_name'] ?? '') . '</td>';
                 $html .= '<td class="right">' . pzdoc_token_text($surface) . '</td>';
-                $html .= '<td>' . pzdoc_token_text($item['frequency_text'] ?? '') . '</td>';
-                $html .= '<td class="right">' . pzdoc_h($price) . '</td>';
+                $html .= '<td class="center">' . pzdoc_token_text($item['frequency_text'] ?? '') . '</td>';
+                $html .= '<td class="center">' . pzdoc_h($price) . '</td>';
                 $html .= '</tr>';
 
                 $description = trim((string)($item['description'] ?? ''));
