@@ -550,7 +550,7 @@ if (!function_exists('pz_flow_ensure_task_for_contract_service')) {
             return null;
         }
 
-        $stmt = $pdo->prepare('SELECT id FROM tasks WHERE contract_service_id = ? AND generated_from_task_id IS NULL LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id, status, recurrence_total, recurrence_remaining FROM tasks WHERE contract_service_id = ? AND generated_from_task_id IS NULL LIMIT 1');
         $stmt->execute([$contractServiceId]);
         $existing = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -567,7 +567,27 @@ if (!function_exists('pz_flow_ensure_task_for_contract_service')) {
 
         if ($existing) {
             $taskId = (int)$existing['id'];
-            $upd = $pdo->prepare('UPDATE tasks SET client_id = ?, client_location_id = ?, title = ?, service_type = ?, address = ?, contact_person = ?, contact_phone = ?, location_name = ?, service_id = ?, surface_value = ?, surface_unit = ?, billing_amount = ?, currency = ?, document_id = ?, document_item_id = ?, contract_id = ?, due_date = ?, recurrence_type = ?, recurrence_days = ?, recurrence_total = ?, recurrence_remaining = GREATEST(recurrence_remaining, ?), notes = COALESCE(notes, ?) WHERE id = ? AND status != \'programat\'');
+            $oldTotal = max(1, (int)($existing['recurrence_total'] ?? 1));
+            $oldRemaining = max(1, (int)($existing['recurrence_remaining'] ?? 1));
+            $alreadyConsumed = max(0, $oldTotal - $oldRemaining);
+            $newRemaining = $recurrenceType === 'none' ? 1 : max(1, $recurrenceTotal - $alreadyConsumed);
+
+            // Recurența trebuie sincronizată inclusiv dacă sarcina a fost deja programată.
+            // Altfel un contract reemis / actualizat poate rămâne afișat ca 1/1 în task.
+            $updRecurrence = $pdo->prepare('UPDATE tasks SET document_id = ?, document_item_id = ?, contract_id = ?, recurrence_type = ?, recurrence_days = ?, recurrence_total = ?, recurrence_remaining = ?, notes = COALESCE(notes, ?) WHERE id = ?');
+            $updRecurrence->execute([
+                !empty($data['document_id']) ? (int)$data['document_id'] : null,
+                !empty($data['document_item_id']) ? (int)$data['document_item_id'] : null,
+                $contractId,
+                $recurrenceType,
+                $recurrenceDays,
+                $recurrenceTotal,
+                $newRemaining,
+                $notes,
+                $taskId,
+            ]);
+
+            $upd = $pdo->prepare('UPDATE tasks SET client_id = ?, client_location_id = ?, title = ?, service_type = ?, address = ?, contact_person = ?, contact_phone = ?, location_name = ?, service_id = ?, surface_value = ?, surface_unit = ?, billing_amount = ?, currency = ?, due_date = ? WHERE id = ? AND status != \'programat\'');
             $upd->execute([
                 $clientId,
                 $locationId,
@@ -582,15 +602,7 @@ if (!function_exists('pz_flow_ensure_task_for_contract_service')) {
                 pz_flow_str($data['surface_unit'] ?? 'mp', 30) ?: 'mp',
                 is_numeric($data['billing_amount'] ?? null) ? (float)$data['billing_amount'] : 0.0,
                 pz_flow_str($data['currency'] ?? 'RON', 10) ?: 'RON',
-                !empty($data['document_id']) ? (int)$data['document_id'] : null,
-                !empty($data['document_item_id']) ? (int)$data['document_item_id'] : null,
-                $contractId,
                 $dueDate,
-                $recurrenceType,
-                $recurrenceDays,
-                $recurrenceTotal,
-                $recurrenceTotal,
-                $notes,
                 $taskId,
             ]);
         } else {
