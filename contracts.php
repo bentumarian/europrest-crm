@@ -251,8 +251,8 @@ function pz_contract_build_items_from_post(array $postItems, array $locationsByI
         $surface = max(0, pz_contract_decimal($row['quantity'] ?? 0, 0));
         $unit = pz_contract_str($row['unit'] ?? 'mp', 30) ?: 'mp';
 
-        // In contract, cantitatea reprezinta suprafata (mp), iar pretul este pret / intervenție.
-        // De aceea valoarea randului pentru totalizare este pretul intervenției, nu suprafata x pret.
+        // În contract, cantitatea reprezintă suprafața (mp), iar prețul este preț / intervenție.
+        // De aceea valoarea rândului pentru totalizare este prețul intervenției, nu suprafața x preț.
         $totalPrice = $unitPrice;
 
         $items[] = [
@@ -1038,7 +1038,10 @@ foreach ($services as $service) {
                                         <h3 class="contract-section-title">Locații și servicii</h3>
                                         <span class="contract-section-hint">locație × serviciu × frecvență</span>
                                     </div>
-                                    <button type="button" class="btn small primary" onclick="addItemRow()"><i style="display:inline-block;font-style:normal;margin-right:2px;">+</i> Adaugă rând</button>
+                                    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+                                        <button type="button" class="btn small" onclick="addManualItemRow()"><i style="display:inline-block;font-style:normal;margin-right:2px;">+</i> Rând manual</button>
+                                        <button type="button" class="btn small primary" onclick="addItemRow()"><i style="display:inline-block;font-style:normal;margin-right:2px;">+</i> Adaugă rând</button>
+                                    </div>
                                 </div>
                                 <div class="contract-section-body">
                             <div class="panel" style="margin-top:0; box-shadow:none;border:1px solid var(--pz-line);">
@@ -1055,7 +1058,7 @@ foreach ($services as $service) {
                                                 <th style="width:260px;">Serviciu contractat</th>
                                                 <th style="width:100px;">m.p.</th>
                                                 <th style="width:160px;">Frecvență</th>
-                                                <th style="width:150px;">Pret / intervenție</th>
+                                                <th style="width:150px;">Preț / intervenție</th>
                                                 <th style="width:80px;"></th>
                                             </tr>
                                             </thead>
@@ -1099,43 +1102,23 @@ foreach ($services as $service) {
                                                     <td><button type="button" class="btn small danger" onclick="removeItemRow(this)">Șterge</button></td>
                                                 </tr>
                                             <?php endforeach; ?>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div class="client-help">Prețurile sunt fără TVA. În contract, coloana de preț apare ca preț / intervenție.</div>
-                                </div>
-                            </div>
-                            <div class="panel manual-items-panel" style="box-shadow:none;">
-                                <div class="panel-head">
-                                    <div>
-                                        <div class="panel-title">Poziții manuale în contract</div>
-                                        <div class="panel-subtitle">Apar în contract și în total, dar nu generează sarcini sau recurențe.</div>
-                                    </div>
-                                    <button type="button" class="btn small" onclick="addManualItemRow()"><i style="display:inline-block;font-style:normal;margin-right:2px;">+</i> Adaugă poziție manuală</button>
-                                </div>
-                                <div class="panel-body">
-                                    <div class="items-wrap">
-                                        <table class="items-table manual-items-table">
-                                            <thead>
-                                            <tr>
-                                                <th style="width:46px;">Nr.</th>
-                                                <th>Denumire și descriere</th>
-                                                <th style="width:120px;">Cantitate</th>
-                                                <th style="width:90px;">U.M.</th>
-                                                <th style="width:150px;">Preț total</th>
-                                                <th style="width:80px;"></th>
-                                            </tr>
-                                            </thead>
-                                            <tbody id="manualItemsBody">
                                             <?php foreach ($editingManualItems as $idx => $item): ?>
                                                 <tr class="manual-item-row">
-                                                    <td class="manual-row-index"><?= (int)$idx + 1 ?></td>
+                                                    <td class="manual-row-index"></td>
+                                                    <td>
+                                                        <span class="badge">Manual</span>
+                                                    </td>
                                                     <td>
                                                         <input type="text" name="manual_items[<?= (int)$idx ?>][name]" class="manual-item-name" value="<?= pz_contract_h($item['service_name'] ?? '') ?>" placeholder="Denumire poziție manuală">
                                                         <textarea name="manual_items[<?= (int)$idx ?>][description]" class="manual-item-description" rows="2" placeholder="Descriere opțională sub denumire"><?= pz_contract_h($item['description'] ?? '') ?></textarea>
                                                     </td>
-                                                    <td><input type="number" step="0.01" min="0" name="manual_items[<?= (int)$idx ?>][quantity]" class="manual-qty" value="<?= pz_contract_h((string)($item['quantity'] ?? 0)) ?>" placeholder="cant." oninput="recalculateRows()"></td>
-                                                    <td><input type="text" name="manual_items[<?= (int)$idx ?>][unit]" value="<?= pz_contract_h($item['unit'] ?? 'buc') ?>" placeholder="UM"></td>
+                                                    <td>
+                                                        <div class="manual-unit-wrap">
+                                                            <input type="number" step="0.01" min="0" name="manual_items[<?= (int)$idx ?>][quantity]" class="manual-qty" value="<?= pz_contract_h((string)($item['quantity'] ?? 0)) ?>" placeholder="cant." oninput="recalculateRows()">
+                                                            <input type="text" name="manual_items[<?= (int)$idx ?>][unit]" value="<?= pz_contract_h($item['unit'] ?? 'buc') ?>" placeholder="UM">
+                                                        </div>
+                                                    </td>
+                                                    <td><span class="badge">suplimentar unic</span></td>
                                                     <td>
                                                         <input type="number" step="0.01" min="0" name="manual_items[<?= (int)$idx ?>][unit_price]" class="manual-price" value="<?= pz_contract_h((string)($item['unit_price'] ?? 0)) ?>" placeholder="lei fără TVA" oninput="recalculateRows()">
                                                         <input type="hidden" name="manual_items[<?= (int)$idx ?>][total_price]" class="manual-line-total-input" value="<?= pz_contract_h((string)($item['total_price'] ?? ($item['unit_price'] ?? 0))) ?>">
@@ -1146,7 +1129,7 @@ foreach ($services as $service) {
                                             </tbody>
                                         </table>
                                     </div>
-                                    <div class="client-help">Ex: Otravă șobolani, descriere produs, 3 kg, 100 lei. Rândul este comercial, nu operațional.</div>
+                                    <div class="client-help">Prețurile sunt fără TVA. Rândurile manuale apar doar în contract ca servicii suplimentare unice; nu intră în valoarea sarcinilor sau programărilor.</div>
                                 </div>
                             </div>
                                 </div>
@@ -1691,13 +1674,13 @@ function addItemRow() {
 
 function nextManualItemIndex() {
     if (typeof window.pzNextContractManualItemIndex === 'undefined') {
-        window.pzNextContractManualItemIndex = document.querySelectorAll('#manualItemsBody .manual-item-row').length;
+        window.pzNextContractManualItemIndex = document.querySelectorAll('#itemsBody .manual-item-row').length;
     }
     return window.pzNextContractManualItemIndex++;
 }
 
 function addManualItemRow() {
-    const body = document.getElementById('manualItemsBody');
+    const body = document.getElementById('itemsBody');
     if (!body) return;
     const i = nextManualItemIndex();
     const tr = document.createElement('tr');
@@ -1705,11 +1688,19 @@ function addManualItemRow() {
     tr.innerHTML = `
         <td class="manual-row-index"></td>
         <td>
+            <span class="badge">Manual</span>
+        </td>
+        <td>
             <input type="text" name="manual_items[${i}][name]" class="manual-item-name" placeholder="Denumire poziție manuală">
             <textarea name="manual_items[${i}][description]" class="manual-item-description" rows="2" placeholder="Descriere opțională sub denumire"></textarea>
         </td>
-        <td><input type="number" step="0.01" min="0" name="manual_items[${i}][quantity]" class="manual-qty" value="0" placeholder="cant." oninput="recalculateRows()"></td>
-        <td><input type="text" name="manual_items[${i}][unit]" value="buc" placeholder="UM"></td>
+        <td>
+            <div class="manual-unit-wrap">
+                <input type="number" step="0.01" min="0" name="manual_items[${i}][quantity]" class="manual-qty" value="0" placeholder="cant." oninput="recalculateRows()">
+                <input type="text" name="manual_items[${i}][unit]" value="buc" placeholder="UM">
+            </div>
+        </td>
+        <td><span class="badge">suplimentar unic</span></td>
         <td>
             <input type="number" step="0.01" min="0" name="manual_items[${i}][unit_price]" class="manual-price" value="0" placeholder="lei fără TVA" oninput="recalculateRows()">
             <input type="hidden" name="manual_items[${i}][total_price]" class="manual-line-total-input" value="0">
@@ -1783,9 +1774,9 @@ function updateRowNumbers() {
 }
 
 function updateManualRowNumbers() {
-    document.querySelectorAll('#manualItemsBody .manual-item-row').forEach((row, idx) => {
+    document.querySelectorAll('#itemsBody .manual-item-row').forEach((row, idx) => {
         const cell = row.querySelector('.manual-row-index');
-        if (cell) cell.textContent = String(idx + 1);
+        if (cell) cell.textContent = 'M' + String(idx + 1);
     });
 }
 
@@ -1799,7 +1790,7 @@ function recalculateRows() {
         const hidden = row.querySelector('.line-total-input');
         if (hidden) hidden.value = line.toFixed(2);
     });
-    document.querySelectorAll('#manualItemsBody .manual-item-row').forEach(row => {
+    document.querySelectorAll('#itemsBody .manual-item-row').forEach(row => {
         const price = parseFloat((row.querySelector('.manual-price') || {}).value || '0') || 0;
         const line = Math.round(price * 100) / 100;
         total += line;
