@@ -480,3 +480,261 @@ if (!function_exists('generate_next_task_after_scheduling')) {
         }
     }
 }
+
+if (!function_exists('generate_next_task_after_completion')) {
+    /**
+     * Apelat când o programare este finalizată (din birou sau de tehnician).
+     * Marchează sarcina curentă ca 'finalizat' și, dacă nu a fost deja generată
+     * sarcina următoare la momentul programării (`generated_next_task_id` IS NULL),
+     * o generează acum în baza regulilor de recurență.
+     *
+     * Protecție anti-dublură: dacă `generated_next_task_id` e deja setat,
+     * sarcina următoare nu se mai creează a doua oară.
+     *
+     * @return int|null id-ul sarcinii următoare dacă există/a fost generată; null altfel
+     */
+    function generate_next_task_after_completion(PDO $pdo, int $appointmentId): ?int
+    {
+        if ($appointmentId <= 0) {
+            return null;
+        }
+
+        ensure_task_recurrence_schema($pdo);
+
+        $startedTransaction = false;
+
+        try {
+            if (!$pdo->inTransaction()) {
+                $pdo->beginTransaction();
+                $startedTransaction = true;
+            }
+
+            // Găsim sarcina legată de această programare.
+            $stmt = $pdo->prepare("
+                SELECT *
+                FROM tasks
+                WHERE appointment_id = ?
+                  AND status = 'programat'
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $stmt->execute([$appointmentId]);
+            $task = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$task) {
+                if ($startedTransaction) {
+                    $pdo->commit();
+                }
+
+                return null;
+            }
+
+            $taskId = (int)$task['id'];
+
+            // Pas 1: marcăm sarcina curentă ca finalizată.
+            $stmt = $pdo->prepare("
+                UPDATE tasks
+                SET status = 'finalizat'
+                WHERE id = ?
+                  AND status = 'programat'
+            ");
+            $stmt->execute([$taskId]);
+
+            // Dacă sarcina următoare a fost deja generată la programare, ne oprim aici.
+            if (!empty($task['generated_next_task_id'])) {
+                if ($startedTransaction) {
+                    $pdo->commit();
+                }
+
+                return (int)$task['generated_next_task_id'];
+            }
+
+            $recurrenceType = $task['recurrence_type'] ?: 'none';
+            $recurrenceDays = !empty($task['recurrence_days']) ? (int)$task['recurrence_days'] : null;
+            $remainingAfter = max(0, (int)($task['recurrence_remaining'] ?? 0));
+
+            // Fără recurență, oprit sau nu mai sunt rate rămase — nu generăm nimic.
+            if (
+                $recurrenceType === 'none' ||
+                (int)($task['recurrence_stopped'] ?? 0) === 1 ||
+                $remainingAfter <= 0
+            ) {
+                if ($startedTransaction) {
+                    $pdo->commit();
+                }
+
+                return null;
+            }
+
+            $recurrenceGroup = $task['recurrence_group'] ?: make_task_recurrence_group();
+            $total = max(1, (int)($task['recurrence_total'] ?? 1));
+            $currentIndex = max(1, (int)($task['recurrence_index'] ?? 1));
+            $nextIndex = $currentIndex + 1;
+
+            $nextDate = next_task_due_date(
+                (string)$task['due_date'],
+                $recurrenceType,
+                $recurrenceDays
+            );
+
+            if (!$nextDate) {
+                if ($startedTransaction) {
+                    $pdo->commit();
+                }
+
+                return null;
+            }
+
+            // Dacă există deja o sarcină generată din asta (paranoia — generated_from_task_id),
+            // doar legăm pointer-ul, fără să creăm dublu.
+            $stmt = $pdo->prepare("
+                SELECT id
+                FROM tasks
+                WHERE generated_from_task_id = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$taskId]);
+            $existingNext = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($existingNext) {
+                $nextTaskId = (int)$existingNext['id'];
+
+                $stmt = $pdo->prepare("
+                    UPDATE tasks
+                    SET generated_next_task_id = ?
+                    WHERE id = ?
+                ");
+                $stmt->execute([$nextTaskId, $taskId]);
+
+                if ($startedTransaction) {
+                    $pdo->commit();
+                }
+
+                return $nextTaskId;
+            }
+
+            // Verificăm și pe (recurrence_group, recurrence_index) — protecție suplimentară.
+            $stmt = $pdo->prepare("
+                SELECT id
+                FROM tasks
+                WHERE recurrence_group = ?
+                  AND recurrence_index = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$recurrenceGroup, $nextIndex]);
+            $existingByIndex = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($existingByIndex) {
+                $nextTaskId = (int)$existingByIndex['id'];
+
+                $stmt = $pdo->prepare("
+                    UPDATE tasks
+                    SET generated_next_task_id = ?
+                    WHERE id = ?
+                ");
+                $stmt->execute([$nextTaskId, $taskId]);
+
+                if ($startedTransaction) {
+                    $pdo->commit();
+                }
+
+                return $nextTaskId;
+            }
+
+            // Creăm sarcina următoare.
+            $stmt = $pdo->prepare("
+                INSERT INTO tasks
+                (
+                    client_id,
+                    client_location_id,
+                    title,
+                    service_type,
+                    address,
+                    contact_person,
+                    contact_phone,
+                    due_date,
+                    recurrence_type,
+                    recurrence_days,
+                    recurrence_group,
+                    recurrence_total,
+                    recurrence_remaining,
+                    recurrence_stopped,
+                    recurrence_index,
+                    generated_from_task_id,
+                    generated_next_task_id,
+                    status,
+                    appointment_id,
+                    contract_id,
+                    contract_service_id,
+                    service_id,
+                    location_name,
+                    surface_value,
+                    surface_unit,
+                    billing_amount,
+                    currency,
+                    document_id,
+                    document_item_id,
+                    notes
+                )
+                VALUES
+                (
+                    ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?,
+                    ?, ?, ?, 0, ?,
+                    ?, NULL, 'de_programat', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
+            ");
+
+            $stmt->execute([
+                $task['client_id'],
+                $task['client_location_id'] ?? null,
+                $task['title'],
+                $task['service_type'],
+                $task['address'],
+                $task['contact_person'] ?? null,
+                $task['contact_phone'] ?? null,
+                $nextDate,
+                $recurrenceType,
+                $recurrenceDays,
+                $recurrenceGroup,
+                $total,
+                $remainingAfter,
+                $nextIndex,
+                $taskId,
+                $task['contract_id'] ?? null,
+                $task['contract_service_id'] ?? null,
+                $task['service_id'] ?? null,
+                $task['location_name'] ?? null,
+                $task['surface_value'] ?? null,
+                $task['surface_unit'] ?? null,
+                $task['billing_amount'] ?? 0,
+                $task['currency'] ?? 'RON',
+                $task['document_id'] ?? null,
+                $task['document_item_id'] ?? null,
+                $task['notes'] ?? null
+            ]);
+
+            $nextTaskId = (int)$pdo->lastInsertId();
+
+            $stmt = $pdo->prepare("
+                UPDATE tasks
+                SET generated_next_task_id = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([$nextTaskId, $taskId]);
+
+            if ($startedTransaction) {
+                $pdo->commit();
+            }
+
+            return $nextTaskId;
+
+        } catch (Throwable $e) {
+            if ($startedTransaction && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            return null;
+        }
+    }
+}

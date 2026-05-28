@@ -88,6 +88,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ")->execute([$appointmentId, (int)$currentTeamId]);
         }
 
+        // Marchează sarcina ca finalizată și generează (dacă e cazul) sarcina următoare.
+        if (function_exists('generate_next_task_after_completion')) {
+            generate_next_task_after_completion($pdo, $appointmentId);
+        }
+
         // Creează / actualizează poziția de facturat.
         if (function_exists('pz_billing_ensure_item_for_appointment')) {
             pz_billing_ensure_item_for_appointment($pdo, $appointmentId);
@@ -136,6 +141,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 SET cs.status = 'executat'
                 WHERE a.id = ?
             ")->execute([$appointmentId]);
+        }
+
+        // Marchează sarcina ca finalizată și generează (dacă e cazul) sarcina următoare.
+        if (function_exists('generate_next_task_after_completion')) {
+            generate_next_task_after_completion($pdo, $appointmentId);
         }
 
         // Creează / actualizează poziția de facturat (la finalizare din birou).

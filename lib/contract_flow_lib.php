@@ -442,7 +442,7 @@ if (!function_exists('pz_flow_sync_issued_contract')) {
 
             if ($existingService) {
                 $contractServiceId = (int)$existingService['id'];
-                $upd = $pdo->prepare('UPDATE contract_services SET contract_id = ?, client_id = ?, client_location_id = ?, service_id = ?, service_name = ?, frequency = ?, planned_date = ?, price = ?, currency = ?, location_name = ?, location_address = ?, location_contact_person = ?, location_contact_phone = ?, surface_value = ?, surface_unit = ?, recurrence_type = ?, recurrence_days = ?, recurrence_total = ?, status = IF(status IN (\'programat\', \'finalizat\'), status, \'neprogramat\') WHERE id = ?');
+                $upd = $pdo->prepare('UPDATE contract_services SET contract_id = ?, client_id = ?, client_location_id = ?, service_id = ?, service_name = ?, frequency = ?, planned_date = ?, price = ?, currency = ?, location_name = ?, location_address = ?, location_contact_person = ?, location_contact_phone = ?, surface_value = ?, surface_unit = ?, recurrence_type = ?, recurrence_days = ?, recurrence_total = ?, status = IF(status IN (\'programat\', \'finalizat\', \'executat\'), status, \'neprogramat\') WHERE id = ?');
                 $upd->execute([
                     $contractId,
                     $clientId,
@@ -625,7 +625,7 @@ if (!function_exists('pz_flow_ensure_task_for_contract_service')) {
             $taskId = (int)$pdo->lastInsertId();
         }
 
-        $updService = $pdo->prepare('UPDATE contract_services SET task_id = ?, status = IF(status IN (\'programat\', \'finalizat\'), status, \'neprogramat\') WHERE id = ?');
+        $updService = $pdo->prepare('UPDATE contract_services SET task_id = ?, status = IF(status IN (\'programat\', \'finalizat\', \'executat\'), status, \'neprogramat\') WHERE id = ?');
         $updService->execute([$taskId, $contractServiceId]);
 
         return $taskId;
