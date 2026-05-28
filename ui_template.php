@@ -619,12 +619,14 @@ body, .layout, .main, .content { background: var(--pz-bg); }
 .ds-table td.tabnum { font-variant-numeric: tabular-nums; }
 .ds-table tbody tr:last-child td { border-bottom: 0; }
 
-/* Coloane cu lățimi predefinite */
-.ds-table .col-chk     { width: 36px;  text-align: center; }
-.ds-table .col-status  { width: 110px; }
-.ds-table .col-date    { width: 100px; white-space: nowrap; }
-.ds-table .col-amount  { width: 110px; text-align: right; font-variant-numeric: tabular-nums; }
-.ds-table .col-actions { width: 90px;  text-align: right; }
+/* Coloane — lățimi automate (se adaptează la conținut). Nowrap pe coloanele scurte ca să nu se rupă inutil pe mai multe rânduri. */
+.ds-table .col-chk     { text-align: center; white-space: nowrap; }
+.ds-table .col-status  { text-align: center; white-space: nowrap; }
+.ds-table .col-date    { text-align: center; white-space: nowrap; font-family: 'Courier New', monospace; }
+.ds-table .col-hour    { text-align: center; white-space: nowrap; font-family: 'Courier New', monospace; }
+.ds-table .col-percent { text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ds-table .col-amount  { text-align: right;  white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ds-table .col-actions { text-align: center; white-space: nowrap; }
 
 /* State-uri rânduri */
 .ds-table tr.row-selected td { background: #EFF6FF; }
@@ -1932,7 +1934,7 @@ body, .layout, .main, .content { background: var(--pz-bg); }
                     <div class="ds-rule"><span class="ds-rule-dot"></span>Texte scurte — fără explicații evidente</div>
                     <div class="ds-rule"><span class="ds-rule-dot"></span>Acțiuni cu verb clar: "Programează", "Facturează", "Șterge"</div>
                     <div class="ds-rule"><span class="ds-rule-dot"></span>Labels câmpuri: UPPERCASE cu letter-spacing</div>
-                    <div class="ds-rule"><span class="ds-rule-dot"></span>Sume: format românesc — 1.234 lei (punct mii, fără zecimale)</div>
+                    <div class="ds-rule"><span class="ds-rule-dot"></span>Sume în tabele UI: format românesc — 1.234 lei (punct mii). Zecimale doar când suma nu este întreagă (850 lei, dar 12,50 lei). Documentele de facturare păstrează 2 zecimale fixe.</div>
                     <div class="ds-rule"><span class="ds-rule-dot"></span>Date: dd.mm.yyyy sau "19 mai 2026"</div>
                     <div class="ds-rule"><span class="ds-rule-dot"></span>Ore: HH:MM (ex: 09:00, 14:30)</div>
                     <div class="ds-rule"><span class="ds-rule-dot"></span>Stare goală: "Nu există programări astăzi" — nu "No data"</div>
@@ -2145,55 +2147,55 @@ body, .layout, .main, .content { background: var(--pz-bg); }
                                 <td><strong>Sumă / valoare</strong></td>
                                 <td>Dreapta ✓</td>
                                 <td>Inter 600 + tabular-nums</td>
-                                <td>fix ~110px</td>
+                                <td>auto</td>
                                 <td class="right tabnum" style="font-weight:600">11.953 lei</td>
-                                <td class="muted">Punct mii, fără zecimale</td>
+                                <td class="muted">Punct mii. Zecimale doar dacă suma nu e întreagă (850 lei vs 12,50 lei)</td>
                             </tr>
                             <tr>
                                 <td><strong>Dată</strong></td>
-                                <td>Stânga</td>
+                                <td>Centru ✓</td>
                                 <td>Courier New 12px</td>
-                                <td>fix ~100px</td>
-                                <td class="mono nowrap">15.05.2026</td>
-                                <td class="muted">Monospaced, white-space:nowrap</td>
+                                <td>auto</td>
+                                <td class="center mono nowrap">15.05.2026</td>
+                                <td class="muted">Monospaced, white-space:nowrap, centrat</td>
                             </tr>
                             <tr>
                                 <td><strong>Oră</strong></td>
-                                <td>Stânga</td>
+                                <td>Centru ✓</td>
                                 <td>Courier New 12px</td>
-                                <td>fix ~70px</td>
-                                <td class="mono nowrap">09:30</td>
-                                <td class="muted">Format HH:MM</td>
+                                <td>auto</td>
+                                <td class="center mono nowrap">09:30</td>
+                                <td class="muted">Format HH:MM, centrat</td>
                             </tr>
                             <tr>
                                 <td><strong>Status</strong></td>
-                                <td>Stânga</td>
+                                <td>Centru ✓</td>
                                 <td>Badge semantic</td>
-                                <td>fix ~110px</td>
-                                <td><span class="ds-badge gr">Finalizată</span></td>
-                                <td class="muted">Culoare conform sistem status</td>
+                                <td>auto</td>
+                                <td class="center"><span class="ds-badge gr">Finalizată</span></td>
+                                <td class="muted">Culoare conform sistem status, centrat</td>
                             </tr>
                             <tr>
                                 <td><strong>Procent</strong></td>
-                                <td>Dreapta ✓</td>
+                                <td>Centru ✓</td>
                                 <td>Inter 600 tabular-nums</td>
-                                <td>fix ~70px</td>
-                                <td class="right" style="font-weight:600">84%</td>
+                                <td>auto</td>
+                                <td class="center" style="font-weight:600">84%</td>
                                 <td class="muted">Fără zecimale dacă nu e necesar</td>
                             </tr>
                             <tr>
                                 <td><strong>Acțiuni</strong></td>
-                                <td>Dreapta ✓</td>
+                                <td>Centru ✓</td>
                                 <td>Butoane 26px</td>
-                                <td>fix ~90px</td>
-                                <td class="right"><button class="ds-table-btn">Deschide</button></td>
+                                <td>auto</td>
+                                <td class="center"><button class="ds-table-btn">Deschide</button></td>
                                 <td class="muted">Max 2 butoane; al 3-lea = meniu ⋯</td>
                             </tr>
                             <tr>
                                 <td><strong>Checkbox</strong></td>
                                 <td>Centru</td>
                                 <td>—</td>
-                                <td>fix 36px</td>
+                                <td>auto</td>
                                 <td class="center"><input type="checkbox" style="width:14px;height:14px"></td>
                                 <td class="muted">Prima coloană, dacă există selecție</td>
                             </tr>
@@ -2373,15 +2375,13 @@ body, .layout, .main, .content { background: var(--pz-bg); }
 
                 <div class="ds-demo-label">Coloane & aliniere</div>
                 <div class="ds-rules" style="margin-bottom:14px">
-                    <div class="ds-rule"><span class="ds-rule-dot"></span>Text: aliniat stânga</div>
-                    <div class="ds-rule"><span class="ds-rule-dot"></span>Numere & sume: aliniat dreapta + tabular-nums</div>
-                    <div class="ds-rule"><span class="ds-rule-dot"></span>Acțiuni: aliniate dreapta, ultima coloană</div>
-                    <div class="ds-rule"><span class="ds-rule-dot"></span>Status badge: aliniat stânga</div>
-                    <div class="ds-rule"><span class="ds-rule-dot"></span>Checkbox: centrat, prima coloană, 36px fix</div>
-                    <div class="ds-rule"><span class="ds-rule-dot"></span>Dată: Courier New 12px, white-space:nowrap, 100px fix</div>
-                    <div class="ds-rule"><span class="ds-rule-dot"></span>Valori monetare: punct mii, fără zecimale, sufixul "lei"</div>
-                    <div class="ds-rule"><span class="ds-rule-dot"></span>Coloane fixe: status 110px, acțiuni 90px, dată 100px</div>
-                    <div class="ds-rule"><span class="ds-rule-dot"></span>Coloane flex: text cresc să umple spațiul disponibil</div>
+                    <div class="ds-rule"><span class="ds-rule-dot"></span>Lățimi auto — coloanele se adaptează la conținutul lor; nu se folosesc lățimi fixe</div>
+                    <div class="ds-rule"><span class="ds-rule-dot"></span>Textul în celulă rămâne pe un singur rând (white-space:nowrap pe coloanele scurte); trece pe rândul următor doar când rândul tabelului e plin</div>
+                    <div class="ds-rule"><span class="ds-rule-dot"></span>Text principal & secundar: aliniat stânga (running text)</div>
+                    <div class="ds-rule"><span class="ds-rule-dot"></span>Sume monetare: aliniate dreapta + tabular-nums (excepție justificată — păstrăm alinierea pe puncte pentru comparare digit-pe-digit)</div>
+                    <div class="ds-rule"><span class="ds-rule-dot"></span>Dată, oră, status, procent, acțiuni, checkbox: centrate pe coloană</div>
+                    <div class="ds-rule"><span class="ds-rule-dot"></span>Dată: Courier New 12px, white-space:nowrap, centrat</div>
+                    <div class="ds-rule"><span class="ds-rule-dot"></span>Valori monetare în tabele UI: punct mii, zecimale doar când suma nu e întreagă, sufixul "lei". Documentele fiscale păstrează 2 zecimale fixe.</div>
                 </div>
 
                 <div class="ds-demo-label">Sortare & filtrare</div>
