@@ -747,7 +747,8 @@ foreach ($services as $service) {
 .manual-item-name { margin-bottom:6px; }
 .manual-item-description { min-height:42px !important; }
 .manual-item-row td { background:#fffaf7; }
-.manual-item-row .manual-unit-wrap { display:grid; grid-template-columns:minmax(0, 1fr) 62px; gap:6px; }
+.manual-item-row .manual-unit-wrap { display:grid; grid-template-columns:1fr; gap:6px; min-width:92px; }
+.manual-item-row .manual-qty { min-width:0; }
 .row-total { font-weight:900; color:var(--text); text-align:right; padding-top:8px; white-space:nowrap; }
 .form-actions { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
 .form-actions .right { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
