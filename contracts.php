@@ -1482,6 +1482,7 @@ function pzClientSetSelected(client) {
     populateLocationsSmart();
     populateRowLocations();
     recalculateRows();
+    if (typeof updateContractFormButtons === 'function') updateContractFormButtons();
 }
 function pzClientClear() {
     const wrap = document.getElementById('clientAutocomplete');
@@ -1495,6 +1496,7 @@ function pzClientClear() {
     document.getElementById('clientResults').innerHTML = '';
     populateLocationsSmart();
     recalculateRows();
+    if (typeof updateContractFormButtons === 'function') updateContractFormButtons();
 }
 function initClientAutocomplete() {
     const wrap = document.getElementById('clientAutocomplete');
@@ -1727,16 +1729,19 @@ function removeItemRow(button) {
             row.querySelectorAll('select').forEach(select => select.value = '');
             recalculateRows();
         }
+        if (typeof updateContractFormButtons === 'function') updateContractFormButtons();
         return;
     }
     button.closest('tr').remove();
     recalculateRows();
+    if (typeof updateContractFormButtons === 'function') updateContractFormButtons();
 }
 
 function removeManualItemRow(button) {
     const row = button.closest('tr');
     if (row) row.remove();
     recalculateRows();
+    if (typeof updateContractFormButtons === 'function') updateContractFormButtons();
 }
 
 function syncServiceName(select) {
@@ -1820,6 +1825,163 @@ function recalculateRows() {
     updateMainLocationId();
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Validare formular contract — blochează butoanele de salvare/emitere
+   până când toate câmpurile obligatorii sunt completate. Server-ul
+   păstrează validările proprii ca fallback.
+─────────────────────────────────────────────────────────────────── */
+function validateContractForm() {
+    const form = document.getElementById('contractForm');
+    if (!form) return { ok: false, reason: 'Formular indisponibil.' };
+
+    // 1. Client selectat
+    const clientHidden = document.getElementById('clientSelect');
+    const clientId = clientHidden ? Number(clientHidden.value || 0) : 0;
+    if (clientId <= 0) {
+        return { ok: false, reason: 'Selectează clientul pentru contract.' };
+    }
+
+    // 2. Data de început
+    const startDate = document.getElementById('contractStartDate');
+    if (!startDate || !startDate.value) {
+        return { ok: false, reason: 'Completează data de început a contractului.' };
+    }
+
+    // 3. Data de sfârșit (opțională, dar dacă există nu poate fi înaintea celei de început)
+    const endDate = document.getElementById('contractEndDate');
+    if (endDate && endDate.value && endDate.value < startDate.value) {
+        return { ok: false, reason: 'Data de sfârșit nu poate fi înainte de data de început.' };
+    }
+
+    // 4. Tip contract
+    const typedRadio = form.querySelector('input[name="contract_type"]:checked');
+    const contractType = typedRadio ? typedRadio.value : 'recurrent';
+
+    if (contractType === 'execution') {
+        // Mod execuție: obiectul contractului trebuie completat
+        const obj = document.getElementById('contractObjectTextarea');
+        if (!obj || obj.value.trim() === '') {
+            return { ok: false, reason: 'Completează obiectul contractului.' };
+        }
+        return { ok: true, reason: '' };
+    }
+
+    // 5. Mod recurent: cel puțin un rând valid în servicii sau suplimentare
+    let validServiceRows = 0;
+    let firstInvalidService = null;
+    const serviceSelects = form.querySelectorAll('select.service-select');
+    serviceSelects.forEach((sel, idx) => {
+        if (sel.disabled) return;
+        const tr = sel.closest('tr');
+        if (!tr) return;
+
+        const priceInput = tr.querySelector('input.price');
+        const nameHidden = tr.querySelector('input.service-name');
+        const hasService = sel.value && sel.value.trim() !== '';
+        const hasPrice = priceInput && parseFloat(String(priceInput.value || '0').replace(',', '.')) > 0;
+        const hasName = nameHidden && nameHidden.value && nameHidden.value.trim() !== '';
+
+        // Rând complet gol — server-ul îl sare, îl ignor și eu
+        if (!hasService && !hasPrice && !hasName) return;
+
+        const locSel = tr.querySelector('select.row-location');
+        const freqSel = tr.querySelector('select[name*="frequency_text"]');
+        const hasLocation = locSel && locSel.value && Number(locSel.value) > 0;
+        const hasFrequency = freqSel && freqSel.value && freqSel.value !== '';
+
+        if (!hasLocation || !hasFrequency) {
+            if (!firstInvalidService) {
+                firstInvalidService = {
+                    row: idx + 1,
+                    missing: !hasLocation ? 'locația' : 'frecvența'
+                };
+            }
+            return;
+        }
+        validServiceRows++;
+    });
+
+    if (firstInvalidService) {
+        return {
+            ok: false,
+            reason: 'Completează ' + firstInvalidService.missing + ' pe rândul ' + firstInvalidService.row + ' din serviciile contractate.'
+        };
+    }
+
+    let validManualRows = 0;
+    let firstInvalidManualRow = null;
+    const manualNameInputs = form.querySelectorAll('input.manual-item-name');
+    manualNameInputs.forEach((nameInput, idx) => {
+        if (nameInput.disabled) return;
+        const tr = nameInput.closest('tr');
+        if (!tr) return;
+
+        const descInput = tr.querySelector('textarea.manual-item-description');
+        const qtyInput = tr.querySelector('input.manual-qty');
+        const priceInput = tr.querySelector('input.manual-price');
+        const unitInput = tr.querySelector('input[name*="[unit]"]');
+
+        const hasName = nameInput.value && nameInput.value.trim() !== '';
+        const hasDesc = descInput && descInput.value && descInput.value.trim() !== '';
+        const hasQty = qtyInput && qtyInput.value && qtyInput.value.trim() !== '' && parseFloat(String(qtyInput.value).replace(',', '.')) > 0;
+        const hasPrice = priceInput && priceInput.value && priceInput.value.trim() !== '' && parseFloat(String(priceInput.value).replace(',', '.')) > 0;
+        const hasUnit = unitInput && unitInput.value && unitInput.value.trim() !== '' && unitInput.value.trim() !== 'buc';
+
+        // Rând complet gol — server-ul îl sare
+        if (!hasName && !hasDesc && !hasQty && !hasPrice && !hasUnit) return;
+
+        if (!hasName) {
+            if (firstInvalidManualRow === null) firstInvalidManualRow = idx + 1;
+            return;
+        }
+        validManualRows++;
+    });
+
+    if (firstInvalidManualRow !== null) {
+        return {
+            ok: false,
+            reason: 'Completează denumirea pe rândul ' + firstInvalidManualRow + ' din pozițiile suplimentare.'
+        };
+    }
+
+    if (validServiceRows + validManualRows === 0) {
+        return { ok: false, reason: 'Adaugă cel puțin un serviciu / locație în contract.' };
+    }
+
+    return { ok: true, reason: '' };
+}
+
+function updateContractFormButtons() {
+    const form = document.getElementById('contractForm');
+    if (!form) return;
+
+    const result = validateContractForm();
+    const btnSave = form.querySelector('button[name="action"][value="save_draft"]');
+    const btnIssue = form.querySelector('button[name="action"][value="issue"]');
+
+    [btnSave, btnIssue].forEach(function(btn) {
+        if (!btn) return;
+        if (result.ok) {
+            btn.disabled = false;
+            btn.removeAttribute('title');
+            btn.style.opacity = '';
+            btn.style.cursor = '';
+        } else {
+            btn.disabled = true;
+            btn.title = result.reason;
+            btn.style.opacity = '0.55';
+            btn.style.cursor = 'not-allowed';
+        }
+    });
+
+    // Mesaj inline (opțional, dacă există containerul)
+    const reasonBox = document.getElementById('contractFormReason');
+    if (reasonBox) {
+        reasonBox.textContent = result.ok ? '' : result.reason;
+        reasonBox.style.display = result.ok ? 'none' : '';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const currency = document.getElementById('currency');
     const clearBtn = document.getElementById('clientClearBtn');
@@ -1844,6 +2006,15 @@ document.addEventListener('DOMContentLoaded', function() {
     populateLocationsSmart();
     recalculateRows();
     initContractTypePicker();
+
+    // Wire-up validare: input + change pe întreg formularul (event delegation)
+    const contractForm = document.getElementById('contractForm');
+    if (contractForm) {
+        contractForm.addEventListener('input', updateContractFormButtons);
+        contractForm.addEventListener('change', updateContractFormButtons);
+    }
+    // Stare inițială corectă a butoanelor
+    updateContractFormButtons();
 
     const clientSearchInput = document.getElementById('clientSearchInput');
     const clientHidden = document.getElementById('clientSelect');
@@ -1935,6 +2106,9 @@ function initContractTypePicker() {
             // Recalculează din tabel ca să fie suma actuală a items-urilor
             if (typeof recalculateRows === 'function') recalculateRows();
         }
+
+        // Reevaluare butoane: schimbarea modului modifică ce câmpuri sunt obligatorii
+        if (typeof updateContractFormButtons === 'function') updateContractFormButtons();
     }
 
     radios.forEach(r => r.addEventListener('change', () => applyMode(r.value)));
